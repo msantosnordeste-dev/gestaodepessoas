@@ -3667,7 +3667,7 @@ async function cdCarregar(){cdTela(`<div class="card"><p>Carregando…</p></div>
   if(r.erro){cdTela(`<div class="card"><h2>Não foi possível abrir</h2><p>${esc(r.erro)}</p></div>`);return}
   if(r.precisaCpf){CD.info=null;cdTela(`<div class="card"><h2>Olá, ${esc(r.primeiroNome)}!</h2><p class="muted">Para sua segurança, confirme seu CPF para continuar.</p><form class="form-grid" onsubmit="return false"><div class="field full"><label for="cd-cpfc">CPF</label><input class="input" id="cd-cpfc" inputmode="numeric" placeholder="000.000.000-00"></div></form><p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="cpf" style="width:100%;justify-content:center">Continuar</button></div>`);return}
   CD.info=r;cdRender()}
-function cdTela(html){$("#main").innerHTML=`<div style="max-width:680px;margin:0 auto;padding:18px 16px 60px">
+function cdTela(html){$("#main").innerHTML=`<style>.cd-inv{border-color:var(--bad)!important;box-shadow:0 0 0 1px var(--bad);background:color-mix(in srgb,var(--bad) 6%,var(--surface))}.cd-msg{display:block;color:var(--bad);font-size:.75rem;margin-top:4px}.cd-msg[hidden]{display:none}.cd-docbad{border:1.5px solid var(--bad)!important;background:color-mix(in srgb,var(--bad) 6%,var(--surface))!important}</style><div style="max-width:680px;margin:0 auto;padding:18px 16px 60px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><div class="logo-mark" aria-hidden="true" style="width:36px;height:36px;border-radius:10px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.5 11h-13z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></div><div><b>Brasileiríssima</b><br><span class="small muted">Admissão · Gestão de Pessoas</span></div></div>${html}</div>`;window.scrollTo(0,0)}
 const CD_PASSOS=[["Pré-cadastro",["convite","correcao","analise"]],["Proposta",["oferta"]],["Documentos",["documentos","conferencia"]],["Conta salário e exame",["cartas"]],["Admissão",["admitido"]]];
 function cdProgresso(et){const i=CD_PASSOS.findIndex(p=>p[1].includes(et));return `<div style="display:flex;gap:6px;margin:0 0 16px">${CD_PASSOS.map((p,k)=>`<div style="flex:1"><div style="height:6px;border-radius:99px;background:${k<i?"var(--brand)":k===i?"var(--warn)":"var(--line)"}"></div><span class="small ${k===i?"":"muted"}" style="display:block;margin-top:4px;font-size:.7rem">${p[0]}</span></div>`).join("")}</div>`}
@@ -3692,23 +3692,27 @@ function cdRender(){
   if(et==="documentos"||et==="conferencia"){
     const doc=t=>(r.docs||[]).filter(a=>a.tipo===t).sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
     const lista=(r.checklist||[]).filter(x=>x.etapa==="documentos");const obrig=lista.filter(x=>x.obrig);const env=obrig.filter(x=>{const a=doc(x.tipo);return a&&a.status!=="reprovado"}).length;
-    const edit=et==="documentos";
-    const sel=(k,t,ops)=>`<div class="field"><label for="cdd-${k}">${t}</label><select class="input" id="cdd-${k}" ${edit?"":"disabled"}><option value="">Selecione…</option>${ops.map(x=>`<option ${d[k]===x?"selected":""}>${x}</option>`).join("")}</select></div>`;
-    const inp=(k,t,tp,full)=>`<div class="field ${full?"full":""}"><label for="cdd-${k}">${t}</label><input class="input" id="cdd-${k}" ${tp?'type="'+tp+'"':""} value="${esc(d[k]||"")}" ${edit?"":"disabled"}></div>`;
-    const deps=(d.dependentes||[]);
-    cdTela(top+`${r.motivo&&edit?`<div class="note" style="border-color:var(--bad)"><b>Atenção:</b> ${esc(r.motivo)}</div>`:""}
+    const edit=et==="documentos";const deps=(d.dependentes||[]);
+    const errs=edit?cdValidar(d):{};
+    const msg=k=>edit?`<span class="cd-msg" id="cdm-${k}" ${errs[k]?"":"hidden"}>${esc(errs[k]||"")}</span>`:"";
+    const rot=(k,t)=>t+(CD_OBRIG.includes(k)?` <span style="color:var(--bad)">*</span>`:"");
+    const sel=(k,t,ops)=>`<div class="field"><label for="cdd-${k}">${rot(k,t)}</label><select class="input ${errs[k]?"cd-inv":""}" id="cdd-${k}" data-cdv="${k}" ${edit?"":"disabled"}><option value="">Selecione…</option>${ops.map(x=>`<option ${d[k]===x?"selected":""}>${x}</option>`).join("")}</select>${msg(k)}</div>`;
+    const inp=(k,t,tp,full,ph)=>`<div class="field ${full?"full":""}"><label for="cdd-${k}">${rot(k,t)}</label><input class="input ${errs[k]?"cd-inv":""}" id="cdd-${k}" data-cdv="${k}" ${tp?'type="'+tp+'"':""} ${ph?'placeholder="'+ph+'"':""} value="${esc(d[k]||"")}" ${edit?"":"disabled"}>${msg(k)}</div>`;
+    const faltaDoc=x=>{const a=doc(x.tipo);return edit&&((x.obrig&&!a)||(a&&a.status==="reprovado"))};
+    const nPend=Object.keys(errs).length+lista.filter(faltaDoc).length+(edit?deps.filter(x=>Object.keys(cdDepErros(x)).length).length:0);
+    cdTela(top+`${edit&&nPend?`<div class="note cd-docbad"><b>Falta${nPend===1?"":"m"} ${nPend} ite${nPend===1?"m":"ns"}</b>, marcado${nPend===1?"":"s"} em vermelho abaixo: campos obrigatórios sem preencher, dados incorretos, documentos obrigatórios não anexados ou reprovados pelo RH.</div>`:""}${r.motivo&&edit?`<div class="note" style="border-color:var(--bad)"><b>Atenção:</b> ${esc(r.motivo)}</div>`:""}
     ${et==="conferencia"?`<div class="card"><h2>Documentos em conferência</h2><p>O RH está conferindo seus documentos. Se algum precisar ser reenviado, você será avisado pelo WhatsApp.</p></div>`:""}
     <div class="card"><h2>1. Seus dados</h2><p class="muted small">Usados na sua ficha de registro.</p><form class="form-grid" onsubmit="return false">
       ${inp("nascimento","Data de nascimento","date")}${sel("sexo","Sexo",["Feminino","Masculino"])}${sel("estadoCivil","Estado civil",["Solteiro(a)","Casado(a)","União estável","Divorciado(a)","Viúvo(a)"])}${sel("escolaridade","Escolaridade",["Fundamental incompleto","Fundamental completo","Médio incompleto","Médio completo","Superior incompleto","Superior completo"])}
       ${inp("nomeMae","Nome da mãe","",1)}${inp("nomePai","Nome do pai","",1)}${sel("racaCor","Raça/cor",["Branca","Preta","Parda","Amarela","Indígena","Não informada"])}${inp("naturalidade","Naturalidade (cidade/UF)")}
-      ${inp("rg","RG")}${inp("rgOrgao","Órgão emissor")}${inp("rgUf","UF do RG")}${inp("rgEmissao","Emissão do RG","date")}${inp("pis","PIS/NIS")}${inp("ctpsNumero","CTPS número")}${inp("ctpsSerie","CTPS série")}${inp("ctpsUf","CTPS UF")}
-      ${inp("tituloEleitor","Título de eleitor")}${inp("tituloZona","Zona")}${inp("tituloSecao","Seção")}${inp("reservista","Reservista (se tiver)")}
-      ${inp("cep","CEP")}${inp("logradouro","Rua / avenida","",1)}${inp("numero","Número")}${inp("complemento","Complemento")}${inp("bairro","Bairro")}${inp("cidade","Cidade")}${inp("uf","UF")}
+      ${inp("tituloEleitor","Título de eleitor","","","12 números")}${inp("tituloZona","Zona")}${inp("tituloSecao","Seção")}${inp("reservista","Reservista (se tiver)")}
+      ${inp("cep","CEP","","","00000-000")}${inp("logradouro","Rua / avenida","",1)}${inp("numero","Número")}${inp("complemento","Complemento")}${inp("bairro","Bairro")}${inp("cidade","Cidade")}${inp("uf","UF","","","SP")}
+      <p class="full small muted" style="margin:0">Os números do RG, da Carteira de Trabalho e do PIS não precisam ser digitados: o RH confere pelos documentos anexados.</p>
       <fieldset class="full fx-sec"><legend>Dependentes (filhos, cônjuge)</legend><div id="cd-deps">${deps.map((x,i)=>cdDepLinha(x,i,edit)).join("")||`<p class="small muted">Nenhum dependente.</p>`}</div>${edit?`<button type="button" class="btn btn-sm" data-cd="adddep">+ Dependente</button>`:""}</fieldset>
     </form>${edit?`<p class="small" id="cd-derr" style="color:var(--bad)" hidden></p><button class="btn" data-cd="salvardados" style="margin-top:8px">Salvar meus dados</button>`:""}</div>
-    <div class="card"><h2>2. Documentos <span class="chip ${env===obrig.length?"c-ok":"c-warn"}">${env} de ${obrig.length} obrigatórios</span></h2><p class="muted small">Foto do documento com o celular (bem iluminada e legível) ou PDF. Até 10 MB.</p>
+    <div class="card"><h2>2. Documentos <span class="chip ${env===obrig.length?"c-ok":"c-bad"}">${env} de ${obrig.length} obrigatórios</span></h2><p class="muted small">Foto do documento com o celular (bem iluminada e legível) ou PDF. Até 10 MB.</p>
       <div class="av-list">${lista.map(x=>{const a=doc(x.tipo);const st=!a?`<span class="chip c-mute">Não enviado</span>`:a.status==="aprovado"?`<span class="chip c-ok">Aprovado</span>`:a.status==="reprovado"?`<span class="chip c-bad">Reenviar</span>`:`<span class="chip c-info">Enviado</span>`;
-        return `<div class="alert"><div style="min-width:0;grid-column:1/3"><b style="white-space:normal">${esc(x.nome)} ${x.obrig?`<span class="chip c-mute">obrigatório</span>`:""}</b>${a&&a.status==="reprovado"?`<span style="color:var(--bad);white-space:normal">Motivo: ${esc(a.motivo||"")}</span>`:""}${x.tipo==="foto3x4"&&edit?FOTO_REGRAS:""}</div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${st}${edit&&(!a||a.status!=="aprovado")?`<label class="btn btn-sm ${!a||a.status==="reprovado"?"btn-primary":""}" style="cursor:pointer">${a?"Reenviar":"Enviar"}<input type="file" hidden accept="${x.tipo==="foto3x4"?"image/jpeg,image/png":"application/pdf,image/jpeg,image/png"}" data-cdfile="${x.tipo}"></label>`:""}</div></div>`}).join("")}</div></div>
+        return `<div class="alert ${faltaDoc(x)?"cd-docbad":""}"><div style="min-width:0;grid-column:1/3"><b style="white-space:normal">${esc(x.nome)} ${x.obrig?`<span class="chip ${faltaDoc(x)?"c-bad":"c-mute"}">obrigatório</span>`:""}</b>${a&&a.status==="reprovado"?`<span style="color:var(--bad);white-space:normal"><b>Reprovado pelo RH.</b> Motivo: ${esc(a.motivo||"")}</span>`:edit&&x.obrig&&!a?`<span style="color:var(--bad)">Ainda não anexado</span>`:""}${x.tipo==="foto3x4"&&edit?FOTO_REGRAS:""}</div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${st}${edit&&(!a||a.status!=="aprovado")?`<label class="btn btn-sm ${!a||a.status==="reprovado"?"btn-primary":""}" style="cursor:pointer">${a?"Reenviar":"Enviar"}<input type="file" hidden accept="${x.tipo==="foto3x4"?"image/jpeg,image/png":"application/pdf,image/jpeg,image/png"}" data-cdfile="${x.tipo}"></label>`:""}</div></div>`}).join("")}</div></div>
     ${edit?`<div class="card"><h2>3. Enviar para o RH</h2><p class="muted small">Quando todos os obrigatórios estiverem enviados e seus dados salvos, envie para conferência.</p><p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="conferencia" style="width:100%;justify-content:center">Enviar documentos para conferência</button></div>`:""}`);return}
   if(et==="cartas"){
     const doc=t=>(r.docs||[]).filter(a=>a.tipo===t).sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
@@ -3721,8 +3725,30 @@ function cdRender(){
   if(et==="admitido"){cdTela(top+`<div class="card"><h2>Bem-vindo(a) à Brasileiríssima!</h2><p>Sua admissão foi concluída. Em caso de dúvidas, fale com o gerente da sua loja ou com o RH.</p></div>`);return}
   cdTela(`<div class="card"><h2>Processo encerrado</h2><p>Em caso de dúvidas, fale com o RH.</p></div>`);
 }
-function cdDepLinha(x,i,edit){return `<div class="dep-row" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)${edit?" auto":""};margin-bottom:6px"><input class="input" id="cdp-nome-${i}" placeholder="Nome" value="${esc(x.nome||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-par-${i}" placeholder="Parentesco" value="${esc(x.parentesco||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-nasc-${i}" type="date" value="${esc(x.nascimento||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-cpf-${i}" placeholder="CPF" value="${esc(x.cpf||"")}" ${edit?"":"disabled"}>${edit?`<button type="button" class="btn btn-sm btn-ghost" data-cd="rmdep|${i}" aria-label="Remover">✕</button>`:""}</div>`}
-const CD_CAMPOS=["nascimento","sexo","estadoCivil","escolaridade","nomeMae","nomePai","racaCor","naturalidade","rg","rgOrgao","rgUf","rgEmissao","pis","ctpsNumero","ctpsSerie","ctpsUf","tituloEleitor","tituloZona","tituloSecao","reservista","cep","logradouro","numero","complemento","bairro","cidade","uf"];
+function cdDepLinha(x,i,edit){const er=edit?cdDepErros(x):{};const c=k=>er[k]?"cd-inv":"";
+  return `<div class="dep-row" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)${edit?" auto":""};margin-bottom:6px"><input class="input ${c("nome")}" id="cdp-nome-${i}" data-cddep="${i}" placeholder="Nome completo" value="${esc(x.nome||"")}" ${edit?"":"disabled"}><input class="input ${c("parentesco")}" id="cdp-par-${i}" data-cddep="${i}" placeholder="Parentesco" value="${esc(x.parentesco||"")}" ${edit?"":"disabled"}><input class="input ${c("nascimento")}" id="cdp-nasc-${i}" data-cddep="${i}" type="date" value="${esc(x.nascimento||"")}" ${edit?"":"disabled"}><input class="input ${c("cpf")}" id="cdp-cpf-${i}" data-cddep="${i}" placeholder="CPF" value="${esc(x.cpf||"")}" ${edit?"":"disabled"}>${edit?`<button type="button" class="btn btn-sm btn-ghost" data-cd="rmdep|${i}" aria-label="Remover">✕</button>`:""}${Object.keys(er).length?`<span class="cd-msg" style="grid-column:1/-1">${esc(Object.values(er).join(" · "))}</span>`:""}</div>`}
+const CD_CAMPOS=["nascimento","sexo","estadoCivil","escolaridade","nomeMae","nomePai","racaCor","naturalidade","tituloEleitor","tituloZona","tituloSecao","reservista","cep","logradouro","numero","complemento","bairro","cidade","uf"];
+const CD_OBRIG=["nascimento","sexo","estadoCivil","escolaridade","nomeMae","racaCor","cep","logradouro","numero","bairro","cidade","uf"];
+const UFS="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+function cdValidarCampo(k,v){
+  v=String(v||"").trim();
+  if(!v)return CD_OBRIG.includes(k)?"Preencha este campo.":"";
+  if(k==="nascimento"){const a=(Date.now()-new Date(v+"T12:00:00"))/(365.25*864e5);if(!(a>=14&&a<=90))return "Data de nascimento inválida."}
+  if((k==="nomeMae"||k==="nomePai")&&(v.split(/\s+/).length<2||/\d/.test(v)))return "Informe o nome completo, sem números.";
+  if(k==="cep"&&soDig(v).length!==8)return "O CEP precisa ter 8 números.";
+  if(k==="uf"&&!UFS.includes(v.toUpperCase()))return "UF inválida. Use a sigla, por exemplo SP.";
+  if(k==="tituloEleitor"&&soDig(v).length!==12)return "O título de eleitor tem 12 números.";
+  if((k==="tituloZona"||k==="tituloSecao")&&!/^\d{1,4}$/.test(v))return "Use só números (até 4).";
+  if((k==="cidade"||k==="bairro"||k==="logradouro")&&v.length<2)return "Preencha corretamente.";
+  return "";
+}
+function cdValidar(d){const e={};CD_CAMPOS.forEach(k=>{const m=cdValidarCampo(k,d[k]);if(m)e[k]=m});return e}
+function cdDepErros(x){const e={};const algum=x.nome||x.parentesco||x.nascimento||x.cpf;if(!algum)return e;
+  if(!x.nome||String(x.nome).trim().split(/\s+/).length<2)e.nome="Nome completo do dependente";
+  if(!x.parentesco)e.parentesco="Parentesco";
+  if(x.nascimento&&new Date(x.nascimento+"T12:00:00")>new Date())e.nascimento="Nascimento no futuro";
+  if(x.cpf&&!cpfValido(x.cpf))e.cpf="CPF do dependente inválido";
+  return e}
 function cdLerDeps(){const o=[];for(let i=0;document.getElementById("cdp-nome-"+i);i++)o.push({nome:$("#cdp-nome-"+i).value.trim(),parentesco:$("#cdp-par-"+i).value.trim(),nascimento:$("#cdp-nasc-"+i).value,cpf:$("#cdp-cpf-"+i).value.trim()});return o}
 function cdErro(m,id){const el=document.getElementById(id||"cd-err");if(el){el.hidden=false;el.textContent=m}else toast(m)}
 async function cdAcao(a,t){
@@ -3737,10 +3763,13 @@ async function cdAcao(a,t){
   if(a==="adddep"){const deps=cdLerDeps();deps.push({});$("#cd-deps").innerHTML=deps.map((x,i)=>cdDepLinha(x,i,true)).join("");return}
   if(a.startsWith("rmdep|")){const deps=cdLerDeps();deps.splice(Number(a.split("|")[1]),1);$("#cd-deps").innerHTML=deps.map((x,i)=>cdDepLinha(x,i,true)).join("")||`<p class="small muted">Nenhum dependente.</p>`;return}
   if(a==="salvardados"||a==="conferencia"){
-    const dados={};CD_CAMPOS.forEach(k=>{const el=document.getElementById("cdd-"+k);if(el)dados[k]=el.value.trim()});dados.dependentes=cdLerDeps().filter(x=>x.nome);
+    const dados={};CD_CAMPOS.forEach(k=>{const el=document.getElementById("cdd-"+k);if(el)dados[k]=el.value.trim()});if(dados.uf)dados.uf=dados.uf.toUpperCase();const todosDeps=cdLerDeps();dados.dependentes=todosDeps.filter(x=>x.nome);
+    const errs=cdValidar(dados);const errDep=todosDeps.some(x=>Object.keys(cdDepErros(x)).length);
+    CD_CAMPOS.forEach(k=>cdMarcar(k,errs[k]||""));
+    if(a==="conferencia"&&(Object.keys(errs).length||errDep)){cdErro("Corrija os campos marcados em vermelho antes de enviar.");const p=document.querySelector(".cd-inv");if(p){p.scrollIntoView({block:"center"});p.focus()}return}
     t.disabled=true;const x=await cdApi({acao:"dados",dados});
     if(x.erro){t.disabled=false;cdErro(x.erro,a==="salvardados"?"cd-derr":"cd-err");return}
-    if(a==="salvardados"){t.disabled=false;toast("Dados salvos");CD.info.dados={...CD.info.dados,...dados};return}
+    if(a==="salvardados"){t.disabled=false;CD.info.dados={...CD.info.dados,...dados};toast(Object.keys(errs).length||errDep?"Dados salvos. Ainda há campos marcados em vermelho.":"Dados salvos");cdRender();return}
     const y=await cdApi({acao:"conferencia"});t.disabled=false;if(y.erro){cdErro(y.erro);return}cdCarregar();return}
   if(a==="salvarconta"){const dados={};["banco","agencia","conta","pix"].forEach(k=>dados[k]=$("#cdd-"+k).value.trim());const x=await cdApi({acao:"dados",dados});if(x.erro){toast(x.erro);return}toast("Dados da conta salvos");return}
 }
@@ -3775,8 +3804,15 @@ document.addEventListener("change",ev=>{
   if(t.dataset&&t.dataset.anxfile){const f=t.files[0];t.value="";anxEnviarColab(t.dataset.anxfile,f);return}
   if(t.dataset&&t.dataset.cdfile){cdEnviarArquivo(t.dataset.cdfile,t.files[0],t);return}
 });
+function cdMarcar(k,m){const el=document.getElementById("cdd-"+k);if(!el)return;el.classList.toggle("cd-inv",!!m);const s=document.getElementById("cdm-"+k);if(s){s.hidden=!m;s.textContent=m}}
+document.addEventListener("change",ev=>{const t=ev.target;
+  if(t.dataset&&t.dataset.cdv)cdMarcar(t.dataset.cdv,cdValidarCampo(t.dataset.cdv,t.value));
+  if(t.dataset&&t.dataset.cddep!==undefined){const i=t.dataset.cddep;const x={nome:$("#cdp-nome-"+i).value.trim(),parentesco:$("#cdp-par-"+i).value.trim(),nascimento:$("#cdp-nasc-"+i).value,cpf:$("#cdp-cpf-"+i).value.trim()};const er=cdDepErros(x);
+    [["nome","nome"],["par","parentesco"],["nasc","nascimento"],["cpf","cpf"]].forEach(([id,k])=>{const el=$("#cdp-"+id+"-"+i);if(el)el.classList.toggle("cd-inv",!!er[k])})}
+});
 document.addEventListener("input",ev=>{
   const t=ev.target;
+  if(t.dataset&&t.dataset.cdv&&t.classList.contains("cd-inv")&&!cdValidarCampo(t.dataset.cdv,t.value))cdMarcar(t.dataset.cdv,"");
   if(t.id==="f-cdbusca"){UI.cdBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cdbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id&&t.id.startsWith("crt-")){ST.cfg.cartas={...(ST.cfg.cartas||{}),[t.id.slice(4)]:t.value};clearTimeout(window.__crtT);window.__crtT=setTimeout(save,600)}
 });
