@@ -298,7 +298,9 @@ tfoot td{font-weight:700;border-bottom:none}
 @media (max-width:860px){
   .app{grid-template-columns:minmax(0,1fr)}
   .side{position:sticky;top:env(safe-area-inset-top,0px);height:auto;z-index:20;flex-direction:row;align-items:center;padding:10px 16px;border-right:none;border-bottom:1px solid var(--line);gap:12px}
-  .logo small,.side-foot,.nav-label{display:none}
+  .logo small,.nav-label,.side-foot>.avatar,.side-foot>div{display:none}
+  .side-foot{margin:0;padding:0;background:none;flex:0 0 auto}
+  .side-foot .btn{border:1px solid var(--line);background:var(--surface)}
   .nav{flex-direction:row;overflow-x:auto;scrollbar-width:none}
   .nav a{white-space:nowrap;padding:8px 12px}
   .bar-row{grid-template-columns:100px minmax(0,1fr) 52px}
@@ -480,7 +482,7 @@ let ST;
 const CONF=window.GP_CONFIG||{};
 const DOMINIO="usuarios.gestaodepessoas.app";
 let SB=null,ROLE=null,PERFIL=null,SESSION=null;
-let MOVS=[],SOLIC=[],USUARIOS=[],LOGV=null,BASE_G=null,PEND_RENDER=false;
+let MOVS=[],SOLIC=[],SOLIC_ALL=[],MSGS=[],RT=null,RT_T=null,USUARIOS=[],LOGV=null,BASE_G=null,PEND_RENDER=false;
 const ESC_T={};
 const LAST={};let SALVANDO=0,SYNC="ok",FILA=Promise.resolve();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -491,10 +493,10 @@ function normalize(o){
   o.emps.forEach(e=>{if(!e.avaliacoes)e.avaliacoes=[];if(!e.ferias)e.ferias=[]});
   o.stores.forEach(s=>{s.nome=s.nome.replace(/^Aurora /,"Brasileiríssima ")});
   o.escalaOverrides=o.escalaOverrides||{};delete o.acessos;delete o.usuarios;
-  ["admissoes","vagas","eventos","recargas","desligProg","pjs","xpChamados"].forEach(k=>{o[k]=o[k]||[]});o.folhasFechadas=o.folhasFechadas||{};
+  ["admissoes","vagas","eventos","recargas","desligProg","pjs","xpChamados","mensagens"].forEach(k=>{o[k]=o[k]||[]});o.folhasFechadas=o.folhasFechadas||{};
   return o;
 }
-function save(){persist()}
+function save(){notificarMovimentos();persist()}
 function logEvento(evento,detalhe){
   if(!SB||!SESSION)return;
   SB.from("log_acesso").insert({login:SESSION.login,nome:SESSION.nome,perfil:SESSION.perfil,evento,detalhe:String(detalhe||"").slice(0,300)}).then(()=>{},()=>{});
@@ -518,7 +520,7 @@ function linhas(){
     colaboradores_privado:ST.emps.map(e=>[e.id,{id:e.id,dados:priv(e)}]),
     escalas:Object.entries(ST.escalaOverrides).map(([k,d])=>[k,{chave:k,loja_id:k.split("|")[0],dias:d}]),
     admissoes:ST.admissoes.map(a=>[a.id,{id:a.id,loja_id:a.lojaId,dados:a}]),
-    rh_estado:[["1",{id:1,dados:(()=>{const {stores,emps,escalaOverrides,admissoes,pjs,usuarios,contasDesvinculadas,...rest}=ST;return {...rest,exemplo:!!ST.exemplo}})()}]],
+    rh_estado:[["1",{id:1,dados:(()=>{const {stores,emps,escalaOverrides,admissoes,pjs,usuarios,contasDesvinculadas,mensagens,...rest}=ST;return {...rest,exemplo:!!ST.exemplo}})()}]],
     prestadores:(ST.pjs||[]).map(p=>[p.id,{id:p.id,dados:p}])
   };
 }
@@ -560,13 +562,14 @@ async function carregarRH(){
     admissoes:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id})),
     pjs:pj.map(r=>({...r.dados,id:r.id})),
     cfg:d.cfg||clone(DEFAULT_CFG)});
-  primeLast();
-  await Promise.all([carregarSolicitacoes(),carregarUsuarios()]);
+  primeLast();resumoBase();
+  await Promise.all([carregarSolicitacoes(),carregarUsuarios(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()]);
+  limpezaAnexos().catch(()=>{});
   return true;
 }
-const movDeLinha=r=>({...(r.payload||{}),id:r.id,tipo:r.tipo,eid:r.colaborador_id,status:r.status,motivo:r.motivo,em:r.criado_em,loja:r.loja_id,autor:r.autor});
+const movDeLinha=r=>({...(r.payload||{}),id:r.id,tipo:r.tipo,eid:r.colaborador_id,status:r.status,motivo:r.motivo,em:r.criado_em,loja:r.loja_id,autor:r.autor,decididoEm:r.decidido_em});
 async function carregarSolicitacoes(){
-  if(ROLE==="rh"){const {data,error}=await SB.from("solicitacoes").select("*").eq("status","pendente").order("criado_em").limit(1000);if(!error)SOLIC=data.map(movDeLinha)}
+  if(ROLE==="rh"){const {data,error}=await SB.from("solicitacoes").select("*").eq("status","pendente").order("criado_em").limit(1000);if(!error)SOLIC=data.map(movDeLinha);const r2=await SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(500);if(!r2.error)SOLIC_ALL=r2.data.map(movDeLinha)}
   else{const {data,error}=await SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(500);if(!error)MOVS=data.map(movDeLinha)}
 }
 async function carregarUsuarios(){const {data}=await SB.from("perfis").select("*").order("nome");USUARIOS=data||[]}
@@ -581,7 +584,7 @@ async function carregarGerente(){
     emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
-  await carregarSolicitacoes();
+  await Promise.all([carregarSolicitacoes(),carregarMensagens()]);
   montarGerente();
 }
 function montarGerente(){
@@ -593,7 +596,7 @@ function montarGerente(){
 async function atualizarPeriodico(){
   if(!SB||!SESSION||document.hidden)return;
   try{
-    if(ROLE==="rh"){await carregarSolicitacoes()}
+    if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
     else{await carregarGerente()}
     renderSafe();
   }catch(e){}
@@ -659,7 +662,7 @@ async function decidirMov(id,aprovar){
   const status=aprovar&&!err?"aprovado":"recusado";
   const {error}=await SB.from("solicitacoes").update({status,motivo:err,decidido_em:new Date().toISOString(),decidido_por:PERFIL.user_id}).eq("id",id).eq("status","pendente");
   if(error)return "Não foi possível registrar a decisão. Tente de novo.";
-  SOLIC=SOLIC.filter(x=>x.id!==id);
+  SOLIC=SOLIC.filter(x=>x.id!==id);SOLIC_ALL=SOLIC_ALL.map(x=>x.id===id?{...x,status,motivo:err,decididoEm:new Date().toISOString()}:x);
   const autor=USUARIOS.find(u=>u.user_id===m.autor);
   logEvento(status==="aprovado"?"Solicitação aprovada":"Solicitação recusada",(autor?autor.nome+" · ":"")+descMov(m)+(err?" · "+err:""));
   return aprovar?(err?"Não aprovado: "+err:"Solicitação aprovada"):"Solicitação recusada";
@@ -857,6 +860,7 @@ const ICON={
   beneficios:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/>',
   pjs:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
   medidas:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16v.5"/>',
+  correio:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   desligamentos:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   experiencia:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
   esocial:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>',
@@ -869,6 +873,7 @@ const ICON={
 const PAGES_G=[
   {g:"Minha loja"},
   {id:"painel",t:"Painel da loja"},
+  {id:"correio",t:"Correio"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
   {id:"colaboradores",t:"Equipe"},
@@ -881,6 +886,7 @@ const PAGES_G=[
 const PAGES=[
   {g:"Visão geral"},
   {id:"painel",t:"Painel"},
+  {id:"correio",t:"Correio"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
   {g:"Pessoas"},
@@ -910,12 +916,13 @@ const UI={busca:"",loja:"",status:"",comp:curComp,folhaLoja:"",escLoja:"s1",escS
 let AV=null;
 function renderNav(){
   const pend=ST.eventos.filter(e=>e.status==="Pendente").length;
-  const nAl=alertas().filter(a=>a.sev===0).length;
-  const nXp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).reduce((s,e)=>s+marcos(e).filter(m=>m.pend).length,0);
+  const nAl=alertas().filter(a=>a.sev===0).length+(ROLE==="rh"?listaPendentes().length:0);
+  const nXp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).reduce((s,e)=>s+marcos(e).filter(m=>m.pend).length,0)+(ROLE==="rh"?listaPendentes().filter(x=>x.m.tipo==="avaliacao").length:0);
   const nG=ROLE==="rh"?pendRH():0;
   const nS=G()?MOVS.filter(m=>m.status==="pendente").length:0;
+  const nC=correioNaoLidas().length;correioAvisar(nC);
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
-    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
+    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
   $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
@@ -939,6 +946,7 @@ function painelLoja(){
   const max=Math.max(1,...ST.stores.map(s=>Math.max(s.quadro,at.filter(e=>e.lojaId===s.id).length)));
   return header((primeiro(SESSION&&SESSION.nome)?"Olá, "+esc(primeiro(SESSION.nome))+" · ":"")+parse(TODAY).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}),varias?"Minhas lojas":esc(ST.stores[0].nome),
     `<button class="btn" data-go="ponto">Escala da semana</button><button class="btn btn-primary" data-go="experiencia">Avaliações</button>`)+`
+  ${correioCard()}
   <div class="grid kpis">
     <div class="card kpi hero"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
     <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${at.filter(emExperiencia).length}</span><span class="sub">avalie no 45º e no 90º dia</span></div>
@@ -1157,7 +1165,8 @@ R.painel=()=>{
   const mmax=Math.max(1,...mv.map(x=>Math.max(x.a,x.d)));
   const st={ferias:0,experiencia:0,afastado:0};at.forEach(e=>{const k=status(e).k;if(k in st)st[k]++});
   return header((primeiro(SESSION&&SESSION.nome)?"Olá, "+esc(primeiro(SESSION.nome))+" · ":"")+parse(TODAY).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}),"Sua rede em um olhar",
-    `<button class="btn" data-go="folha">Ver folha</button><button class="btn btn-primary" data-act="importarFicha">Importar ficha de registro</button>`)+`
+    `${typeof candConviteModal==="function"?`<button class="btn" data-cdnovo="1">+ Pré-admissão</button>`:""}<button class="btn" data-go="folha">Ver folha</button>`)+`
+  ${aprovCard()}
   <div class="grid kpis">
     <div class="card kpi hero"><span class="lbl">Colaboradores ativos</span><span class="val num">${at.length}</span><span class="sub">${st.experiencia} em experiência · ${st.ferias} em férias · ${st.afastado} afastado${st.afastado===1?"":"s"}</span></div>
     <div class="card kpi"><span class="lbl">Folha bruta · ${compLabel(curComp)}</span><span class="val num">${brl(folhaTot)}</span><span class="sub">Custo estimado com encargos: ${brl(folhaTot+encargos)}</span></div>
@@ -1231,7 +1240,7 @@ R.lojas=()=>{
 };
 
 const ETAPAS=[{t:"Documentação",d:"RG, CPF, CTPS digital, comprovante"},{t:"Exame admissional",d:"ASO apto"},{t:"Contrato",d:"Experiência 45+45 dias"},{t:"eSocial S-2200",d:"Envio até o dia anterior"},{t:"Concluída",d:"Primeiro dia na loja"}];
-R.admissao=()=>header("Pessoas","Admissões",`<button class="btn btn-primary" data-act="novaAdm">+ Nova admissão</button>`)+`
+R.admissao=()=>typeof candidatosTela==="function"&&UI.admTab!=="kanban"?candidatosTela():header("Pessoas","Admissões",`<button class="btn btn-primary" data-act="novaAdm">+ Nova admissão</button>`)+(typeof admTabs==="function"?admTabs():"")+`
   <div class="kanban">${ETAPAS.map((et,i)=>{const cards=ST.admissoes.filter(a=>a.etapa===i);return `<div class="lane"><div class="lane-h"><div>${et.t}<small>${et.d}</small></div><span class="chip c-mute">${cards.length}</span></div>
   ${cards.map(a=>{const d=diffDays(TODAY,a.inicio);return `<div class="k-card"><b>${esc(a.nome)}</b><div class="meta">${esc(a.cargo)} · ${esc(store(a.lojaId).nome)}<br>${brl(a.salario)} · início ${fdate(a.inicio)}</div>
   ${a.obs?`<div class="meta">${esc(a.obs)}</div>`:""}
@@ -1372,9 +1381,10 @@ R.experiencia=()=>{
     <div class="card kpi"><span class="lbl">Avaliações atrasadas</span><span class="val num" style="color:var(--bad)">${atr}</span><span class="sub">risco de virar prazo indeterminado</span></div>
     <div class="card kpi"><span class="lbl">Taxa de efetivação</span><span class="val num">${pct(taxa)}</span><span class="sub">${fin.length} decisões nos últimos 12 meses</span></div>
   </div>
+  ${aprovCard("avaliacao")}
   <div class="note">A prorrogação do 1º período precisa ser registrada até o 45º dia. Depois do 90º dia sem decisão, o contrato passa a ser por prazo indeterminado (arts. 445 e 451 da CLT).</div>
-  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["acomp","Em acompanhamento"],["hist","Histórico de avaliações"]].map(([k,t])=>`<button class="${UI.xpTab===k?"on":""}" data-xptab="${k}">${t}</button>`).join("")}</div><input class="input search" id="f-xbusca" type="search" placeholder="Buscar colaborador por nome, CPF, cargo ou unidade" value="${esc(UI.xBusca||"")}" aria-label="Buscar colaborador">${ST.stores.length>1?`<select class="input" id="f-xloja" aria-label="Unidade">${lojaOpts(UI.xLoja||"")}</select>`:""}<span class="muted small">${nV} ${UI.xpTab==="acomp"?"em acompanhamento":"avaliaç"+(nV===1?"ão":"ões")}</span></div>
-  ${UI.xpTab==="acomp"?`<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Progresso</th><th>Avaliação 45 dias</th><th>Avaliação 90 dias</th></tr></thead>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["acomp","Em acompanhamento"],["ger",(G()?"Enviadas ao RH":"Avaliações dos gerentes")+(xpGerPend()?" ("+xpGerPend()+")":"")],["hist","Histórico de avaliações"]].map(([k,t])=>`<button class="${UI.xpTab===k?"on":""}" data-xptab="${k}">${t}</button>`).join("")}</div><input class="input search" id="f-xbusca" type="search" placeholder="Buscar colaborador por nome, CPF, cargo ou unidade" value="${esc(UI.xBusca||"")}" aria-label="Buscar colaborador">${ST.stores.length>1?`<select class="input" id="f-xloja" aria-label="Unidade">${lojaOpts(UI.xLoja||"")}</select>`:""}<span class="muted small">${UI.xpTab==="ger"?xpGerLista().length+" enviada"+(xpGerLista().length===1?"":"s"):nV+" "+(UI.xpTab==="acomp"?"em acompanhamento":"avaliaç"+(nV===1?"ão":"ões"))}</span></div>
+  ${UI.xpTab==="ger"?xpGerTab():UI.xpTab==="acomp"?`<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Progresso</th><th>Avaliação 45 dias</th><th>Avaliação 90 dias</th></tr></thead>
   <tbody>${acompV.map(e=>{const dx=Math.min(90,diffDays(e.admissao,TODAY));return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}${G()?"":`<br><button class="btn btn-sm btn-ghost" data-xpchamado="${e.lojaId}" title="Gerar chamado SULTS para o líder desta unidade">Chamado ao líder</button>`}</td>
     <td><span class="xp-lbl num">Dia ${dx} de 90 · desde ${fdate(e.admissao)}</span><div class="xp"><i style="width:${Math.max(0,dx)/90*100}%"></i><b style="left:calc(50% - 1px)"></b></div></td>
     ${marcos(e).map(mc=>`<td><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span class="chip ${mc.st.c}">${mc.st.t}</span>${mc.a?`<button class="btn btn-sm btn-ghost" data-verav="${e.id}|${mc.a.id}">Nota ${mc.a.media.toLocaleString("pt-BR")} · ver</button>`:mc.podeAvaliar?`<button class="btn btn-sm ${mc.pend?"btn-primary":""}" data-avaliar="${e.id}|${mc.m}">Avaliar · até ${fdate(mc.prazo)}</button>`:""}</div></td>`).join("")}</tr>`}).join("")||`<tr><td colspan="5" class="empty">Ninguém em período de experiência agora.</td></tr>`}</tbody></table></div>`
@@ -1437,6 +1447,9 @@ R.config=()=>{
   <div class="card"><div class="card-head"><div><h2>Backup dos dados</h2><p>Copie o conteúdo para guardar, ou cole um backup e importe.</p></div></div>
     <textarea class="input num" id="backup" rows="5" style="font-family:ui-monospace,monospace;font-size:.75rem" aria-label="Backup em JSON" placeholder="Toque em Gerar backup"></textarea>
     <div class="tabs-inline" style="margin-top:12px"><button class="btn btn-primary" data-act="baixarBackup">Baixar backup completo (.json)</button><button class="btn" data-act="gerarBackup">Gerar backup</button><button class="btn" data-act="copiarBackup">Copiar</button><label class="btn" style="cursor:pointer">Importar backup de arquivo (.json)<input type="file" id="bk-file" accept=".json,application/json" hidden></label><button class="btn" data-act="importar">Importar backup colado</button><button class="btn btn-ghost" data-act="restaurar">Recarregar dados de exemplo</button></div>
+  </div>
+  <div class="card" style="border:1.5px solid var(--bad)"><div class="card-head"><div><h2>Começar do zero</h2><p>Apaga colaboradores (ativos e desligados), unidades, prestadores PJ, medidas disciplinares, férias, avaliações, escalas, admissões, vagas e solicitações. Ficam só os usuários e as configurações de folha. Baixe o backup completo antes.</p></div></div>
+    <div class="tabs-inline"><button class="btn btn-primary" data-act="baixarBackup">Baixar backup completo antes</button><button class="btn btn-danger" data-act="zerarModal">Apagar todos os dados</button></div>
   </div>`;
 };
 
@@ -1499,11 +1512,11 @@ async function iniciarSessao(novoLogin){
     if(ROLE==="rh"){if(!(await carregarRH())){await carregarUsuarios();mostrarTela("inicioRH");return}}
     else await carregarGerente();
   }catch(e){console.error(e);mostrarTela("erro");return}
-  mostrarApp();go();
+  mostrarApp();go();ligarTempoReal();
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
-  await sleep(300);await SB.auth.signOut();
+  await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
   SESSION=null;PERFIL=null;ROLE=null;ST=null;SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
   location.hash="";mostrarTela("login");
 }
@@ -1511,6 +1524,7 @@ async function boot(){
   mostrarTela("carregando");
   if(!CONF.supabaseUrl||!CONF.supabaseAnonKey||!window.supabase){mostrarTela("configurar");return}
   SB=window.supabase.createClient(CONF.supabaseUrl,CONF.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  if(new URLSearchParams(location.search).get("c")){candidatoBoot();return}
   SB.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&SESSION){SESSION=null;mostrarTela("login")}});
   const {data:{session}}=await SB.auth.getSession();
   if(session)await iniciarSessao(false);else mostrarTela("login");
@@ -1731,7 +1745,8 @@ function salvarFicha(){
     ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:e.nome,data:addDays(v.admissao,-1),status:"Pendente"});
     logEvento("Colaborador incluído",e.nome+" · "+store(e.lojaId).nome+(FX.importado?" · ficha importada de "+FX.origem:""));msg=primeiro(e.nome)+" incluído(a) na ficha de ativos";
   }
-  FX=null;closeModal();commit(msg);fichaModal(e.id);
+  const candId=FX.candId;FX=null;closeModal();commit(msg);fichaModal(e.id);
+  if(candId&&typeof candidatoAdmitido==="function")candidatoAdmitido(candId,e);
 }
 function fichaSecao(e){
   const f=e.ficha;
@@ -3150,12 +3165,623 @@ async function importarBackupArquivo(file){
   const falta=id=>{if(id&&!ids.has(id)){ids.add(id);o.stores.push({id,nome:"Unidade "+id,cidade:"",tipo:"Loja de rua",quadro:0})}};
   o.emps.forEach(e=>falta(e.lojaId));(o.admissoes||[]).forEach(a=>falta(a.lojaId));Object.keys(o.escalaOverrides||{}).forEach(k=>falta(k.split("|")[0]));
   o.cfg=o.cfg||clone(DEFAULT_CFG);o.exemplo=false;
-  ST=normalize(o);
+  ST=normalize(o);resumoBase();
   const gated=$(".app").classList.contains("gated");if(gated)mostrarApp();
   persist();go();
   logEvento("Backup importado",file.name+" · "+ST.emps.length+" colaboradores · "+ST.stores.length+" unidades · "+(ST.pjs||[]).length+" PJ");
   toast("Importando "+ST.emps.length+" colaboradores. Aguarde \"Tudo salvo\" no topo antes de fechar a página.");
 }
+
+/* ============ aprovações pendentes do RH (registros enviados pelos gerentes) ============ */
+function listaPendentes(){
+  if(typeof SOLIC!=="undefined")return SOLIC.map(m=>({m,k:m.id}));
+  const o=[];Object.entries(typeof MOVS_BY!=="undefined"?MOVS_BY:{}).forEach(([g,ms])=>ms.filter(m=>m.status==="pendente").forEach(m=>o.push({m,k:g+"|"+m.id})));
+  return o.sort((a,b)=>String(a.m.em).localeCompare(String(b.m.em)));
+}
+function autorMov(m){
+  const u=typeof USUARIOS!=="undefined"?(USUARIOS||[]).find(x=>x.user_id===m.autor):(ST.usuarios||[]).find(x=>x.login===m.por);
+  return (u&&u.nome)||m.por||"Gerente";
+}
+function aprovCard(tipo){
+  if(G())return "";
+  const l=listaPendentes().filter(x=>!tipo||x.m.tipo===tipo);if(!l.length)return "";
+  const titulo=tipo==="avaliacao"?"Avaliações de experiência aguardando sua aprovação":"Aprovações pendentes dos gerentes";
+  return `<div class="card" style="border:1.5px solid var(--warn)"><div class="card-head"><div><h2>${titulo} <span class="chip c-warn">${l.length}</span></h2><p>Só entram na base oficial depois de aprovadas. Abra a avaliação para conferir as notas e o parecer.</p></div>${l.length>1?`<button class="btn btn-sm" data-act="aprovarTodas">Aprovar todas (${l.length})</button>`:""}</div>
+  <div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead><tbody>${l.map(({m,k})=>{const e=emp(m.eid);
+    return `<tr><td class="num">${m.em?new Date(m.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—"}</td><td>${esc(autorMov(m))}</td><td>${e?whoCell(e):"—"}<span class="small muted">${e?esc(store(e.lojaId).nome):""}</span></td><td style="white-space:normal;min-width:200px">${esc(descMov(m))}</td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap">${m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(k)}">Ver avaliação</button>`:""}<button class="btn btn-sm" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(k)}">Aprovar</button></div></td></tr>`}).join("")}</tbody></table></div></div>`;
+}
+/* ============ zerar a base para começar do zero ============ */
+function zerarModal(){
+  modal("Apagar todos os dados",`<div class="note" style="border-color:var(--bad)"><b>Esta ação não pode ser desfeita.</b> Serão apagados ${ST.emps.length} colaboradores, ${ST.stores.length} unidades, ${(ST.pjs||[]).length} prestadores PJ e todo o histórico (férias, avaliações, medidas, escalas, desligamentos programados e solicitações). Usuários e configurações de folha continuam.</div>
+    <p class="small">Depois, os gerentes precisarão ter as lojas marcadas de novo em Usuários.</p>
+    <div class="field"><label for="zr-txt">Para confirmar, digite <b>ZERAR</b></label><input class="input" id="zr-txt" autocomplete="off" autocapitalize="characters"></div><p class="small" id="zr-err" style="color:var(--bad)" hidden></p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="baixarBackup">Baixar backup antes</button><button class="btn btn-danger" data-act="zerarOk">Apagar tudo</button>`);
+}
+async function antesDeZerar(){const {error}=await SB.from("solicitacoes").delete().not("id","is",null);if(error)return false;const r2=await SB.from("mensagens").delete().not("id","is",null);if(r2.error)return false;SOLIC=[];SOLIC_ALL=[];MSGS=[];return true}
+async function zerarOk(){
+  if(($("#zr-txt").value||"").trim().toUpperCase()!=="ZERAR"){const el=$("#zr-err");el.hidden=false;el.textContent="Digite ZERAR para confirmar.";return}
+  if(!(await antesDeZerar())){toast("Não foi possível apagar as solicitações. Verifique a conexão e tente de novo.");return}
+  const n=ST.emps.length;
+  ST=normalize({exemplo:false,stores:[{id:"s1",nome:"Brasileiríssima Loja 1",cidade:"",tipo:"Loja de rua",quadro:10}],emps:[],cfg:ST.cfg,usuarios:ST.usuarios,contasDesvinculadas:ST.contasDesvinculadas});
+  logEvento("Base de dados zerada",n+" colaboradores apagados para começar do zero");
+  closeModal();commit("Dados apagados. Cadastre a primeira unidade e a equipe.");location.hash="#painel";
+}
+/* ============ correio de mensagens (solicitações, decisões e movimentações) ============ */
+/* todas as solicitações visíveis: RH vê as de todos os gerentes; gerente vê as próprias */
+function todasSolic(){
+  if(G())return (MOVS||[]).map(m=>({m,k:m.id}));
+  if(typeof SOLIC_ALL!=="undefined")return SOLIC_ALL.map(m=>({m,k:m.id}));
+  const o=[];Object.entries(typeof MOVS_BY!=="undefined"?MOVS_BY:{}).forEach(([g,ms])=>ms.forEach(m=>o.push({m,k:g+"|"+m.id})));return o;
+}
+function mensagensVisiveis(){return MSGS}
+function enviarMensagem(m){
+  const x={id:uid(),em:new Date().toISOString(),por:SESSION?SESSION.nome:"RH",tipo:"mov",...m};MSGS=[x,...MSGS];
+  SB.from("mensagens").insert({loja_id:x.lojaId,colaborador_id:x.eid||null,tipo:x.tipo,titulo:String(x.titulo||"").slice(0,200),texto:String(x.texto||"").slice(0,2000),autor_nome:x.por}).then(r=>{if(r.error)console.error(r.error)});
+  return x;
+}
+async function carregarMensagens(){
+  const {data,error}=await SB.from("mensagens").select("*").order("criado_em",{ascending:false}).limit(500);
+  if(!error)MSGS=data.map(r=>({id:r.id,em:r.criado_em,lojaId:r.loja_id,eid:r.colaborador_id,tipo:r.tipo,titulo:r.titulo,texto:r.texto,por:r.autor_nome}));
+}
+/* tempo real: solicitações e mensagens chegam sem recarregar a página */
+function ligarTempoReal(){
+  if(RT||!SB)return;
+  const at=()=>{clearTimeout(RT_T);RT_T=setTimeout(()=>atualizarPeriodico(),700)};
+  RT=SB.channel("gp-correio").on("postgres_changes",{event:"*",schema:"public",table:"solicitacoes"},at).on("postgres_changes",{event:"*",schema:"public",table:"mensagens"},at).on("postgres_changes",{event:"*",schema:"public",table:"anexos"},at).on("postgres_changes",{event:"*",schema:"public",table:"candidatos"},at).subscribe();
+}
+function resultadoMov(m,e){
+  if(m.tipo!=="avaliacao"||!m.av)return "";
+  if(m.av.parecer==="efetivar")return " · Resultado: colaborador(a) efetivado(a)";
+  if(m.av.parecer==="prorrogar")return " · Resultado: contrato prorrogado até "+(e?fdate(addDays(e.admissao,89)):"o 90º dia");
+  if(m.av.parecer==="encerrar")return " · Resultado: contrato de experiência encerrado";
+  return "";
+}
+/* movimentações feitas pelo RH viram mensagens automáticas para a loja */
+let EMP_RES=null;
+const resumoEmp=e=>({l:e.lojaId,d:e.desligado?e.desligado.data+"|"+e.desligado.tipo:"",f:(e.ferias||[]).map(f=>f.inicio+"|"+f.dias),a:!!e.afastado,aso:e.aso||"",c:e.cargo||""});
+function resumoBase(){EMP_RES=ST?new Map(ST.emps.map(e=>[e.id,resumoEmp(e)])):null}
+function notificarMovimentos(){
+  if(ROLE!=="rh"||!ST)return;
+  if(!EMP_RES){resumoBase();return}
+  const ms=[];const add=(lojaId,titulo,texto,eid)=>ms.push({lojaId,titulo,texto,eid});
+  ST.emps.forEach(e=>{
+    const a=EMP_RES.get(e.id),n=resumoEmp(e);
+    if(!a){if(!e.desligado)add(e.lojaId,"Admissão",e.nome+" ("+e.cargo+") entrou na equipe, com admissão em "+fdate(e.admissao)+".",e.id);return}
+    if(a.l!==n.l){add(a.l,"Transferência de saída",e.nome+" foi transferido(a) para "+store(n.l).nome+".",e.id);add(n.l,"Transferência de entrada",e.nome+" chegou transferido(a) de "+store(a.l).nome+".",e.id)}
+    if(!a.d&&n.d)add(n.l,"Desligamento",e.nome+" · "+(TIPOS[e.desligado.tipo]||e.desligado.tipo)+" em "+fdate(e.desligado.data)+".",e.id);
+    if(a.d&&!n.d)add(n.l,"Desligamento desfeito",e.nome+" voltou a constar como ativo(a).",e.id);
+    n.f.filter(x=>!a.f.includes(x)).forEach(x=>{const [ini,d]=x.split("|");add(n.l,"Férias programadas",e.nome+" · "+fdate(ini)+" a "+fdate(addDays(ini,Number(d)-1))+" ("+d+" dias). Colha a assinatura do aviso.",e.id)});
+    if(!a.a&&n.a)add(n.l,"Afastamento",e.nome+" foi afastado(a). Ajuste a escala da loja.",e.id);
+    if(a.a&&!n.a)add(n.l,"Retorno de afastamento",e.nome+" retornou ao trabalho.",e.id);
+    if(a.aso!==n.aso&&n.aso&&!n.d)add(n.l,"ASO atualizado",e.nome+" · novo vencimento do ASO em "+fdate(n.aso)+".",e.id);
+    if(a.c!==n.c&&a.c)add(n.l,"Mudança de cargo",e.nome+": de "+a.c+" para "+n.c+".",e.id);
+  });
+  resumoBase();
+  if(!ms.length||ms.length>40)return; /* importações e cargas em massa não geram mensagens */
+  ms.forEach(m=>enviarMensagem(m));
+}
+function correioItens(){
+  const it=[];
+  todasSolic().forEach(({m,k})=>{
+    const e=emp(m.eid);const quem=e?" · "+e.nome:"";const loja=m.loja||(e&&e.lojaId)||"";
+    if(G()){
+      it.push({id:"s"+m.id+":e",em:m.em,tipo:"enviada",titulo:"Enviado ao RH",texto:descMov(m)+quem,lojaId:loja,eid:m.eid,status:m.status,m,k});
+      if(m.status!=="pendente")it.push({id:"s"+m.id+":d",em:m.decididoEm||m.decidido||m.em,tipo:m.status==="aprovado"?"aprov":"recusa",
+        titulo:m.status==="aprovado"?"RH aprovou · processo finalizado":"RH recusou",texto:descMov(m)+quem+(m.status==="aprovado"?resultadoMov(m,e):"")+(m.motivo?" · Motivo: "+m.motivo:""),lojaId:loja,eid:m.eid,m,k});
+    }else it.push({id:"s"+m.id,em:m.em,tipo:m.status==="pendente"?"pend":m.status==="aprovado"?"aprov":"recusa",
+      titulo:(m.status==="pendente"?"Nova solicitação de ":m.status==="aprovado"?"Aprovada · solicitação de ":"Recusada · solicitação de ")+autorMov(m),texto:descMov(m)+quem+(m.motivo?" · Motivo: "+m.motivo:""),lojaId:loja,eid:m.eid,status:m.status,m,k});
+  });
+  if(typeof correioExtras==="function")it.push(...correioExtras());
+  mensagensVisiveis().forEach(x=>it.push({id:"m"+x.id,em:x.em,tipo:x.tipo==="comunicado"?"comunicado":"mov",titulo:x.titulo,texto:x.texto,lojaId:x.lojaId,eid:x.eid,por:x.por}));
+  return it.sort((a,b)=>String(b.em).localeCompare(String(a.em)));
+}
+const CORREIO_KEY=()=>"gp-correio-"+(SESSION?SESSION.login:"");
+function correioVisto(){try{return localStorage.getItem(CORREIO_KEY())||""}catch(e){return ""}}
+function correioMarcarLido(){try{localStorage.setItem(CORREIO_KEY(),new Date().toISOString())}catch(e){}}
+const correioConta=t=>G()?["aprov","recusa","mov","comunicado"].includes(t):["pend","doc","cand"].includes(t);
+function correioNaoLidas(){const v=correioVisto();return correioItens().filter(x=>correioConta(x.tipo)&&String(x.em)>v)}
+let CORREIO_N=null;
+function correioAvisar(n){if(CORREIO_N!==null&&n>CORREIO_N)toast(n-CORREIO_N===1?"Nova mensagem no Correio":(n-CORREIO_N)+" novas mensagens no Correio");CORREIO_N=n}
+const CORREIO_T={doc:{c:"c-info",ic:"DC",t:"Documento"},cand:{c:"c-warn",ic:"CA",t:"Candidato"},pend:{c:"c-warn",ic:"SO",t:"Aguardando aprovação"},aprov:{c:"c-ok",ic:"OK",t:"Aprovado"},recusa:{c:"c-bad",ic:"RE",t:"Recusado"},enviada:{c:"c-info",ic:"EN",t:"Enviado"},mov:{c:"c-brand",ic:"MV",t:"Movimentação"},comunicado:{c:"c-info",ic:"CM",t:"Comunicado"}};
+function correioLinha(x,v){
+  const t=CORREIO_T[x.tipo]||CORREIO_T.mov;const nova=correioConta(x.tipo)&&String(x.em)>v;
+  const quando=x.em?new Date(x.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"";
+  const acoes=x.acoes?x.acoes:x.tipo==="pend"&&!G()?`${x.m&&x.m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-veravmov="${esc(x.k)}">Ver</button>`:""}<button class="btn btn-sm" data-recusar="${esc(x.k)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(x.k)}">Aprovar</button>`
+    :x.m&&x.m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-veravmov="${esc(x.k)}">Ver avaliação</button>`:x.eid&&emp(x.eid)?`<button class="btn btn-sm btn-ghost" data-ficha="${esc(x.eid)}">Ficha</button>`:"";
+  return `<div class="alert" style="${nova?"border-color:var(--brand);background:var(--brand-tint)":""}"><div class="dot ${t.c}">${t.ic}</div><div style="min-width:0"><b style="white-space:normal">${nova?`<span class="chip c-brand" style="margin-right:6px">Nova</span>`:""}${esc(x.titulo)}</b><span style="white-space:normal">${esc(x.texto)}</span><span class="small muted">${quando}${x.lojaId&&(!G()||ST.stores.length>1)?" · "+esc(store(x.lojaId).nome):""}${x.por?" · por "+esc(x.por):""}</span></div><div class="tabs-inline" style="flex-wrap:nowrap">${acoes}</div></div>`;
+}
+R.correio=()=>{
+  const v=correioVisto();let l=correioItens();const nl=l.filter(x=>correioConta(x.tipo)&&String(x.em)>v).length;
+  const f=UI.cFiltro||"todas";
+  if(f==="nao")l=l.filter(x=>correioConta(x.tipo)&&String(x.em)>v);
+  if(f==="solic")l=l.filter(x=>x.m);
+  if(f==="mov")l=l.filter(x=>x.tipo==="mov");
+  if(f==="com")l=l.filter(x=>x.tipo==="comunicado");
+  if(UI.cLoja)l=l.filter(x=>x.lojaId===UI.cLoja);
+  if(UI.cBusca){const n=semAcento(UI.cBusca);l=l.filter(x=>semAcento(x.titulo+" "+x.texto).includes(n))}
+  return header(G()?"Minha loja":"Visão geral","Correio",`${nl?`<button class="btn" data-act="correioLido">Marcar todas como lidas</button>`:""}${G()?"":`<button class="btn btn-primary" data-act="correioNovo">+ Nova mensagem</button>`}`)+`
+  <div class="note"><span class="chip c-ok">Ao vivo</span> ${G()?"As respostas do RH às suas solicitações e as movimentações da sua equipe (admissões, desligamentos, férias, afastamentos, transferências) chegam aqui automaticamente.":"Solicitações dos gerentes chegam aqui na hora. As movimentações que você faz (admissões, desligamentos, férias, afastamentos, transferências, ASO, cargo) são avisadas automaticamente à loja."}</div>
+  <div class="card"><div class="toolbar">
+    <div class="seg" role="tablist">${[["todas","Todas"],["nao","Não lidas"+(nl?" ("+nl+")":"")],["solic","Solicitações"],["mov","Movimentações"],["com","Comunicados"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-cfiltro="${k}">${t}</button>`).join("")}</div>
+    <input class="input search" id="f-cbusca" type="search" placeholder="Buscar nas mensagens" value="${esc(UI.cBusca||"")}" aria-label="Buscar nas mensagens">
+    ${ST.stores.length>1?`<select class="input" id="f-cloja" aria-label="Unidade">${lojaOpts(UI.cLoja||"")}</select>`:""}
+    <span class="muted small">${l.length} mensage${l.length===1?"m":"ns"}</span></div>
+    <div class="av-list">${l.slice(0,300).map(x=>correioLinha(x,v)).join("")||`<div class="empty">Nenhuma mensagem${f!=="todas"?" com esse filtro":""}.</div>`}</div>
+  </div>`;
+};
+function correioCard(){
+  const v=correioVisto();const l=correioItens().filter(x=>correioConta(x.tipo)&&String(x.em)>v);if(!l.length)return "";
+  return `<div class="card" style="border:1.5px solid var(--brand)"><div class="card-head"><div><h2>Novidades do RH <span class="chip c-brand">${l.length}</span></h2><p>Respostas às suas solicitações e movimentações da equipe.</p></div><div class="tabs-inline"><button class="btn btn-sm" data-act="correioLido">Marcar como lidas</button><button class="btn btn-sm btn-primary" data-go="correio">Abrir correio</button></div></div>
+  <div class="av-list">${l.slice(0,5).map(x=>correioLinha(x,v)).join("")}</div></div>`;
+}
+function correioNovoModal(){
+  modal("Nova mensagem para as lojas",`<form class="form-grid">
+    <fieldset class="field full fx-sec"><legend>Enviar para</legend><div class="tabs-inline" style="margin-bottom:8px"><button type="button" class="pill" data-cmtodas="1">Marcar todas</button><button type="button" class="pill" data-cmtodas="0">Limpar</button></div><div class="lojas-check">${ST.stores.filter(lojaTemGente).map(s=>`<label class="check"><input type="checkbox" name="cm-loja" value="${esc(s.id)}"> ${esc(s.nome)}</label>`).join("")}</div></fieldset>
+    <div class="field full"><label for="cm-tit">Assunto</label><input class="input" id="cm-tit" maxlength="120" placeholder="Ex.: Fechamento do ponto até dia 25"></div>
+    <div class="field full"><label for="cm-txt">Mensagem</label><textarea class="input" id="cm-txt" rows="5" maxlength="2000"></textarea></div>
+    <p class="full small" id="cm-err" style="color:var(--bad)" hidden></p></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="correioEnviar">Enviar</button>`);
+}
+function correioEnviar(){
+  const lojas=[...document.querySelectorAll('input[name="cm-loja"]:checked')].map(i=>i.value);const tit=$("#cm-tit").value.trim(),txt=$("#cm-txt").value.trim();
+  const err=m=>{const el=$("#cm-err");el.hidden=false;el.textContent=m};
+  if(!lojas.length)return err("Escolha pelo menos uma loja.");if(!tit)return err("Informe o assunto.");if(txt.length<3)return err("Escreva a mensagem.");
+  lojas.forEach(id=>enviarMensagem({lojaId:id,titulo:tit,texto:txt,tipo:"comunicado"}));
+  logEvento("Comunicado enviado",tit+" · "+lojas.length+" loja(s)");closeModal();commit("Mensagem enviada para "+lojas.length+" loja"+(lojas.length===1?"":"s"));
+}
+/* ---- experiência: avaliações enviadas pelos gerentes ---- */
+const xpGerLista=()=>todasSolic().filter(x=>x.m.tipo==="avaliacao").sort((a,b)=>(a.m.status==="pendente"?0:1)-(b.m.status==="pendente"?0:1)||String(b.m.em).localeCompare(String(a.m.em)));
+const xpGerPend=()=>xpGerLista().filter(x=>x.m.status==="pendente").length;
+function xpGerTab(){
+  const ch=s=>s==="aprovado"?`<span class="chip c-ok">Aprovada · finalizada</span>`:s==="recusado"?`<span class="chip c-bad">Recusada</span>`:`<span class="chip c-warn">Aguardando RH</span>`;
+  const passa=e=>(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca)));
+  const l=xpGerLista().filter(({m})=>{const e=emp(m.eid);return !e||passa(e)});
+  return `<div class="table-wrap"><table><thead><tr><th>Enviada em</th>${G()?"":"<th>Gerente</th>"}<th>Colaborador</th><th>Marco</th><th>Nota</th><th>Parecer do gerente</th><th>Situação</th><th></th></tr></thead><tbody>${l.map(({m,k})=>{const e=emp(m.eid);const a=m.av||{};const nota=mediaNotas(a.notas||{});
+    return `<tr><td class="num">${m.em?new Date(m.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—"}</td>${G()?"":`<td>${esc(autorMov(m))}</td>`}<td>${e?whoCell(e):"—"}</td><td class="num">${a.marco||"—"} dias</td><td class="num"><b>${nota.toLocaleString("pt-BR",{minimumFractionDigits:1})}</b></td><td>${esc((PARECER[a.parecer]||{}).t||"—")}</td><td>${ch(m.status)}${m.status!=="pendente"&&(m.decididoEm||m.decidido)?`<br><span class="small muted">em ${fdate(String(m.decididoEm||m.decidido).slice(0,10))}</span>`:""}${m.motivo?`<br><span class="small muted">${esc(m.motivo)}</span>`:""}</td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm btn-ghost" data-veravmov="${esc(k)}">Ver</button>${!G()&&m.status==="pendente"?`<button class="btn btn-sm" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(k)}">Aprovar</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">${G()?"Você ainda não enviou avaliações.":"Nenhuma avaliação enviada pelos gerentes."}</td></tr>`}</tbody></table></div>`;
+}
+function verAvMov(k){
+  const x=todasSolic().find(y=>y.k===k);if(!x||!x.m.av)return;const e=emp(x.m.eid);if(!e){toast("Colaborador não encontrado.");return}
+  const pend=x.m.status==="pendente"&&!G();
+  mostrarAv(e,{...x.m.av,media:mediaNotas(x.m.av.notas||{})},pend?`<button class="btn" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-primary" data-aprovar="${esc(k)}">Aprovar</button>`:`<button class="btn btn-primary" data-close>Fechar</button>`);
+}
+/* ============ anexos (versão internet) ============
+   O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
+const ANX_HORAS=24;
+const ANX_TIPOS_COLAB=[["ferias_assinado","Aviso de férias assinado"],["atestado","Atestado médico"],["documento","Documento pessoal"],["residencia","Comprovante de residência"],["aso","ASO"],["foto3x4","Foto 3x4 (credenciamento)"],["outro","Outro documento"]];
+const CAND_DOCS=[
+  ["foto3x4","Foto 3x4 (credenciamento do aeroporto)",true,"documentos"],["rg","RG ou CNH (frente e verso)",true,"documentos"],["cpf_doc","CPF (se não constar no RG ou CNH)",false,"documentos"],
+  ["ctps","Carteira de Trabalho Digital (página de dados)",true,"documentos"],["titulo","Título de eleitor",true,"documentos"],["residencia","Comprovante de residência (até 90 dias)",true,"documentos"],
+  ["escolaridade","Comprovante de escolaridade",true,"documentos"],["pis","PIS/NIS (se tiver)",false,"documentos"],["reservista","Certificado de reservista (homens de 18 a 45 anos)",false,"documentos"],
+  ["certidao","Certidão de nascimento ou casamento",false,"documentos"],["dependentes","Documentos dos dependentes (certidão e CPF)",false,"documentos"],["vacina","Cartão de vacinação dos filhos até 7 anos",false,"documentos"],
+  ["aso","ASO admissional (resultado do exame)",false,"cartas"],["conta","Comprovante da conta salário",false,"cartas"]];
+const anxNomeTipo=t=>(ANX_TIPOS_COLAB.find(x=>x[0]===t)||CAND_DOCS.find(x=>x[0]===t)||[t,t])[1];
+const FOTO_REGRAS=`<div class="note"><b>Foto 3x4 para o credenciamento do aeroporto</b><ul style="margin:6px 0 0 18px;padding:0;line-height:1.6"><li>Fundo branco, liso, sem objetos atrás</li><li>Rosto de frente, sério, sem sorrir, olhando para a câmera</li><li>Camisa ou blusa sem decote, como em foto de RG. Não use camiseta.</li><li>Sem boné, óculos escuros ou acessórios no rosto</li><li>Boa iluminação, sem sombra no rosto. O portal recorta no formato 3x4.</li></ul></div>`;
+let ANX=[],CANDS=[];
+const slugArq=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60);
+async function carregarAnexosRH(){const {data,error}=await SB.from("anexos").select("*").is("candidato_id",null).is("excluido_em",null).order("enviado_em",{ascending:false}).limit(500);if(!error)ANX=data}
+async function carregarCandidatos(){const {data,error}=await SB.from("candidatos").select("*").order("atualizado_em",{ascending:false}).limit(300);if(!error)CANDS=data}
+/* RH: exclui os arquivos baixados há mais de 24 horas */
+async function limpezaAnexos(){
+  if(ROLE!=="rh")return;
+  const lim=new Date(Date.now()-ANX_HORAS*3600e3).toISOString();
+  const {data}=await SB.from("anexos").select("id,caminho").not("baixado_em","is",null).lt("baixado_em",lim).not("caminho","is",null).limit(300);
+  if(!data||!data.length)return;
+  const r=await SB.storage.from("anexos").remove(data.map(x=>x.caminho));if(r.error)return;
+  await SB.from("anexos").update({caminho:null,excluido_em:new Date().toISOString()}).in("id",data.map(x=>x.id));
+  logEvento("Anexos excluídos automaticamente",data.length+" arquivo(s) baixados há mais de "+ANX_HORAS+" horas");
+}
+/* imagem: comprime; a foto 3x4 é recortada em 600x800 e o fundo é conferido */
+function anxImagem(file,foto){return new Promise(res=>{
+  const img=new Image();const url=URL.createObjectURL(file);
+  img.onload=()=>{URL.revokeObjectURL(url);const w=img.naturalWidth,h=img.naturalHeight;let sx=0,sy=0,sw=w,sh=h,W,H;
+    if(foto){if(w/h>3/4){sw=h*3/4;sx=(w-sw)/2}else{sh=w*4/3;sy=(h-sh)/2}W=600;H=800}
+    else{const k=Math.min(1,1800/Math.max(w,h));W=Math.round(w*k);H=Math.round(h*k)}
+    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const cx=cv.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,W,H);cx.drawImage(img,sx,sy,sw,sh,0,0,W,H);
+    let aviso="";
+    if(foto){const amostra=(x,y)=>{const d=cx.getImageData(x,y,90,110).data;let l=0,s=0,n=0;for(let i=0;i<d.length;i+=16){const r=d[i],g=d[i+1],b=d[i+2];l+=(r+g+b)/3;s+=Math.max(r,g,b)-Math.min(r,g,b);n++}return {l:l/n,s:s/n}};
+      const a=amostra(4,4),b=amostra(W-94,4);if(a.l<195||b.l<195||a.s>45||b.s>45)aviso="O fundo da foto não parece branco. A foto pode ser recusada pelo credenciamento do aeroporto."}
+    cv.toBlob(bl=>res(bl?{blob:bl,aviso}:null),"image/jpeg",foto?0.9:0.82)};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast("Não foi possível ler a imagem. Tente outra foto.");res(null)};
+  img.src=url})}
+async function anxPreparar(file,tipo){
+  if(!file)return null;
+  if(!/^(application\/pdf|image\/jpeg|image\/png)$/.test(file.type)){toast("Envie PDF, JPG ou PNG.");return null}
+  if(tipo==="foto3x4"&&file.type==="application/pdf"){toast("A foto 3x4 precisa ser imagem (JPG ou PNG).");return null}
+  let blob=file,mime=file.type;
+  if(mime.startsWith("image/")){const r=await anxImagem(file,tipo==="foto3x4");if(!r)return null;if(r.aviso&&!confirm(r.aviso+"\n\nEnviar mesmo assim?"))return null;blob=r.blob;mime="image/jpeg"}
+  if(blob.size>10485760){toast("O arquivo passa de 10 MB. Envie uma versão menor.");return null}
+  return {blob,mime,ext:mime==="application/pdf"?"pdf":"jpg",nome:file.name.slice(0,150)};
+}
+/* ---- ficha do colaborador: seção Documentos (RH e gerente) ---- */
+function anexosSecao(e){
+  setTimeout(()=>anxCarregarColab(e.id),0);
+  return `<details class="fx-view" open><summary>Documentos anexados</summary>
+    <div id="anx-${esc(e.id)}"><p class="small muted">Carregando…</p></div>
+    ${e.desligado&&G()?"":`<div class="form-grid" style="margin-top:10px;align-items:end"><div class="field"><label for="anx-tipo-${esc(e.id)}">Tipo de documento</label><select class="input" id="anx-tipo-${esc(e.id)}">${ANX_TIPOS_COLAB.map(([k,t])=>`<option value="${k}">${t}</option>`).join("")}</select></div>
+    <label class="btn btn-primary" style="cursor:pointer;justify-content:center">Anexar arquivo (PDF ou foto)<input type="file" accept="application/pdf,image/jpeg,image/png" data-anxfile="${esc(e.id)}" hidden></label>
+    <p class="full small muted" style="margin:0">${G()?"O documento vai para o RH. Depois que o RH baixar, ele é excluído do portal em 24 horas.":"Arquivos baixados são excluídos do portal 24 horas depois do download. Guarde no arquivo da empresa."}</p>
+    <details class="full"><summary class="small">Regras da foto 3x4 para o aeroporto</summary>${FOTO_REGRAS}</details></div>`}
+  </details>`;
+}
+function anxSituacao(a){
+  if(a.excluido_em)return `<span class="chip c-mute">Baixado e excluído</span>`;
+  if(a.baixado_em){const ate=new Date(new Date(a.baixado_em).getTime()+ANX_HORAS*3600e3);return `<span class="chip c-ok">Baixado</span><br><span class="small muted">exclusão ${ate.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</span>`}
+  return `<span class="chip c-warn">Aguardando o RH</span>`;
+}
+async function anxCarregarColab(eid){
+  const box=document.getElementById("anx-"+eid);if(!box)return;
+  const {data,error}=await SB.from("anexos").select("*").eq("colaborador_id",eid).order("enviado_em",{ascending:false}).limit(100);
+  if(error){box.innerHTML=`<p class="small" style="color:var(--bad)">Não foi possível carregar os documentos.</p>`;return}
+  box.innerHTML=data.length?`<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Enviado</th><th>Situação</th><th></th></tr></thead><tbody>${data.map(a=>`<tr><td><b>${esc(anxNomeTipo(a.tipo))}</b><br><span class="small muted">${esc(a.nome_arquivo)}</span></td><td class="small">${new Date(a.enviado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}<br>${esc(a.enviado_por_nome||"")}</td><td>${anxSituacao(a)}</td>
+    <td>${!G()&&a.caminho?`<div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm btn-ghost" data-anxver="${a.id}">Ver</button><button class="btn btn-sm btn-primary" data-anxbaixar="${a.id}">Baixar</button><button class="btn btn-sm btn-ghost" data-anxexcluir="${a.id}" title="Excluir o arquivo agora">Excluir</button></div>`:""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="small muted">Nenhum documento anexado.</p>`;
+}
+async function anxEnviarColab(eid,file){
+  const e=emp(eid);if(!e)return;const tipo=(document.getElementById("anx-tipo-"+eid)||{}).value||"outro";
+  const p=await anxPreparar(file,tipo);if(!p)return;
+  const caminho=e.lojaId+"/"+crypto.randomUUID()+"."+p.ext;toast("Enviando…");
+  const up=await SB.storage.from("anexos").upload(caminho,p.blob,{contentType:p.mime});
+  if(up.error){console.error(up.error);toast("Não foi possível enviar o arquivo. Verifique a conexão.");return}
+  const {error}=await SB.from("anexos").insert({loja_id:e.lojaId,colaborador_id:e.id,tipo,nome_arquivo:p.nome,caminho,mime:p.mime,tamanho:p.blob.size,enviado_por:PERFIL.user_id,enviado_por_nome:SESSION.nome});
+  if(error){console.error(error);await SB.storage.from("anexos").remove([caminho]);toast("Não foi possível registrar o documento.");return}
+  logEvento("Documento anexado",anxNomeTipo(tipo)+" · "+e.nome);toast(G()?"Documento enviado ao RH":"Documento anexado");anxCarregarColab(eid);
+}
+async function anxLinha(id){const {data}=await SB.from("anexos").select("*").eq("id",id).maybeSingle();return data}
+async function anxVer(id){
+  const a=await anxLinha(id);if(!a||!a.caminho){toast("O arquivo já foi excluído.");return}
+  const w=window.open("","_blank");const {data,error}=await SB.storage.from("anexos").createSignedUrl(a.caminho,300);
+  if(error||!data){if(w)w.close();toast("Não foi possível abrir o arquivo.");return}
+  if(w)w.location=data.signedUrl;else location.href=data.signedUrl;
+}
+async function anxBaixar(id,silencioso){
+  const a=await anxLinha(id);if(!a||!a.caminho){toast("O arquivo já foi excluído.");return false}
+  const {data,error}=await SB.storage.from("anexos").download(a.caminho);if(error||!data){toast("Não foi possível baixar o arquivo.");return false}
+  const dono=a.colaborador_id?(emp(a.colaborador_id)||{}).nome:(CANDS.find(c=>c.id===a.candidato_id)||{}).nome;
+  const nome=slugArq(anxNomeTipo(a.tipo))+"-"+slugArq(dono||"documento")+"."+(a.caminho.split(".").pop());
+  const url=URL.createObjectURL(data);const l=document.createElement("a");l.href=url;l.download=nome;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  if(!a.baixado_em)await SB.from("anexos").update({baixado_em:new Date().toISOString(),baixado_por_nome:SESSION.nome}).eq("id",id);
+  logEvento("Documento baixado",anxNomeTipo(a.tipo)+" · "+(dono||""));
+  if(!silencioso)toast("Baixado. O arquivo será excluído do portal em "+ANX_HORAS+" horas: guarde no arquivo da empresa.");
+  await carregarAnexosRH();if(a.colaborador_id)anxCarregarColab(a.colaborador_id);renderSafe();return true;
+}
+async function anxExcluirAgora(id,btn){
+  if(btn&&btn.dataset.confirm!=="1"){btn.dataset.confirm="1";btn.textContent="Confirmar?";return}
+  const a=await anxLinha(id);if(!a)return;
+  if(a.caminho){const r=await SB.storage.from("anexos").remove([a.caminho]);if(r.error){toast("Não foi possível excluir o arquivo.");return}}
+  await SB.from("anexos").update({caminho:null,excluido_em:new Date().toISOString(),status:a.candidato_id?a.status:"excluido"}).eq("id",id);
+  logEvento("Documento excluído",anxNomeTipo(a.tipo));toast("Arquivo excluído");await carregarAnexosRH();if(a.colaborador_id)anxCarregarColab(a.colaborador_id);renderSafe();
+}
+/* ---- correio do RH: documentos recebidos e candidatos aguardando ---- */
+function correioExtras(){
+  if(G())return [];
+  const it=ANX.filter(a=>!a.baixado_em&&a.caminho).map(a=>{const e=emp(a.colaborador_id);return {id:"a"+a.id,em:a.enviado_em,tipo:"doc",titulo:"Documento recebido · "+anxNomeTipo(a.tipo),texto:(e?e.nome+" · ":"")+"enviado por "+(a.enviado_por_nome||"gerente"),lojaId:a.loja_id,eid:a.colaborador_id,
+    acoes:`<button class="btn btn-sm btn-ghost" data-anxver="${a.id}">Ver</button><button class="btn btn-sm btn-primary" data-anxbaixar="${a.id}">Baixar</button>`}});
+  CANDS.filter(c=>c.etapa==="analise"||c.etapa==="conferencia").forEach(c=>it.push({id:"c"+c.id+c.etapa,em:c.atualizado_em,tipo:"cand",titulo:c.etapa==="analise"?"Candidato · pré-cadastro para analisar":"Candidato · documentos para conferir",texto:c.nome+" · "+(c.cargo||"")+(c.loja_id?" · "+store(c.loja_id).nome:""),lojaId:c.loja_id,
+    acoes:`<button class="btn btn-sm btn-primary" data-cdabrir="${c.id}">Abrir</button>`}));
+  return it;
+}
+
+/* ============ pré-admissão: candidatos (RH) ============ */
+const CAND_ETAPAS={convite:["Convite enviado","c-mute"],analise:["Pré-cadastro para analisar","c-warn"],correcao:["Aguardando correção","c-info"],oferta:["Aguardando aceite da proposta","c-info"],
+  documentos:["Enviando documentos","c-info"],conferencia:["Documentos para conferir","c-warn"],cartas:["Carta do banco e exame","c-brand"],admitido:["Admitido","c-ok"],excluido:["Encerrado","c-mute"]};
+const candLink=c=>location.origin+location.pathname+"?c="+c.token;
+const cartasCfg=()=>(ST.cfg.cartas||{});
+function admTabs(){const n=CANDS.filter(c=>c.etapa==="analise"||c.etapa==="conferencia").length;
+  return `<div class="tabs-inline" style="margin-bottom:14px"><button class="pill ${UI.admTab!=="kanban"?"on":""}" data-admtab="cand">Pré-admissão (candidatos)${n?" · "+n+" para o RH":""}</button><button class="pill ${UI.admTab==="kanban"?"on":""}" data-admtab="kanban">Admissões em andamento</button></div>`}
+function candidatosTela(){
+  const fin=c=>c.etapa==="admitido"||c.etapa==="excluido";const vis=UI.cdVis||"and";
+  let l=CANDS.filter(c=>vis==="and"?!fin(c):fin(c));
+  if(UI.cdBusca){const n=semAcento(UI.cdBusca),d=soDig(UI.cdBusca);l=l.filter(c=>semAcento([c.nome,c.cargo,c.loja_id?store(c.loja_id).nome:""].join(" ")).includes(n)||(d.length>=3&&soDig(c.cpf).includes(d)))}
+  const cont=k=>CANDS.filter(c=>c.etapa===k).length;
+  const ordem=["conferencia","analise","cartas","oferta","documentos","correcao","convite","admitido","excluido"];
+  l.sort((a,b)=>ordem.indexOf(a.etapa)-ordem.indexOf(b.etapa)||String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
+  return header("Pessoas","Admissões",`<button class="btn btn-primary" data-cdnovo="1">+ Convidar candidato</button>`)+admTabs()+`
+  <div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Para o RH agir</span><span class="val num">${cont("analise")+cont("conferencia")}</span><span class="sub">${cont("analise")} pré-cadastro(s) · ${cont("conferencia")} conferência(s)</span></div>
+    <div class="card kpi"><span class="lbl">Com o candidato</span><span class="val num">${cont("convite")+cont("correcao")+cont("oferta")+cont("documentos")}</span><span class="sub">convite, correção, proposta ou documentos</span></div>
+    <div class="card kpi"><span class="lbl">Carta do banco e exame</span><span class="val num">${cont("cartas")}</span><span class="sub">prontos para admitir</span></div>
+    <div class="card kpi"><span class="lbl">Admitidos pelo portal</span><span class="val num">${cont("admitido")}</span><span class="sub">${cont("excluido")} processo(s) encerrado(s)</span></div>
+  </div>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist"><button class="${vis==="and"?"on":""}" data-cdvis="and">Em andamento</button><button class="${vis==="fim"?"on":""}" data-cdvis="fim">Admitidos e encerrados</button></div>
+    <input class="input search" id="f-cdbusca" type="search" placeholder="Buscar candidato por nome, CPF, cargo ou loja" value="${esc(UI.cdBusca||"")}" aria-label="Buscar candidato"><span class="muted small">${l.length} candidato${l.length===1?"":"s"}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Candidato</th><th>Vaga</th><th>Etapa</th><th>Atualizado</th><th></th></tr></thead><tbody>${l.map(c=>{const et=CAND_ETAPAS[c.etapa]||["",""];
+    return `<tr class="click" data-cdabrir="${c.id}"><td><div class="who"><div class="avatar">${esc(initials(c.nome))}</div><div><b>${esc(c.nome)}</b><span>${esc(c.cpf||"CPF ainda não informado")}</span></div></div></td><td>${esc(c.cargo||"")}<br><span class="small muted">${c.loja_id?esc(store(c.loja_id).nome):""}</span></td><td><span class="chip ${et[1]}">${et[0]}</span>${c.motivo&&c.etapa!=="admitido"?`<br><span class="small muted">${esc(c.motivo)}</span>`:""}</td><td class="small">${new Date(c.atualizado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td><td><div class="tabs-inline" style="flex-wrap:nowrap">${c.telefone&&c.etapa!=="excluido"?`<a class="btn btn-sm" data-zap="1" href="${esc(zap(c,zapMsg(c)))}" target="_blank" rel="noopener" style="color:#128C7E;border-color:#128C7E">WhatsApp</a>`:""}<button class="btn btn-sm">Abrir</button></div></td></tr>`}).join("")||`<tr><td colspan="5" class="empty">${vis==="and"?"Nenhum candidato em andamento. Use \"+ Convidar candidato\".":"Nenhum processo finalizado."}</td></tr>`}</tbody></table></div></div>
+  ${cartasCfg().empresa?"":`<div class="note">Para as cartas sairem completas, preencha os dados da empresa e do banco em <b>Configurações → Cartas da pré-admissão</b>.</div>`}`;
+}
+function candConviteModal(){
+  const lojas=ST.stores.filter(lojaTemGente);
+  modal("Convidar candidato",`<form class="form-grid">
+    <div class="field full"><label for="cv-nome">Nome do candidato</label><input class="input" id="cv-nome"></div>
+    <div class="field"><label for="cv-tel">WhatsApp (com DDD)</label><input class="input" id="cv-tel" inputmode="tel" placeholder="(11) 99999-0000"></div>
+    <div class="field"><label for="cv-email">E-mail (opcional)</label><input class="input" id="cv-email" type="email"></div>
+    <div class="field"><label for="cv-cargo">Cargo</label><select class="input" id="cv-cargo">${cargoOpts("Vendedor(a)")}</select></div>
+    <div class="field"><label for="cv-loja">Unidade</label><select class="input" id="cv-loja">${(lojas.length?lojas:ST.stores).map(s=>`<option value="${esc(s.id)}">${esc(s.nome)}</option>`).join("")}</select></div>
+    <div class="field"><label for="cv-sal">Salário mensal (R$)</label><input class="input" id="cv-sal" type="number" step="0.01" min="0"></div>
+    <div class="field"><label for="cv-ini">Início previsto</label><input class="input" id="cv-ini" type="date" value="${addDays(TODAY,15)}"></div>
+    <div class="field"><label for="cv-jor">Jornada</label><input class="input" id="cv-jor" value="44 horas semanais, escala 6x1"></div>
+    <div class="field"><label for="cv-hor">Horário</label><input class="input" id="cv-hor" placeholder="Ex.: 10h às 18h20"></div>
+    <div class="field full"><label for="cv-ben">Benefícios</label><textarea class="input" id="cv-ben" rows="2">Vale-transporte, vale-alimentação, comissão sobre vendas conforme política da loja</textarea></div>
+    <p class="full small muted">A proposta (carta oferta) é liberada para o candidato depois que você aprovar o pré-cadastro. O link vale 30 dias e é renovado a cada uso.</p>
+    <p class="full small" id="cv-err" style="color:var(--bad)" hidden></p></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn" data-cdcriar="1">Só gerar o convite</button><button class="btn btn-primary" data-cdcriar="zap">Gerar e enviar no WhatsApp</button>`);
+}
+const novoToken=()=>{const b=new Uint8Array(24);crypto.getRandomValues(b);return [...b].map(x=>x.toString(16).padStart(2,"0")).join("")};
+const histCand=(c,acao,detalhe)=>[...(c&&Array.isArray(c.historico)?c.historico:[]),{em:new Date().toISOString(),acao,detalhe:detalhe||"",por:SESSION.nome}].slice(-200);
+async function candCriar(janela){
+  const v=k=>$("#cv-"+k).value.trim();const err=m=>{if(janela)janela.close();const el=$("#cv-err");el.hidden=false;el.textContent=m};
+  if(v("nome").split(/\s+/).length<2)return err("Informe o nome completo.");
+  if(soDig(v("tel")).length<10)return err("Informe o WhatsApp com DDD.");
+  if(!(Number(v("sal"))>=ST.cfg.salarioMinimo))return err("O salário precisa ser pelo menos o mínimo de "+brl(ST.cfg.salarioMinimo)+".");
+  const c={token:novoToken(),token_expira:new Date(Date.now()+30*864e5).toISOString(),loja_id:v("loja"),cargo:v("cargo"),nome:v("nome"),telefone:soDig(v("tel")),email:v("email").toLowerCase()||null,
+    oferta:{salario:Number(v("sal")),inicio:v("ini"),jornada:v("jor"),horario:v("hor"),beneficios:v("ben")},historico:[{em:new Date().toISOString(),acao:"Convite criado",detalhe:"",por:SESSION.nome}]};
+  const {data,error}=await SB.from("candidatos").insert(c).select("*").single();
+  if(error){console.error(error);return err("Não foi possível criar o convite. Tente de novo.")}
+  logEvento("Candidato convidado",c.nome+" · "+c.cargo+" · "+store(c.loja_id).nome);
+  await carregarCandidatos();closeModal();render();
+  if(janela){janela.location=zap(data,zapMsg(data));toast("Convite criado. Confira a mensagem no WhatsApp e toque em enviar.")}
+  candAbrir(data.id);
+}
+const zap=(c,msg)=>"https://wa.me/"+(soDig(c.telefone).length<=11?"55":"")+soDig(c.telefone)+"?text="+encodeURIComponent(msg);
+function zapMsg(c){
+  const p=primeiro(c.nome),l=candLink(c);
+  return {convite:`Olá, ${p}! Aqui é o RH da Brasileiríssima. Para seguir com sua contratação como ${c.cargo}, faça seu pré-cadastro neste link: ${l}`,
+    analise:`Olá, ${p}! Recebemos seu pré-cadastro e estamos analisando. Acompanhe por aqui: ${l}`,
+    correcao:`Olá, ${p}! Precisamos de uma correção no seu pré-cadastro: ${c.motivo||""}. Corrija neste link: ${l}`,
+    oferta:`Olá, ${p}! Seu pré-cadastro foi aprovado. Sua proposta está disponível para leitura e aceite neste link: ${l}`,
+    documentos:`Olá, ${p}! Agora é só enviar os documentos de admissão pelo link: ${l}${c.motivo?" Atenção: "+c.motivo:""}`,
+    conferencia:`Olá, ${p}! Recebemos seus documentos e estamos conferindo. Acompanhe por aqui: ${l}`,
+    cartas:`Olá, ${p}! Seus documentos foram aprovados. A carta para abrir sua conta salário está no link: ${l}`,
+    admitido:`Olá, ${p}! Seja bem-vindo(a) à Brasileiríssima!`}[c.etapa]||`Olá, ${p}! Acompanhe seu processo de admissão: ${l}`;
+}
+let CD_RH=null; /* candidato aberto no RH: {c, docs} */
+async function candAbrir(id){
+  const c=CANDS.find(x=>x.id===id)||(await SB.from("candidatos").select("*").eq("id",id).maybeSingle()).data;if(!c){toast("Candidato não encontrado.");return}
+  const {data:docs}=await SB.from("anexos").select("*").eq("candidato_id",id).neq("status","excluido").neq("status","pendente").order("enviado_em");
+  CD_RH={c,docs:docs||[]};candRender();
+}
+function candRender(){
+  const {c,docs}=CD_RH;const et=CAND_ETAPAS[c.etapa]||["",""];const o=c.oferta||{};const d=c.dados||{};const fim=c.etapa==="admitido"||c.etapa==="excluido";
+  const doc=t=>docs.filter(a=>a.tipo===t).sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
+  const obrigOk=CAND_DOCS.filter(x=>x[2]&&x[3]==="documentos").every(x=>{const a=doc(x[0]);return a&&a.status==="aprovado"});
+  const chipDoc=a=>!a?`<span class="chip c-mute">Não enviado</span>`:a.status==="aprovado"?`<span class="chip c-ok">Aprovado</span>`:a.status==="reprovado"?`<span class="chip c-bad">Reprovado</span><br><span class="small muted">${esc(a.motivo||"")}</span>`:`<span class="chip c-warn">Para conferir</span>`;
+  const kvs=[["CPF",c.cpf],["WhatsApp",c.telefone],["E-mail",c.email],["Aceite LGPD",c.lgpd_em?new Date(c.lgpd_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""]].filter(x=>x[1]);
+  const pessoais=[["Nascimento",d.nascimento?fdate(d.nascimento):""],["Mãe",d.nomeMae],["Pai",d.nomePai],["Estado civil",d.estadoCivil],["Escolaridade",d.escolaridade],["RG",[d.rg,d.rgOrgao,d.rgUf].filter(Boolean).join(" ")],["PIS",d.pis],["CTPS",[d.ctpsNumero,d.ctpsSerie,d.ctpsUf].filter(Boolean).join(" / ")],["Título",[d.tituloEleitor,d.tituloZona&&"zona "+d.tituloZona,d.tituloSecao&&"seção "+d.tituloSecao].filter(Boolean).join(" ")],
+    ["Endereço",[d.logradouro,d.numero,d.complemento,d.bairro,d.cidade,d.uf,d.cep].filter(Boolean).join(", ")],["Conta salário",[d.banco,d.agencia&&"ag. "+d.agencia,d.conta&&"c/c "+d.conta].filter(Boolean).join(" · ")],["Dependentes",(d.dependentes||[]).map(x=>x.nome+" ("+x.parentesco+")").join("; ")]].filter(x=>x[1]);
+  const acoes=[];
+  if(c.etapa==="analise")acoes.push(`<button class="btn btn-ghost" data-cdacao="excluir" style="color:var(--bad)">Excluir</button><button class="btn" data-cdacao="correcao">Pedir correção</button><button class="btn btn-primary" data-cdacao="aprovar">Aprovar pré-cadastro</button>`);
+  else if(c.etapa==="conferencia")acoes.push(obrigOk?`<button class="btn btn-primary" data-cdacao="concluir">Concluir conferência e liberar carta do banco</button>`:`<span class="small muted" style="align-self:center">Aprove todos os documentos obrigatórios para liberar a carta do banco.</span>`);
+  else if(c.etapa==="cartas")acoes.push(`<button class="btn" data-cdacao="pdfbanco">Carta do banco (PDF)</button><button class="btn btn-primary" data-cdacao="admitir">Admitir (abrir ficha de registro)</button>`);
+  if(["oferta","documentos","conferencia","cartas","admitido"].includes(c.etapa))acoes.unshift(`<button class="btn" data-cdacao="pdfoferta">Carta oferta (PDF)</button>`);
+  if(!fim&&c.etapa!=="analise")acoes.unshift(`<button class="btn btn-ghost" data-cdacao="excluir" style="color:var(--bad)">Excluir</button>`);
+  modal(c.nome,`
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${esc(initials(c.nome))}</div><div><b>${esc(c.cargo||"")}</b><span>${c.loja_id?esc(store(c.loja_id).nome):""}</span></div><span class="chip ${et[1]}" style="margin-left:auto">${et[0]}</span></div>
+    ${c.motivo&&!fim?`<div class="note"><b>Último aviso ao candidato:</b> ${esc(c.motivo)}</div>`:""}
+    ${fim?"":`<div class="tabs-inline"><a class="btn btn-primary" data-zap="1" href="${esc(zap(c,zapMsg(c)))}" target="_blank" rel="noopener" style="background:#128C7E;border-color:#128C7E">Enviar no WhatsApp</a><button class="btn" data-cdacao="copiar">Copiar link</button><button class="btn btn-ghost" data-cdacao="novolink">Gerar novo link</button><span class="small muted" style="align-self:center">Link válido até ${new Date(c.token_expira).toLocaleDateString("pt-BR")}</span></div>`}
+    ${kvs.length?`<div class="kv">${kvs.map(([a,b])=>`<div><span>${a}</span><b>${esc(b)}</b></div>`).join("")}</div>`:`<p class="small muted">O candidato ainda não fez o pré-cadastro.</p>`}
+    <details class="fx-view"><summary>Proposta${c.oferta_aceite_em?` <span class="chip c-ok">aceita em ${new Date(c.oferta_aceite_em).toLocaleDateString("pt-BR")}</span>`:""}</summary><div class="kv"><div><span>Salário</span><b>${o.salario?brl(o.salario):"—"}</b></div><div><span>Início previsto</span><b>${o.inicio?fdate(o.inicio):"—"}</b></div><div><span>Jornada</span><b>${esc(o.jornada||"—")}</b></div><div><span>Horário</span><b>${esc(o.horario||"—")}</b></div><div><span>Benefícios</span><b style="white-space:normal">${esc(o.beneficios||"—")}</b></div></div></details>
+    ${pessoais.length?`<details class="fx-view"><summary>Dados pessoais informados</summary><div class="kv">${pessoais.map(([a,b])=>`<div><span>${a}</span><b style="white-space:normal">${esc(b)}</b></div>`).join("")}</div></details>`:""}
+    ${["documentos","conferencia","cartas","admitido"].includes(c.etapa)?`<details class="fx-view" open><summary>Documentos</summary><div class="table-wrap"><table><thead><tr><th>Documento</th><th>Situação</th><th></th></tr></thead><tbody>${CAND_DOCS.map(([t,n,ob])=>{const a=doc(t);
+      return `<tr><td><b>${esc(n)}</b>${ob?` <span class="chip c-mute">obrigatório</span>`:""}${a&&a.baixado_em?`<br><span class="small muted">baixado em ${new Date(a.baixado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}${a.excluido_em?" · arquivo excluído":""}</span>`:""}</td><td>${chipDoc(a)}</td>
+      <td>${a&&a.caminho?`<div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm btn-ghost" data-anxver="${a.id}">Ver</button>${a.status==="enviado"&&c.etapa==="conferencia"?`<button class="btn btn-sm" data-cddoc="reprovar|${a.id}">Reprovar</button><button class="btn btn-sm btn-primary" data-cddoc="aprovar|${a.id}">Aprovar</button>`:`<button class="btn btn-sm" data-anxbaixar="${a.id}">Baixar</button>`}</div>`:""}</td></tr>`}).join("")}</tbody></table></div>
+      ${docs.some(a=>a.caminho&&a.status==="aprovado"&&!a.baixado_em)?`<button class="btn btn-sm" data-cdacao="baixartodos" style="margin-top:8px">Baixar todos os aprovados</button>`:""}<p class="small muted">Arquivos baixados são excluídos do portal 24 horas depois do download.</p></details>`:""}
+    <details class="fx-view"><summary>Histórico <span class="muted small">${(c.historico||[]).length}</span></summary><div class="av-list">${(c.historico||[]).slice().reverse().map(h=>`<div class="alert"><span class="chip c-info">${esc(h.acao)}</span><div style="min-width:0"><b style="white-space:normal">${esc(h.detalhe||"")}</b><span>${new Date(h.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · ${esc(h.por||"")}</span></div><span></span></div>`).join("")}</div></details>`,
+    acoes.join("")||`<button class="btn btn-primary" data-close>Fechar</button>`);
+}
+async function candAtualizar(campos,acao,detalhe,msg){
+  const c=CD_RH.c;const {data,error}=await SB.from("candidatos").update({...campos,historico:histCand(c,acao,detalhe),atualizado_em:new Date().toISOString()}).eq("id",c.id).select("*").single();
+  if(error){console.error(error);toast("Não foi possível salvar. Tente de novo.");return false}
+  logEvento("Pré-admissão · "+acao,c.nome+(detalhe?" · "+detalhe:""));
+  await carregarCandidatos();CD_RH.c=data;if(msg)toast(msg);render();candRender();return true;
+}
+async function candRemoverArquivos(id){
+  const {data}=await SB.from("anexos").select("id,caminho").eq("candidato_id",id).not("caminho","is",null);
+  if(data&&data.length){await SB.storage.from("anexos").remove(data.map(x=>x.caminho));await SB.from("anexos").update({caminho:null,excluido_em:new Date().toISOString(),status:"excluido"}).in("id",data.map(x=>x.id))}
+}
+async function candAcao(a,btn){
+  const c=CD_RH.c;
+  if(a==="copiar"){navigator.clipboard?.writeText(candLink(c)).then(()=>toast("Link copiado"),()=>prompt("Copie o link:",candLink(c)));return}
+  if(a==="novolink"){if(btn.dataset.confirm!=="1"){btn.dataset.confirm="1";btn.textContent="O link antigo para de funcionar. Confirmar?";return}
+    await candAtualizar({token:novoToken(),token_expira:new Date(Date.now()+30*864e5).toISOString()},"Novo link gerado","","Novo link gerado. Envie pelo WhatsApp.");return}
+  if(a==="aprovar"){await candAtualizar({etapa:"oferta",motivo:null},"Pré-cadastro aprovado","Proposta liberada para aceite","Aprovado. Avise o candidato pelo WhatsApp.");return}
+  if(a==="correcao"){const m=prompt("O que o candidato precisa corrigir?");if(!m||m.trim().length<3)return;await candAtualizar({etapa:"correcao",motivo:m.trim().slice(0,300)},"Correção pedida",m.trim(),"Correção pedida. Avise o candidato pelo WhatsApp.");return}
+  if(a==="excluir"){const m=prompt("Motivo da exclusão (o candidato verá que o processo foi encerrado; os dados pessoais e documentos serão apagados):");if(!m||m.trim().length<3)return;
+    await candRemoverArquivos(c.id);await candAtualizar({etapa:"excluido",motivo:m.trim().slice(0,300),cpf:null,email:null,telefone:null,dados:{}},"Processo encerrado",m.trim(),"Candidato excluído e dados apagados");closeModal();return}
+  if(a==="concluir"){await candAtualizar({etapa:"cartas",motivo:null},"Conferência concluída","Carta do banco liberada","Conferência concluída. Avise o candidato pelo WhatsApp.");return}
+  if(a==="pdfoferta"){const d=cartaOfertaPDF(c,cartasCfg(),c.loja_id?store(c.loja_id).nome:"");if(d)salvarPDF(d,"carta-oferta-"+slugArq(c.nome)+".pdf");return}
+  if(a==="pdfbanco"){const d=cartaBancoPDF(c,cartasCfg(),c.loja_id?store(c.loja_id).nome:"");if(d)salvarPDF(d,"carta-conta-salario-"+slugArq(c.nome)+".pdf");return}
+  if(a==="baixartodos"){for(const x of CD_RH.docs.filter(x=>x.caminho&&x.status==="aprovado"&&!x.baixado_em))await anxBaixar(x.id,true);toast("Documentos baixados. Eles serão excluídos do portal em 24 horas.");candAbrir(c.id);return}
+  if(a==="admitir"){
+    const o=c.oferta||{},d={...(c.dados||{})};const deps=(d.dependentes||[]).map(x=>({...x,ir:false}));delete d.dependentes;
+    const dados={...d,nome:c.nome,cpf:c.cpf,email:c.email||"",telefone:c.telefone||"",cargo:c.cargo,lojaId:c.loja_id,admissao:o.inicio||TODAY,salario:Number(o.salario)||"",jornada:o.jornada||"",horario:o.horario||"",tipoContrato:"Experiência 45 + 45 dias",vt:false};
+    closeModal();abrirFichaForm(null,dados,deps,"Portal do candidato");if(FX)FX.candId=c.id;return}
+}
+async function candDoc(acao,id){
+  const a=CD_RH.docs.find(x=>x.id===id);if(!a)return;
+  if(acao==="aprovar"){const {error}=await SB.from("anexos").update({status:"aprovado",motivo:null,conferido_por_nome:SESSION.nome,conferido_em:new Date().toISOString()}).eq("id",id);if(error){toast("Não foi possível aprovar.");return}
+    a.status="aprovado";toast(anxNomeTipo(a.tipo)+" aprovado");candRender();return}
+  const m=prompt("Motivo da reprovação de \""+anxNomeTipo(a.tipo)+"\" (o candidato verá e enviará de novo):");if(!m||m.trim().length<3)return;
+  if(a.caminho){const r=await SB.storage.from("anexos").remove([a.caminho]);if(r.error){toast("Não foi possível excluir o arquivo.");return}}
+  await SB.from("anexos").update({status:"reprovado",motivo:m.trim().slice(0,300),caminho:null,excluido_em:new Date().toISOString(),conferido_por_nome:SESSION.nome,conferido_em:new Date().toISOString()}).eq("id",id);
+  await candAtualizar({etapa:"documentos",motivo:"Documento reprovado: "+anxNomeTipo(a.tipo)+" · "+m.trim().slice(0,200)},"Documento reprovado",anxNomeTipo(a.tipo)+" · "+m.trim(),"Documento reprovado e excluído. Avise o candidato pelo WhatsApp.");
+  candAbrir(CD_RH.c.id);
+}
+async function candidatoAdmitido(id,e){
+  const c=CANDS.find(x=>x.id===id);
+  await SB.from("candidatos").update({etapa:"admitido",colaborador_id:e.id,motivo:null,historico:histCand(c,"Admitido","Ficha de registro criada · "+store(e.lojaId).nome),atualizado_em:new Date().toISOString()}).eq("id",id);
+  await SB.from("anexos").update({colaborador_id:e.id,loja_id:e.lojaId}).eq("candidato_id",id);
+  logEvento("Candidato admitido pelo portal",e.nome+" · "+store(e.lojaId).nome);await carregarCandidatos();render();
+}
+/* ---- cartas em PDF (usadas pelo RH e pelo candidato) ---- */
+function cartaBase(titulo,emp_){
+  if(!window.jspdf||!window.jspdf.jsPDF){toast("O gerador de PDF não carregou. Recarregue a página.");return null}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const W=210,M=20;
+  doc.setFillColor(11,127,74);doc.rect(0,0,W,28,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(17);doc.text(emp_.nome||"BRASILEIRÍSSIMA",M,14);
+  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text([emp_.cnpj?"CNPJ "+emp_.cnpj:"",emp_.endereco||""].filter(Boolean).join(" · ").slice(0,120),M,21);
+  doc.setTextColor(16,32,26);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(titulo,M,42);doc.setFont("helvetica","normal");
+  return {doc,W,M};
+}
+function cartaTabela(doc,M,W,y,linhas){doc.setFontSize(10);linhas.forEach(([a,b],i)=>{const t=doc.splitTextToSize(String(b||"—"),W-2*M-55);const h=Math.max(8,t.length*5+3);if(i%2===0){doc.setFillColor(242,246,243);doc.rect(M,y-5,W-2*M,h,"F")}
+  doc.setTextColor(91,109,100);doc.setFontSize(9);doc.text(a,M+3,y);doc.setTextColor(16,32,26);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text(t,M+55,y);doc.setFont("helvetica","normal");y+=h});return y}
+function cartaOfertaPDF(c,emp_,lojaNome){
+  const b=cartaBase("CARTA OFERTA DE EMPREGO",emp_);if(!b)return null;const {doc,W,M}=b;const o=c.oferta||{};let y=54;
+  doc.setFontSize(10.5);let t=doc.splitTextToSize("Prezado(a) "+c.nome+",",W-2*M);doc.text(t,M,y);y+=9;
+  t=doc.splitTextToSize("Temos o prazer de convidar você para fazer parte da equipe "+(emp_.nome||"Brasileiríssima")+", nas condições abaixo:",W-2*M);doc.text(t,M,y);y+=t.length*5+5;
+  y=cartaTabela(doc,M,W,y,[["Cargo",c.cargo],["Unidade",lojaNome],["Salário mensal",o.salario?brl(o.salario):""],["Jornada",o.jornada],["Horário",o.horario],["Início previsto",o.inicio?fdate(o.inicio):""],["Contrato","Experiência de 45 dias, prorrogável por mais 45 dias (art. 445 da CLT)"],["Benefícios",o.beneficios]]);
+  y+=6;t=doc.splitTextToSize("A contratação depende da entrega dos documentos de admissão, do resultado apto no exame admissional e, para as unidades em aeroporto, da aprovação do credenciamento junto à administração aeroportuária.",W-2*M);doc.text(t,M,y);y+=t.length*5+8;
+  if(c.oferta_aceite_em){doc.setFont("helvetica","bold");doc.text("Proposta aceita eletronicamente pelo(a) candidato(a) em "+new Date(c.oferta_aceite_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+",",M,y);y+=5;doc.text("pelo portal Gestão de Pessoas.",M,y);doc.setFont("helvetica","normal")}
+  else{y=Math.max(y+14,230);doc.line(M,y,M+75,y);doc.line(W-M-75,y,W-M,y);doc.setFontSize(9);doc.text("Recursos Humanos",M+37.5,y+5,{align:"center"});doc.text("Ciente e de acordo: "+primeiro(c.nome),W-M-37.5,y+5,{align:"center"})}
+  doc.setFontSize(7.5);doc.setTextColor(91,109,100);doc.text("Emitida em "+new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+" pelo portal Gestão de Pessoas.",M,287);
+  return doc;
+}
+function cartaBancoPDF(c,emp_,lojaNome){
+  const b=cartaBase("SOLICITAÇÃO DE ABERTURA DE CONTA SALÁRIO",emp_);if(!b)return null;const {doc,W,M}=b;const o=c.oferta||{};let y=54;
+  doc.setFontSize(10.5);doc.text("Ao "+(emp_.banco||"banco")+(emp_.agencia?" · Agência "+emp_.agencia:""),M,y);y+=10;
+  let t=doc.splitTextToSize("A "+(emp_.nome||"Brasileiríssima")+(emp_.cnpj?", inscrita no CNPJ "+emp_.cnpj:"")+(emp_.endereco?", com sede em "+emp_.endereco:"")+", solicita a abertura de conta salário em nome do(a) futuro(a) colaborador(a) abaixo:",W-2*M);doc.text(t,M,y);y+=t.length*5+5;
+  y=cartaTabela(doc,M,W,y,[["Nome",c.nome],["CPF",c.cpf],["Cargo",c.cargo],["Unidade",lojaNome],["Admissão prevista",o.inicio?fdate(o.inicio):""],["Salário mensal",o.salario?brl(o.salario):""]]);
+  y+=6;t=doc.splitTextToSize("A conta destina-se ao recebimento de salários, nos termos da Resolução CMN nº 3.402/2006, sem cobrança de tarifas de manutenção.",W-2*M);doc.text(t,M,y);y+=t.length*5+4;
+  if(emp_.textoBanco){t=doc.splitTextToSize(emp_.textoBanco,W-2*M);doc.text(t,M,y);y+=t.length*5+4}
+  y=Math.max(y+20,235);doc.line(M,y,M+90,y);doc.setFontSize(9);doc.text((emp_.nome||"Brasileiríssima")+" · Recursos Humanos",M,y+5);
+  doc.setFontSize(7.5);doc.setTextColor(91,109,100);doc.text("Emitida em "+new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+" pelo portal Gestão de Pessoas. Leve um documento com foto e o comprovante de residência.",M,287,{maxWidth:W-2*M});
+  return doc;
+}
+/* ---- configurações: dados das cartas ---- */
+function cartasCfgCard(){const c=cartasCfg();const f=(k,t,ph)=>`<div class="field"><label for="crt-${k}">${t}</label><input class="input" id="crt-${k}" value="${esc(c[k]||"")}" placeholder="${esc(ph||"")}"></div>`;
+  return `<div class="card"><div class="card-head"><div><h2>Cartas da pré-admissão</h2><p>Dados usados na carta oferta e na carta para abertura de conta salário. Salvos automaticamente.</p></div></div>
+  <div class="form-grid">${f("empresa","Razão social","Brasileiríssima Comércio Ltda")}${f("cnpj","CNPJ","00.000.000/0001-00")}${f("endereco","Endereço da sede","Rua, número, cidade/UF")}${f("banco","Banco da conta salário","Ex.: Banco do Brasil")}${f("agencia","Agência","0000")}
+  <div class="field full"><label for="crt-textoBanco">Orientação extra na carta do banco (opcional)</label><textarea class="input" id="crt-textoBanco" rows="2">${esc(c.textoBanco||"")}</textarea></div></div></div>`}
+
+/* ============ portal do candidato (acesso pelo link do convite) ============ */
+let CD={token:"",cpf:"",info:null};
+async function cdApi(body){
+  try{const {data,error}=await SB.functions.invoke("candidato",{body:{token:CD.token,cpf:CD.cpf,...body}});
+    if(error){let m="Não foi possível concluir. Verifique a conexão e tente de novo.";try{const j=await error.context.json();if(j&&j.erro)m=j.erro}catch(e){}return {erro:m}}
+    return data||{}}catch(e){return {erro:"Sem conexão. Tente de novo."}}
+}
+function candidatoBoot(){
+  CD.token=new URLSearchParams(location.search).get("c")||"";
+  try{CD.cpf=sessionStorage.getItem("gp-cand-"+CD.token)||""}catch(e){}
+  $(".app").classList.add("gated");document.title="Admissão · Brasileiríssima";cdCarregar();
+}
+async function cdCarregar(){cdTela(`<div class="card"><p>Carregando…</p></div>`);const r=await cdApi({acao:"abrir"});
+  if(r.erro){cdTela(`<div class="card"><h2>Não foi possível abrir</h2><p>${esc(r.erro)}</p></div>`);return}
+  if(r.precisaCpf){CD.info=null;cdTela(`<div class="card"><h2>Olá, ${esc(r.primeiroNome)}!</h2><p class="muted">Para sua segurança, confirme seu CPF para continuar.</p><form class="form-grid" onsubmit="return false"><div class="field full"><label for="cd-cpfc">CPF</label><input class="input" id="cd-cpfc" inputmode="numeric" placeholder="000.000.000-00"></div></form><p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="cpf" style="width:100%;justify-content:center">Continuar</button></div>`);return}
+  CD.info=r;cdRender()}
+function cdTela(html){$("#main").innerHTML=`<div style="max-width:680px;margin:0 auto;padding:18px 16px 60px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><div class="logo-mark" aria-hidden="true" style="width:36px;height:36px;border-radius:10px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.5 11h-13z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></div><div><b>Brasileiríssima</b><br><span class="small muted">Admissão · Gestão de Pessoas</span></div></div>${html}</div>`;window.scrollTo(0,0)}
+const CD_PASSOS=[["Pré-cadastro",["convite","correcao","analise"]],["Proposta",["oferta"]],["Documentos",["documentos","conferencia"]],["Conta salário e exame",["cartas"]],["Admissão",["admitido"]]];
+function cdProgresso(et){const i=CD_PASSOS.findIndex(p=>p[1].includes(et));return `<div style="display:flex;gap:6px;margin:0 0 16px">${CD_PASSOS.map((p,k)=>`<div style="flex:1"><div style="height:6px;border-radius:99px;background:${k<i?"var(--brand)":k===i?"var(--warn)":"var(--line)"}"></div><span class="small ${k===i?"":"muted"}" style="display:block;margin-top:4px;font-size:.7rem">${p[0]}</span></div>`).join("")}</div>`}
+function cdRender(){
+  const r=CD.info,et=r.etapa,o=r.oferta||{},d=r.dados||{};const top=cdProgresso(et);
+  if(et==="convite"||et==="correcao"){
+    cdTela(top+`<div class="card"><h2>Olá! Vamos começar seu pré-cadastro</h2><p class="muted">Vaga: <b>${esc(r.cargo||"")}</b>${r.loja?" · "+esc(r.loja.nome):""}</p>
+      ${et==="correcao"&&r.motivo?`<div class="note"><b>O RH pediu uma correção:</b> ${esc(r.motivo)}</div>`:""}
+      <form class="form-grid" onsubmit="return false"><div class="field full"><label for="cd-nome">Nome completo</label><input class="input" id="cd-nome" value="${esc(r.nome||"")}" autocomplete="name"></div>
+      <div class="field"><label for="cd-cpf">CPF</label><input class="input" id="cd-cpf" inputmode="numeric" value="${esc(r.cpf||"")}" placeholder="000.000.000-00"></div>
+      <div class="field"><label for="cd-tel">WhatsApp com DDD</label><input class="input" id="cd-tel" inputmode="tel" value="${esc(r.telefone||"")}"></div>
+      <div class="field full"><label for="cd-email">E-mail</label><input class="input" id="cd-email" type="email" value="${esc(r.email||"")}" autocomplete="email"></div>
+      <label class="check full"><input type="checkbox" id="cd-lgpd"> Autorizo a Brasileiríssima a usar meus dados e documentos somente para este processo de admissão (LGPD). Se eu não for admitido(a), meus dados serão excluídos.</label></form>
+      <p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="precadastro" style="width:100%;justify-content:center">Enviar pré-cadastro</button></div>`);return}
+  if(et==="analise"){cdTela(top+`<div class="card"><h2>Recebemos seu pré-cadastro</h2><p>O RH está analisando. Você vai receber a próxima etapa pelo WhatsApp, e também pode voltar a este link quando quiser.</p></div>`);return}
+  if(et==="oferta"){cdTela(top+`<div class="card"><h2>Sua proposta</h2><p class="muted">Leia com atenção e responda abaixo.</p>
+    <div class="kv"><div><span>Cargo</span><b>${esc(r.cargo||"")}</b></div><div><span>Unidade</span><b>${r.loja?esc(r.loja.nome):"—"}</b></div><div><span>Salário mensal</span><b>${o.salario?brl(o.salario):"—"}</b></div><div><span>Início previsto</span><b>${o.inicio?fdate(o.inicio):"—"}</b></div><div><span>Jornada</span><b>${esc(o.jornada||"—")}</b></div><div><span>Horário</span><b>${esc(o.horario||"—")}</b></div><div><span>Benefícios</span><b style="white-space:normal">${esc(o.beneficios||"—")}</b></div><div><span>Contrato</span><b style="white-space:normal">Experiência de 45 dias, prorrogável por mais 45</b></div></div>
+    <p class="small muted">A contratação depende dos documentos, do exame admissional e, nas lojas de aeroporto, do credenciamento.</p>
+    <div class="tabs-inline"><button class="btn" data-cd="pdfoferta">Baixar carta oferta (PDF)</button></div>
+    <p class="small" id="cd-err" style="color:var(--bad)" hidden></p>
+    <div class="tabs-inline" style="margin-top:12px"><button class="btn btn-ghost" data-cd="recusar">Não aceito</button><button class="btn btn-primary" data-cd="aceitar">Aceito a proposta</button></div></div>`);return}
+  if(et==="documentos"||et==="conferencia"){
+    const doc=t=>(r.docs||[]).filter(a=>a.tipo===t).sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
+    const lista=(r.checklist||[]).filter(x=>x.etapa==="documentos");const obrig=lista.filter(x=>x.obrig);const env=obrig.filter(x=>{const a=doc(x.tipo);return a&&a.status!=="reprovado"}).length;
+    const edit=et==="documentos";
+    const sel=(k,t,ops)=>`<div class="field"><label for="cdd-${k}">${t}</label><select class="input" id="cdd-${k}" ${edit?"":"disabled"}><option value="">Selecione…</option>${ops.map(x=>`<option ${d[k]===x?"selected":""}>${x}</option>`).join("")}</select></div>`;
+    const inp=(k,t,tp,full)=>`<div class="field ${full?"full":""}"><label for="cdd-${k}">${t}</label><input class="input" id="cdd-${k}" ${tp?'type="'+tp+'"':""} value="${esc(d[k]||"")}" ${edit?"":"disabled"}></div>`;
+    const deps=(d.dependentes||[]);
+    cdTela(top+`${r.motivo&&edit?`<div class="note" style="border-color:var(--bad)"><b>Atenção:</b> ${esc(r.motivo)}</div>`:""}
+    ${et==="conferencia"?`<div class="card"><h2>Documentos em conferência</h2><p>O RH está conferindo seus documentos. Se algum precisar ser reenviado, você será avisado pelo WhatsApp.</p></div>`:""}
+    <div class="card"><h2>1. Seus dados</h2><p class="muted small">Usados na sua ficha de registro.</p><form class="form-grid" onsubmit="return false">
+      ${inp("nascimento","Data de nascimento","date")}${sel("sexo","Sexo",["Feminino","Masculino"])}${sel("estadoCivil","Estado civil",["Solteiro(a)","Casado(a)","União estável","Divorciado(a)","Viúvo(a)"])}${sel("escolaridade","Escolaridade",["Fundamental incompleto","Fundamental completo","Médio incompleto","Médio completo","Superior incompleto","Superior completo"])}
+      ${inp("nomeMae","Nome da mãe","",1)}${inp("nomePai","Nome do pai","",1)}${sel("racaCor","Raça/cor",["Branca","Preta","Parda","Amarela","Indígena","Não informada"])}${inp("naturalidade","Naturalidade (cidade/UF)")}
+      ${inp("rg","RG")}${inp("rgOrgao","Órgão emissor")}${inp("rgUf","UF do RG")}${inp("rgEmissao","Emissão do RG","date")}${inp("pis","PIS/NIS")}${inp("ctpsNumero","CTPS número")}${inp("ctpsSerie","CTPS série")}${inp("ctpsUf","CTPS UF")}
+      ${inp("tituloEleitor","Título de eleitor")}${inp("tituloZona","Zona")}${inp("tituloSecao","Seção")}${inp("reservista","Reservista (se tiver)")}
+      ${inp("cep","CEP")}${inp("logradouro","Rua / avenida","",1)}${inp("numero","Número")}${inp("complemento","Complemento")}${inp("bairro","Bairro")}${inp("cidade","Cidade")}${inp("uf","UF")}
+      <fieldset class="full fx-sec"><legend>Dependentes (filhos, cônjuge)</legend><div id="cd-deps">${deps.map((x,i)=>cdDepLinha(x,i,edit)).join("")||`<p class="small muted">Nenhum dependente.</p>`}</div>${edit?`<button type="button" class="btn btn-sm" data-cd="adddep">+ Dependente</button>`:""}</fieldset>
+    </form>${edit?`<p class="small" id="cd-derr" style="color:var(--bad)" hidden></p><button class="btn" data-cd="salvardados" style="margin-top:8px">Salvar meus dados</button>`:""}</div>
+    <div class="card"><h2>2. Documentos <span class="chip ${env===obrig.length?"c-ok":"c-warn"}">${env} de ${obrig.length} obrigatórios</span></h2><p class="muted small">Foto do documento com o celular (bem iluminada e legível) ou PDF. Até 10 MB.</p>
+      <div class="av-list">${lista.map(x=>{const a=doc(x.tipo);const st=!a?`<span class="chip c-mute">Não enviado</span>`:a.status==="aprovado"?`<span class="chip c-ok">Aprovado</span>`:a.status==="reprovado"?`<span class="chip c-bad">Reenviar</span>`:`<span class="chip c-info">Enviado</span>`;
+        return `<div class="alert"><div style="min-width:0;grid-column:1/3"><b style="white-space:normal">${esc(x.nome)} ${x.obrig?`<span class="chip c-mute">obrigatório</span>`:""}</b>${a&&a.status==="reprovado"?`<span style="color:var(--bad);white-space:normal">Motivo: ${esc(a.motivo||"")}</span>`:""}${x.tipo==="foto3x4"&&edit?FOTO_REGRAS:""}</div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${st}${edit&&(!a||a.status!=="aprovado")?`<label class="btn btn-sm ${!a||a.status==="reprovado"?"btn-primary":""}" style="cursor:pointer">${a?"Reenviar":"Enviar"}<input type="file" hidden accept="${x.tipo==="foto3x4"?"image/jpeg,image/png":"application/pdf,image/jpeg,image/png"}" data-cdfile="${x.tipo}"></label>`:""}</div></div>`}).join("")}</div></div>
+    ${edit?`<div class="card"><h2>3. Enviar para o RH</h2><p class="muted small">Quando todos os obrigatórios estiverem enviados e seus dados salvos, envie para conferência.</p><p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="conferencia" style="width:100%;justify-content:center">Enviar documentos para conferência</button></div>`:""}`);return}
+  if(et==="cartas"){
+    const doc=t=>(r.docs||[]).filter(a=>a.tipo===t).sort((a,b)=>String(b.enviado_em).localeCompare(String(a.enviado_em)))[0];
+    const up=(t,n)=>{const a=doc(t);return `<div class="alert"><div style="min-width:0;grid-column:1/3"><b>${n}</b></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${a?`<span class="chip ${a.status==="aprovado"?"c-ok":a.status==="reprovado"?"c-bad":"c-info"}">${a.status==="aprovado"?"Aprovado":a.status==="reprovado"?"Reenviar":"Enviado"}</span>`:""}${!a||a.status!=="aprovado"?`<label class="btn btn-sm" style="cursor:pointer">${a?"Reenviar":"Enviar"}<input type="file" hidden accept="application/pdf,image/jpeg,image/png" data-cdfile="${t}"></label>`:""}</div></div>`};
+    cdTela(top+`<div class="card"><h2>Documentos aprovados!</h2><p>Faltam poucos passos para sua admissão.</p></div>
+    <div class="card"><h2>1. Abra sua conta salário</h2><p>Baixe a carta e leve ao ${esc(r.empresa.banco||"banco")}${r.empresa.agencia?", agência "+esc(r.empresa.agencia):""}, com um documento com foto e o comprovante de residência.</p><button class="btn btn-primary" data-cd="pdfbanco">Baixar carta para abertura de conta</button></div>
+    <div class="card"><h2>2. Informe sua conta</h2><form class="form-grid" onsubmit="return false"><div class="field"><label for="cdd-banco">Banco</label><input class="input" id="cdd-banco" value="${esc(d.banco||r.empresa.banco||"")}"></div><div class="field"><label for="cdd-agencia">Agência</label><input class="input" id="cdd-agencia" value="${esc(d.agencia||"")}"></div><div class="field"><label for="cdd-conta">Conta</label><input class="input" id="cdd-conta" value="${esc(d.conta||"")}"></div><div class="field"><label for="cdd-pix">Chave Pix (opcional)</label><input class="input" id="cdd-pix" value="${esc(d.pix||"")}"></div></form><button class="btn" data-cd="salvarconta">Salvar dados da conta</button></div>
+    <div class="card"><h2>3. Exame admissional e comprovantes</h2><p class="small muted">O RH vai orientar onde fazer o exame. Depois, envie o resultado (ASO) e o comprovante da conta.</p><div class="av-list">${up("aso","ASO admissional (resultado do exame)")}${up("conta","Comprovante da conta salário")}</div></div>
+    <div class="card"><button class="btn btn-ghost" data-cd="pdfoferta">Baixar minha carta oferta</button></div>`);return}
+  if(et==="admitido"){cdTela(top+`<div class="card"><h2>Bem-vindo(a) à Brasileiríssima!</h2><p>Sua admissão foi concluída. Em caso de dúvidas, fale com o gerente da sua loja ou com o RH.</p></div>`);return}
+  cdTela(`<div class="card"><h2>Processo encerrado</h2><p>Em caso de dúvidas, fale com o RH.</p></div>`);
+}
+function cdDepLinha(x,i,edit){return `<div class="dep-row" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)${edit?" auto":""};margin-bottom:6px"><input class="input" id="cdp-nome-${i}" placeholder="Nome" value="${esc(x.nome||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-par-${i}" placeholder="Parentesco" value="${esc(x.parentesco||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-nasc-${i}" type="date" value="${esc(x.nascimento||"")}" ${edit?"":"disabled"}><input class="input" id="cdp-cpf-${i}" placeholder="CPF" value="${esc(x.cpf||"")}" ${edit?"":"disabled"}>${edit?`<button type="button" class="btn btn-sm btn-ghost" data-cd="rmdep|${i}" aria-label="Remover">✕</button>`:""}</div>`}
+const CD_CAMPOS=["nascimento","sexo","estadoCivil","escolaridade","nomeMae","nomePai","racaCor","naturalidade","rg","rgOrgao","rgUf","rgEmissao","pis","ctpsNumero","ctpsSerie","ctpsUf","tituloEleitor","tituloZona","tituloSecao","reservista","cep","logradouro","numero","complemento","bairro","cidade","uf"];
+function cdLerDeps(){const o=[];for(let i=0;document.getElementById("cdp-nome-"+i);i++)o.push({nome:$("#cdp-nome-"+i).value.trim(),parentesco:$("#cdp-par-"+i).value.trim(),nascimento:$("#cdp-nasc-"+i).value,cpf:$("#cdp-cpf-"+i).value.trim()});return o}
+function cdErro(m,id){const el=document.getElementById(id||"cd-err");if(el){el.hidden=false;el.textContent=m}else toast(m)}
+async function cdAcao(a,t){
+  const r=CD.info;
+  if(a==="cpf"){CD.cpf=soDig($("#cd-cpfc").value);try{sessionStorage.setItem("gp-cand-"+CD.token,CD.cpf)}catch(e){}const x=await cdApi({acao:"abrir"});if(x.precisaCpf){cdErro("CPF não confere com o cadastro.");return}if(x.erro){cdErro(x.erro);return}CD.info=x;cdRender();return}
+  if(a==="precadastro"){const cpf=soDig($("#cd-cpf").value);if(!$("#cd-lgpd").checked){cdErro("Marque a autorização de uso dos dados para continuar.");return}
+    t.disabled=true;const x=await cdApi({acao:"precadastro",nome:$("#cd-nome").value,cpf,email:$("#cd-email").value,telefone:$("#cd-tel").value,lgpd:true});t.disabled=false;
+    if(x.erro){cdErro(x.erro);return}CD.cpf=cpf;try{sessionStorage.setItem("gp-cand-"+CD.token,cpf)}catch(e){}cdCarregar();return}
+  if(a==="aceitar"){if(!confirm("Confirma que aceita a proposta?"))return;const x=await cdApi({acao:"oferta",aceita:true});if(x.erro){cdErro(x.erro);return}cdCarregar();return}
+  if(a==="recusar"){const m=prompt("Que pena! Se quiser, conte o motivo:");if(m===null)return;const x=await cdApi({acao:"oferta",aceita:false,motivo:m});if(x.erro){cdErro(x.erro);return}cdTela(`<div class="card"><h2>Resposta registrada</h2><p>Obrigado pelo seu tempo. O RH foi avisado.</p></div>`);return}
+  if(a==="pdfoferta"||a==="pdfbanco"){const c={nome:r.nome,cpf:r.cpf,cargo:r.cargo,oferta:r.oferta,oferta_aceite_em:r.ofertaAceiteEm};const d=a==="pdfoferta"?cartaOfertaPDF(c,r.empresa,r.loja?r.loja.nome:""):cartaBancoPDF(c,r.empresa,r.loja?r.loja.nome:"");if(d)d.save((a==="pdfoferta"?"carta-oferta-":"carta-conta-salario-")+slugArq(r.nome)+".pdf");return}
+  if(a==="adddep"){const deps=cdLerDeps();deps.push({});$("#cd-deps").innerHTML=deps.map((x,i)=>cdDepLinha(x,i,true)).join("");return}
+  if(a.startsWith("rmdep|")){const deps=cdLerDeps();deps.splice(Number(a.split("|")[1]),1);$("#cd-deps").innerHTML=deps.map((x,i)=>cdDepLinha(x,i,true)).join("")||`<p class="small muted">Nenhum dependente.</p>`;return}
+  if(a==="salvardados"||a==="conferencia"){
+    const dados={};CD_CAMPOS.forEach(k=>{const el=document.getElementById("cdd-"+k);if(el)dados[k]=el.value.trim()});dados.dependentes=cdLerDeps().filter(x=>x.nome);
+    t.disabled=true;const x=await cdApi({acao:"dados",dados});
+    if(x.erro){t.disabled=false;cdErro(x.erro,a==="salvardados"?"cd-derr":"cd-err");return}
+    if(a==="salvardados"){t.disabled=false;toast("Dados salvos");CD.info.dados={...CD.info.dados,...dados};return}
+    const y=await cdApi({acao:"conferencia"});t.disabled=false;if(y.erro){cdErro(y.erro);return}cdCarregar();return}
+  if(a==="salvarconta"){const dados={};["banco","agencia","conta","pix"].forEach(k=>dados[k]=$("#cdd-"+k).value.trim());const x=await cdApi({acao:"dados",dados});if(x.erro){toast(x.erro);return}toast("Dados da conta salvos");return}
+}
+async function cdEnviarArquivo(tipo,file,input){
+  const p=await anxPreparar(file,tipo);if(input)input.value="";if(!p)return;
+  toast("Enviando…");const x=await cdApi({acao:"upload",tipo,nome:p.nome,mime:p.mime,tamanho:p.blob.size});
+  if(x.erro){toast(x.erro);return}
+  const up=await SB.storage.from("anexos").uploadToSignedUrl(x.path,x.token,p.blob,{contentType:p.mime});
+  if(up.error){toast("O envio falhou. Verifique a conexão e tente de novo.");return}
+  const ok=await cdApi({acao:"upload_ok",id:x.id});if(ok.erro){toast(ok.erro);return}
+  toast("Documento enviado");cdCarregar();
+}
+/* ---- eventos (anexos, candidatos e portal do candidato) ---- */
+document.addEventListener("click",ev=>{
+  if(ev.target.closest("a[data-zap]"))return;
+  const t=ev.target.closest("[data-anxver],[data-anxbaixar],[data-anxexcluir],[data-cdabrir],[data-cdnovo],[data-cdcriar],[data-cdacao],[data-cddoc],[data-cdvis],[data-admtab],[data-cd]");if(!t)return;
+  const d=t.dataset;
+  if(d.anxver){anxVer(d.anxver);return}
+  if(d.anxbaixar){t.disabled=true;anxBaixar(d.anxbaixar).finally(()=>{t.disabled=false});return}
+  if(d.anxexcluir){anxExcluirAgora(d.anxexcluir,t);return}
+  if(d.cdabrir){closeModal();candAbrir(d.cdabrir);return}
+  if(d.cdnovo){candConviteModal();return}
+  if(d.cdcriar){const w=d.cdcriar==="zap"?window.open("about:blank","_blank"):null;t.disabled=true;candCriar(w).finally(()=>{t.disabled=false});return}
+  if(d.cdacao){candAcao(d.cdacao,t);return}
+  if(d.cddoc){const [a,id]=d.cddoc.split("|");candDoc(a,id);return}
+  if(d.cdvis){UI.cdVis=d.cdvis;render();return}
+  if(d.admtab){UI.admTab=d.admtab;render();return}
+  if(d.cd){cdAcao(d.cd,t);return}
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target;
+  if(t.dataset&&t.dataset.anxfile){const f=t.files[0];t.value="";anxEnviarColab(t.dataset.anxfile,f);return}
+  if(t.dataset&&t.dataset.cdfile){cdEnviarArquivo(t.dataset.cdfile,t.files[0],t);return}
+});
+document.addEventListener("input",ev=>{
+  const t=ev.target;
+  if(t.id==="f-cdbusca"){UI.cdBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cdbusca");n.focus();n.setSelectionRange(pos,pos)}
+  if(t.id&&t.id.startsWith("crt-")){ST.cfg.cartas={...(ST.cfg.cartas||{}),[t.id.slice(4)]:t.value};clearTimeout(window.__crtT);window.__crtT=setTimeout(save,600)}
+});
+const R_CONFIG_BASE=R.config;R.config=()=>R_CONFIG_BASE()+cartasCfgCard();
+
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
@@ -3218,7 +3844,8 @@ function fichaGerente(e){
       ${sf.programada?`<div><span>Próximas férias</span><b class="num">${fdate(sf.programada.inicio)}</b></div>`:""}
     </div>
     ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
-    ${avSecao(e)}`,
+    ${avSecao(e)}
+    ${typeof anexosSecao==="function"?anexosSecao(e):""}`,
     e.desligado?`<button class="btn" data-close>Fechar</button>`:`<button class="btn" data-aso="${e.id}">Registrar ASO renovado</button><button class="btn btn-primary" data-close>Fechar</button>`);
 }
 function fichaModal(id){
@@ -3240,6 +3867,7 @@ function fichaModal(id){
     ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
     ${avSecao(e)}
     ${mdSecaoFicha(e)}
+    ${typeof anexosSecao==="function"?anexosSecao(e):""}
     ${fichaSecao(e)}`,
     e.desligado?`<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn" data-close>Fechar</button>`:
     `<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn btn-danger" data-rescisao="${e.id}">Desligar</button><button class="btn" data-mdnovo="${e.id}">Medida disciplinar</button>${e.afastado?`<button class="btn" data-retorno="${e.id}">Registrar retorno</button>`:`<button class="btn" data-afastar="${e.id}">Afastar</button>`}<button class="btn" data-progferias="${e.id}">Férias</button><button class="btn" data-aso="${e.id}">Renovar ASO</button><button class="btn" data-holerite="${e.id}">Holerite</button><button class="btn btn-primary" data-editcolab="${e.id}">Editar</button>`);
@@ -3373,7 +4001,7 @@ function admForm(pref={}){
 
 /* ============ eventos ============ */
 document.addEventListener("click",ev=>{
-  const t=ev.target.closest("[data-xpchamado],[data-mdver],[data-mdtab],[data-mdper],[data-mdnovo],[data-mdpdf],[data-mdciencia],[data-mdcienciaok],[data-mdcopt],[data-mdanular],[data-mdanularok],[data-mdexcluir],[data-mdpront],[data-mdprontpdf],[data-pjficha],[data-pjsit],[data-pjeditar],[data-pjencerrar],[data-pjencerrarok],[data-pjrenovar],[data-pjreativar],[data-pjexcluir],[data-pjrmben],[data-pjrmfx],[data-pjexpesc],[data-pjexppreset],[data-dpver],[data-dppdf],[data-dpdecidir],[data-dpregistrar],[data-dpefetivar],[data-dpcancelar],[data-dpalterar],[data-dptab],[data-dpreenviar],[data-dpreenviarok],[data-dpexcluir],[data-dper],[data-dloja],[data-expesc],[data-exppreset],[data-expgrupo],[data-fichaform],[data-rmdep],[data-aprovar],[data-recusar],[data-vermov],[data-editusr],[data-usrtab],[data-hcloja],[data-rtloja],[data-pdfferias],[data-assinou],[data-act],[data-go],[data-ficha],[data-close],[data-close-overlay],[data-savecolab],[data-editcolab],[data-holerite],[data-progferias],[data-rescisao],[data-adm-next],[data-adm-back],[data-cell],[data-banco],[data-ffiltro],[data-transmitir],[data-vaga-adm],[data-loja-colab],[data-loja-escala],[data-editloja],[data-aso],[data-afastar],[data-retorno],[data-saveloja],[data-avaliar],[data-rate],[data-parecer],[data-verav],[data-xptab]");
+  const t=ev.target.closest("[data-xpchamado],[data-cfiltro],[data-veravmov],[data-cmtodas],[data-mdver],[data-mdtab],[data-mdper],[data-mdnovo],[data-mdpdf],[data-mdciencia],[data-mdcienciaok],[data-mdcopt],[data-mdanular],[data-mdanularok],[data-mdexcluir],[data-mdpront],[data-mdprontpdf],[data-pjficha],[data-pjsit],[data-pjeditar],[data-pjencerrar],[data-pjencerrarok],[data-pjrenovar],[data-pjreativar],[data-pjexcluir],[data-pjrmben],[data-pjrmfx],[data-pjexpesc],[data-pjexppreset],[data-dpver],[data-dppdf],[data-dpdecidir],[data-dpregistrar],[data-dpefetivar],[data-dpcancelar],[data-dpalterar],[data-dptab],[data-dpreenviar],[data-dpreenviarok],[data-dpexcluir],[data-dper],[data-dloja],[data-expesc],[data-exppreset],[data-expgrupo],[data-fichaform],[data-rmdep],[data-aprovar],[data-recusar],[data-vermov],[data-editusr],[data-usrtab],[data-hcloja],[data-rtloja],[data-pdfferias],[data-assinou],[data-act],[data-go],[data-ficha],[data-close],[data-close-overlay],[data-savecolab],[data-editcolab],[data-holerite],[data-progferias],[data-rescisao],[data-adm-next],[data-adm-back],[data-cell],[data-banco],[data-ffiltro],[data-transmitir],[data-vaga-adm],[data-loja-colab],[data-loja-escala],[data-editloja],[data-aso],[data-afastar],[data-retorno],[data-saveloja],[data-avaliar],[data-rate],[data-parecer],[data-verav],[data-xptab]");
   if(!t)return;
   const d=t.dataset;
   if(d.closeOverlay!==undefined){if(ev.target===t)closeModal();return}
@@ -3496,6 +4124,12 @@ document.addEventListener("click",ev=>{
   if(d.banco&&G()){const [eid,m]=d.banco.split("|");enviarMov({tipo:"banco",eid,min:Number(m)},Number(m)>0?"Crédito de 1h enviado ao RH":"Folga de 8h enviada ao RH");return}
   if(d.banco){const [eid,m]=d.banco.split("|");emp(eid).banco+=Number(m);commit(Number(m)>0?"1 hora lançada":"Folga de 8h compensada");return}
   if(d.xptab){UI.xpTab=d.xptab;render();return}
+  if(d.cfiltro){UI.cFiltro=d.cfiltro;render();return}
+  if(d.veravmov){closeModal();verAvMov(d.veravmov);return}
+  if(d.cmtodas!==undefined){document.querySelectorAll('input[name="cm-loja"]').forEach(i=>{i.checked=d.cmtodas==="1"});return}
+  if(d.act==="correioLido"){correioMarcarLido();CORREIO_N=0;render();return}
+  if(d.act==="correioNovo"){correioNovoModal();return}
+  if(d.act==="correioEnviar"){correioEnviar();return}
   if(d.avaliar){const [eid,m]=d.avaliar.split("|");avaliacaoModal(eid,Number(m));return}
   if(d.verav){const [eid,aid]=d.verav.split("|");verAvaliacao(eid,aid);return}
   if(d.rate){if(!AV)return;const [k,n]=d.rate.split("|");AV.notas[k]=Number(n);t.parentElement.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===t));avResumo();return}
@@ -3547,6 +4181,8 @@ document.addEventListener("click",ev=>{
     ST=normalize({exemplo:false,stores:[{id:"s1",nome:"Brasileiríssima Loja 1",cidade:"",tipo:"Loja de rua",quadro:10}],emps:[],cfg:ST.cfg});commit("Pronto. Cadastre sua primeira unidade e equipe.")}
   if(act==="restaurar"){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Substituir tudo pelos exemplos? Toque de novo";return}ST=normalize(seedData());commit("Dados de exemplo recarregados")}
   if(act==="baixarBackup"){baixarBackup();return}
+  if(act==="zerarModal"){zerarModal();return}
+  if(act==="zerarOk"){zerarOk();return}
   if(act==="gerarBackup"){$("#backup").value=JSON.stringify(ST)}
   if(act==="copiarBackup"){const ta=$("#backup");if(!ta.value)ta.value=JSON.stringify(ST);navigator.clipboard?.writeText(ta.value).then(()=>toast("Backup copiado"),()=>{ta.select();toast("Selecionado. Use Copiar do teclado")})}
   if(act==="importar"){try{const o=JSON.parse($("#backup").value);if(!o.emps||!o.stores)throw 0;ST=normalize(o);commit("Backup importado")}catch(e){toast("Não foi possível ler o backup. Cole o texto completo gerado por aqui.")}}
@@ -3559,6 +4195,7 @@ document.addEventListener("input",ev=>{
   if(t.id==="f-xbusca"){UI.xBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-xbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id==="f-fbusca"){UI.fBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-fbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id==="md-busca")mdFiltrarEmp(t.value);
+  if(t.id==="f-cbusca"){UI.cBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id==="f-mbusca"){UI.mBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-mbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id==="f-pjbusca"){UI.pjBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-pjbusca");n.focus();n.setSelectionRange(pos,pos)}
   if(t.id==="f-busca"){UI.busca=t.value;const pos=t.selectionStart;render();const n=$("#f-busca");n.focus();n.setSelectionRange(pos,pos)}
@@ -3572,6 +4209,7 @@ document.addEventListener("change",ev=>{
   if(t.id==="f-pjloja"){UI.pjLoja=t.value;render()}
   if(["xpch-loja","xpch-pend","xpch-prazo","xpch-lider"].includes(t.id))xpchGerar(false);
   if(t.id==="f-mloja"){UI.mLoja=t.value;render()}
+  if(t.id==="f-cloja"){UI.cLoja=t.value;render()}
   if(t.id==="f-mtipo"){UI.mTipo=t.value;render()}
   if(t.id==="md-tipo")mdTipoToggle();
   if(t.id==="md-emp")mdHistHint();
