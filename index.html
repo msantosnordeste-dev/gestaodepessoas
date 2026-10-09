@@ -1,0 +1,2061 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22%230B7F4A%22/%3E%3Cpath d=%22M6 10h12l-1.2 8H7.2z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222%22/%3E%3C/svg%3E">
+<title>Gestão de Pessoas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<style>
+/* Layout: sidebar fixa + área de trabalho em cartões arredondados; vira barra superior rolável no celular.
+   Paleta verde Brasileiríssima — verde-bandeira, superfícies brancas, cantos generosos, botões em pílula. */
+:root{
+  --brand:#0B7F4A; --brand-ink:#075E36; --brand-soft:#DCF3E6; --brand-tint:#F0FAF4; --on-brand:#FFFFFF; --accent:#F2C230;
+  --bg:#F2F6F3; --surface:#FFFFFF; --surface-2:#F6F9F7; --ink:#10201A; --muted:#5B6D64; --line:#DFE8E3;
+  --ok:#0E7F86; --ok-soft:#DDF2F3; --warn:#B86E00; --warn-soft:#FFF2DC; --bad:#CF2B45; --bad-soft:#FDE6EA;
+  --info:#3A5BD9; --info-soft:#E8EDFD;
+  --shadow:0 1px 2px rgba(16,32,26,.05),0 8px 24px rgba(16,32,26,.06);
+  --f-display:"Sora",ui-rounded,"Segoe UI",system-ui,sans-serif;
+  --f-body:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r-lg:24px; --r-md:16px; --r-sm:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --brand:#3DCB86; --brand-ink:#8FE6B8; --brand-soft:#123826; --brand-tint:#0F261B; --on-brand:#06140D; --accent:#F5CE4E;
+  --bg:#0C1410; --surface:#141E19; --surface-2:#1A2620; --ink:#EAF4EE; --muted:#9AAFA4;
+  --line:#25352C; --ok:#4FCFD4; --ok-soft:#10302F; --warn:#F2A93B; --warn-soft:#352610; --bad:#FF6B81; --bad-soft:#3A1720;
+  --info:#8EA6FF; --info-soft:#1C2445; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --brand:#3DCB86; --brand-ink:#8FE6B8; --brand-soft:#123826; --brand-tint:#0F261B; --on-brand:#06140D; --accent:#F5CE4E;
+  --bg:#0C1410; --surface:#141E19; --surface-2:#1A2620; --ink:#EAF4EE; --muted:#9AAFA4;
+  --line:#25352C; --ok:#4FCFD4; --ok-soft:#10302F; --warn:#F2A93B; --warn-soft:#352610; --bad:#FF6B81; --bad-soft:#3A1720;
+  --info:#8EA6FF; --info-soft:#1C2445; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.02em}
+h1{font-size:clamp(1.6rem,1.2rem + 1.4vw,2.2rem);font-weight:700}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:8px}
+
+.app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
+.side{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;display:flex;flex-direction:column;gap:20px;padding:24px 16px;border-right:1px solid var(--line);background:var(--surface)}
+.logo{display:flex;align-items:center;gap:10px;padding:0 8px;font-family:var(--f-display);font-weight:800;font-size:1.25rem;letter-spacing:-.03em}
+.logo-mark{width:34px;height:34px;border-radius:11px;background:var(--brand);display:grid;place-items:center;color:var(--on-brand)}
+.logo small{display:block;font-family:var(--f-body);font-weight:500;font-size:.72rem;color:var(--muted);letter-spacing:0}
+.nav{display:flex;flex-direction:column;gap:2px;overflow:auto}
+.nav-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:12px 12px 4px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:500}
+.nav a svg{width:18px;height:18px;flex:none;stroke:var(--muted)}
+.nav a:hover{background:var(--surface-2)}
+.nav a.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+.nav a.on svg{stroke:var(--brand)}
+.nav .count{margin-left:auto;font-size:.72rem;background:var(--brand);color:var(--on-brand);border-radius:99px;padding:1px 7px;font-weight:700}
+.side-foot{margin-top:auto;display:flex;gap:10px;align-items:center;padding:12px;border-radius:var(--r-md);background:var(--surface-2)}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;background:var(--brand-soft);color:var(--brand-ink);flex:none}
+.side-foot b{display:block;font-size:.85rem}
+.side-foot span{font-size:.75rem;color:var(--muted)}
+
+.main{min-width:0;padding-block:28px 64px;padding-inline:clamp(16px,3vw,40px);display:flex;flex-direction:column;gap:24px}
+.topbar{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.topbar .eyebrow{font-size:.78rem;color:var(--muted);font-weight:500;margin-bottom:4px}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);padding:10px 18px;border-radius:99px;font-weight:600;cursor:pointer;font-size:.9rem;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.btn-primary:hover{filter:brightness(.92)}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-sm{padding:6px 12px;font-size:.8rem}
+.btn-danger{color:var(--bad);border-color:var(--bad-soft);background:var(--bad-soft)}
+.icon-btn{width:40px;height:40px;padding:0;justify-content:center}
+
+.banner{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px;border-radius:var(--r-md);background:var(--brand-tint);border:1px dashed var(--brand);font-size:.88rem}
+.banner b{color:var(--brand-ink)}
+
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.two{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.card{background:var(--surface);border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow);min-width:0}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.card-head p{color:var(--muted);font-size:.85rem}
+.kpi{display:flex;flex-direction:column;gap:6px}
+.kpi .lbl{font-size:.82rem;color:var(--muted);font-weight:500}
+.kpi .val{font-family:var(--f-display);font-size:1.8rem;font-weight:700;letter-spacing:-.03em}
+.kpi .sub{font-size:.8rem;color:var(--muted)}
+.kpi.hero{background:var(--brand);color:var(--on-brand);background-image:linear-gradient(135deg,transparent 70%,color-mix(in srgb,var(--accent) 35%,transparent))}
+.kpi.hero .lbl,.kpi.hero .sub{color:inherit;opacity:.85}
+
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.c-ok{background:var(--ok-soft);color:var(--ok)}
+.c-warn{background:var(--warn-soft);color:var(--warn)}
+.c-bad{background:var(--bad-soft);color:var(--bad)}
+.c-info{background:var(--info-soft);color:var(--info)}
+.c-brand{background:var(--brand-soft);color:var(--brand-ink)}
+.c-mute{background:var(--surface-2);color:var(--muted)}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label{font-size:.78rem;font-weight:600;color:var(--muted)}
+.input,select.input,textarea.input{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px;min-width:0;width:100%}
+.input:focus{outline:2px solid var(--brand);outline-offset:0;border-color:transparent}
+.toolbar .input{width:auto}
+.search{flex:1 1 220px}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.check input{accent-color:var(--brand);width:18px;height:18px}
+
+.table-wrap{overflow-x:auto;margin:0 -22px;padding:0 22px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surface-2)}
+td.r,th.r{text-align:right}
+tfoot td{font-weight:700;border-bottom:none}
+.who{display:flex;align-items:center;gap:10px}
+.who b{display:block;font-weight:600}
+.who span{font-size:.78rem;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+
+/* alertas */
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--r-md);background:var(--surface-2)}
+.alert .dot{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-family:var(--f-display);font-size:.8rem}
+.alert b{display:block;font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert span{font-size:.78rem;color:var(--muted)}
+
+/* barras */
+.bars{display:flex;flex-direction:column;gap:14px}
+.bar-row{display:grid;grid-template-columns:150px minmax(0,1fr) 64px;gap:12px;align-items:center;font-size:.85rem}
+.bar-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.bar-track{position:relative;height:14px;background:var(--surface-2);border-radius:99px}
+.bar-fill{position:absolute;inset:0 auto 0 0;background:var(--brand);border-radius:99px}
+.bar-fill.under{background:var(--warn)}
+.bar-mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:2px}
+.legend{display:flex;gap:16px;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+.cols{display:flex;align-items:flex-end;gap:14px;height:170px;padding-top:10px;border-bottom:1px solid var(--line)}
+.col-g{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;min-width:0}
+.col-pair{display:flex;gap:4px;align-items:flex-end;height:100%;width:100%;justify-content:center}
+.col-pair div{width:min(18px,40%);border-radius:6px 6px 2px 2px;position:relative}
+.col-pair div span{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:.7rem;color:var(--muted)}
+.col-lbls{display:flex;gap:14px}
+.col-lbls span{flex:1;text-align:center;font-size:.75rem;color:var(--muted);padding-top:6px}
+
+/* kanban */
+.kanban{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:14px;overflow-x:auto;padding-bottom:8px}
+.lane{background:var(--surface-2);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.lane-h{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.88rem;padding:2px 4px 6px}
+.lane-h small{color:var(--muted);font-weight:500;font-size:.72rem;display:block}
+.k-card{background:var(--surface);border-radius:var(--r-md);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.k-card b{font-size:.92rem}
+.k-card .meta{font-size:.78rem;color:var(--muted)}
+.k-card .acts{display:flex;gap:6px;flex-wrap:wrap}
+
+/* escala */
+.sched td{text-align:center;padding:8px 6px}
+.sched td:first-child{text-align:left}
+.cell{width:42px;height:34px;border-radius:10px;border:none;font-weight:700;cursor:pointer;font-size:.8rem}
+.cell.T{background:var(--brand-soft);color:var(--brand-ink)}
+.cell.F{background:var(--ok-soft);color:var(--ok)}
+.cell.FE{background:var(--info-soft);color:var(--info);cursor:default}
+.sched th.sun{color:var(--brand)}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(8,20,14,.45);display:grid;place-items:center;padding:16px;z-index:50;backdrop-filter:blur(2px)}
+.modal{background:var(--surface);border-radius:var(--r-lg);width:min(720px,100%);max-height:min(88vh,900px);display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.modal-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid var(--line)}
+.modal-b{padding:20px 24px;overflow:auto;display:flex;flex-direction:column;gap:16px}
+.modal-f{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.form-grid .full{grid-column:1/-1}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kv div{background:var(--surface-2);border-radius:var(--r-sm);padding:10px 12px}
+.kv span{display:block;font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.kv b{font-weight:600}
+.slip{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.slip-row{display:grid;grid-template-columns:minmax(0,1fr) 90px 120px 120px;gap:8px;padding:9px 14px;font-size:.86rem;border-bottom:1px solid var(--line)}
+.slip-row:last-child{border-bottom:none}
+.slip-row.h{background:var(--surface-2);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.slip-row.t{font-weight:700;background:var(--brand-tint)}
+.slip-row span:not(:first-child){text-align:right}
+.total-box{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-radius:var(--r-md);background:var(--brand);color:var(--on-brand)}
+.total-box b{font-family:var(--f-display);font-size:1.5rem}
+.note{font-size:.8rem;color:var(--muted);background:var(--surface-2);padding:10px 12px;border-radius:var(--r-sm)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:99px;padding:4px;gap:2px;flex-wrap:wrap}
+.seg button{border:none;background:transparent;padding:7px 14px;border-radius:99px;font-weight:600;font-size:.82rem;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:99px;font-weight:600;font-size:.9rem;z-index:80;box-shadow:var(--shadow)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.store-cards{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.store{display:flex;flex-direction:column;gap:14px}
+.store-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.store-top span{font-size:.8rem;color:var(--muted)}
+.mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini-stats div{background:var(--surface-2);border-radius:12px;padding:8px 10px}
+.mini-stats span{display:block;font-size:.7rem;color:var(--muted)}
+.mini-stats b{font-family:var(--f-display);font-size:1.05rem}
+.tabs-inline{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ficha de registro */
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 20px;border:2px dashed var(--brand);border-radius:var(--r-md);background:var(--brand-tint);cursor:pointer;text-align:center}
+.drop b{color:var(--brand-ink)}
+.drop span{font-size:.85rem;color:var(--muted)}
+.drop.over{background:var(--brand-soft)}
+.input.vazio{border:1.5px dashed var(--warn);background:var(--warn-soft)}
+.fx-sec{border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px 16px;margin:0 0 14px;min-width:0}
+.fx-sec legend{font-family:var(--f-display);font-weight:600;font-size:.9rem;padding:0 6px}
+.deps{display:flex;flex-direction:column;gap:8px}
+.dep-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.2fr) auto auto;gap:6px;align-items:center}
+.fx-view{border-top:1px solid var(--line);padding:10px 0}
+.fx-view summary{cursor:pointer;font-weight:600;margin-bottom:8px}
+@media (max-width:860px){.dep-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+/* headcount */
+.hc-filtro{display:flex;flex-wrap:wrap;gap:8px}
+.pill{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 14px;border-radius:99px;font-weight:600;font-size:.84rem;cursor:pointer}
+.pill:hover{border-color:var(--brand)}
+.pill.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink)}
+.hc-row:hover .bar-fill{filter:brightness(1.12)}
+.hc-cel{background:color-mix(in srgb,var(--brand) var(--a),transparent);font-weight:600}
+.hc-matriz th,.hc-matriz td{padding:9px 10px}
+.hc-matriz tfoot tr.muted td{font-weight:500;color:var(--muted)}
+.lojas-check{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:6px 0}
+/* entrada e sincronização */
+.app.gated{grid-template-columns:minmax(0,1fr)}
+.app.gated .side{display:none}
+.app.gated .main{padding:0;gap:0}
+.gate-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);min-height:100vh}
+.gate-side{background:var(--brand);color:var(--on-brand);padding:40px clamp(24px,4vw,56px);display:flex;flex-direction:column;justify-content:space-between;gap:32px;position:relative;overflow:hidden}
+.gate-side::after{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:var(--accent);opacity:.22;right:-130px;bottom:-130px;pointer-events:none}
+.gate-side::before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;border:2px solid currentColor;opacity:.12;right:60px;top:-60px;pointer-events:none}
+.gs-top{display:flex;gap:12px;align-items:center;position:relative;z-index:1}
+.gs-top b{display:block;font-family:var(--f-display);font-size:1.2rem;font-weight:800;letter-spacing:-.02em}
+.gs-top span{font-size:.8rem;opacity:.85}
+.gs-logo{background:var(--on-brand);color:var(--brand);width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none}
+.gs-mid{position:relative;z-index:1}
+.gs-mid h2{font-size:clamp(1.6rem,1.1rem + 1.6vw,2.4rem);font-weight:700;color:inherit;max-width:15ch;margin-bottom:22px;line-height:1.15}
+.gs-mid ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.gs-mid li{display:flex;gap:10px;align-items:center;font-weight:500}
+.gs-mid li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.gs-foot{font-size:.78rem;opacity:.8;position:relative;z-index:1}
+.gate-main{display:flex;align-items:center;justify-content:center;padding:32px 16px;background:var(--bg)}
+.gate{max-width:440px;width:100%;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:36px 32px;display:flex;flex-direction:column;gap:16px}
+.gate h1{font-size:1.65rem}
+.gate p{max-width:46ch}
+.gate-brand{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--brand);font-weight:700}
+.gate form{width:100%}
+.gate .form-grid{grid-template-columns:minmax(0,1fr)}
+.gate .btn-primary{padding:12px 18px;font-size:.95rem}
+.gate-acts{display:flex;flex-direction:column;gap:10px;width:100%}
+.gate-acts .btn{justify-content:center}
+@media (max-width:860px){
+  .gate-wrap{grid-template-columns:minmax(0,1fr);min-height:0}
+  .gate-side{padding:20px 16px;gap:12px}
+  .gs-mid ul,.gs-foot,.gate-side::before{display:none}
+  .gs-mid h2{font-size:1.3rem;margin:0;max-width:none}
+  .gate-main{padding:20px 16px 40px;align-items:flex-start}
+  .gate{padding:24px 20px}
+}
+.sync{display:block;font-size:.72rem;margin-top:2px}
+.sync.ok{color:var(--ok)}
+.sync.saving{color:var(--warn)}
+.sync.error{color:var(--bad)}
+.side-foot>div:last-child span{display:block}
+/* experiência */
+.xp{position:relative;height:8px;width:150px;background:var(--surface-2);border-radius:99px;margin-top:6px}
+.xp i{position:absolute;inset:0 auto 0 0;background:var(--brand);border-radius:99px}
+.xp b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);border-radius:2px}
+.xp-lbl{font-size:.75rem;color:var(--muted)}
+.crit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.crit:last-child{border-bottom:none}
+.crit p{font-weight:600;font-size:.9rem}
+.crit small{display:block;color:var(--muted);font-size:.78rem;font-weight:400}
+.rate{display:flex;gap:4px}
+.rate button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;cursor:pointer;color:var(--ink)}
+.rate button:hover{border-color:var(--brand)}
+.rate button.on{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.av-sum{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:var(--r-md);background:var(--brand-tint)}
+.av-sum b{font-family:var(--f-display);font-size:1.6rem}
+.scale-hint{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+.mbar{display:inline-block;width:60px;height:6px;border-radius:99px;background:var(--surface-2);position:relative;vertical-align:middle;margin-left:8px}
+.mbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--brand)}
+.av-list{display:flex;flex-direction:column;gap:8px}
+@media (max-width:980px){.two{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:sticky;top:env(safe-area-inset-top,0px);height:auto;z-index:20;flex-direction:row;align-items:center;padding:10px 16px;border-right:none;border-bottom:1px solid var(--line);gap:12px}
+  .logo small,.side-foot,.nav-label{display:none}
+  .nav{flex-direction:row;overflow-x:auto;scrollbar-width:none}
+  .nav a{white-space:nowrap;padding:8px 12px}
+  .bar-row{grid-template-columns:100px minmax(0,1fr) 52px}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  .slip-row{grid-template-columns:minmax(0,1fr) 54px 92px 92px;padding:8px 10px;font-size:.8rem}
+  .crit{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:no-preference){.card,.k-card{transition:transform .15s ease}.k-card:hover{transform:translateY(-2px)}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo"><div class="logo-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.5 11h-13z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></div><div>Gestão de Pessoas<small>Brasileiríssima · RH &amp; DP</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot" id="side-foot"></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div id="modal-root"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ============ utilidades ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const brl=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const n0=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const pct=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";
+const r2=v=>Math.round(v*100)/100;
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const fdate=s=>s?parse(s).toLocaleDateString("pt-BR"):"—";
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const addMonths=(s,n)=>{const d=parse(s);const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return iso(d)};
+const diffDays=(a,b)=>Math.round((parse(b)-parse(a))/864e5);
+const monthsBetween=(a,b)=>{const A=parse(a),B=parse(b);let m=(B.getFullYear()-A.getFullYear())*12+B.getMonth()-A.getMonth();if(B.getDate()<A.getDate())m--;return m};
+const TODAY=iso(new Date());
+const initials=n=>n.split(" ").filter(Boolean).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+const uid=()=>Math.random().toString(36).slice(2,9);
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const compLabel=c=>{const [y,m]=c.split("-").map(Number);return MESES[m-1][0].toUpperCase()+MESES[m-1].slice(1)+"/"+y};
+const curComp=TODAY.slice(0,7);
+
+/* ============ tabelas legais (editáveis em Configurações) ============ */
+const DEFAULT_CFG={
+  salarioMinimo:1621,
+  inss:[[1621,7.5],[2902.84,9],[4354.27,12],[8475.55,14]],
+  irrf:[[2428.80,0,0],[2826.65,7.5,182.16],[3751.05,15,394.16],[4664.68,22.5,675.49],[Infinity,27.5,908.73]],
+  deducaoDependente:189.59, descontoSimplificado:607.20,
+  reducaoAte:5000, reducaoMax:312.89, reducaoFaixaAte:7350, reducaoA:978.62, reducaoB:0.133145,
+  fgts:8, vtPct:6,
+  beneficios:{alimentacao:480, refeicao:31, mobilidadeDia:9.4, bemestar:60}
+};
+
+/* ============ dados de exemplo ============ */
+function rngFrom(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const CARGOS={
+  "Gerente de loja":{sal:[4600,5400],com:0},
+  "Subgerente":{sal:[2800,3200],com:0},
+  "Vendedor(a)":{sal:[1650,1850],com:[2,3]},
+  "Operador(a) de caixa":{sal:[1680,1780],com:0},
+  "Fiscal de prevenção":{sal:[1850,1950],com:0},
+  "Estoquista":{sal:[1680,1760],com:0},
+  "Visual merchandiser":{sal:[2500,2800],com:0},
+  "Supervisor(a) de CD":{sal:[4100,4500],com:0},
+  "Auxiliar de logística":{sal:[1680,1760],com:0}
+};
+function fakeAval(e,marco,parecer,avaliador,R,piso){
+  const notas={};criterios(e.cargo).forEach(c=>notas[c.k]=Math.max(1,Math.min(5,Math.round(piso+R()*2))));
+  const media=mediaNotas(notas);
+  return {id:uid(),marco,data:addDays(e.admissao,marco-3-Math.floor(R()*4)),avaliador,notas,media,faltas:Math.floor(R()*(parecer==="encerrar"?5:2)),atrasos:Math.floor(R()*3),
+    fortes:media>=4?"Boa abordagem com clientes e rapidez para aprender o mix da loja.":media>=3?"Pontual e colaborativo(a) com a equipe.":"Disposição para aprender.",
+    desenvolver:media>=4?"Ganhar autonomia em trocas e devoluções.":media>=3?"Melhorar conhecimento de produto e venda adicional.":"Pontualidade, postura no salão e cumprimento de procedimentos.",parecer};
+}
+function seedData(){
+  const R=rngFrom(2026),pick=a=>a[Math.floor(R()*a.length)],between=(a,b)=>a+R()*(b-a);
+  const F=["Ana","Bruno","Camila","Diego","Eduarda","Felipe","Gabriela","Henrique","Isabela","João","Karina","Lucas","Mariana","Natália","Otávio","Paula","Rafael","Sabrina","Thiago","Vanessa","Wesley","Yasmin","Larissa","Matheus","Priscila","Rodrigo","Tainá","Caio","Jéssica","Leonardo","Bianca","Gustavo","Amanda","Igor","Letícia","Renan","Juliana","Pedro","Débora","Vinícius","Aline","Marcelo","Fernanda","Danilo","Raíssa","Samuel","Clara","Davi"];
+  const L=["Silva","Santos","Oliveira","Souza","Lima","Pereira","Ferreira","Costa","Rodrigues","Almeida","Nascimento","Carvalho","Araújo","Ribeiro","Barbosa","Cavalcanti","Monteiro","Freitas","Batista","Moura","Teixeira","Rocha","Correia","Brito"];
+  const stores=[
+    {id:"s1",nome:"Brasileiríssima Centro",cidade:"Recife/PE",tipo:"Loja de rua",quadro:12},
+    {id:"s2",nome:"Brasileiríssima Boa Viagem",cidade:"Recife/PE",tipo:"Shopping",quadro:14},
+    {id:"s3",nome:"Brasileiríssima Iguatemi",cidade:"Fortaleza/CE",tipo:"Shopping",quadro:13},
+    {id:"s4",nome:"Brasileiríssima Salvador",cidade:"Salvador/BA",tipo:"Shopping",quadro:12},
+    {id:"s5",nome:"Brasileiríssima Natal Sul",cidade:"Natal/RN",tipo:"Shopping",quadro:10},
+    {id:"s6",nome:"CD Cabo",cidade:"Cabo de Sto. Agostinho/PE",tipo:"Centro de distribuição",quadro:10}
+  ];
+  const mix={loja:["Gerente de loja","Subgerente","Vendedor(a)","Vendedor(a)","Vendedor(a)","Vendedor(a)","Vendedor(a)","Operador(a) de caixa","Operador(a) de caixa","Fiscal de prevenção","Estoquista","Visual merchandiser","Vendedor(a)"],
+    cd:["Supervisor(a) de CD","Auxiliar de logística","Auxiliar de logística","Auxiliar de logística","Auxiliar de logística","Auxiliar de logística","Estoquista","Estoquista","Auxiliar de logística"]};
+  const used=new Set(),emps=[];
+  const name=()=>{let n;do{n=pick(F)+" "+pick(L)+" "+pick(L)}while(used.has(n));used.add(n);return n};
+  stores.forEach((s,si)=>{
+    const roles=s.tipo==="Centro de distribuição"?mix.cd:mix.loja.slice(0,s.quadro-(si%3===0?2:si%3===1?0:1));
+    roles.forEach((cargo,ri)=>{
+      const c=CARGOS[cargo];
+      let adm;
+      const roll=R();
+      if(roll<.12) adm=addDays(TODAY,-Math.floor(between(8,85)));
+      else adm=addDays(TODAY,-Math.floor(between(200,2900)));
+      if(cargo==="Gerente de loja"||cargo==="Supervisor(a) de CD") adm=addDays(TODAY,-Math.floor(between(1500,3200)));
+      const sal=Math.round(between(c.sal[0],c.sal[1])/10)*10;
+      const e={id:uid(),nome:name(),cpf:"•••.•••.•••-"+pad(Math.floor(R()*99)),cargo,lojaId:s.id,admissao:adm,salario:sal,
+        dependentes:R()<.4?Math.ceil(R()*2):0,vt:R()<.7,comissao:c.com?r2(between(c.com[0],c.com[1])):0,
+        vendas:c.com?Math.round(between(32000,92000)/100)*100:0,he:R()<.3?Math.round(between(2,14)):0,
+        banco:Math.round(between(-240,2600)),afastado:false,desligado:null,ferias:[],avaliacoes:[]};
+      // ASO periódico: vencimento anual a partir do último exame
+      const mAdm=monthsBetween(adm,TODAY);
+      let aso=addMonths(adm,12*Math.max(1,Math.ceil(mAdm/12)));
+      if(R()<.18) aso=addDays(TODAY,Math.floor(between(-20,28)));
+      e.aso=aso;
+      // férias: períodos completos e quantos foram gozados
+      const completos=Math.floor(mAdm/12);
+      let pend=completos===0?0:(R()<.55?1:0);
+      if(completos>=2&&R()<.06) pend=2;
+      const gozados=Math.max(0,completos-pend);
+      for(let k=0;k<gozados;k++) e.ferias.push({inicio:addMonths(adm,12*(k+1)+Math.floor(between(2,9))),dias:30,abono:false});
+      if(R()<.07&&completos>0&&pend>0){e.ferias.push({inicio:addDays(TODAY,-Math.floor(between(2,12))),dias:30,abono:false})}
+      if(R()<.04&&mAdm>12) e.afastado=true;
+      emps.push(e);
+    });
+  });
+  // desligados nos últimos 12 meses (para turnover)
+  const tipos=["sem_justa","pedido","pedido","acordo","sem_justa","fim_experiencia","pedido","justa","sem_justa"];
+  tipos.forEach((t,i)=>{const s=stores[i%5];const cargo=i%3===0?"Operador(a) de caixa":"Vendedor(a)";const c=CARGOS[cargo];
+    const deslig=addDays(TODAY,-Math.floor(between(10,350)));
+    emps.push({id:uid(),nome:name(),cpf:"•••.•••.•••-"+pad(Math.floor(R()*99)),cargo,lojaId:s.id,admissao:addDays(deslig,-Math.floor(between(60,900))),
+      salario:Math.round(between(c.sal[0],c.sal[1])/10)*10,dependentes:0,vt:true,comissao:c.com?2.5:0,vendas:0,he:0,banco:0,afastado:false,
+      desligado:{data:deslig,tipo:t},ferias:[],aso:deslig,avaliacoes:[]});
+  });
+  // avaliações de experiência de exemplo
+  emps.forEach(e=>{
+    if(!e.avaliacoes)e.avaliacoes=[];
+    const gest=emps.find(g=>g.lojaId===e.lojaId&&/Gerente|Supervisor/.test(g.cargo)&&g!==e);
+    const quem=gest?gest.nome:"Gestão de Pessoas";
+    const fim=e.desligado?e.desligado.data:TODAY;const dx=diffDays(e.admissao,fim);
+    if(e.desligado&&e.desligado.tipo==="fim_experiencia"){e.admissao=addDays(e.desligado.data,-89);e.avaliacoes.push(fakeAval(e,45,"prorrogar",quem,R,2.6),fakeAval(e,90,"encerrar",quem,R,1.6));return}
+    if(e.desligado) return;
+    if(dx<90){if(dx>=46&&R()<.8)e.avaliacoes.push(fakeAval(e,45,"prorrogar",quem,R,R()<.25?2.4:3))}
+    else if(dx<=400){e.avaliacoes.push(fakeAval(e,45,"prorrogar",quem,R,3),fakeAval(e,90,"efetivar",quem,R,3.2));e.efetivado=true}
+  });
+  const S=id=>stores.find(s=>s.id===id);
+  const admissoes=[
+    {id:uid(),nome:"Helena Duarte Paiva",cargo:"Vendedor(a)",lojaId:"s2",salario:1700,etapa:0,inicio:addDays(TODAY,12),obs:"Temporária Natal · 90 dias"},
+    {id:uid(),nome:"Ícaro Melo Tavares",cargo:"Vendedor(a)",lojaId:"s3",salario:1700,etapa:0,inicio:addDays(TODAY,15),obs:"Temporário Black Friday"},
+    {id:uid(),nome:"Joana Prado Leite",cargo:"Operador(a) de caixa",lojaId:"s4",salario:1700,etapa:1,inicio:addDays(TODAY,9),obs:"ASO agendado"},
+    {id:uid(),nome:"Kleber Aragão Neto",cargo:"Auxiliar de logística",lojaId:"s6",salario:1700,etapa:1,inicio:addDays(TODAY,7),obs:""},
+    {id:uid(),nome:"Lívia Campos Rêgo",cargo:"Visual merchandiser",lojaId:"s5",salario:2600,etapa:2,inicio:addDays(TODAY,5),obs:"Contrato de experiência 45+45"},
+    {id:uid(),nome:"Murilo Sá Fontes",cargo:"Estoquista",lojaId:"s1",salario:1700,etapa:3,inicio:addDays(TODAY,3),obs:"Aguardando recibo S-2200"}
+  ];
+  const vagas=[
+    {id:uid(),cargo:"Vendedor(a)",lojaId:"s2",qtd:4,tipo:"Temporário",abertura:addDays(TODAY,-18),candidatos:63,status:"Entrevistas"},
+    {id:uid(),cargo:"Vendedor(a)",lojaId:"s3",qtd:3,tipo:"Temporário",abertura:addDays(TODAY,-12),candidatos:41,status:"Triagem"},
+    {id:uid(),cargo:"Operador(a) de caixa",lojaId:"s4",qtd:2,tipo:"Efetivo",abertura:addDays(TODAY,-25),candidatos:37,status:"Entrevistas"},
+    {id:uid(),cargo:"Auxiliar de logística",lojaId:"s6",qtd:3,tipo:"Temporário",abertura:addDays(TODAY,-6),candidatos:22,status:"Triagem"},
+    {id:uid(),cargo:"Subgerente",lojaId:"s5",qtd:1,tipo:"Efetivo",abertura:addDays(TODAY,-40),candidatos:14,status:"Proposta"},
+    {id:uid(),cargo:"Fiscal de prevenção",lojaId:"s1",qtd:1,tipo:"Efetivo",abertura:addDays(TODAY,-3),candidatos:9,status:"Divulgação"}
+  ];
+  const eventos=[];
+  emps.filter(e=>e.desligado&&diffDays(e.desligado.data,TODAY)<60).forEach(e=>eventos.push({id:uid(),codigo:"S-2299",desc:"Desligamento",ref:e.nome,data:e.desligado.data,status:"Transmitido"}));
+  emps.filter(e=>!e.desligado&&diffDays(e.admissao,TODAY)<60).forEach(e=>eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:e.nome,data:addDays(e.admissao,-1),status:"Transmitido"}));
+  emps.filter(e=>e.afastado).forEach(e=>eventos.push({id:uid(),codigo:"S-2230",desc:"Afastamento temporário",ref:e.nome,data:addDays(TODAY,-20),status:"Pendente"}));
+  eventos.push({id:uid(),codigo:"S-1200",desc:"Remuneração "+compLabel(addMonths(TODAY,-1).slice(0,7)),ref:"Todas as unidades",data:addDays(TODAY,-Number(TODAY.slice(8))+5),status:"Transmitido"});
+  return {exemplo:true,stores,emps,admissoes,vagas,eventos,escalaOverrides:{},folhasFechadas:{},recargas:[],cfg:JSON.parse(JSON.stringify(DEFAULT_CFG))};
+}
+
+/* ============ estado ============ */
+const KEY="vitrine-rh-v1";
+let ST;
+/* ---- banco de dados (Supabase) ----
+   lojas, colaboradores (dados operacionais), colaboradores_privado (CPF, salário, ficha: só RH),
+   escalas, admissoes, rh_estado (vagas, eSocial, benefícios, configurações), solicitacoes, log_acesso, perfis.
+   As regras de acesso por perfil e por loja ficam no próprio banco (supabase/schema.sql). */
+const CONF=window.GP_CONFIG||{};
+const DOMINIO="usuarios.gestaodepessoas.app";
+let SB=null,ROLE=null,PERFIL=null,SESSION=null;
+let MOVS=[],SOLIC=[],USUARIOS=[],LOGV=null,BASE_G=null,PEND_RENDER=false;
+const ESC_T={};
+const LAST={};let SALVANDO=0,SYNC="ok",FILA=Promise.resolve();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const PERFIS={rh:"RH · acesso total",gerente:"Gerente de loja"};
+function normalize(o){
+  if(o.cfg&&o.cfg.irrf)o.cfg.irrf.forEach(f=>{if(f[0]===null)f[0]=Infinity});
+  o.emps.forEach(e=>{if(!e.avaliacoes)e.avaliacoes=[];if(!e.ferias)e.ferias=[]});
+  o.stores.forEach(s=>{s.nome=s.nome.replace(/^Aurora /,"Brasileiríssima ")});
+  o.escalaOverrides=o.escalaOverrides||{};delete o.acessos;delete o.usuarios;
+  ["admissoes","vagas","eventos","recargas"].forEach(k=>{o[k]=o[k]||[]});o.folhasFechadas=o.folhasFechadas||{};
+  return o;
+}
+function save(){persist()}
+function logEvento(evento,detalhe){
+  if(!SB||!SESSION)return;
+  SB.from("log_acesso").insert({login:SESSION.login,nome:SESSION.nome,perfil:SESSION.perfil,evento,detalhe:String(detalhe||"").slice(0,300)}).then(()=>{},()=>{});
+}
+async function tudo(t,ordem){
+  let out=[],de=0;
+  for(;;){let q=SB.from(t).select("*");if(ordem)q=q.order(ordem);const {data,error}=await q.range(de,de+999);if(error)throw error;out=out.concat(data);if(data.length<1000)return out;de+=1000}
+}
+
+/* ---- gravação: compara com o que já está no banco e envia só o que mudou ---- */
+const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado"];
+const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id"};
+const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado"];
+function setSync(s){SYNC=s;const el=document.getElementById("sync");if(el){el.textContent=s==="saving"?"Salvando…":s==="error"?"Erro ao salvar":"Tudo salvo";el.className="sync "+s}}
+function linhas(){
+  const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});return o};
+  const priv=e=>{const o={};Object.keys(e).forEach(k=>{if(k!=="id"&&!PUB.includes(k))o[k]=e[k]});return o};
+  return {
+    lojas:ST.stores.map(s=>[s.id,{id:s.id,nome:s.nome,cidade:s.cidade||"",tipo:s.tipo||"",quadro:Number(s.quadro)||0}]),
+    colaboradores:ST.emps.map(e=>[e.id,{id:e.id,loja_id:e.lojaId,dados:pub(e)}]),
+    colaboradores_privado:ST.emps.map(e=>[e.id,{id:e.id,dados:priv(e)}]),
+    escalas:Object.entries(ST.escalaOverrides).map(([k,d])=>[k,{chave:k,loja_id:k.split("|")[0],dias:d}]),
+    admissoes:ST.admissoes.map(a=>[a.id,{id:a.id,loja_id:a.lojaId,dados:a}]),
+    rh_estado:[["1",{id:1,dados:{vagas:ST.vagas,eventos:ST.eventos,recargas:ST.recargas,folhasFechadas:ST.folhasFechadas,cfg:ST.cfg,exemplo:!!ST.exemplo}}]]
+  };
+}
+function primeLast(){const L=linhas();ORDEM.forEach(t=>{LAST[t]=new Map(L[t].map(([k,o])=>[k,JSON.stringify(o)]))})}
+function persist(){
+  if(ROLE!=="rh"||!SB||!ST)return;
+  const L=linhas();const ops=[];
+  ORDEM.forEach(t=>{
+    const cur=new Map(L[t].map(([k,o])=>[k,JSON.stringify(o)]));const ant=LAST[t]||new Map();
+    const up=[];cur.forEach((j,k)=>{if(ant.get(k)!==j)up.push(JSON.parse(j))});
+    const del=[...ant.keys()].filter(k=>!cur.has(k));
+    if(up.length||del.length)ops.push({t,up,del});
+    LAST[t]=cur;
+  });
+  if(!ops.length)return;
+  SALVANDO++;setSync("saving");
+  FILA=FILA.then(async()=>{
+    let falha=null;
+    const tentar=async fn=>{let r=await fn();if(r.error){await sleep(800);r=await fn()}if(r.error)falha=r.error};
+    for(const o of ops)for(let i=0;i<o.up.length;i+=500){const lote=o.up.slice(i,i+500);await tentar(()=>SB.from(o.t).upsert(lote,{onConflict:PK[o.t]}))}
+    for(const o of [...ops].reverse())if(o.del.length)await tentar(()=>SB.from(o.t).delete().in(PK[o.t],o.del));
+    SALVANDO--;
+    if(falha){ORDEM.forEach(t=>delete LAST[t]);setSync("error");console.error(falha);toast("Uma alteração não foi salva. Verifique a conexão e recarregue a página.")}
+    else setSync(SALVANDO?"saving":"ok");
+  });
+}
+window.addEventListener("beforeunload",ev=>{if(SALVANDO){ev.preventDefault();ev.returnValue=""}});
+
+/* ---- carregamento ---- */
+async function carregarRH(){
+  const [lj,co,pr,es,ad,est]=await Promise.all(["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado"].map(t=>tudo(t)));
+  if(!est.length&&!lj.length)return false;
+  const priv=new Map(pr.map(r=>[r.id,r.dados]));
+  const d=(est[0]&&est[0].dados)||{};
+  ST=normalize({...d,
+    stores:lj.map(r=>({id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.id.localeCompare(b.id)),
+    emps:co.map(r=>({id:r.id,...(priv.get(r.id)||{}),...r.dados,lojaId:r.loja_id})),
+    escalaOverrides:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
+    admissoes:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id})),
+    cfg:d.cfg||clone(DEFAULT_CFG)});
+  primeLast();
+  await Promise.all([carregarSolicitacoes(),carregarUsuarios()]);
+  return true;
+}
+const movDeLinha=r=>({...(r.payload||{}),id:r.id,tipo:r.tipo,eid:r.colaborador_id,status:r.status,motivo:r.motivo,em:r.criado_em,loja:r.loja_id,autor:r.autor});
+async function carregarSolicitacoes(){
+  if(ROLE==="rh"){const {data,error}=await SB.from("solicitacoes").select("*").eq("status","pendente").order("criado_em").limit(1000);if(!error)SOLIC=data.map(movDeLinha)}
+  else{const {data,error}=await SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(500);if(!error)MOVS=data.map(movDeLinha)}
+}
+async function carregarUsuarios(){const {data}=await SB.from("perfis").select("*").order("nome");USUARIOS=data||[]}
+async function carregarLog(){
+  const {data,error}=await SB.from("log_acesso").select("*").order("em",{ascending:false}).limit(1000);
+  LOGV=error?[]:data;renderSafe();
+}
+async function carregarGerente(){
+  const [lj,co,es,ad]=await Promise.all(["lojas","colaboradores","escalas","admissoes"].map(t=>tudo(t)));
+  if(!lj.length)throw new Error("sem lojas");
+  BASE_G={stores:lj.map(r=>({id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.nome.localeCompare(b.nome)),
+    emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
+    esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
+    adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
+  await carregarSolicitacoes();
+  montarGerente();
+}
+function montarGerente(){
+  ST=normalize({exemplo:false,stores:clone(BASE_G.stores),emps:clone(BASE_G.emps),admissoes:clone(BASE_G.adm),escalaOverrides:clone(BASE_G.esc),cfg:clone(DEFAULT_CFG)});
+  MOVS.filter(m=>m.status==="pendente").sort((a,b)=>String(a.em).localeCompare(String(b.em))).forEach(m=>aplicarMov(m,m.loja,true));
+  if(!ST.stores.some(s=>s.id===UI.escLoja))UI.escLoja=ST.stores[0].id;
+  if(UI.loja&&!ST.stores.some(s=>s.id===UI.loja))UI.loja="";
+}
+async function atualizarPeriodico(){
+  if(!SB||!SESSION||document.hidden)return;
+  try{
+    if(ROLE==="rh"){await carregarSolicitacoes()}
+    else{await carregarGerente()}
+    renderSafe();
+  }catch(e){}
+}
+setInterval(atualizarPeriodico,60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)atualizarPeriodico()});
+
+/* aplica um registro do gerente; devolve texto de erro ou null */
+function aplicarMov(m,lojaId,local){
+  const e=m.eid?ST.emps.find(x=>x.id===m.eid):null;
+  if(m.eid&&(!e||e.lojaId!==lojaId))return "Colaborador não pertence a esta loja";
+  if(m.tipo==="avaliacao"){
+    const a=m.av||{};
+    if(![45,90].includes(a.marco)||!PARECER[a.parecer]||(a.marco===90&&a.parecer==="prorrogar"))return "Avaliação inválida";
+    if(e.avaliacoes.some(x=>x.marco===a.marco&&!x.pendente))return "Já existe avaliação deste marco";
+    const notas={};criterios(e.cargo).forEach(c=>{const n=Math.round(Number((a.notas||{})[c.k]));if(n>=1&&n<=5)notas[c.k]=n});
+    const txt=v=>String(v||"").slice(0,1000);
+    const av={id:a.id||uid(),marco:a.marco,data:/^\d{4}-\d{2}-\d{2}$/.test(a.data||"")?a.data:TODAY,avaliador:txt(a.avaliador),notas,media:mediaNotas(notas),
+      faltas:Math.max(0,Number(a.faltas)||0),atrasos:Math.max(0,Number(a.atrasos)||0),fortes:txt(a.fortes),desenvolver:txt(a.desenvolver),parecer:a.parecer};
+    if(local){av.pendente=true;e.avaliacoes.push(av)}else aplicarAvaliacao(e,av);
+    return null;
+  }
+  if(m.tipo==="escala"){
+    const k=String(m.key||"").split("|");
+    if(k.length!==3||k[0]!==lojaId||k[2]!==m.eid||!Array.isArray(m.dias)||m.dias.length!==7)return "Escala inválida";
+    ST.escalaOverrides[m.key]=m.dias.map(x=>x==="F"?"F":"T");return null;
+  }
+  if(m.tipo==="banco"){const v=Number(m.min);if(!isFinite(v)||Math.abs(v)>720)return "Lançamento inválido";e.banco+=v;return null}
+  if(m.tipo==="aso"){if(!/^\d{4}-\d{2}-\d{2}$/.test(m.data||""))return "Data inválida";e.aso=m.data;return null}
+  if(m.tipo==="ferias_assinada"){const f=e.ferias.find(x=>x.inicio===m.ini);if(!f)return "Férias não encontradas";if(local)f.assinadoPend=true;else{f.assinado=String(m.em||TODAY).slice(0,10);delete f.assinadoPend}return null}
+  return "Tipo de registro desconhecido";
+}
+function aplicarAvaliacao(e,a){
+  e.avaliacoes=e.avaliacoes.filter(x=>!(x.marco===a.marco&&x.pendente));e.avaliacoes.push(a);
+  const nome=e.nome.split(" ")[0];
+  if(a.parecer==="efetivar"){e.efetivado=true;return nome+" efetivado(a)"}
+  if(a.parecer==="encerrar"){const fim=addDays(e.admissao,a.marco-1);e.desligado={data:fim<TODAY?TODAY:fim,tipo:"fim_experiencia"};
+    ST.eventos.push({id:uid(),codigo:"S-2299",desc:"Término de contrato de experiência",ref:e.nome,data:e.desligado.data,status:"Pendente"});
+    return "Contrato de "+nome+" encerrado em "+fdate(e.desligado.data)+"; S-2299 pendente"}
+  return "Prorrogação de "+nome+" registrada até "+fdate(addDays(e.admissao,89));
+}
+async function enviarMov(m,msg){
+  const {tipo,eid,...payload}=m;delete payload.id;
+  const e=emp(eid);if(!e){toast("Colaborador não encontrado.");return}
+  const {error}=await SB.from("solicitacoes").insert({loja_id:e.lojaId,tipo,colaborador_id:eid||null,payload:clone(payload)});
+  if(error){toast("Não foi possível enviar. Verifique a conexão e tente de novo.");return}
+  logEvento("Solicitação enviada",descMov(m));toast(msg||"Enviado ao RH para aprovação");
+  await carregarSolicitacoes();montarGerente();renderSafe();
+}
+const TIPO_MOV={avaliacao:"Avaliação de experiência",escala:"Escala",banco:"Banco de horas",aso:"ASO",ferias_assinada:"Aviso de férias"};
+function descMov(m){
+  if(m.tipo==="avaliacao"&&m.av)return "Avaliação de "+m.av.marco+" dias · "+((PARECER[m.av.parecer]||{}).t||"")+" · nota "+mediaNotas(m.av.notas||{}).toLocaleString("pt-BR");
+  if(m.tipo==="escala")return "Escala da semana de "+fdate(String(m.key||"").split("|")[1]||TODAY)+": folga "+(m.dias||[]).map((x,i)=>x==="F"?["dom","seg","ter","qua","qui","sex","sáb"][i]:null).filter(Boolean).join(", ");
+  if(m.tipo==="banco")return (m.min>0?"Crédito de ":"Débito de ")+hm(Math.abs(m.min))+" no banco de horas";
+  if(m.tipo==="aso")return "ASO periódico renovado, novo vencimento "+fdate(m.data);
+  if(m.tipo==="ferias_assinada")return "Aviso de férias assinado pelo colaborador · férias a partir de "+fdate(m.ini);
+  return "Registro";
+}
+async function decidirMov(id,aprovar){
+  const m=SOLIC.find(x=>x.id===id);if(!m)return "Esta solicitação já foi decidida";
+  let err=null;
+  if(aprovar)err=aplicarMov(m,m.loja,false);
+  const status=aprovar&&!err?"aprovado":"recusado";
+  const {error}=await SB.from("solicitacoes").update({status,motivo:err,decidido_em:new Date().toISOString(),decidido_por:PERFIL.user_id}).eq("id",id).eq("status","pendente");
+  if(error)return "Não foi possível registrar a decisão. Tente de novo.";
+  SOLIC=SOLIC.filter(x=>x.id!==id);
+  const autor=USUARIOS.find(u=>u.user_id===m.autor);
+  logEvento(status==="aprovado"?"Solicitação aprovada":"Solicitação recusada",(autor?autor.nome+" · ":"")+descMov(m)+(err?" · "+err:""));
+  return aprovar?(err?"Não aprovado: "+err:"Solicitação aprovada"):"Solicitação recusada";
+}
+function renderSafe(){
+  if(!ST||!SESSION||$(".app").classList.contains("gated"))return;
+  const a=document.activeElement;
+  if(a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)){PEND_RENDER=true;return}
+  render();
+}
+document.addEventListener("focusout",()=>{if(PEND_RENDER){PEND_RENDER=false;setTimeout(renderSafe,0)}});
+const store=id=>ST.stores.find(s=>s.id===id)||{nome:"—",cidade:""};
+const emp=id=>ST.emps.find(e=>e.id===id);
+const ativos=()=>ST.emps.filter(e=>!e.desligado);
+
+/* ============ regras de negócio ============ */
+function feriasEmCurso(e,ref=TODAY){return e.ferias.find(f=>ref>=f.inicio&&ref<=addDays(f.inicio,f.dias-1))}
+function status(e){
+  if(e.desligado) return {k:"desligado",t:"Desligado",c:"c-mute"};
+  if(e.afastado) return {k:"afastado",t:"Afastado",c:"c-info"};
+  if(feriasEmCurso(e)) return {k:"ferias",t:"Em férias",c:"c-ok"};
+  if(emExperiencia(e)) return {k:"experiencia",t:"Experiência",c:"c-brand"};
+  return {k:"ativo",t:"Ativo",c:"c-ok"};
+}
+const emExperiencia=e=>!e.desligado&&!e.efetivado&&diffDays(e.admissao,TODAY)<90;
+/* ---- avaliação de experiência ---- */
+const COMUNS=[
+  {k:"atendimento",t:"Atendimento ao cliente",d:"Cordialidade, abordagem e resolução no salão"},
+  {k:"assiduidade",t:"Pontualidade e assiduidade",d:"Cumpre escala, horários e intervalos"},
+  {k:"equipe",t:"Trabalho em equipe",d:"Colabora com colegas e com a liderança"},
+  {k:"postura",t:"Postura e apresentação",d:"Uniforme, linguagem e conduta na loja"},
+  {k:"aprendizado",t:"Aprendizado e iniciativa",d:"Absorve treinamentos e age sem esperar ordem"}];
+const ESPEC={
+  "Vendedor(a)":{k:"vendas",t:"Resultado de vendas",d:"Atingimento de meta, ticket médio e peças por atendimento"},
+  "Operador(a) de caixa":{k:"caixa",t:"Agilidade e precisão no caixa",d:"Fila, diferenças de caixa e oferta do cartão da loja"},
+  "Fiscal de prevenção":{k:"prevencao",t:"Prevenção de perdas",d:"Rondas, abordagens e procedimentos de segurança"},
+  "Estoquista":{k:"estoque",t:"Organização do estoque",d:"Recebimento, endereçamento e reposição"},
+  "Auxiliar de logística":{k:"estoque",t:"Produtividade na separação",d:"Volume separado, erros de separação e cuidado com a carga"},
+  "Visual merchandiser":{k:"vm",t:"Execução de VM",d:"Vitrines e exposição conforme o guia da marca"},
+  "Subgerente":{k:"lideranca",t:"Liderança da equipe",d:"Rotinas de abertura e fechamento, escala e feedback"},
+  "Gerente de loja":{k:"lideranca",t:"Liderança e resultado da loja",d:"Equipe, metas e indicadores da unidade"},
+  "Supervisor(a) de CD":{k:"lideranca",t:"Liderança da operação",d:"Prazos de expedição, equipe e segurança"}};
+const criterios=cargo=>ESPEC[cargo]?[ESPEC[cargo],...COMUNS]:COMUNS;
+const mediaNotas=n=>{const v=Object.values(n);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:0};
+const ESCALA=["","Insatisfatório","Abaixo do esperado","Dentro do esperado","Acima do esperado","Excelente"];
+const PARECER={prorrogar:{t:"Prorrogado até 90 dias",c:"c-info"},efetivar:{t:"Efetivado",c:"c-ok"},encerrar:{t:"Contrato encerrado",c:"c-bad"}};
+const recomenda=m=>m>=4?{t:"Recomendado efetivar",c:"c-ok"}:m>=3?{t:"Dentro do esperado",c:"c-info"}:m>=2.5?{t:"Atenção: acompanhar de perto",c:"c-warn"}:{t:"Desempenho abaixo do esperado",c:"c-bad"};
+const gestorDe=lojaId=>{const g=ativos().find(x=>x.lojaId===lojaId&&/Gerente|Supervisor/.test(x.cargo));return g?g.nome:""};
+function marcos(e){
+  const av=e.avaliacoes||[];
+  return [45,90].map(m=>{
+    const prazo=addDays(e.admissao,m-1);const a=av.find(x=>x.marco===m);const dias=diffDays(TODAY,prazo);let st,pend=false;
+    if(a) st=a.pendente?{t:"Enviada · aguardando RH",c:"c-warn"}:PARECER[a.parecer];
+    else if(e.desligado||e.efetivado||(m===90&&av.some(x=>x.marco===45&&x.parecer!=="prorrogar"))) st={t:"Não se aplica",c:"c-mute"};
+    else if(dias<0){st={t:m===45?"Atrasada · prorrogação em risco":"Prazo vencido · contrato indeterminado",c:"c-bad"};pend=true}
+    else if(dias<=10){st={t:dias===0?"Vence hoje":"Vence em "+dias+(dias===1?" dia":" dias"),c:"c-warn"};pend=true}
+    else st={t:"Em "+dias+" dias",c:"c-mute"};
+    return {m,prazo,a,dias,st,pend,podeAvaliar:!a&&st.t!=="Não se aplica"&&!e.desligado};
+  });
+}
+function situacaoFerias(e){
+  const meses=monthsBetween(e.admissao,TODAY);
+  const completos=Math.floor(meses/12);
+  const gozados=e.ferias.length;
+  const pend=Math.max(0,completos-gozados);
+  const proxPeriodo=gozados; // índice do período mais antigo não gozado
+  const aquisIni=addMonths(e.admissao,12*proxPeriodo);
+  const aquisFim=addDays(addMonths(e.admissao,12*(proxPeriodo+1)),-1);
+  const limite=addDays(addMonths(e.admissao,12*(proxPeriodo+2)),-1);
+  const programada=e.ferias.find(f=>f.inicio>TODAY);
+  let st;
+  if(pend>=2) st={t:"Vencida · pagar em dobro",c:"c-bad",ord:0};
+  else if(pend===1){const d=diffDays(TODAY,limite);st=d<=90?{t:"Vence em "+d+" dias",c:"c-warn",ord:1}:{t:"Saldo disponível",c:"c-info",ord:2}}
+  else st={t:"Em aquisição",c:"c-mute",ord:3};
+  if(programada) st={t:"Programada "+fdate(programada.inicio),c:"c-ok",ord:4};
+  return {pend,aquisIni,aquisFim,limite,st,programada,completos,gozados};
+}
+function diasMes(comp){const [y,m]=comp.split("-").map(Number);const tot=new Date(y,m,0).getDate();
+  const fer=["01-01","04-21","05-01","09-07","10-12","11-02","11-15","11-20","12-25"];
+  let dom=0;for(let d=1;d<=tot;d++){const dt=new Date(y,m-1,d);if(dt.getDay()===0||fer.includes(pad(m)+"-"+pad(d)))dom++}
+  return {tot,uteis:tot-dom,dsr:dom}}
+function calcINSS(base){const t=ST.cfg.inss;let prev=0,v=0;for(const [lim,a] of t){if(base>prev){v+=(Math.min(base,lim)-prev)*a/100}prev=lim}return r2(v)}
+function calcIRRF(bruto,inss,dep){
+  const c=ST.cfg;const legal=inss+dep*c.deducaoDependente;const ded=Math.max(legal,c.descontoSimplificado);
+  const base=Math.max(0,bruto-ded);let imp=0;
+  for(const [lim,a,d] of c.irrf){if(base<=lim){imp=base*a/100-d;break}}
+  imp=Math.max(0,imp);
+  let red=0;if(bruto<=c.reducaoAte)red=Math.min(imp,c.reducaoMax);else if(bruto<=c.reducaoFaixaAte)red=Math.min(imp,Math.max(0,c.reducaoA-c.reducaoB*bruto));
+  return {base:r2(base),imp:r2(imp),red:r2(red),valor:r2(Math.max(0,imp-red)),simplificado:c.descontoSimplificado>legal};
+}
+function folha(e,comp=curComp){
+  const dm=diasMes(comp);
+  const base=e.salario;
+  const comissao=r2((e.vendas||0)*(e.comissao||0)/100);
+  const dsr=r2(dm.uteis?comissao/dm.uteis*dm.dsr:0);
+  const valHora=base/220;
+  const he=r2((e.he||0)*valHora*1.5);
+  const dsrHe=r2(dm.uteis?he/dm.uteis*dm.dsr:0);
+  const bruto=r2(base+comissao+dsr+he+dsrHe);
+  const inss=calcINSS(bruto);
+  const ir=calcIRRF(bruto,inss,e.dependentes||0);
+  const vt=e.vt?r2(Math.min(base*ST.cfg.vtPct/100,ST.cfg.beneficios.mobilidadeDia*dm.uteis)):0;
+  const desc=r2(inss+ir.valor+vt);
+  return {base,comissao,dsr,he,dsrHe,bruto,inss,ir,vt,desc,liquido:r2(bruto-desc),fgts:r2(bruto*ST.cfg.fgts/100),dm};
+}
+function rescisao(e,data,tipo,aviso){
+  const sal=e.salario,anos=Math.floor(monthsBetween(e.admissao,data)/12);
+  const dia=parse(data).getDate();
+  const saldo=r2(sal/30*Math.min(dia,30));
+  let diasAviso=0;
+  if(tipo==="sem_justa"&&aviso==="indenizado") diasAviso=Math.min(90,30+3*anos);
+  if(tipo==="acordo"&&aviso==="indenizado") diasAviso=Math.floor(Math.min(90,30+3*anos)/2);
+  const avisoV=r2(sal/30*diasAviso);
+  const fimProj=addDays(data,diasAviso);
+  const avos=(ini,fim)=>{let m=monthsBetween(ini,fim);const resto=diffDays(addMonths(ini,m),fim);if(resto>=14)m++;return Math.min(12,Math.max(0,m))};
+  const ano=fimProj.slice(0,4)+"-01-01";
+  const a13=avos(e.admissao>ano?e.admissao:ano,fimProj);
+  const decimo=tipo==="justa"?0:r2(sal/12*a13);
+  const sf=situacaoFerias(e);
+  const vencidas=r2(sal*sf.pend*(4/3));
+  const ultAniv=addMonths(e.admissao,12*Math.floor(monthsBetween(e.admissao,fimProj)/12));
+  const aF=avos(ultAniv,fimProj);
+  const propF=tipo==="justa"?0:r2(sal/12*aF*(4/3));
+  const meses=Math.max(1,monthsBetween(e.admissao,data));
+  const saldoFgts=r2(sal*0.08*meses*1.04);
+  const multa=tipo==="sem_justa"?r2(saldoFgts*.4):tipo==="acordo"?r2(saldoFgts*.2):0;
+  const linhas=[["Saldo de salário ("+Math.min(dia,30)+" dias)",saldo],["Aviso prévio indenizado ("+diasAviso+" dias)",avisoV],["13º proporcional ("+a13+"/12)",decimo],["Férias vencidas + 1/3 ("+sf.pend+" período"+(sf.pend===1?"":"s")+")",vencidas],["Férias proporcionais + 1/3 ("+aF+"/12)",propF]];
+  const total=r2(linhas.reduce((s,l)=>s+l[1],0));
+  const saque=tipo==="sem_justa"||tipo==="fim_experiencia"?"100% do saldo":tipo==="acordo"?"80% do saldo":"Sem saque";
+  return {linhas,total,saldoFgts,multa,saque,diasAviso,anos};
+}
+function escalaSemana(s,weekStart){
+  const list=ativos().filter(e=>e.lojaId===s.id);
+  const wn=Math.floor(diffDays("2026-01-04",weekStart)/7);
+  const out={};
+  list.forEach((e,i)=>{
+    const key=s.id+"|"+weekStart+"|"+e.id;
+    let d=ST.escalaOverrides[key];
+    if(!d){const folga=((i*3)+wn)%7;d=Array.from({length:7},(_,k)=>k===folga?"F":"T")}
+    d=d.map((v,k)=>{const dia=addDays(weekStart,k);return feriasEmCurso(e,dia)||e.afastado?"FE":v});
+    out[e.id]=d;
+  });
+  return out;
+}
+function weekStartOf(s){const d=parse(s);d.setDate(d.getDate()-d.getDay());return iso(d)}
+function alertas(){
+  const a=[];
+  ativos().forEach(e=>{
+    const s=store(e.lojaId);
+    const sf=situacaoFerias(e);
+    if(sf.pend>=2) a.push({sev:0,c:"c-bad",ic:"FÉ",t:e.nome+" · férias vencidas",d:s.nome+" · dois períodos sem gozo, gera pagamento em dobro",id:e.id});
+    else if(sf.pend===1&&!sf.programada&&diffDays(TODAY,sf.limite)<=90) a.push({sev:1,c:"c-warn",ic:"FÉ",t:e.nome+" · férias a programar",d:"Limite para conceder: "+fdate(sf.limite),id:e.id});
+    const dAso=diffDays(TODAY,e.aso);
+    if(dAso<0) a.push({sev:0,c:"c-bad",ic:"AS",t:e.nome+" · ASO periódico vencido",d:"Venceu em "+fdate(e.aso)+" · "+s.nome,id:e.id});
+    else if(dAso<=30) a.push({sev:2,c:"c-warn",ic:"AS",t:e.nome+" · ASO vence em "+dAso+" dias",d:s.nome,id:e.id});
+    const dx=diffDays(e.admissao,TODAY);
+    if(dx<=100&&!e.efetivado) marcos(e).forEach(mc=>{if(mc.pend) a.push({sev:mc.dias<0?0:1,c:mc.dias<0?"c-bad":"c-brand",ic:String(mc.m),t:e.nome+" · avaliação de "+mc.m+" dias",d:(mc.dias<0?"Prazo era ":"Fazer até ")+fdate(mc.prazo)+" · "+s.nome,id:e.id,av:e.id+"|"+mc.m})});
+    const fa=sf.programada||feriasEmCurso(e);
+    if(fa&&!fa.assinado&&!fa.assinadoPend) a.push({sev:1,c:"c-warn",ic:"AV",t:e.nome+" · colher assinatura do aviso de férias",d:"Férias a partir de "+fdate(fa.inicio)+" · baixe o PDF e colha a assinatura",id:e.id,pdf:e.id+"|"+fa.inicio});
+    if(e.banco>2000) a.push({sev:2,c:"c-info",ic:"BH",t:e.nome+" · banco de horas alto",d:"Saldo de "+hm(e.banco)+" · compensar antes do vencimento",id:e.id});
+  });
+  return a.sort((x,y)=>x.sev-y.sev);
+}
+const hm=m=>(m<0?"−":"")+Math.floor(Math.abs(m)/60)+"h"+pad(Math.abs(m)%60);
+const TIPOS={sem_justa:"Sem justa causa",pedido:"Pedido de demissão",acordo:"Acordo (art. 484-A)",justa:"Justa causa",fim_experiencia:"Término de experiência"};
+
+/* ============ navegação ============ */
+const ICON={
+  painel:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  colaboradores:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 9M22 21a7 7 0 0 0-4-6.3"/>',
+  lojas:'<path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
+  admissao:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/>',
+  recrutamento:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  ponto:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  ferias:'<path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+  folha:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>',
+  beneficios:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/>',
+  desligamentos:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  experiencia:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+  esocial:'<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>',
+  usuarios:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+  solicitacoes:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
+  headcount:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+};
+const PAGES_G=[
+  {g:"Minha loja"},
+  {id:"painel",t:"Painel da loja"},
+  {id:"headcount",t:"Headcount"},
+  {id:"colaboradores",t:"Equipe"},
+  {id:"experiencia",t:"Experiência"},
+  {id:"ponto",t:"Ponto e escalas"},
+  {id:"ferias",t:"Férias"},
+  {g:"RH"},
+  {id:"solicitacoes",t:"Minhas solicitações"}
+];
+const PAGES=[
+  {g:"Visão geral"},
+  {id:"painel",t:"Painel"},
+  {id:"headcount",t:"Headcount"},
+  {g:"Pessoas"},
+  {id:"colaboradores",t:"Colaboradores"},
+  {id:"lojas",t:"Lojas"},
+  {id:"recrutamento",t:"Recrutamento"},
+  {id:"admissao",t:"Admissões"},
+  {id:"experiencia",t:"Experiência"},
+  {g:"Departamento Pessoal"},
+  {id:"ponto",t:"Ponto e escalas"},
+  {id:"ferias",t:"Férias"},
+  {id:"folha",t:"Folha de pagamento"},
+  {id:"beneficios",t:"Benefícios"},
+  {id:"desligamentos",t:"Desligamentos"},
+  {id:"esocial",t:"eSocial"},
+  {g:"Sistema"},
+  {id:"usuarios",t:"Usuários e acessos"},
+  {id:"config",t:"Configurações"}
+];
+const pages=()=>ROLE==="gerente"?PAGES_G:PAGES;
+const G=()=>ROLE==="gerente";
+const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
+function pendRH(){return SOLIC.length}
+let page="painel";
+const UI={busca:"",loja:"",status:"",comp:curComp,folhaLoja:"",escLoja:"s1",escSemana:weekStartOf(TODAY),feriasFiltro:"todos",xpTab:"acomp"};
+let AV=null;
+function renderNav(){
+  const pend=ST.eventos.filter(e=>e.status==="Pendente").length;
+  const nAl=alertas().filter(a=>a.sev===0).length;
+  const nXp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).reduce((s,e)=>s+marcos(e).filter(m=>m.pend).length,0);
+  const nG=ROLE==="rh"?pendRH():0;
+  const nS=G()?MOVS.filter(m=>m.status==="pendente").length:0;
+  $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
+    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
+  const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
+  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
+}
+function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:"painel";render()}
+window.addEventListener("hashchange",go);
+
+function header(eyebrow,title,actions=""){
+  return `${ROLE==="rh"&&ST.exemplo?`<div class="banner"><span><b>Dados de exemplo.</b> Pessoas, lojas e valores são fictícios para demonstrar o sistema. Tudo fica salvo no banco de dados do portal.</span><button class="btn btn-sm" data-act="limpar">Começar do zero</button></div>`:""}
+  <div class="topbar"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1></div><div class="top-actions">${actions}</div></div>`;
+}
+const lojaOpts=(sel,todas=true)=>(todas?`<option value="">Todas as lojas</option>`:"")+ST.stores.map(s=>`<option value="${s.id}" ${s.id===sel?"selected":""}>${esc(s.nome)}</option>`).join("");
+const cargoOpts=sel=>Object.keys(CARGOS).map(c=>`<option ${c===sel?"selected":""}>${c}</option>`).join("");
+const whoCell=e=>`<div class="who"><div class="avatar">${initials(e.nome)}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)}</span></div></div>`;
+
+/* ============ páginas ============ */
+const R={};
+function painelLoja(){
+  const varias=ST.stores.length>1;const quadro=ST.stores.reduce((t,s)=>t+(Number(s.quadro)||0),0);const at=ativos();const al=alertas();
+  const pend=MOVS.filter(m=>m.status==="pendente").length;
+  const max=Math.max(1,...ST.stores.map(s=>Math.max(s.quadro,at.filter(e=>e.lojaId===s.id).length)));
+  return header((primeiro(SESSION&&SESSION.nome)?"Olá, "+esc(primeiro(SESSION.nome))+" · ":"")+parse(TODAY).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}),varias?"Minhas lojas":esc(ST.stores[0].nome),
+    `<button class="btn" data-go="ponto">Escala da semana</button><button class="btn btn-primary" data-go="experiencia">Avaliações</button>`)+`
+  <div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
+    <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${at.filter(emExperiencia).length}</span><span class="sub">avalie no 45º e no 90º dia</span></div>
+    <div class="card kpi"><span class="lbl">Em férias hoje</span><span class="val num">${at.filter(e=>feriasEmCurso(e)).length}</span><span class="sub">fora da escala</span></div>
+    <div class="card kpi"><span class="lbl">Aguardando o RH</span><span class="val num">${pend}</span><span class="sub">registros enviados por você</span></div>
+  </div>
+  ${varias?`<div class="card"><div class="card-head"><div><h2>Quadro por loja</h2><p>Ativos em relação ao quadro ideal</p></div></div>
+    <div class="bars">${ST.stores.map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div></div>`:""}
+  <div class="grid two">
+    <div class="card"><div class="card-head"><div><h2>Pendências ${varias?"das lojas":"da loja"}</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>
+    <div class="card"><div class="card-head"><div><h2>Chegando na equipe</h2><p>Admissões em andamento pelo RH</p></div></div>
+      <div class="alerts">${ST.admissoes.map(a=>`<div class="alert"><div class="avatar">${initials(a.nome)}</div><div style="min-width:0"><b>${esc(a.nome)}</b><span>${esc(a.cargo)} · início ${fdate(a.inicio)}</span></div><span class="chip ${["c-mute","c-info","c-warn","c-brand","c-ok"][a.etapa]}">${ETAPAS[a.etapa].t}</span></div>`).join("")||`<div class="empty">Nenhuma admissão em andamento para esta loja.</div>`}</div></div>
+  </div>`;
+}
+R.solicitacoes=()=>{
+  const list=MOVS.slice().sort((a,b)=>String(b.em).localeCompare(String(a.em)));
+  const ch=m=>m.status==="aprovado"?`<span class="chip c-ok">Aprovado</span>`:m.status==="recusado"?`<span class="chip c-bad">Recusado</span>`:`<span class="chip c-warn">Aguardando RH</span>`;
+  return header("RH","Minhas solicitações")+`
+  <div class="note">Avaliações, escalas, banco de horas e ASO que você registra vão para o RH aprovar. Enquanto isso, eles já aparecem para você marcados como aguardando.</div>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Colaborador</th><th>Registro</th><th>Situação</th></tr></thead>
+  <tbody>${list.map(m=>{const e=emp(m.eid);return `<tr><td class="num">${fdate(String(m.em).slice(0,10))}</td><td>${e?whoCell(e):"—"}</td><td style="white-space:normal;min-width:240px">${esc(descMov(m))}${m.status==="recusado"&&m.motivo?`<br><span class="small muted">Motivo: ${esc(m.motivo)}</span>`:""}</td><td>${ch(m)}</td></tr>`}).join("")||`<tr><td colspan="4" class="empty">Você ainda não enviou registros. Avaliações de experiência, escala e banco de horas aparecem aqui.</td></tr>`}</tbody></table></div></div>`;
+};
+/* ---- headcount por função ---- */
+function dadosHeadcount(){
+  const todas=ST.stores.map(s=>s.id);
+  const sel=(UI.hcLojas||[]).filter(id=>todas.includes(id));
+  const ids=sel.length?sel:todas;
+  const lojas=ST.stores.filter(s=>ids.includes(s.id));
+  const at=ativos().filter(e=>ids.includes(e.lojaId));
+  const mapa={};
+  at.forEach(e=>{const r=mapa[e.cargo]||(mapa[e.cargo]={cargo:e.cargo,total:0,porLoja:{},exp:0,ferias:0,afast:0});
+    r.total++;r.porLoja[e.lojaId]=(r.porLoja[e.lojaId]||0)+1;const k=status(e).k;if(k==="experiencia")r.exp++;if(k==="ferias")r.ferias++;if(k==="afastado")r.afast++});
+  const linhas=Object.values(mapa).sort((a,b)=>b.total-a.total||a.cargo.localeCompare(b.cargo));
+  return {sel,lojas,at,linhas,todas:!sel.length};
+}
+R.headcount=()=>{
+  const {lojas,at,linhas,todas}=dadosHeadcount();
+  const max=Math.max(1,...linhas.map(l=>l.total));
+  const maxCel=Math.max(1,...linhas.flatMap(l=>lojas.map(s=>l.porLoja[s.id]||0)));
+  const quadro=lojas.reduce((t,s)=>t+(Number(s.quadro)||0),0);
+  const st={experiencia:0,ferias:0,afastado:0};at.forEach(e=>{const k=status(e).k;if(k in st)st[k]++});
+  const curto=n=>n.replace(/^Brasileiríssima /,"");
+  const filtro=`<div class="hc-filtro" role="group" aria-label="Unidades">
+    <button class="pill ${todas?"on":""}" data-hcloja="all" aria-pressed="${todas}">Todas as unidades</button>
+    ${ST.stores.map(s=>{const on=!todas&&lojas.some(l=>l.id===s.id);return `<button class="pill ${on?"on":""}" data-hcloja="${esc(s.id)}" aria-pressed="${on}">${esc(curto(s.nome))}</button>`}).join("")}</div>`;
+  const escopo=todas?(ST.stores.length>1?"todas as "+ST.stores.length+" unidades":esc(ST.stores[0].nome)):lojas.length===1?esc(lojas[0].nome):lojas.length+" unidades selecionadas";
+  return header(G()?"Minha loja":"Visão geral","Headcount por função",`<button class="btn" data-act="hcExcel">Baixar Excel</button>`)+`
+  <div class="card" style="padding:16px 22px">${filtro}<p class="small muted" style="margin-top:10px">Mostrando ${escopo}. Toque nas unidades para combinar; "Todas" volta à visão completa.</p></div>
+  <div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Headcount ativo</span><span class="val num">${at.length}</span><span class="sub">quadro ideal ${quadro} · ${quadro>at.length?"faltam "+(quadro-at.length):quadro<at.length?(at.length-quadro)+" acima":"completo"}</span></div>
+    <div class="card kpi"><span class="lbl">Funções</span><span class="val num">${linhas.length}</span><span class="sub">maior: ${linhas[0]?esc(linhas[0].cargo)+" ("+linhas[0].total+")":"—"}</span></div>
+    <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${st.experiencia}</span><span class="sub">${at.length?pct(st.experiencia/at.length*100):"0%"} do headcount</span></div>
+    <div class="card kpi"><span class="lbl">Ausentes hoje</span><span class="val num">${st.ferias+st.afastado}</span><span class="sub">${st.ferias} em férias · ${st.afastado} afastado${st.afastado===1?"":"s"}</span></div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Pessoas por função</h2><p>Colaboradores ativos, incluindo em experiência, férias e afastados</p></div></div>
+    <div class="bars">${linhas.map(l=>`<div class="bar-row hc-row" title="${esc(l.cargo)}: ${l.total} pessoa${l.total===1?"":"s"} (${pct(l.total/at.length*100)})"><span class="name">${esc(l.cargo)}</span><div class="bar-track"><div class="bar-fill" style="width:${l.total/max*100}%"></div></div><span class="num small"><b>${l.total}</b> <span class="muted">${pct(l.total/at.length*100)}</span></span></div>`).join("")||`<div class="empty">Nenhum colaborador ativo nas unidades selecionadas.</div>`}</div></div>
+  ${linhas.length?`<div class="card"><div class="card-head"><div><h2>Função × unidade</h2><p>Quanto mais forte a cor, mais pessoas na célula</p></div></div>
+    <div class="table-wrap"><table class="hc-matriz"><thead><tr><th>Função</th>${lojas.map(s=>`<th class="r" title="${esc(s.nome)}">${esc(curto(s.nome))}</th>`).join("")}<th class="r">Total</th><th class="r">Experiência</th><th class="r">Férias</th><th class="r">Afastados</th></tr></thead>
+    <tbody>${linhas.map(l=>`<tr><td><b>${esc(l.cargo)}</b></td>${lojas.map(s=>{const v=l.porLoja[s.id]||0;return `<td class="r num hc-cel" style="--a:${v?Math.round(8+40*v/maxCel):0}%" title="${esc(l.cargo)} · ${esc(s.nome)}: ${v}">${v||"—"}</td>`}).join("")}<td class="r num"><b>${l.total}</b></td><td class="r num">${l.exp||"—"}</td><td class="r num">${l.ferias||"—"}</td><td class="r num">${l.afast||"—"}</td></tr>`).join("")}</tbody>
+    <tfoot><tr><td>Total</td>${lojas.map(s=>`<td class="r num">${at.filter(e=>e.lojaId===s.id).length}</td>`).join("")}<td class="r num">${at.length}</td><td class="r num">${linhas.reduce((t,l)=>t+l.exp,0)}</td><td class="r num">${linhas.reduce((t,l)=>t+l.ferias,0)}</td><td class="r num">${linhas.reduce((t,l)=>t+l.afast,0)}</td></tr>
+    <tr class="muted"><td>Quadro ideal</td>${lojas.map(s=>`<td class="r num">${s.quadro}</td>`).join("")}<td class="r num">${quadro}</td><td colspan="3"></td></tr></tfoot></table></div></div>`:""}`;
+};
+function exportarHeadcount(){
+  if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const {lojas,at,linhas}=dadosHeadcount();
+  const aoa=[["Função",...lojas.map(s=>s.nome),"Total","Experiência","Férias","Afastados"],
+    ...linhas.map(l=>[l.cargo,...lojas.map(s=>l.porLoja[s.id]||0),l.total,l.exp,l.ferias,l.afast]),
+    ["Total",...lojas.map(s=>at.filter(e=>e.lojaId===s.id).length),at.length,linhas.reduce((t,l)=>t+l.exp,0),linhas.reduce((t,l)=>t+l.ferias,0),linhas.reduce((t,l)=>t+l.afast,0)],
+    ["Quadro ideal",...lojas.map(s=>s.quadro),lojas.reduce((t,s)=>t+(Number(s.quadro)||0),0)]];
+  const ws=XLSX.utils.aoa_to_sheet([["Headcount por função · "+fdate(TODAY)],[],...aoa]);
+  ws["!cols"]=[{wch:26},...lojas.map(()=>({wch:16})),{wch:8},{wch:12},{wch:8},{wch:10}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Headcount");
+  XLSX.writeFile(wb,"headcount-por-funcao-"+TODAY+".xlsx");
+  logEvento("Headcount exportado",lojas.length+" unidade(s), "+at.length+" pessoas");
+}
+R.painel=()=>{
+  if(G())return painelLoja();
+  const at=ativos();
+  const folhaTot=at.reduce((s,e)=>s+folha(e).bruto,0);
+  const encargos=at.reduce((s,e)=>s+folha(e).fgts,0)+folhaTot*0.2;
+  const d12=ST.emps.filter(e=>e.desligado&&diffDays(e.desligado.data,TODAY)<=365).length;
+  const a12=ST.emps.filter(e=>diffDays(e.admissao,TODAY)<=365).length;
+  const turnover=at.length?((a12+d12)/2)/at.length*100:0;
+  const vagasAb=ST.vagas.reduce((s,v)=>s+v.qtd,0);
+  const al=alertas();
+  const max=Math.max(...ST.stores.map(s=>Math.max(s.quadro,at.filter(e=>e.lojaId===s.id).length)),1);
+  const months=[...Array(6)].map((_,i)=>addMonths(TODAY.slice(0,7)+"-01",i-5).slice(0,7));
+  const mv=months.map(m=>({m,a:ST.emps.filter(e=>e.admissao.slice(0,7)===m).length,d:ST.emps.filter(e=>e.desligado&&e.desligado.data.slice(0,7)===m).length}));
+  const mmax=Math.max(1,...mv.map(x=>Math.max(x.a,x.d)));
+  const st={ferias:0,experiencia:0,afastado:0};at.forEach(e=>{const k=status(e).k;if(k in st)st[k]++});
+  return header((primeiro(SESSION&&SESSION.nome)?"Olá, "+esc(primeiro(SESSION.nome))+" · ":"")+parse(TODAY).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}),"Sua rede em um olhar",
+    `<button class="btn" data-go="folha">Ver folha</button><button class="btn btn-primary" data-act="novoColab">+ Novo colaborador</button>`)+`
+  <div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Colaboradores ativos</span><span class="val num">${at.length}</span><span class="sub">${st.experiencia} em experiência · ${st.ferias} em férias · ${st.afastado} afastado${st.afastado===1?"":"s"}</span></div>
+    <div class="card kpi"><span class="lbl">Folha bruta · ${compLabel(curComp)}</span><span class="val num">${brl(folhaTot)}</span><span class="sub">Custo estimado com encargos: ${brl(folhaTot+encargos)}</span></div>
+    <div class="card kpi"><span class="lbl">Turnover 12 meses</span><span class="val num">${pct(turnover)}</span><span class="sub">${a12} admissões · ${d12} desligamentos</span></div>
+    <div class="card kpi"><span class="lbl">Vagas abertas</span><span class="val num">${vagasAb}</span><span class="sub">${ST.vagas.filter(v=>v.tipo==="Temporário").reduce((s,v)=>s+v.qtd,0)} temporárias para o fim de ano</span></div>
+  </div>
+  <div class="grid two">
+    <div class="card">
+      <div class="card-head"><div><h2>Quadro por unidade</h2><p>Ativos em relação ao quadro ideal de cada loja</p></div>
+      <div class="legend"><span><i style="background:var(--brand)"></i>Completo</span><span><i style="background:var(--warn)"></i>Abaixo do ideal</span><span><i style="background:var(--ink);width:3px"></i>Quadro ideal</span></div></div>
+      <div class="bars">${ST.stores.map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Movimentação</h2><p>Admissões e desligamentos nos últimos 6 meses</p></div>
+      <div class="legend"><span><i style="background:var(--brand)"></i>Admissões</span><span><i style="background:var(--muted)"></i>Desligamentos</span></div></div>
+      <div class="cols">${mv.map(x=>`<div class="col-g"><div class="col-pair"><div style="height:${x.a/mmax*85}%;background:var(--brand)"><span class="num">${x.a}</span></div><div style="height:${x.d/mmax*85}%;background:var(--muted)"><span class="num">${x.d}</span></div></div></div>`).join("")}</div>
+      <div class="col-lbls">${mv.map(x=>`<span>${MESES[Number(x.m.slice(5))-1].slice(0,3)}</span>`).join("")}</div>
+    </div>
+  </div>
+  <div class="grid two">
+    <div class="card">
+      <div class="card-head"><div><h2>Pendências do DP</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Próximos passos</h2><p>Admissões em andamento</p></div><button class="btn btn-sm" data-go="admissao">Ver todas</button></div>
+      <div class="alerts">${ST.admissoes.slice(0,6).map(a=>`<div class="alert"><div class="avatar">${initials(a.nome)}</div><div style="min-width:0"><b>${esc(a.nome)}</b><span>${esc(a.cargo)} · ${esc(store(a.lojaId).nome)} · início ${fdate(a.inicio)}</span></div><span class="chip ${["c-mute","c-info","c-warn","c-brand","c-ok"][a.etapa]}">${ETAPAS[a.etapa].t}</span></div>`).join("")||`<div class="empty">Nenhuma admissão em andamento.</div>`}</div>
+    </div>
+  </div>`;
+};
+
+R.colaboradores=()=>{
+  let list=ST.emps.filter(e=>{
+    const s=status(e).k;
+    if(UI.status==="" && s==="desligado") return false;
+    if(UI.status && UI.status!==s) return false;
+    if(UI.loja && e.lojaId!==UI.loja) return false;
+    if(UI.busca){const q=UI.busca.toLowerCase();if(!(e.nome.toLowerCase().includes(q)||e.cargo.toLowerCase().includes(q)))return false}
+    return true}).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const g=G();
+  return header(g?"Minha loja":"Pessoas",g?"Equipe":"Colaboradores",g?"":`<button class="btn" data-act="importarPlanilha">Importar planilha (CSV ou Excel)</button><button class="btn btn-primary" data-act="novoColab">+ Novo colaborador</button>`)+`
+  <div class="card">
+    <div class="toolbar">
+      <input class="input search" id="f-busca" placeholder="Buscar por nome ou cargo" value="${esc(UI.busca)}" aria-label="Buscar">
+      ${g&&ST.stores.length<2?"":`<select class="input" id="f-loja" aria-label="Loja">${lojaOpts(UI.loja)}</select>`}
+      <select class="input" id="f-status" aria-label="Situação">${[["","Todos os ativos"],["ativo","Ativo"],["experiencia","Experiência"],["ferias","Em férias"],["afastado","Afastado"],["desligado","Desligados"]].map(([v,t])=>`<option value="${v}" ${UI.status===v?"selected":""}>${t}</option>`).join("")}</select>
+      <span class="muted small">${list.length} pessoa${list.length===1?"":"s"}</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Colaborador</th><th>Loja</th><th>Admissão</th><th>Tempo de casa</th>${g?"":`<th class="r">Salário</th>`}<th>Situação</th></tr></thead>
+      <tbody>${list.map(e=>{const s=status(e);const m=monthsBetween(e.admissao,e.desligado?e.desligado.data:TODAY);return `<tr class="click" data-ficha="${e.id}"><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(e.admissao)}</td><td class="num">${m>=12?Math.floor(m/12)+"a "+(m%12)+"m":m+" meses"}</td>${g?"":`<td class="r num">${brl(e.salario)}</td>`}<td><span class="chip ${s.c}">${s.t}</span></td></tr>`}).join("")||`<tr><td colspan="6" class="empty">Ninguém encontrado com esses filtros.</td></tr>`}</tbody>
+    </table></div>
+  </div>`;
+};
+
+R.lojas=()=>{
+  const at=ativos();
+  return header("Pessoas","Lojas e unidades",`<button class="btn btn-primary" data-act="novaLoja">+ Nova unidade</button>`)+`
+  <div class="grid store-cards">${ST.stores.map(s=>{
+    const es=at.filter(e=>e.lojaId===s.id);const g=es.find(e=>/Gerente|Supervisor/.test(e.cargo));
+    const custo=es.reduce((t,e)=>t+folha(e).bruto,0);const vendas=es.reduce((t,e)=>t+(e.vendas||0),0);
+    const gap=s.quadro-es.length;
+    return `<div class="card store"><div class="store-top"><div><h2>${esc(s.nome)}</h2><span>${esc(s.tipo)} · ${esc(s.cidade)}</span></div>
+      <span class="chip ${gap>0?"c-warn":"c-ok"}">${gap>0?"Faltam "+gap:"Quadro completo"}</span></div>
+      <div class="mini-stats"><div><span>Ativos</span><b class="num">${es.length}/${s.quadro}</b></div><div><span>Folha bruta</span><b class="num">${(custo/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} mil</b></div><div><span>${vendas?"Vendas/mês":"Vagas"}</span><b class="num">${vendas?(vendas/1000).toLocaleString("pt-BR",{maximumFractionDigits:0})+" mil":ST.vagas.filter(v=>v.lojaId===s.id).reduce((t,v)=>t+v.qtd,0)}</b></div></div>
+      <div class="small muted">Responsável: <b style="color:var(--ink)">${g?esc(g.nome):"sem gestor"}</b></div>
+      <div class="tabs-inline"><button class="btn btn-sm" data-loja-colab="${s.id}">Ver equipe</button><button class="btn btn-sm" data-loja-escala="${s.id}">Escala</button><button class="btn btn-sm btn-ghost" data-editloja="${s.id}">Editar</button></div></div>`}).join("")}</div>`;
+};
+
+const ETAPAS=[{t:"Documentação",d:"RG, CPF, CTPS digital, comprovante"},{t:"Exame admissional",d:"ASO apto"},{t:"Contrato",d:"Experiência 45+45 dias"},{t:"eSocial S-2200",d:"Envio até o dia anterior"},{t:"Concluída",d:"Primeiro dia na loja"}];
+R.admissao=()=>header("Pessoas","Admissões",`<button class="btn btn-primary" data-act="novaAdm">+ Nova admissão</button>`)+`
+  <div class="kanban">${ETAPAS.map((et,i)=>{const cards=ST.admissoes.filter(a=>a.etapa===i);return `<div class="lane"><div class="lane-h"><div>${et.t}<small>${et.d}</small></div><span class="chip c-mute">${cards.length}</span></div>
+  ${cards.map(a=>{const d=diffDays(TODAY,a.inicio);return `<div class="k-card"><b>${esc(a.nome)}</b><div class="meta">${esc(a.cargo)} · ${esc(store(a.lojaId).nome)}<br>${brl(a.salario)} · início ${fdate(a.inicio)}</div>
+  ${a.obs?`<div class="meta">${esc(a.obs)}</div>`:""}
+  <div><span class="chip ${d<=3?"c-warn":"c-mute"}">${d<0?"Início atrasado":d===0?"Começa hoje":"Faltam "+d+" dias"}</span></div>
+  <div class="acts">${i>0?`<button class="btn btn-sm btn-ghost" data-adm-back="${a.id}" aria-label="Voltar etapa">←</button>`:""}${i<3?`<button class="btn btn-sm" data-adm-next="${a.id}">Avançar →</button>`:i===3?`<button class="btn btn-sm btn-primary" data-adm-next="${a.id}">Concluir admissão</button>`:""}</div></div>`}).join("")}</div>`}).join("")}</div>
+  <div class="note">Ao concluir, a pessoa entra no cadastro em contrato de experiência e o evento S-2200 fica registrado em eSocial.</div>`;
+
+R.recrutamento=()=>header("Pessoas","Recrutamento",`<button class="btn btn-primary" data-act="novaVaga">+ Abrir vaga</button>`)+`
+  <div class="grid kpis">
+    <div class="card kpi"><span class="lbl">Posições abertas</span><span class="val num">${ST.vagas.reduce((s,v)=>s+v.qtd,0)}</span><span class="sub">${ST.vagas.length} vagas</span></div>
+    <div class="card kpi"><span class="lbl">Candidatos no funil</span><span class="val num">${n0(ST.vagas.reduce((s,v)=>s+v.candidatos,0))}</span><span class="sub">média de ${n0(ST.vagas.reduce((s,v)=>s+v.candidatos,0)/Math.max(1,ST.vagas.reduce((s,v)=>s+v.qtd,0)))} por posição</span></div>
+    <div class="card kpi"><span class="lbl">Tempo médio aberto</span><span class="val num">${n0(ST.vagas.reduce((s,v)=>s+diffDays(v.abertura,TODAY),0)/Math.max(1,ST.vagas.length))} dias</span><span class="sub">Meta: até 30 dias</span></div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Vagas</h2><p>Temporários de fim de ano: contrato pela Lei 6.019, até 180 dias</p></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Cargo</th><th>Unidade</th><th>Tipo</th><th class="r">Posições</th><th class="r">Candidatos</th><th>Aberta há</th><th>Etapa</th><th></th></tr></thead>
+  <tbody>${ST.vagas.map(v=>`<tr><td><b>${esc(v.cargo)}</b></td><td>${esc(store(v.lojaId).nome)}</td><td><span class="chip ${v.tipo==="Temporário"?"c-brand":"c-info"}">${v.tipo}</span></td><td class="r num">${v.qtd}</td><td class="r num">${v.candidatos}</td><td class="num">${diffDays(v.abertura,TODAY)} dias</td>
+  <td><select class="input" style="width:auto;padding:6px 10px" data-vaga-status="${v.id}" aria-label="Etapa da vaga">${["Divulgação","Triagem","Entrevistas","Proposta"].map(s=>`<option ${s===v.status?"selected":""}>${s}</option>`).join("")}</select></td>
+  <td><button class="btn btn-sm" data-vaga-adm="${v.id}">Contratar</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhuma vaga aberta.</td></tr>`}</tbody></table></div></div>`;
+
+R.ponto=()=>{
+  const s=store(UI.escLoja);const ws=UI.escSemana;const esc_=escalaSemana(s,ws);
+  const dias=[...Array(7)].map((_,k)=>addDays(ws,k));
+  const list=ativos().filter(e=>e.lojaId===s.id);
+  const prev=[1,2].map(k=>escalaSemana(s,addDays(ws,-7*k)));
+  const rows=list.map(e=>{
+    const d=esc_[e.id];const folgas=d.filter(x=>x!=="T").length;
+    const domFolga=[d,prev[0][e.id],prev[1][e.id]].some(w=>w&&w[0]!=="T");
+    let tr=0,maxTr=0;d.forEach(x=>{tr=x==="T"?tr+1:0;maxTr=Math.max(maxTr,tr)});
+    const ok=folgas>=1&&domFolga;
+    return `<tr><td>${whoCell(e)}</td>${d.map((x,k)=>`<td><button class="cell ${x}" ${x==="FE"?"disabled title='Férias ou afastamento'":`data-cell="${e.id}|${k}"`} aria-label="${fdate(dias[k])}: ${x==="T"?"trabalho":x==="F"?"folga":"ausência"}">${x==="FE"?"—":x}</button></td>`).join("")}
+    <td class="num">${d.filter(x=>x==="T").length*44/6|0}h</td><td>${ok?`<span class="chip c-ok">Conforme</span>`:`<span class="chip c-bad">${folgas<1?"Sem folga semanal":"Sem domingo em 3 sem."}</span>`}</td></tr>`}).join("");
+  const banco=list.slice().sort((a,b)=>b.banco-a.banco);
+  return header("Departamento Pessoal","Ponto e escalas",`<button class="btn" data-act="semanaAnt">← Semana anterior</button><button class="btn" data-act="semanaProx">Próxima semana →</button>`)+`
+  <div class="card">
+    <div class="card-head"><div><h2>Escala 6x1 · ${fdate(ws)} a ${fdate(addDays(ws,6))}</h2><p>Toque num dia para alternar trabalho (T) e folga (F). Comércio: folga coincide com domingo ao menos 1 vez a cada 3 semanas.</p></div>
+    ${G()?`<span class="chip c-info">Alterações vão para aprovação do RH</span>`:""}${!G()||ST.stores.length>1?`<select class="input" style="width:auto" id="f-escloja" aria-label="Loja">${lojaOpts(UI.escLoja,false)}</select>`:""}</div>
+    <div class="table-wrap"><table class="sched"><thead><tr><th>Colaborador</th>${dias.map((d,k)=>`<th class="${k===0?"sun":""}">${["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][k]}<br><span class="num">${d.slice(8)}/${d.slice(5,7)}</span></th>`).join("")}<th>Carga</th><th>Regra</th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="empty">Sem colaboradores ativos nesta unidade.</td></tr>`}</tbody></table></div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Banco de horas · ${esc(s.nome)}</h2><p>Acordo individual: compensação em até 6 meses (art. 59 §5º CLT)</p></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th class="r">Saldo</th><th class="r">HE 50% no mês</th><th>Situação</th><th></th></tr></thead>
+  <tbody>${banco.map(e=>`<tr><td>${whoCell(e)}</td><td class="r num"><b style="color:${e.banco<0?"var(--bad)":"var(--ink)"}">${hm(e.banco)}</b></td><td class="r num">${e.he||0}h</td><td>${e.banco>2000?`<span class="chip c-warn">Compensar</span>`:e.banco<0?`<span class="chip c-info">Devendo horas</span>`:`<span class="chip c-ok">Normal</span>`}</td>
+  <td><div class="tabs-inline"><button class="btn btn-sm" data-banco="${e.id}|60">+1h</button><button class="btn btn-sm" data-banco="${e.id}|-480">Folga −8h</button></div></td></tr>`).join("")}</tbody></table></div></div>`;
+};
+
+R.ferias=()=>{
+  let list=ativos().map(e=>({e,sf:situacaoFerias(e)}));
+  if(UI.feriasFiltro==="atencao") list=list.filter(x=>x.sf.st.ord<=1);
+  if(UI.feriasFiltro==="programadas") list=list.filter(x=>x.sf.programada||feriasEmCurso(x.e));
+  list.sort((a,b)=>a.sf.st.ord-b.sf.st.ord||a.sf.limite.localeCompare(b.sf.limite));
+  const all=ativos().map(e=>situacaoFerias(e));
+  return header(G()?"Minha loja":"Departamento Pessoal","Férias",G()?"":`<button class="btn btn-primary" data-act="progFerias">Programar férias</button>`)+`
+  <div class="grid kpis">
+    <div class="card kpi"><span class="lbl">Em férias hoje</span><span class="val num">${ativos().filter(e=>feriasEmCurso(e)).length}</span><span class="sub">pessoas fora da loja</span></div>
+    <div class="card kpi"><span class="lbl">Vencendo em 90 dias</span><span class="val num" style="color:var(--warn)">${all.filter(s=>s.st.ord===1).length}</span><span class="sub">precisam de programação</span></div>
+    <div class="card kpi"><span class="lbl">Vencidas</span><span class="val num" style="color:var(--bad)">${all.filter(s=>s.st.ord===0).length}</span><span class="sub">pagamento em dobro (art. 137 CLT)</span></div>
+    <div class="card kpi"><span class="lbl">Programadas</span><span class="val num">${all.filter(s=>s.programada).length}</span><span class="sub">aviso com 30 dias de antecedência</span></div>
+  </div>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["todos","Todos"],["atencao","Precisam de atenção"],["programadas","Programadas e em curso"]].map(([k,t])=>`<button class="${UI.feriasFiltro===k?"on":""}" data-ffiltro="${k}">${t}</button>`).join("")}</div></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Período aquisitivo</th><th>Limite concessivo</th><th class="r">Períodos em aberto</th><th>Situação</th><th>Aviso de férias</th><th></th></tr></thead>
+  <tbody>${list.map(({e,sf})=>{const cur=feriasEmCurso(e);const fa=sf.programada||cur;return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(sf.aquisIni)} a ${fdate(sf.aquisFim)}</td><td class="num">${sf.pend?fdate(sf.limite):"—"}</td><td class="r num">${sf.pend}</td>
+  <td>${cur?`<span class="chip c-ok">Em férias até ${fdate(addDays(cur.inicio,cur.dias-1))}</span>`:`<span class="chip ${sf.st.c}">${sf.st.t}</span>`}</td>
+  <td>${fa?`<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${chipAssinatura(fa)}<div class="tabs-inline"><button class="btn btn-sm" data-pdfferias="${e.id}|${fa.inicio}">Baixar PDF</button>${!fa.assinado&&!fa.assinadoPend?`<button class="btn btn-sm btn-ghost" data-assinou="${e.id}|${fa.inicio}">Marcar como assinado</button>`:""}</div></div>`:`<span class="muted small">—</span>`}</td>
+  <td>${!G()&&sf.pend&&!sf.programada&&!cur?`<button class="btn btn-sm" data-progferias="${e.id}">Programar</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">Nada nesta visão.</td></tr>`}</tbody></table></div></div>`;
+};
+
+R.folha=()=>{
+  const comps=[...Array(6)].map((_,i)=>addMonths(curComp+"-01",-i).slice(0,7));
+  const list=ativos().filter(e=>!UI.folhaLoja||e.lojaId===UI.folhaLoja).sort((a,b)=>a.lojaId.localeCompare(b.lojaId)||a.nome.localeCompare(b.nome));
+  const rows=list.map(e=>({e,f:folha(e,UI.comp)}));
+  const T=k=>rows.reduce((s,r)=>s+(typeof k==="function"?k(r.f):r.f[k]),0);
+  const fechada=ST.folhasFechadas[UI.comp];
+  const dm=diasMes(UI.comp);
+  return header("Departamento Pessoal","Folha de pagamento",`<span class="chip ${fechada?"c-ok":"c-warn"}">${fechada?"Fechada em "+fdate(fechada):"Em aberto"}</span>${fechada?"":`<button class="btn btn-primary" data-act="fecharFolha">Fechar folha de ${compLabel(UI.comp)}</button>`}`)+`
+  <div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Líquido a pagar</span><span class="val num">${brl(T("liquido"))}</span><span class="sub">pagamento até o 5º dia útil</span></div>
+    <div class="card kpi"><span class="lbl">Total bruto</span><span class="val num">${brl(T("bruto"))}</span><span class="sub">Comissões + DSR: ${brl(T(f=>f.comissao+f.dsr))}</span></div>
+    <div class="card kpi"><span class="lbl">INSS + IRRF retidos</span><span class="val num">${brl(T(f=>f.inss+f.ir.valor))}</span><span class="sub">DCTFWeb e DARF até dia 20</span></div>
+    <div class="card kpi"><span class="lbl">FGTS (8%)</span><span class="val num">${brl(T("fgts"))}</span><span class="sub">FGTS Digital até dia 20</span></div>
+  </div>
+  <div class="card">
+    <div class="toolbar">
+      <select class="input" id="f-comp" aria-label="Competência">${comps.map(c=>`<option value="${c}" ${c===UI.comp?"selected":""}>${compLabel(c)}</option>`).join("")}</select>
+      <select class="input" id="f-folhaloja" aria-label="Loja">${lojaOpts(UI.folhaLoja)}</select>
+      <span class="muted small">${dm.uteis} dias úteis · ${dm.dsr} domingos e feriados (base do DSR sobre comissões)</span>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th class="r">Salário</th><th class="r">Comissão</th><th class="r">DSR</th><th class="r">Horas extras</th><th class="r">Bruto</th><th class="r">INSS</th><th class="r">IRRF</th><th class="r">VT</th><th class="r">Líquido</th><th></th></tr></thead>
+    <tbody>${rows.map(({e,f})=>`<tr class="click" data-holerite="${e.id}"><td>${whoCell(e)}</td><td class="r num">${brl(f.base)}</td><td class="r num">${f.comissao?brl(f.comissao):"—"}</td><td class="r num">${f.dsr?brl(f.dsr):"—"}</td><td class="r num">${f.he?brl(f.he+f.dsrHe):"—"}</td><td class="r num"><b>${brl(f.bruto)}</b></td><td class="r num">${brl(f.inss)}</td><td class="r num">${f.ir.valor?brl(f.ir.valor):"—"}</td><td class="r num">${f.vt?brl(f.vt):"—"}</td><td class="r num"><b>${brl(f.liquido)}</b></td><td><button class="btn btn-sm">Holerite</button></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td>Total · ${rows.length} pessoas</td><td class="r num">${brl(T("base"))}</td><td class="r num">${brl(T("comissao"))}</td><td class="r num">${brl(T("dsr"))}</td><td class="r num">${brl(T(f=>f.he+f.dsrHe))}</td><td class="r num">${brl(T("bruto"))}</td><td class="r num">${brl(T("inss"))}</td><td class="r num">${brl(T(f=>f.ir.valor))}</td><td class="r num">${brl(T("vt"))}</td><td class="r num">${brl(T("liquido"))}</td><td></td></tr></tfoot></table></div>
+    <div class="note" style="margin-top:14px">Cálculo com INSS progressivo, IRRF com desconto simplificado e redução da Lei 15.270/2025 (isenção até R$ 5.000), DSR sobre comissões e horas extras, e VT limitado a 6% do salário. Confira as tabelas em Configurações antes de fechar.</div>
+  </div>`;
+};
+
+R.beneficios=()=>{
+  const b=ST.cfg.beneficios;const dm=diasMes(curComp);
+  const calc=e=>{const diasFe=feriasEmCurso(e)?0:dm.uteis;return {alim:b.alimentacao,ref:b.refeicao*diasFe,mob:e.vt?b.mobilidadeDia*diasFe:0,bem:b.bemestar}};
+  const porLoja=ST.stores.map(s=>{const es=ativos().filter(e=>e.lojaId===s.id&&!e.afastado);const t=es.reduce((acc,e)=>{const c=calc(e);acc.alim+=c.alim;acc.ref+=c.ref;acc.mob+=c.mob;acc.bem+=c.bem;return acc},{alim:0,ref:0,mob:0,bem:0});return {s,n:es.length,...t,tot:t.alim+t.ref+t.mob+t.bem}});
+  const tot=porLoja.reduce((s,x)=>s+x.tot,0);
+  const feita=ST.recargas.find(r=>r.comp===curComp);
+  return header("Departamento Pessoal","Benefícios flexíveis",feita?`<span class="chip c-ok">Recarga de ${compLabel(curComp)} registrada</span>`:`<button class="btn btn-primary" data-act="recarga">Registrar recarga de ${compLabel(curComp)}</button>`)+`
+  <div class="grid two">
+    <div class="card"><div class="card-head"><div><h2>Política da rede</h2><p>Valores por colaborador. Refeição e mobilidade são pagos por dia útil trabalhado.</p></div></div>
+      <div class="form-grid">
+        <div class="field"><label for="b-alim">Alimentação (mensal)</label><input class="input num" id="b-alim" type="number" step="0.01" value="${b.alimentacao}" data-ben="alimentacao"></div>
+        <div class="field"><label for="b-ref">Refeição (por dia)</label><input class="input num" id="b-ref" type="number" step="0.01" value="${b.refeicao}" data-ben="refeicao"></div>
+        <div class="field"><label for="b-mob">Mobilidade (por dia, só quem optou por VT)</label><input class="input num" id="b-mob" type="number" step="0.01" value="${b.mobilidadeDia}" data-ben="mobilidadeDia"></div>
+        <div class="field"><label for="b-bem">Saúde e bem-estar (mensal)</label><input class="input num" id="b-bem" type="number" step="0.01" value="${b.bemestar}" data-ben="bemestar"></div>
+      </div>
+    </div>
+    <div class="card kpi hero"><span class="lbl">Recarga prevista · ${compLabel(curComp)}</span><span class="val num">${brl(tot)}</span><span class="sub">${porLoja.reduce((s,x)=>s+x.n,0)} cartões · ${dm.uteis} dias úteis · quem está de férias não recebe refeição e mobilidade</span></div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Recarga por unidade</h2></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Unidade</th><th class="r">Cartões</th><th class="r">Alimentação</th><th class="r">Refeição</th><th class="r">Mobilidade</th><th class="r">Bem-estar</th><th class="r">Total</th></tr></thead>
+  <tbody>${porLoja.map(x=>`<tr><td><b>${esc(x.s.nome)}</b></td><td class="r num">${x.n}</td><td class="r num">${brl(x.alim)}</td><td class="r num">${brl(x.ref)}</td><td class="r num">${brl(x.mob)}</td><td class="r num">${brl(x.bem)}</td><td class="r num"><b>${brl(x.tot)}</b></td></tr>`).join("")}</tbody>
+  <tfoot><tr><td>Total</td><td class="r num">${porLoja.reduce((s,x)=>s+x.n,0)}</td>${["alim","ref","mob","bem","tot"].map(k=>`<td class="r num">${brl(porLoja.reduce((s,x)=>s+x[k],0))}</td>`).join("")}</tr></tfoot></table></div></div>
+  ${ST.recargas.length?`<div class="card"><div class="card-head"><h2>Histórico de recargas</h2></div><div class="table-wrap"><table><thead><tr><th>Competência</th><th>Registrada em</th><th class="r">Valor</th></tr></thead><tbody>${ST.recargas.map(r=>`<tr><td>${compLabel(r.comp)}</td><td class="num">${fdate(r.data)}</td><td class="r num">${brl(r.valor)}</td></tr>`).join("")}</tbody></table></div></div>`:""}`;
+};
+
+R.experiencia=()=>{
+  const acomp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).sort((a,b)=>a.admissao.localeCompare(b.admissao));
+  const all=acomp.flatMap(e=>marcos(e));
+  const hist=ST.emps.flatMap(e=>(e.avaliacoes||[]).map(a=>({e,a}))).sort((x,y)=>y.a.data.localeCompare(x.a.data));
+  const fin=hist.filter(h=>(h.a.marco===90||h.a.parecer!=="prorrogar")&&diffDays(h.a.data,TODAY)<=365);
+  const taxa=fin.length?fin.filter(h=>h.a.parecer==="efetivar").length/fin.length*100:0;
+  const prox=all.filter(m=>m.pend&&m.dias>=0).length,atr=all.filter(m=>m.pend&&m.dias<0).length;
+  return header("Pessoas","Período de experiência")+`
+  <div class="grid kpis">
+    <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${acomp.filter(emExperiencia).length}</span><span class="sub">contrato de 45 + 45 dias</span></div>
+    <div class="card kpi"><span class="lbl">Avaliações nos próximos 10 dias</span><span class="val num" style="color:var(--warn)">${prox}</span><span class="sub">feitas pelo gestor da loja</span></div>
+    <div class="card kpi"><span class="lbl">Avaliações atrasadas</span><span class="val num" style="color:var(--bad)">${atr}</span><span class="sub">risco de virar prazo indeterminado</span></div>
+    <div class="card kpi"><span class="lbl">Taxa de efetivação</span><span class="val num">${pct(taxa)}</span><span class="sub">${fin.length} decisões nos últimos 12 meses</span></div>
+  </div>
+  <div class="note">A prorrogação do 1º período precisa ser registrada até o 45º dia. Depois do 90º dia sem decisão, o contrato passa a ser por prazo indeterminado (arts. 445 e 451 da CLT).</div>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["acomp","Em acompanhamento"],["hist","Histórico de avaliações"]].map(([k,t])=>`<button class="${UI.xpTab===k?"on":""}" data-xptab="${k}">${t}</button>`).join("")}</div></div>
+  ${UI.xpTab==="acomp"?`<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Progresso</th><th>Avaliação 45 dias</th><th>Avaliação 90 dias</th></tr></thead>
+  <tbody>${acomp.map(e=>{const dx=Math.min(90,diffDays(e.admissao,TODAY));return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td>
+    <td><span class="xp-lbl num">Dia ${dx} de 90 · desde ${fdate(e.admissao)}</span><div class="xp"><i style="width:${Math.max(0,dx)/90*100}%"></i><b style="left:calc(50% - 1px)"></b></div></td>
+    ${marcos(e).map(mc=>`<td><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span class="chip ${mc.st.c}">${mc.st.t}</span>${mc.a?`<button class="btn btn-sm btn-ghost" data-verav="${e.id}|${mc.a.id}">Nota ${mc.a.media.toLocaleString("pt-BR")} · ver</button>`:mc.podeAvaliar?`<button class="btn btn-sm ${mc.pend?"btn-primary":""}" data-avaliar="${e.id}|${mc.m}">Avaliar · até ${fdate(mc.prazo)}</button>`:""}</div></td>`).join("")}</tr>`}).join("")||`<tr><td colspan="5" class="empty">Ninguém em período de experiência agora.</td></tr>`}</tbody></table></div>`
+  :`<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Marco</th><th>Data</th><th>Avaliador(a)</th><th>Nota</th><th>Decisão</th><th></th></tr></thead>
+  <tbody>${hist.map(({e,a})=>`<tr class="click" data-verav="${e.id}|${a.id}"><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${a.marco} dias</td><td class="num">${fdate(a.data)}</td><td>${esc(a.avaliador)}</td><td class="num"><b>${a.media.toLocaleString("pt-BR",{minimumFractionDigits:1})}</b><span class="mbar"><i style="width:${a.media/5*100}%"></i></span></td><td><span class="chip ${PARECER[a.parecer].c}">${PARECER[a.parecer].t}</span></td><td><button class="btn btn-sm">Ver</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhuma avaliação registrada ainda.</td></tr>`}</tbody></table></div>`}
+  </div>`;
+};
+
+R.desligamentos=()=>{
+  const des=ST.emps.filter(e=>e.desligado).sort((a,b)=>b.desligado.data.localeCompare(a.desligado.data));
+  const porTipo={};des.forEach(e=>porTipo[e.desligado.tipo]=(porTipo[e.desligado.tipo]||0)+1);
+  return header("Departamento Pessoal","Desligamentos",`<button class="btn btn-primary" data-act="simRescisao">Simular rescisão</button>`)+`
+  <div class="grid kpis">${Object.entries(TIPOS).map(([k,t])=>`<div class="card kpi"><span class="lbl">${t}</span><span class="val num">${porTipo[k]||0}</span><span class="sub">últimos 12 meses</span></div>`).join("")}</div>
+  <div class="card"><div class="card-head"><div><h2>Histórico</h2><p>Pagamento das verbas em até 10 dias do término (art. 477 §6º CLT)</p></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Loja</th><th>Admissão</th><th>Desligamento</th><th>Motivo</th><th class="r">Tempo de casa</th></tr></thead>
+  <tbody>${des.map(e=>{const m=monthsBetween(e.admissao,e.desligado.data);return `<tr class="click" data-ficha="${e.id}"><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(e.admissao)}</td><td class="num">${fdate(e.desligado.data)}</td><td><span class="chip ${e.desligado.tipo==="justa"?"c-bad":e.desligado.tipo==="pedido"?"c-info":"c-mute"}">${TIPOS[e.desligado.tipo]}</span></td><td class="r num">${m} meses</td></tr>`}).join("")||`<tr><td colspan="6" class="empty">Nenhum desligamento registrado.</td></tr>`}</tbody></table></div></div>`;
+};
+
+R.esocial=()=>{
+  const ev=ST.eventos.slice().sort((a,b)=>b.data.localeCompare(a.data));
+  return header("Departamento Pessoal","Eventos eSocial",ev.some(e=>e.status==="Pendente")?`<button class="btn btn-primary" data-act="transmitirTodos">Marcar pendentes como transmitidos</button>`:"")+`
+  <div class="note">Controle interno dos eventos gerados pelo sistema. A transmissão em si é feita pelo seu software de folha ou pelo portal do eSocial; aqui você acompanha o que já foi enviado.</div>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Descrição</th><th>Referência</th><th>Data</th><th>Situação</th><th></th></tr></thead>
+  <tbody>${ev.map(e=>`<tr><td><b class="num">${e.codigo}</b></td><td>${esc(e.desc)}</td><td>${esc(e.ref)}</td><td class="num">${fdate(e.data)}</td><td><span class="chip ${e.status==="Pendente"?"c-warn":"c-ok"}">${e.status}</span></td><td>${e.status==="Pendente"?`<button class="btn btn-sm" data-transmitir="${e.id}">Marcar transmitido</button>`:""}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">Nenhum evento.</td></tr>`}</tbody></table></div></div>`;
+};
+
+R.config=()=>{
+  const c=ST.cfg;
+  return header("Sistema","Configurações")+`
+  <div class="grid two">
+    <div class="card"><div class="card-head"><div><h2>Tabela INSS (empregado)</h2><p>Alíquotas progressivas por faixa. Confirme com a portaria vigente.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Até (R$)</th><th>Alíquota (%)</th></tr></thead><tbody>${c.inss.map((f,i)=>`<tr><td><input class="input num" id="inss-l-${i}" type="number" step="0.01" value="${f[0]}" data-cfg="inss|${i}|0"></td><td><input class="input num" id="inss-a-${i}" type="number" step="0.01" value="${f[1]}" data-cfg="inss|${i}|1"></td></tr>`).join("")}</tbody></table></div>
+    </div>
+    <div class="card"><div class="card-head"><div><h2>Tabela IRRF mensal</h2><p>Base de cálculo, alíquota e parcela a deduzir</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Até (R$)</th><th>Alíquota (%)</th><th>Dedução (R$)</th></tr></thead><tbody>${c.irrf.map((f,i)=>`<tr><td>${f[0]===Infinity?"Acima":`<input class="input num" id="ir-l-${i}" type="number" step="0.01" value="${f[0]}" data-cfg="irrf|${i}|0">`}</td><td><input class="input num" id="ir-a-${i}" type="number" step="0.01" value="${f[1]}" data-cfg="irrf|${i}|1"></td><td><input class="input num" id="ir-d-${i}" type="number" step="0.01" value="${f[2]}" data-cfg="irrf|${i}|2"></td></tr>`).join("")}</tbody></table></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Parâmetros gerais</h2></div></div>
+    <div class="form-grid">${[["salarioMinimo","Salário mínimo"],["deducaoDependente","Dedução por dependente (IRRF)"],["descontoSimplificado","Desconto simplificado mensal"],["reducaoAte","Isenção total do IR até (Lei 15.270)"],["reducaoFaixaAte","Redução parcial até"],["fgts","FGTS (%)"],["vtPct","Desconto de VT (%)"]].map(([k,t])=>`<div class="field"><label for="cfg-${k}">${t}</label><input class="input num" id="cfg-${k}" type="number" step="0.01" value="${c[k]}" data-cfg="${k}"></div>`).join("")}</div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Backup dos dados</h2><p>Copie o conteúdo para guardar, ou cole um backup e importe.</p></div></div>
+    <textarea class="input num" id="backup" rows="5" style="font-family:ui-monospace,monospace;font-size:.75rem" aria-label="Backup em JSON" placeholder="Toque em Gerar backup"></textarea>
+    <div class="tabs-inline" style="margin-top:12px"><button class="btn" data-act="gerarBackup">Gerar backup</button><button class="btn" data-act="copiarBackup">Copiar</button><button class="btn" data-act="importar">Importar backup colado</button><button class="btn btn-ghost" data-act="restaurar">Recarregar dados de exemplo</button></div>
+  </div>`;
+};
+
+function render(){
+  if(!ST||!ROLE)return;
+  renderNav();
+  $("#main").innerHTML=R[page]();
+  document.title="Gestão de Pessoas";
+}
+
+/* ============ telas de entrada ============ */
+function mostrarApp(){$(".app").classList.remove("gated")}
+const normLogin=s=>String(s||"").trim().toLowerCase();
+const loginValido=s=>/^[a-z0-9._-]{3,30}$/.test(s);
+function mostrarTela(k,extra){
+  $(".app").classList.add("gated");closeModal();
+  const erro=`<p class="small" id="g-err" style="color:var(--bad)" ${extra?"":"hidden"}>${esc(extra||"")}</p>`;
+  const T={
+    carregando:["Carregando","Só um instante.",""],
+    configurar:["Portal ainda não configurado","Preencha o arquivo config.js com o endereço e a chave pública do Supabase. O passo a passo está no LEIAME.md do projeto.",""],
+    erro:["Não foi possível carregar os dados","Verifique a conexão e recarregue a página. Se continuar, avise o RH.",`<button class="btn" data-act="sair">Sair</button>`],
+    login:["Entrar no Gestão de Pessoas","Use o usuário e a senha que o RH criou para você.",
+      `<form class="form-grid" id="form-login" style="text-align:left">
+        <div class="field full"><label for="l-user">Usuário</label><input class="input" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
+        <div class="field full"><label for="l-pass">Senha</label><input class="input" id="l-pass" type="password" autocomplete="current-password"></div>
+      </form>${erro}<button class="btn btn-primary" data-act="entrar" id="btn-entrar" style="width:100%;justify-content:center">Entrar</button><p class="small muted">Esqueceu a senha? Peça ao RH para redefinir.</p>`],
+    inicioRH:["Bem-vindo ao Gestão de Pessoas","O banco de dados está vazio. Escolha como começar.",
+      `<div class="gate-acts"><button class="btn btn-primary" data-act="iniciarExemplo">Começar com dados de exemplo</button><button class="btn" data-act="iniciarZero">Começar do zero</button></div>`]
+  }[k];
+  $("#main").innerHTML=`<div class="gate-wrap">
+    <aside class="gate-side">
+      <div class="gs-top"><div class="gs-logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.5 11h-13z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></div><div><b>Gestão de Pessoas</b><span>Brasileiríssima · RH &amp; DP</span></div></div>
+      <div class="gs-mid"><h2>Portal de RH das lojas Brasileiríssima</h2><ul><li>Equipe, escalas e férias das suas lojas</li><li>Avaliações de experiência de 45 e 90 dias</li><li>Aviso de férias em PDF e solicitações ao RH</li></ul></div>
+      <div class="gs-foot">Acesso restrito a colaboradores autorizados pelo RH.</div>
+    </aside>
+    <div class="gate-main"><div class="gate"><div class="gate-brand">Gestão de Pessoas · Brasileiríssima</div><h1>${T[0]}</h1><p class="muted">${T[1]}</p>${T[2]}</div></div>
+  </div>`;
+  const f=$("#main input");if(f)f.focus();
+}
+function erroTela(msg){const el=$("#g-err");if(el){el.hidden=false;el.textContent=msg}}
+function iniciarRH(novo){ST=normalize(novo);mostrarApp();persist();go();logEvento("Banco de dados iniciado",ST.exemplo?"Dados de exemplo":"Do zero");toast("Banco de dados criado")}
+async function entrar(){
+  const login=normLogin($("#l-user").value),senha=$("#l-pass").value;
+  if(!login||!senha){erroTela("Preencha usuário e senha.");return}
+  const b=$("#btn-entrar");b.disabled=true;b.textContent="Entrando…";
+  const {error}=await SB.auth.signInWithPassword({email:login+"@"+DOMINIO,password:senha});
+  b.disabled=false;b.textContent="Entrar";
+  if(error){erroTela(/banned/i.test(error.message)?"Usuário desativado. Fale com o RH.":/rate|too many/i.test(error.message)?"Muitas tentativas. Aguarde alguns minutos e tente de novo.":"Usuário ou senha incorretos.");return}
+  await iniciarSessao(true);
+}
+async function iniciarSessao(novoLogin){
+  const {data:{user}}=await SB.auth.getUser();
+  if(!user){mostrarTela("login");return}
+  const {data:p}=await SB.from("perfis").select("*").eq("user_id",user.id).maybeSingle();
+  if(!p||!p.ativo){await SB.auth.signOut();mostrarTela("login","Este usuário não tem acesso ativo ao portal. Fale com o RH.");return}
+  PERFIL=p;ROLE=p.perfil;SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
+  if(novoLogin){SB.rpc("registrar_acesso").then(()=>{},()=>{});logEvento("Login","Acesso ao portal")}
+  mostrarTela("carregando");
+  try{
+    if(ROLE==="rh"){if(!(await carregarRH())){await carregarUsuarios();mostrarTela("inicioRH");return}}
+    else await carregarGerente();
+  }catch(e){console.error(e);mostrarTela("erro");return}
+  mostrarApp();go();
+}
+async function sair(){
+  if(SESSION)logEvento("Logout","Saiu do portal");
+  await sleep(300);await SB.auth.signOut();
+  SESSION=null;PERFIL=null;ROLE=null;ST=null;SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
+  location.hash="";mostrarTela("login");
+}
+async function boot(){
+  mostrarTela("carregando");
+  if(!CONF.supabaseUrl||!CONF.supabaseAnonKey||!window.supabase){mostrarTela("configurar");return}
+  SB=window.supabase.createClient(CONF.supabaseUrl,CONF.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  SB.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&SESSION){SESSION=null;mostrarTela("login")}});
+  const {data:{session}}=await SB.auth.getSession();
+  if(session)await iniciarSessao(false);else mostrarTela("login");
+}
+
+/* ============ aviso de férias em PDF ============ */
+const chipAssinatura=f=>f.assinado?`<span class="chip c-ok">Assinado em ${fdate(f.assinado)}</span>`:f.assinadoPend?`<span class="chip c-info">Assinatura enviada ao RH</span>`:`<span class="chip c-warn">Assinatura pendente</span>`;
+function avisoFeriasPDF(eid,ini){
+  const e=emp(eid);const f=e&&e.ferias.find(x=>x.inicio===ini);if(!f)return;
+  if(!window.jspdf){toast("O gerador de PDF não carregou. Recarregue a página e tente de novo.");return}
+  const ord=e.ferias.slice().sort((a,b)=>a.inicio.localeCompare(b.inicio));const k=ord.indexOf(f);
+  const aqIni=addMonths(e.admissao,12*k),aqFim=addDays(addMonths(e.admissao,12*(k+1)),-1);
+  const fim=addDays(f.inicio,f.dias-1),retorno=addDays(f.inicio,f.dias),pagto=addDays(f.inicio,-2);
+  const s=store(e.lojaId);const agora=new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
+  const W=210,M=20,verde=[11,127,74],tinta=[16,32,26],cinza=[91,109,100];
+  const via=(nomeVia,primeiraPagina)=>{
+    if(!primeiraPagina)doc.addPage();
+    doc.setFillColor(...verde);doc.rect(0,0,W,30,"F");
+    doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text("BRASILEIRÍSSIMA",M,15);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text("Gestão de Pessoas · "+s.nome+(s.cidade?" · "+s.cidade:""),M,22);
+    doc.text(nomeVia,W-M,15,{align:"right"});
+    doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("AVISO E RECIBO DE PROGRAMAÇÃO DE FÉRIAS",M,46);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...cinza);doc.text("Comunicação prévia de férias conforme o art. 135 da CLT",M,52);
+    const linhas_=[["Colaborador(a)",e.nome],["Cargo",e.cargo],["Unidade",s.nome],["Data de admissão",fdate(e.admissao)],["Período aquisitivo",fdate(aqIni)+" a "+fdate(aqFim)],
+      ["Período de gozo",fdate(f.inicio)+" a "+fdate(fim)+" ("+f.dias+" dias)"],["Abono pecuniário",f.abono?"Sim, 10 dias convertidos em dinheiro":"Não"],["Retorno ao trabalho",fdate(retorno)],["Pagamento das férias até",fdate(pagto)]];
+    let y=62;
+    linhas_.forEach(([a,b],i)=>{if(i%2===0){doc.setFillColor(242,246,243);doc.rect(M,y-5,W-2*M,8,"F")}
+      doc.setFontSize(9);doc.setTextColor(...cinza);doc.text(a,M+3,y);doc.setFontSize(10.5);doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.text(b,M+58,y);doc.setFont("helvetica","normal");y+=8});
+    y+=8;doc.setFontSize(10.5);doc.setTextColor(...tinta);
+    const p1="Comunicamos que, nos termos do art. 135 da Consolidação das Leis do Trabalho, suas férias referentes ao período aquisitivo acima foram programadas para o período de gozo indicado. A remuneração das férias, acrescida do terço constitucional"+(f.abono?" e do abono pecuniário":"")+", será paga até a data informada e constará do recibo de pagamento emitido pelo Departamento Pessoal.";
+    const t1=doc.splitTextToSize(p1,W-2*M);doc.text(t1,M,y);y+=t1.length*5.4+6;
+    doc.setFont("helvetica","bold");doc.text("Ciência do(a) colaborador(a)",M,y);doc.setFont("helvetica","normal");y+=6;
+    const p2="Declaro que recebi este aviso e estou ciente do período de férias programado, da data de retorno ao trabalho e da data de pagamento acima.";
+    const t2=doc.splitTextToSize(p2,W-2*M);doc.text(t2,M,y);y+=t2.length*5.4+14;
+    doc.text("Local e data: ______________________________, ____/____/________",M,y);y+=28;
+    const col=(x,a,b)=>{doc.setDrawColor(...tinta);doc.line(x,y,x+75,y);doc.setFontSize(10);doc.setTextColor(...tinta);doc.text(a,x+37.5,y+5,{align:"center"});doc.setFontSize(8.5);doc.setTextColor(...cinza);doc.text(b,x+37.5,y+10,{align:"center"})};
+    col(M,e.nome,"Colaborador(a)");col(W-M-75,"Gerente da unidade","Brasileiríssima · "+s.nome);
+    doc.setFontSize(7.5);doc.setTextColor(...cinza);
+    doc.text("Emitido pelo portal Gestão de Pessoas em "+agora+(SESSION?" por "+SESSION.nome:"")+". Entregue ao colaborador com pelo menos 30 dias de antecedência do início das férias.",M,285,{maxWidth:W-2*M});
+  };
+  via("VIA DA EMPRESA",true);via("VIA DO COLABORADOR",false);
+  const slug=e.nome.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const url=URL.createObjectURL(doc.output("blob"));const a=document.createElement("a");a.href=url;a.download="aviso-ferias-"+slug+"-"+f.inicio+".pdf";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+  logEvento("Aviso de férias emitido",e.nome+" · férias de "+fdate(f.inicio));
+  toast("PDF baixado. Imprima as duas vias e colha a assinatura.");
+}
+/* ============ ficha de registro ============ */
+const TIPOS_CONTRATO=["Experiência 45 + 45 dias","Prazo indeterminado","Temporário (Lei 6.019)","Aprendiz","Intermitente"];
+/* [chave, rótulo, tipo (t texto, d data, n número, b sim/não, cargo, loja, tc), largura total] */
+const FICHA=[
+  {s:"Identificação",c:[["nome","Nome completo","t",1],["nascimento","Data de nascimento","d"],["sexo","Sexo"],["estadoCivil","Estado civil"],["nacionalidade","Nacionalidade"],["naturalidade","Naturalidade (cidade/UF)"],["nomeMae","Nome da mãe","t",1],["nomePai","Nome do pai","t",1],["escolaridade","Escolaridade"],["racaCor","Raça/cor"],["pcd","Pessoa com deficiência"]]},
+  {s:"Documentos",c:[["cpf","CPF"],["pis","PIS/NIS"],["rg","RG"],["rgOrgao","Órgão emissor do RG"],["rgUf","UF do RG"],["rgEmissao","Emissão do RG","d"],["ctpsNumero","CTPS número"],["ctpsSerie","CTPS série"],["ctpsUf","CTPS UF"],["tituloEleitor","Título de eleitor"],["reservista","Certificado de reservista"],["cnh","CNH"]]},
+  {s:"Endereço e contato",c:[["logradouro","Logradouro","t",1],["numero","Número"],["complemento","Complemento"],["bairro","Bairro"],["cidade","Cidade"],["uf","UF"],["cep","CEP"],["telefone","Telefone"],["email","E-mail"]]},
+  {s:"Dados bancários",c:[["banco","Banco"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"]]},
+  {s:"Contrato de trabalho",c:[["matricula","Matrícula"],["cargo","Cargo","cargo"],["cbo","CBO"],["lojaId","Unidade","loja"],["admissao","Data de admissão","d"],["salario","Salário (R$)","n"],["tipoContrato","Tipo de contrato","tc"],["jornada","Jornada"],["horario","Horário de trabalho"],["comissao","Comissão sobre vendas (%)","n"],["vt","Optante pelo vale-transporte","b"]]}
+];
+const CAMPOS=FICHA.flatMap(s=>s.c);
+const BASE_KEYS=["nome","cpf","cargo","lojaId","admissao","salario","comissao","vt"];
+const soDig=s=>String(s||"").replace(/\D/g,"");
+function cpfValido(c){c=soDig(c);if(c.length!==11||/^(\d)\1+$/.test(c))return false;
+  const dv=n=>{let s=0;for(let i=0;i<n;i++)s+=Number(c[i])*(n+1-i);const r=(s*10)%11;return r===10?0:r};return dv(9)===Number(c[9])&&dv(10)===Number(c[10])}
+const fmtCPF=c=>{const d=soDig(c);return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):String(c||"")};
+let FX=null; // ficha em edição: {eid, dados, deps, origem, alvo}
+
+function dadosDoColab(e){
+  const f=e.ficha||{};const d={};
+  CAMPOS.forEach(([k,,tp])=>{d[k]=BASE_KEYS.includes(k)?(e[k]??""):(f[k]??(tp==="n"?null:""))});
+  d.cpf=e.cpf&&!e.cpf.includes("•")?e.cpf:(f.cpf||"");
+  if(!d.tipoContrato)d.tipoContrato=e.efetivado||!emExperiencia(e)?"Prazo indeterminado":"Experiência 45 + 45 dias";
+  return d;
+}
+function abrirFichaForm(eid,dados,deps,origem){
+  const e=eid?emp(eid):null;
+  const d=dados||dadosDoColab(e);
+  let alvo=eid,porCpf=false;
+  if(!eid&&d.cpf){const dig=soDig(d.cpf);const ex=ST.emps.find(x=>soDig(x.cpf)===dig&&dig.length===11&&!x.desligado);if(ex){alvo=ex.id;porCpf=true}}
+  FX={eid:alvo,porCpf,dados:d,deps:(deps||(e&&e.ficha&&e.ficha.dependentesLista)||[]).map(x=>({...x})),origem:origem||"",importado:!!dados};
+  renderFichaForm();
+}
+function campoHTML([k,t,tp,full]){
+  const v=FX.dados[k];const vazio=FX.importado&&(v===""||v===null||v===undefined);const cls="input"+(vazio?" vazio":"");const id="fx-"+k;
+  let inp;
+  if(tp==="cargo")inp=`<select class="${cls}" id="${id}"><option value="">Selecione…</option>${cargoOpts(v)}</select>`;
+  else if(tp==="loja")inp=`<select class="${cls}" id="${id}"><option value="">Selecione…</option>${lojaOpts(v,false)}</select>`;
+  else if(tp==="tc")inp=`<select class="${cls}" id="${id}"><option value="">Selecione…</option>${TIPOS_CONTRATO.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")}</select>`;
+  else if(tp==="b")return `<label class="check ${full?"full":""}"><input type="checkbox" id="${id}" ${v?"checked":""}> ${t}${v===null&&FX.importado?' <span class="chip c-warn">confira</span>':""}</label>`;
+  else inp=`<input class="${cls}" id="${id}" ${tp==="d"?'type="date"':tp==="n"?'type="number" step="0.01" min="0"':""} value="${esc(v??"")}">`;
+  const hint=k==="cargo"&&FX.dados.cargoOriginal&&!v?`<span class="small muted">No PDF: ${esc(FX.dados.cargoOriginal)}</span>`:k==="lojaId"&&FX.dados.localOriginal&&!v?`<span class="small muted">No PDF: ${esc(FX.dados.localOriginal)}</span>`:"";
+  return `<div class="field ${full?"full":""}"><label for="${id}">${t}</label>${inp}${hint}</div>`;
+}
+function depsHTML(){
+  return `<div class="deps">${FX.deps.map((x,i)=>`<div class="dep-row">
+    <input class="input" id="dep-nome-${i}" aria-label="Nome do dependente" placeholder="Nome" value="${esc(x.nome)}">
+    <input class="input" id="dep-par-${i}" aria-label="Parentesco" placeholder="Parentesco" value="${esc(x.parentesco)}">
+    <input class="input" id="dep-nasc-${i}" type="date" aria-label="Nascimento" value="${esc(x.nascimento)}">
+    <input class="input" id="dep-cpf-${i}" aria-label="CPF do dependente" placeholder="CPF" value="${esc(x.cpf)}">
+    <label class="check"><input type="checkbox" id="dep-ir-${i}" ${x.ir?"checked":""}> IR</label>
+    <button type="button" class="btn btn-sm btn-ghost" data-rmdep="${i}" aria-label="Remover dependente">✕</button></div>`).join("")||`<p class="small muted">Nenhum dependente.</p>`}
+    <button type="button" class="btn btn-sm" data-act="addDep">+ Dependente</button></div>`;
+}
+function lerDepsDoForm(){FX.deps=FX.deps.map((x,i)=>({nome:$("#dep-nome-"+i).value.trim(),parentesco:$("#dep-par-"+i).value.trim(),nascimento:$("#dep-nasc-"+i).value,cpf:$("#dep-cpf-"+i).value.trim(),ir:$("#dep-ir-"+i).checked}))}
+function renderFichaForm(){
+  const alvo=FX.eid?emp(FX.eid):null;
+  const vazios=FX.importado?CAMPOS.filter(([k])=>FX.dados[k]===""||FX.dados[k]===null).length:0;
+  const cpfOk=!FX.dados.cpf||cpfValido(FX.dados.cpf);
+  modal(alvo?(FX.importado?"Atualizar ficha de "+alvo.nome:"Ficha de registro"):"Novo colaborador · conferir ficha",`
+    ${FX.importado?`<div class="note"><b>Dados lidos de ${esc(FX.origem)}.</b> Confira cada campo antes de salvar. ${vazios?`${vazios} campo${vazios===1?"":"s"} não ${vazios===1?"foi encontrado e está destacado":"foram encontrados e estão destacados"}.`:"Todos os campos foram preenchidos."}</div>`:""}
+    ${FX.porCpf?`<div class="note" style="color:var(--warn)">Já existe um colaborador com este CPF: <b>${esc(alvo.nome)}</b>. Salvar vai atualizar o cadastro dessa pessoa.</div>`:""}
+    ${!cpfOk?`<div class="note" style="color:var(--bad)">O CPF ${esc(FX.dados.cpf)} não passa na validação dos dígitos. Confira no documento.</div>`:""}
+    <form id="form-ficha">${FICHA.map(sec=>`<fieldset class="fx-sec"><legend>${sec.s}</legend><div class="form-grid">${sec.c.map(campoHTML).join("")}</div></fieldset>`).join("")}
+    <fieldset class="fx-sec"><legend>Dependentes</legend><div id="fx-deps">${depsHTML()}</div></fieldset></form>
+    <p class="small" id="fx-err" style="color:var(--bad)" hidden></p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarFicha">${alvo?"Salvar ficha":"Cadastrar colaborador"}</button>`);
+}
+function salvarFicha(){
+  const err=m=>{const el=$("#fx-err");el.hidden=false;el.textContent=m;el.scrollIntoView({block:"nearest"})};
+  lerDepsDoForm();
+  const v={};CAMPOS.forEach(([k,,tp])=>{const el=$("#fx-"+k);v[k]=tp==="b"?el.checked:tp==="n"?(el.value===""?null:Number(el.value)):el.value.trim()});
+  if(!v.nome)return err("Informe o nome completo.");
+  if(!v.admissao)return err("Informe a data de admissão.");
+  if(!v.cargo)return err("Escolha o cargo.");
+  if(!v.lojaId)return err("Escolha a unidade.");
+  if(!(v.salario>=ST.cfg.salarioMinimo))return err("O salário precisa ser pelo menos o mínimo de "+brl(ST.cfg.salarioMinimo)+".");
+  if(v.cpf){const dig=soDig(v.cpf);const dup=ST.emps.find(x=>x.id!==FX.eid&&soDig(x.cpf)===dig&&!x.desligado);if(dig.length===11&&dup)return err("O CPF já está cadastrado para "+dup.nome+".")}
+  const {e,novo}=gravarColab(v,FX.deps.filter(x=>x.nome),FX.eid,FX.importado?FX.origem:"");
+  let msg;
+  if(novo){logEvento("Colaborador incluído",e.nome+" · "+store(e.lojaId).nome);msg=primeiro(e.nome)+" incluído(a) na ficha de ativos; S-2200 pendente"}
+  else{logEvento("Ficha de registro atualizada",e.nome);msg="Ficha de "+primeiro(e.nome)+" atualizada"}
+  FX=null;closeModal();commit(msg);fichaModal(e.id);
+}
+function fichaSecao(e){
+  const f=e.ficha;
+  if(!f)return `<div class="note">Este colaborador ainda não tem a ficha de registro completa. Use <b>Ficha de registro</b> para importar o PDF ou preencher.</div>`;
+  const d=dadosDoColab(e);
+  const val=([k,,tp])=>{const x=d[k];if(x===""||x===null||x===undefined)return "";if(tp==="d")return fdate(x);if(tp==="n")return k==="salario"?brl(x):String(x).replace(".",",");if(tp==="b")return x?"Sim":"Não";if(tp==="loja")return store(x).nome;return x};
+  return `<div><h3 style="margin-bottom:10px">Ficha de registro${f.importadoEm?` <span class="chip c-info">importada em ${fdate(f.importadoEm)}</span>`:""}</h3>
+    ${FICHA.filter(s=>s.s!=="Contrato de trabalho").map((sec,i)=>{const itens=sec.c.map(c=>[c[1],val(c)]).filter(x=>x[1]);return `<details class="fx-view" ${i===0?"open":""}><summary>${sec.s} <span class="muted small">${itens.length} de ${sec.c.length}</span></summary><div class="kv">${itens.map(([t,x])=>`<div><span>${t}</span><b>${esc(x)}</b></div>`).join("")||`<p class="small muted">Sem dados.</p>`}</div></details>`}).join("")}
+    ${(f.dependentesLista||[]).length?`<details class="fx-view"><summary>Dependentes <span class="muted small">${f.dependentesLista.length}</span></summary><div class="kv">${f.dependentesLista.map(x=>`<div><span>${esc(x.parentesco||"Dependente")}${x.ir?" · IR":""}</span><b>${esc(x.nome)}</b>${x.nascimento?`<span style="text-transform:none;letter-spacing:0">${fdate(x.nascimento)}</span>`:""}</div>`).join("")}</div></details>`:""}
+    ${[["Tipo de contrato",d.tipoContrato],["Jornada",d.jornada],["Horário",d.horario],["CBO",d.cbo],["Matrícula",d.matricula]].some(x=>x[1])?`<details class="fx-view"><summary>Contrato de trabalho</summary><div class="kv">${[["Tipo de contrato",d.tipoContrato],["Matrícula",d.matricula],["CBO",d.cbo],["Jornada",d.jornada],["Horário",d.horario]].filter(x=>x[1]).map(([t,x])=>`<div><span>${t}</span><b>${esc(x)}</b></div>`).join("")}</div></details>`:""}
+  </div>`;
+}
+/* ============ inclusão de colaboradores ============ */
+function gravarColab(v,deps,alvoId,origem){
+  const base={nome:v.nome,cpf:v.cpf?fmtCPF(v.cpf):"—",cargo:v.cargo,lojaId:v.lojaId,admissao:v.admissao,salario:v.salario,comissao:v.comissao||0,vt:!!v.vt,dependentes:deps.filter(x=>x.ir).length};
+  const ficha={};CAMPOS.forEach(([k])=>{if(!BASE_KEYS.includes(k)&&v[k]!==undefined)ficha[k]=v[k]??""});
+  ficha.cpf=base.cpf;ficha.dependentesLista=deps;if(origem){ficha.importadoDe=origem;ficha.importadoEm=TODAY}
+  const efetivo=!!v.tipoContrato&&v.tipoContrato!=="Experiência 45 + 45 dias";
+  let e=alvoId?emp(alvoId):null;
+  if(e){Object.assign(e,base);e.ficha={...(e.ficha||{}),...ficha};if(efetivo)e.efetivado=true;return {e,novo:false}}
+  e={id:uid(),...base,he:0,banco:0,vendas:0,afastado:false,desligado:null,ferias:[],avaliacoes:[],aso:addMonths(v.admissao,12),efetivado:efetivo,ficha};
+  ST.emps.push(e);
+  ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:e.nome,data:addDays(v.admissao,-1),status:"Pendente"});
+  return {e,novo:true};
+}
+function dadosVazios(){
+  const d={};CAMPOS.forEach(([k,,tp])=>{d[k]=tp==="n"?null:tp==="b"?true:""});
+  return {...d,lojaId:ST.stores[0]?.id||"",admissao:TODAY,tipoContrato:"Experiência 45 + 45 dias"};
+}
+
+/* ---- planilha CSV / Excel ---- */
+const semAcento=s=>String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const OBRIG=["nome","cpf","cargo","lojaId","admissao","salario"];
+const EXTRA_ALIAS={nome:["colaborador","funcionario","empregado","nome"],cpf:["cpf do colaborador"],cargo:["funcao"],lojaId:["loja","filial","local de trabalho","unidade"],
+  admissao:["admissao","data admissao","dt admissao"],salario:["salario base","remuneracao"],nascimento:["data de nascimento","dt nascimento"],pis:["pis","nis","pis pasep"],
+  ctpsNumero:["ctps","carteira de trabalho"],vt:["vale transporte","vt","vale transporte s n","vale transporte sim nao","optante vt"],comissao:["comissao","comissao %"],telefone:["celular","fone"],email:["e mail"],dependentesIR:["dependentes ir","dependentes","qtd dependentes"]};
+const COLS_PLAN=[...CAMPOS.map(([k,t])=>({k,t,tp:CAMPOS.find(c=>c[0]===k)[2]})),{k:"dependentesIR",t:"Dependentes para IR (quantidade)",tp:"n"}];
+function mapearCabecalhos(heads){
+  const mapa={},usados=new Set();
+  heads.forEach((h,i)=>{
+    const n=semAcento(h);if(!n)return;
+    const c=COLS_PLAN.find(c=>!usados.has(c.k)&&(semAcento(c.t)===n||semAcento(c.k)===n||(EXTRA_ALIAS[c.k]||[]).some(a=>semAcento(a)===n)));
+    if(c){mapa[i]=c.k;usados.add(c.k)}
+  });
+  return mapa;
+}
+function dataReal(s){if(!s)return "";const [y,m,d]=s.split("-").map(Number);const dt=new Date(y,m-1,d);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d&&y>1900&&y<2100?s:""}
+function valData(v){return dataReal(valData0(v))}
+function valData0(v){
+  if(v instanceof Date&&!isNaN(v))return iso(v);
+  if(typeof v==="number"&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);if(d)return d.y+"-"+pad(d.m)+"-"+pad(d.d)}
+  const s=String(v||"").trim();let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);if(m)return m[3]+"-"+pad(m[2])+"-"+pad(m[1]);
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+"-"+m[2]+"-"+m[3]:"";
+}
+function valNum(v){if(typeof v==="number")return isFinite(v)?v:null;const s=String(v||"").replace(/[^\d,.-]/g,"");if(!s)return null;const n=Number(s.includes(",")?s.replace(/\./g,"").replace(",","."):s);return isFinite(n)?n:null}
+function achaCargo(v){const fem=s=>s.replace(/(\w{3,})a\b/g,"$1");const n=fem(semAcento(String(v||"").replace(/\(a\)/gi,"")));if(!n)return "";return Object.keys(CARGOS).find(c=>{const x=fem(semAcento(c.replace(/\(a\)/g,"")));return x===n||x.startsWith(n)||n.startsWith(x)})||""}
+function achaLoja(v){const n=semAcento(v);if(!n)return "";const sem=s=>semAcento(s).replace(/^brasileirissima /,"");
+  return (ST.stores.find(s=>semAcento(s.id)===n||semAcento(s.nome)===n||sem(s.nome)===n.replace(/^brasileirissima /,""))||{}).id||""}
+function achaTipo(v,adm){const n=semAcento(v);if(n){const t=TIPOS_CONTRATO.find(t=>semAcento(t).split(" ")[0]===n.split(" ")[0]||n.includes(semAcento(t).split(" ")[0]));if(t)return t}
+  return adm&&diffDays(adm,TODAY)<90?"Experiência 45 + 45 dias":"Prazo indeterminado"}
+function valBool(v){const n=semAcento(v);return v===true||["s","sim","x","1","true","optante","yes"].includes(n)}
+
+let PLAN=null; // {origem, linhas:[{n, v, erros, avisos, alvo}], ignoradas}
+function planilhaModal(){
+  modal("Importar colaboradores por planilha",`
+    <label class="drop" id="pl-drop" for="pl-file"><input type="file" id="pl-file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+      <b>Escolha a planilha (Excel ou CSV)</b><span>ou arraste o arquivo para cá</span></label>
+    <div id="pl-status" class="small muted" aria-live="polite"></div>
+    <div class="note">Use uma linha por colaborador e os nomes de coluna do modelo. Colunas obrigatórias: <b>Nome completo, CPF, Cargo, Unidade, Data de admissão e Salário</b>. As demais colunas da ficha de registro são opcionais. Se o CPF já existir, a linha atualiza o cadastro dessa pessoa.</div>`,
+    `<button class="btn" data-act="modeloPlanilha">Baixar modelo (Excel)</button><button class="btn" data-close>Cancelar</button>`);
+}
+function plStatus(msg,erro){const el=$("#pl-status");if(el){el.textContent=msg;el.style.color=erro?"var(--bad)":""}}
+function baixarModeloPlanilha(){
+  if(!window.XLSX){toast("O leitor de planilhas não carregou. Recarregue a página.");return}
+  const heads=COLS_PLAN.map(c=>c.t);
+  const ex={nome:"Maria Exemplo da Silva",cpf:"529.982.247-25",cargo:"Vendedor(a)",lojaId:ST.stores[0]?.nome||"",admissao:fdate(TODAY),salario:"1.750,00",tipoContrato:"Experiência 45 + 45 dias",comissao:"2,5",vt:"Sim",nascimento:"14/03/1998",dependentesIR:1};
+  const ws=XLSX.utils.aoa_to_sheet([heads,COLS_PLAN.map(c=>ex[c.k]??"")]);
+  ws["!cols"]=heads.map(h=>({wch:Math.max(14,h.length+2)}));
+  const listas=XLSX.utils.aoa_to_sheet([["Cargos aceitos","Unidades aceitas","Tipos de contrato"],...Array.from({length:Math.max(Object.keys(CARGOS).length,ST.stores.length,TIPOS_CONTRATO.length)},(_,i)=>[Object.keys(CARGOS)[i]||"",ST.stores[i]?.nome||"",TIPOS_CONTRATO[i]||""])]);
+  listas["!cols"]=[{wch:28},{wch:34},{wch:28}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Colaboradores");XLSX.utils.book_append_sheet(wb,listas,"Listas");
+  XLSX.writeFile(wb,"modelo-colaboradores-brasileirissima.xlsx");
+}
+async function lerPlanilha(file){
+  if(!file)return;
+  if(!window.XLSX){plStatus("O leitor de planilhas não carregou. Recarregue a página.",true);return}
+  if(file.size>10e6){plStatus("A planilha tem mais de 10 MB. Divida em arquivos menores.",true);return}
+  try{
+    plStatus("Lendo a planilha…");
+    let wb;
+    if(/\.csv$/i.test(file.name)||file.type==="text/csv"){
+      const buf=await file.arrayBuffer();let txt;
+      try{txt=new TextDecoder("utf-8",{fatal:true}).decode(buf)}catch(e){txt=new TextDecoder("windows-1252").decode(buf)}
+      const l1=txt.split(/\r?\n/)[0]||"";const fs=(l1.match(/;/g)||[]).length>(l1.match(/,/g)||[]).length?";":(l1.includes("\t")?"\t":",");
+      wb=XLSX.read(txt.replace(/^﻿/,""),{type:"string",FS:fs,raw:true});
+    } else wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:true,blankrows:false});
+    const hi=aoa.findIndex(r=>Object.keys(mapearCabecalhos(r)).length>=3);
+    if(hi<0){plStatus("Não encontrei os cabeçalhos das colunas. Use o modelo: a primeira linha deve ter Nome completo, CPF, Cargo, Unidade, Data de admissão e Salário.",true);return}
+    const mapa=mapearCabecalhos(aoa[hi]);
+    const faltam=OBRIG.filter(k=>!Object.values(mapa).includes(k));
+    if(faltam.length){plStatus("Faltam colunas obrigatórias: "+faltam.map(k=>COLS_PLAN.find(c=>c.k===k).t).join(", ")+".",true);return}
+    const ignoradas=aoa[hi].filter((h,i)=>String(h).trim()&&!(i in mapa));
+    const linhas=[];const cpfsVistos=new Map();
+    aoa.slice(hi+1).forEach((r,ri)=>{
+      if(r.every(c=>String(c).trim()===""))return;
+      const bruto={};Object.entries(mapa).forEach(([i,k])=>{bruto[k]=r[i]});
+      const v={},erros=[],avisos=[];
+      COLS_PLAN.forEach(({k,tp})=>{
+        if(!(k in bruto))return;const x=bruto[k];if(String(x).trim()==="")return;
+        if(k==="cargo"){v.cargo=achaCargo(x);if(!v.cargo)erros.push("Cargo não reconhecido: "+x)}
+        else if(k==="lojaId"){v.lojaId=achaLoja(x);if(!v.lojaId)erros.push("Unidade não encontrada: "+x)}
+        else if(k==="tipoContrato")v.tipoContrato=String(x).trim();
+        else if(tp==="d"){v[k]=valData(x);if(!v[k])erros.push("Data inválida em "+COLS_PLAN.find(c=>c.k===k).t+": "+x)}
+        else if(tp==="n"){v[k]=valNum(x);if(v[k]===null)erros.push("Número inválido em "+COLS_PLAN.find(c=>c.k===k).t+": "+x)}
+        else if(tp==="b")v[k]=valBool(x);
+        else v[k]=String(x).trim().slice(0,300);
+      });
+      v.tipoContrato=achaTipo(v.tipoContrato,v.admissao);
+      if(!v.nome)erros.push("Nome em branco");
+      if(!v.admissao&&!erros.some(x=>x.includes("admissão")))erros.push("Data de admissão em branco");
+      if(v.salario==null&&!erros.some(x=>x.includes("Salário")))erros.push("Salário em branco");
+      else if(v.salario!=null&&v.salario<ST.cfg.salarioMinimo)erros.push("Salário abaixo do mínimo ("+brl(ST.cfg.salarioMinimo)+")");
+      if(v.vt===undefined)v.vt=true;
+      const dig=soDig(v.cpf);let alvo=null;
+      if(!dig)erros.push("CPF em branco");
+      else if(!cpfValido(dig))erros.push("CPF inválido: "+v.cpf);
+      else{
+        v.cpf=fmtCPF(dig);
+        if(cpfsVistos.has(dig))erros.push("CPF repetido na linha "+cpfsVistos.get(dig));else cpfsVistos.set(dig,ri+hi+2);
+        const ex=ST.emps.find(e=>soDig(e.cpf)===dig&&!e.desligado);if(ex){alvo=ex.id;avisos.push("Atualiza o cadastro de "+ex.nome)}
+      }
+      linhas.push({n:ri+hi+2,v,erros,avisos,alvo});
+    });
+    if(!linhas.length){plStatus("A planilha não tem linhas de colaboradores abaixo dos cabeçalhos.",true);return}
+    PLAN={origem:file.name,linhas,ignoradas};
+    previaPlanilha();
+  }catch(e){console.error(e);plStatus("Não foi possível ler este arquivo. Salve como .xlsx ou .csv e tente de novo.",true)}
+}
+function previaPlanilha(){
+  const ok=PLAN.linhas.filter(l=>!l.erros.length),novos=ok.filter(l=>!l.alvo).length,upd=ok.length-novos,ruins=PLAN.linhas.length-ok.length;
+  const vis=PLAN.linhas.slice().sort((a,b)=>(b.erros.length>0)-(a.erros.length>0)||a.n-b.n).slice(0,300);
+  modal("Conferir importação · "+PLAN.origem,`
+    <div class="tabs-inline"><span class="chip c-ok">${novos} novo${novos===1?"":"s"}</span><span class="chip c-info">${upd} atualizaç${upd===1?"ão":"ões"}</span><span class="chip ${ruins?"c-bad":"c-mute"}">${ruins} com erro</span></div>
+    ${ruins?`<div class="note" style="color:var(--bad)">As linhas com erro não serão importadas. Corrija na planilha e importe de novo, ou siga só com as linhas corretas.</div>`:""}
+    ${PLAN.ignoradas.length?`<div class="note">Colunas ignoradas (nome não reconhecido): ${PLAN.ignoradas.map(esc).join(", ")}</div>`:""}
+    <div class="table-wrap"><table><thead><tr><th class="r">Linha</th><th>Colaborador</th><th>CPF</th><th>Cargo</th><th>Unidade</th><th>Admissão</th><th class="r">Salário</th><th>Situação</th></tr></thead>
+    <tbody>${vis.map(l=>`<tr><td class="r num">${l.n}</td><td><b>${esc(l.v.nome||"—")}</b></td><td class="num">${esc(l.v.cpf||"—")}</td><td>${esc(l.v.cargo||"—")}</td><td>${esc(l.v.lojaId?store(l.v.lojaId).nome:"—")}</td><td class="num">${fdate(l.v.admissao)}</td><td class="r num">${l.v.salario!=null?brl(l.v.salario):"—"}</td>
+      <td style="white-space:normal;min-width:200px">${l.erros.length?`<span class="chip c-bad">Erro</span><br><span class="small">${l.erros.map(esc).join("<br>")}</span>`:l.alvo?`<span class="chip c-info">Atualizar</span><br><span class="small muted">${l.avisos.map(esc).join("<br>")}</span>`:`<span class="chip c-ok">Novo</span>`}</td></tr>`).join("")}</tbody></table></div>
+    ${PLAN.linhas.length>300?`<p class="small muted">Mostrando 300 de ${PLAN.linhas.length} linhas, com as de erro primeiro.</p>`:""}`,
+    `<button class="btn" data-act="importarPlanilhaOutra">Escolher outro arquivo</button><button class="btn btn-primary" data-act="confirmarPlanilha" ${ok.length?"":"disabled"}>Importar ${ok.length} colaborador${ok.length===1?"":"es"}</button>`);
+}
+function confirmarPlanilha(){
+  const ok=PLAN.linhas.filter(l=>!l.erros.length);let novos=0,upd=0;
+  ok.forEach(l=>{
+    const v={...l.v};const nDep=v.dependentesIR;delete v.dependentesIR;
+    const ex=l.alvo?emp(l.alvo):null;
+    const deps=(ex&&ex.ficha&&ex.ficha.dependentesLista)||[];
+    const r=gravarColab(v,deps,l.alvo,PLAN.origem);
+    if(nDep!=null&&!deps.length)r.e.dependentes=Math.max(0,Math.round(nDep));
+    r.novo?novos++:upd++;
+  });
+  logEvento("Colaboradores importados por planilha",PLAN.origem+" · "+novos+" novos, "+upd+" atualizados");
+  PLAN=null;closeModal();commit(novos+" colaboradores incluídos e "+upd+" atualizados"+(novos?"; eventos S-2200 pendentes":""));
+}
+/* ============ usuários ============ */
+async function chamarUsuarios(body){
+  const {data,error}=await SB.functions.invoke("usuarios",{body});
+  if(error){let msg="Não foi possível falar com o servidor.";try{const j=await error.context.json();if(j&&j.erro)msg=j.erro}catch(e){}return msg}
+  return data&&data.erro?data.erro:null;
+}
+function usuarioForm(login){
+  const u=login?USUARIOS.find(x=>x.login===login):null;
+  const x=u||{login:"",nome:"",perfil:"gerente",lojas:ST.stores[0]?[ST.stores[0].id]:[],ativo:true};
+  modal(u?"Editar usuário":"Novo usuário",`<form class="form-grid" id="form-usr">
+    <div class="field full"><label for="u-nome">Nome completo</label><input class="input" id="u-nome" value="${esc(x.nome)}"></div>
+    <div class="field"><label for="u-login">Usuário (login)</label><input class="input" id="u-login" autocapitalize="none" spellcheck="false" value="${esc(x.login)}" ${u?"disabled":""}></div>
+    <div class="field"><label for="u-perfil">Perfil</label><select class="input" id="u-perfil"><option value="gerente" ${x.perfil==="gerente"?"selected":""}>Gerente de loja</option><option value="rh" ${x.perfil==="rh"?"selected":""}>RH · acesso total</option></select></div>
+    <fieldset class="field full fx-sec" id="u-loja-f" ${x.perfil==="rh"?"hidden":""}><legend>Lojas que o gerente acompanha</legend><div class="lojas-check">${ST.stores.map(s=>`<label class="check"><input type="checkbox" name="u-lojas" value="${esc(s.id)}" ${(x.lojas||[]).includes(s.id)?"checked":""}> ${esc(s.nome)}</label>`).join("")}</div><span class="small muted">Marque uma ou várias. O gerente vê a equipe, a escala, as férias e as pendências de todas as lojas marcadas.</span></fieldset>
+    <div class="field"><label for="u-pass">${u?"Nova senha (deixe em branco para manter)":"Senha (mínimo 8 caracteres)"}</label><input class="input" id="u-pass" type="password" autocomplete="new-password"></div>
+    <div class="field"><label for="u-pass2">Repita a senha</label><input class="input" id="u-pass2" type="password" autocomplete="new-password"></div>
+    ${u?`<label class="check full"><input type="checkbox" id="u-ativo" ${x.ativo?"checked":""}> Usuário ativo</label>`:""}
+    <p class="full small" id="u-err" style="color:var(--bad)" hidden></p>
+  </form>
+  <div class="note">O usuário entra no portal só com este login e senha. Envie a senha por um canal seguro e peça para guardá-la. Para bloquear o acesso, desmarque "Usuário ativo".</div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarUsuario" data-login="${esc(x.login)}" id="u-salvar">${u?"Salvar alterações":"Criar usuário"}</button>`);
+}
+async function salvarUsuario(loginEdit){
+  const err=m=>{const el=$("#u-err");el.hidden=false;el.textContent=m};
+  const u=loginEdit?USUARIOS.find(x=>x.login===loginEdit):null;
+  const nome=$("#u-nome").value.trim(),login=u?u.login:normLogin($("#u-login").value),perfil=$("#u-perfil").value,lojas=[...document.querySelectorAll('input[name="u-lojas"]:checked')].map(i=>i.value),s1=$("#u-pass").value,s2=$("#u-pass2").value;
+  const ativo=u?$("#u-ativo").checked:true;
+  if(!nome)return err("Informe o nome.");
+  if(perfil==="gerente"&&!lojas.length)return err("Marque pelo menos uma loja para o gerente.");
+  if(!u&&!loginValido(login))return err("O usuário deve ter de 3 a 30 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.");
+  if(!u||s1){if(s1.length<8)return err("A senha precisa ter pelo menos 8 caracteres.");if(s1!==s2)return err("As duas senhas não são iguais.")}
+  const b=$("#u-salvar");b.disabled=true;b.textContent="Salvando…";
+  const msg=await chamarUsuarios({acao:u?"atualizar":"criar",login,nome,perfil,lojas:perfil==="gerente"?lojas:[],senha:s1||undefined,ativo});
+  b.disabled=false;b.textContent=u?"Salvar alterações":"Criar usuário";
+  if(msg)return err(msg);
+  await carregarUsuarios();closeModal();render();toast(u?"Usuário atualizado":"Usuário criado");
+}
+R.usuarios=()=>{
+  const tab=UI.usrTab||"usuarios";
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["usuarios","Usuários"],["solic","Solicitações"+(SOLIC.length?" ("+SOLIC.length+")":"")],["log","Log de acesso"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-usrtab="${k}">${t}</button>`).join("")}</div></div>`;
+  const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
+  let corpo="";
+  if(tab==="usuarios"){
+    corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead>
+    <tbody>${USUARIOS.slice().sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil!=="gerente"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
+      <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
+    <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
+  } else if(tab==="solic"){
+    const ug=id=>USUARIOS.find(u=>u.user_id===id);
+    corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead>
+    <tbody>${SOLIC.map(m=>{const e=emp(m.eid);const u=ug(m.autor);return `<tr><td class="num">${quando(m.em)}</td><td><b>${esc(u?u.nome:"—")}</b><br><span class="small muted">${esc(store(m.loja).nome)}</span></td><td>${e?whoCell(e):"—"}</td><td style="white-space:normal;min-width:240px">${esc(descMov(m))}</td>
+      <td><div class="tabs-inline">${m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(m.id)}">Ver</button>`:""}<button class="btn btn-sm" data-recusar="${esc(m.id)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(m.id)}">Aprovar</button></div></td></tr>`}).join("")||`<tr><td colspan="5" class="empty">Nenhuma solicitação esperando aprovação.</td></tr>`}</tbody></table></div></div>`;
+  } else {
+    if(LOGV===null)carregarLog();
+    const f=(UI.logBusca||"").toLowerCase();
+    const vis=(LOGV||[]).filter(l=>!f||[l.login,l.nome,l.evento,l.detalhe].join(" ").toLowerCase().includes(f));
+    const cor=ev=>/recusad|desativ/i.test(ev)?"c-bad":ev==="Login"?"c-ok":ev==="Logout"?"c-mute":"c-info";
+    corpo=`<div class="card">${tabs}<div class="toolbar"><input class="input search" id="f-logbusca" placeholder="Filtrar por usuário, evento ou detalhe" value="${esc(UI.logBusca||"")}" aria-label="Filtrar log"><button class="btn btn-sm" data-act="atualizarLog">Atualizar</button><span class="muted small">${LOGV===null?"Carregando…":vis.length+" registro"+(vis.length===1?"":"s")}</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Usuário</th><th>Perfil</th><th>Evento</th><th>Detalhe</th></tr></thead>
+    <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${l.perfil==="rh"?"RH":l.perfil==="gerente"?"Gerente":"—"}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
+    <div class="note" style="margin-top:14px">Mostra os 1.000 registros mais recentes. Tentativas de senha incorreta ficam no painel do Supabase, em Authentication › Logs.</div></div>`;
+  }
+  return header("Sistema","Usuários e acessos",tab==="usuarios"?`<button class="btn btn-primary" data-act="novoUsuario">+ Novo usuário</button>`:tab==="solic"&&SOLIC.length?`<button class="btn btn-primary" data-act="aprovarTodas">Aprovar todas (${SOLIC.length})</button>`:"")+corpo;
+};
+/* ============ modais ============ */
+function modal(title,body,foot=""){
+  $("#modal-root").innerHTML=`<div class="overlay" data-close-overlay><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="btn icon-btn btn-ghost" data-close aria-label="Fechar">✕</button></div><div class="modal-b">${body}</div>${foot?`<div class="modal-f">${foot}</div>`:""}</div></div>`;
+  const f=$("#modal-root input, #modal-root select");if(f)f.focus();
+}
+const closeModal=()=>{$("#modal-root").innerHTML=""};
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function commit(msg){ST.exemplo=ST.exemplo;save();render();if(msg)toast(msg)}
+
+function avSecao(e){
+  return (e.avaliacoes||[]).length||emExperiencia(e)?`<div><h3 style="margin-bottom:10px">Avaliações de experiência</h3><div class="av-list">${marcos(e).filter(mc=>mc.a||mc.podeAvaliar).map(mc=>`<div class="alert"><div class="dot ${mc.st.c}">${mc.m}</div><div style="min-width:0"><b>${mc.a?"Nota "+mc.a.media.toLocaleString("pt-BR")+" · "+mc.st.t:"Avaliação de "+mc.m+" dias"}</b><span>${mc.a?fdate(mc.a.data)+" · "+esc(mc.a.avaliador):mc.st.t+" · prazo "+fdate(mc.prazo)}</span></div>${mc.a?`<button class="btn btn-sm" data-verav="${e.id}|${mc.a.id}">Ver</button>`:`<button class="btn btn-sm btn-primary" data-avaliar="${e.id}|${mc.m}">Avaliar</button>`}</div>`).join("")}</div></div>`:"";
+}
+function fichaGerente(e){
+  const s=status(e);const sf=situacaoFerias(e);
+  modal(e.nome,`
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${initials(e.nome)}</div><div><b>${esc(e.cargo)}</b><span>${esc(store(e.lojaId).nome)}</span></div><span class="chip ${s.c}" style="margin-left:auto">${s.t}</span></div>
+    <div class="kv">
+      <div><span>Admissão</span><b class="num">${fdate(e.admissao)}</b></div>
+      <div><span>ASO periódico</span><b class="num" style="color:${diffDays(TODAY,e.aso)<0?"var(--bad)":"inherit"}">${fdate(e.aso)}</b></div>
+      <div><span>Banco de horas</span><b class="num">${hm(e.banco)}</b></div>
+      <div><span>Férias em aberto</span><b class="num">${sf.pend} período${sf.pend===1?"":"s"}</b></div>
+      ${sf.programada?`<div><span>Próximas férias</span><b class="num">${fdate(sf.programada.inicio)}</b></div>`:""}
+    </div>
+    ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
+    ${avSecao(e)}`,
+    e.desligado?`<button class="btn" data-close>Fechar</button>`:`<button class="btn" data-aso="${e.id}">Registrar ASO renovado</button><button class="btn btn-primary" data-close>Fechar</button>`);
+}
+function fichaModal(id){
+  const e=emp(id);if(!e)return;if(G())return fichaGerente(e);const s=status(e);const f=folha(e);const sf=situacaoFerias(e);
+  modal(e.nome,`
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${initials(e.nome)}</div><div><b>${esc(e.cargo)}</b><span>${esc(store(e.lojaId).nome)} · ${esc(store(e.lojaId).cidade)}</span></div><span class="chip ${s.c}" style="margin-left:auto">${s.t}</span></div>
+    <div class="kv">
+      <div><span>CPF</span><b class="num">${esc(e.cpf)}</b></div>
+      <div><span>Admissão</span><b class="num">${fdate(e.admissao)}</b></div>
+      <div><span>Salário</span><b class="num">${brl(e.salario)}</b></div>
+      <div><span>Comissão</span><b class="num">${e.comissao?pct(e.comissao)+" s/ vendas":"Não se aplica"}</b></div>
+      <div><span>Dependentes IR</span><b class="num">${e.dependentes}</b></div>
+      <div><span>Vale-transporte</span><b>${e.vt?"Optante":"Não optante"}</b></div>
+      <div><span>ASO periódico</span><b class="num" style="color:${diffDays(TODAY,e.aso)<0?"var(--bad)":"inherit"}">${fdate(e.aso)}</b></div>
+      <div><span>Banco de horas</span><b class="num">${hm(e.banco)}</b></div>
+      <div><span>Férias em aberto</span><b class="num">${sf.pend} período${sf.pend===1?"":"s"}</b></div>
+      ${e.desligado?`<div><span>Desligamento</span><b class="num">${fdate(e.desligado.data)}</b></div><div><span>Motivo</span><b>${TIPOS[e.desligado.tipo]}</b></div>`:`<div><span>Líquido estimado</span><b class="num">${brl(f.liquido)}</b></div>`}
+    </div>
+    ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
+    ${avSecao(e)}
+    ${fichaSecao(e)}`,
+    e.desligado?`<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn" data-close>Fechar</button>`:
+    `<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn btn-danger" data-rescisao="${e.id}">Desligar</button>${e.afastado?`<button class="btn" data-retorno="${e.id}">Registrar retorno</button>`:`<button class="btn" data-afastar="${e.id}">Afastar</button>`}<button class="btn" data-progferias="${e.id}">Férias</button><button class="btn" data-aso="${e.id}">Renovar ASO</button><button class="btn" data-holerite="${e.id}">Holerite</button><button class="btn btn-primary" data-editcolab="${e.id}">Editar</button>`);
+}
+function colabForm(e){
+  const x=e||{nome:"",cpf:"",cargo:"Vendedor(a)",lojaId:UI.loja||"s1",admissao:TODAY,salario:1700,dependentes:0,vt:true,comissao:2.5,vendas:0,aso:addMonths(TODAY,12)};
+  modal(e?"Editar colaborador":"Novo colaborador",`<form id="colab-form" class="form-grid">
+    <div class="field full"><label for="c-nome">Nome completo</label><input class="input" id="c-nome" required value="${esc(x.nome)}"></div>
+    <div class="field"><label for="c-cpf">CPF</label><input class="input num" id="c-cpf" value="${esc(x.cpf)}" placeholder="000.000.000-00"></div>
+    <div class="field"><label for="c-adm">Data de admissão</label><input class="input" id="c-adm" type="date" required value="${x.admissao}"></div>
+    <div class="field"><label for="c-cargo">Cargo</label><select class="input" id="c-cargo">${cargoOpts(x.cargo)}</select></div>
+    <div class="field"><label for="c-loja">Unidade</label><select class="input" id="c-loja">${lojaOpts(x.lojaId,false)}</select></div>
+    <div class="field"><label for="c-sal">Salário base (R$)</label><input class="input num" id="c-sal" type="number" step="0.01" min="0" required value="${x.salario}"></div>
+    <div class="field"><label for="c-dep">Dependentes para IR</label><input class="input num" id="c-dep" type="number" min="0" value="${x.dependentes}"></div>
+    <div class="field"><label for="c-com">Comissão sobre vendas (%)</label><input class="input num" id="c-com" type="number" step="0.1" min="0" value="${x.comissao}"></div>
+    <div class="field"><label for="c-vend">Vendas no mês (R$)</label><input class="input num" id="c-vend" type="number" step="100" min="0" value="${x.vendas}"></div>
+    <div class="field"><label for="c-aso">Vencimento do ASO</label><input class="input" id="c-aso" type="date" value="${x.aso}"></div>
+    <label class="check full"><input type="checkbox" id="c-vt" ${x.vt?"checked":""}> Optante pelo vale-transporte</label>
+    <p class="field full small muted" id="c-err" hidden></p>
+  </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-savecolab="${e?e.id:""}">${e?"Salvar alterações":"Cadastrar"}</button>`);
+}
+function saveColab(id){
+  const v=k=>$("#"+k).value.trim();
+  const sal=Number(v("c-sal"));
+  const err=$("#c-err");
+  if(!v("c-nome")){err.hidden=false;err.textContent="Informe o nome completo.";return}
+  if(sal<ST.cfg.salarioMinimo){err.hidden=false;err.style.color="var(--bad)";err.textContent="O salário precisa ser pelo menos o mínimo de "+brl(ST.cfg.salarioMinimo)+".";return}
+  const data={nome:v("c-nome"),cpf:v("c-cpf")||"—",admissao:v("c-adm"),cargo:v("c-cargo"),lojaId:v("c-loja"),salario:sal,dependentes:Number(v("c-dep"))||0,comissao:Number(v("c-com"))||0,vendas:Number(v("c-vend"))||0,aso:v("c-aso")||addMonths(TODAY,12),vt:$("#c-vt").checked};
+  if(id){Object.assign(emp(id),data);closeModal();commit("Cadastro atualizado")}
+  else{ST.emps.push({id:uid(),...data,he:0,banco:0,afastado:false,desligado:null,ferias:[],avaliacoes:[]});ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:data.nome,data:TODAY,status:"Pendente"});closeModal();commit(data.nome+" cadastrado(a)")}
+}
+function holeriteModal(id){
+  const e=emp(id);const f=folha(e,UI.comp);
+  const row=(d,ref,p,ds)=>`<div class="slip-row"><span>${d}</span><span class="num">${ref}</span><span class="num">${p?brl(p):""}</span><span class="num">${ds?brl(ds):""}</span></div>`;
+  modal("Holerite · "+compLabel(UI.comp),`
+    <div class="who"><div class="avatar">${initials(e.nome)}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)} · ${esc(store(e.lojaId).nome)} · admissão ${fdate(e.admissao)}</span></div></div>
+    <div class="slip">
+      <div class="slip-row h"><span>Descrição</span><span>Ref.</span><span>Proventos</span><span>Descontos</span></div>
+      ${row("Salário base","30d",f.base,0)}
+      ${f.comissao?row("Comissão sobre vendas",pct(e.comissao),f.comissao,0):""}
+      ${f.dsr?row("DSR sobre comissões",f.dm.dsr+"d",f.dsr,0):""}
+      ${f.he?row("Horas extras 50%",e.he+"h",f.he,0):""}
+      ${f.dsrHe?row("DSR sobre horas extras",f.dm.dsr+"d",f.dsrHe,0):""}
+      ${row("INSS","prog.",0,f.inss)}
+      ${f.ir.valor||f.ir.imp?row("IRRF"+(f.ir.red?" (após redução de "+brl(f.ir.red)+")":""),f.ir.simplificado?"simpl.":"legal",0,f.ir.valor||0.0001):""}
+      ${f.vt?row("Vale-transporte","6%",0,f.vt):""}
+      <div class="slip-row t"><span>Totais</span><span></span><span class="num">${brl(f.bruto)}</span><span class="num">${brl(f.desc)}</span></div>
+    </div>
+    <div class="total-box"><span>Valor líquido</span><b class="num">${brl(f.liquido)}</b></div>
+    <div class="kv"><div><span>Base INSS</span><b class="num">${brl(f.bruto)}</b></div><div><span>Base FGTS</span><b class="num">${brl(f.bruto)}</b></div><div><span>FGTS do mês</span><b class="num">${brl(f.fgts)}</b></div><div><span>Base IRRF</span><b class="num">${brl(f.ir.base)}</b></div></div>`,
+    `<button class="btn" data-close>Fechar</button>`);
+}
+function feriasModal(id){
+  const opts=ativos().filter(e=>!feriasEmCurso(e)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const sel=id||opts[0]?.id;
+  modal("Programar férias",`<form class="form-grid" id="fer-form">
+    <div class="field full"><label for="fe-emp">Colaborador</label><select class="input" id="fe-emp">${opts.map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(e.nome)} · ${esc(store(e.lojaId).nome)}</option>`).join("")}</select></div>
+    <div class="field"><label for="fe-ini">Início</label><input class="input" id="fe-ini" type="date" value="${addDays(TODAY,30)}"></div>
+    <div class="field"><label for="fe-dias">Dias de gozo</label><select class="input" id="fe-dias"><option value="30">30 dias</option><option value="20">20 dias + 10 vendidos (abono)</option><option value="15">15 dias (fracionado)</option><option value="14">14 dias (fracionado)</option></select></div>
+  </form><div id="fe-calc"></div>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarFerias">Confirmar férias</button>`);
+  feriasCalc();
+}
+function feriasCalc(){
+  const e=emp($("#fe-emp").value);if(!e)return;const ini=$("#fe-ini").value;const dias=Number($("#fe-dias").value);const abono=dias===20?10:0;
+  const sal=e.salario+(e.vendas?folha(e).comissao:0);
+  const v=sal/30*dias,terco=v/3,ab=sal/30*abono,abT=ab/3;
+  const avisos=[];const dw=parse(ini).getDay();
+  if(dw===4||dw===5) avisos.push("Início em véspera de feriado ou de repouso semanal não é permitido; evite quinta e sexta (art. 134 §3º CLT).");
+  if(diffDays(TODAY,ini)<30) avisos.push("O aviso de férias deve ser dado com 30 dias de antecedência.");
+  if(e.comissao) avisos.push("Média de comissões incluída na remuneração das férias.");
+  $("#fe-calc").innerHTML=`<div class="slip"><div class="slip-row h"><span>Verba</span><span>Ref.</span><span>Valor</span><span></span></div>
+  <div class="slip-row"><span>Férias</span><span class="num">${dias}d</span><span class="num">${brl(v)}</span><span></span></div>
+  <div class="slip-row"><span>1/3 constitucional</span><span></span><span class="num">${brl(terco)}</span><span></span></div>
+  ${abono?`<div class="slip-row"><span>Abono pecuniário + 1/3</span><span class="num">10d</span><span class="num">${brl(ab+abT)}</span><span></span></div>`:""}
+  <div class="slip-row t"><span>Total bruto</span><span></span><span class="num">${brl(v+terco+ab+abT)}</span><span></span></div></div>
+  <div class="note">Retorno em ${fdate(addDays(ini,dias))}. Pagamento até ${fdate(addDays(ini,-2))} (2 dias antes do início).${avisos.length?"<br>"+avisos.map(esc).join("<br>"):""}</div>`;
+}
+function rescisaoModal(id){
+  const opts=ativos().sort((a,b)=>a.nome.localeCompare(b.nome));const sel=id||opts[0]?.id;
+  modal("Rescisão",`<form class="form-grid">
+    <div class="field full"><label for="rs-emp">Colaborador</label><select class="input" id="rs-emp">${opts.map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(e.nome)} · ${esc(e.cargo)}</option>`).join("")}</select></div>
+    <div class="field"><label for="rs-tipo">Motivo</label><select class="input" id="rs-tipo">${Object.entries(TIPOS).filter(([k])=>k!=="fim_experiencia").map(([k,t])=>`<option value="${k}">${t}</option>`).join("")}</select></div>
+    <div class="field"><label for="rs-data">Último dia trabalhado</label><input class="input" id="rs-data" type="date" value="${TODAY}"></div>
+    <div class="field"><label for="rs-aviso">Aviso prévio</label><select class="input" id="rs-aviso"><option value="indenizado">Indenizado</option><option value="trabalhado">Trabalhado</option></select></div>
+  </form><div id="rs-calc"></div>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-danger" data-act="confirmarDeslig">Confirmar desligamento</button>`);
+  rescisaoCalc();
+}
+function rescisaoCalc(){
+  const e=emp($("#rs-emp").value);if(!e)return;const r=rescisao(e,$("#rs-data").value,$("#rs-tipo").value,$("#rs-aviso").value);
+  $("#rs-calc").innerHTML=`<div class="slip"><div class="slip-row h"><span>Verba</span><span></span><span>Valor</span><span></span></div>
+  ${r.linhas.map(([t,v])=>`<div class="slip-row"><span>${t}</span><span></span><span class="num">${brl(v)}</span><span></span></div>`).join("")}
+  <div class="slip-row t"><span>Total bruto das verbas</span><span></span><span class="num">${brl(r.total)}</span><span></span></div></div>
+  <div class="kv"><div><span>Saldo FGTS estimado</span><b class="num">${brl(r.saldoFgts)}</b></div><div><span>Multa rescisória</span><b class="num">${brl(r.multa)}</b></div><div><span>Saque FGTS</span><b>${r.saque}</b></div><div><span>Prazo de pagamento</span><b class="num">${fdate(addDays($("#rs-data").value,10))}</b></div></div>
+  <div class="note">Estimativa sem descontos de INSS/IRRF e com saldo de FGTS aproximado. ${r.anos} ano${r.anos===1?"":"s"} completo${r.anos===1?"":"s"} de casa: aviso de ${Math.min(90,30+3*r.anos)} dias (Lei 12.506/2011). Confira com o extrato do FGTS antes do pagamento.</div>`;
+}
+function admForm(pref={}){
+  modal("Nova admissão",`<form class="form-grid">
+    <div class="field full"><label for="a-nome">Nome completo</label><input class="input" id="a-nome" value="${esc(pref.nome||"")}"></div>
+    <div class="field"><label for="a-cargo">Cargo</label><select class="input" id="a-cargo">${cargoOpts(pref.cargo||"Vendedor(a)")}</select></div>
+    <div class="field"><label for="a-loja">Unidade</label><select class="input" id="a-loja">${lojaOpts(pref.lojaId||"s1",false)}</select></div>
+    <div class="field"><label for="a-sal">Salário (R$)</label><input class="input num" id="a-sal" type="number" step="0.01" value="${pref.salario||1700}"></div>
+    <div class="field"><label for="a-ini">Início previsto</label><input class="input" id="a-ini" type="date" value="${addDays(TODAY,10)}"></div>
+    <div class="field full"><label for="a-obs">Observação</label><input class="input" id="a-obs" value="${esc(pref.obs||"")}" placeholder="Ex.: temporário de Natal"></div>
+    <p class="full small" id="a-err" style="color:var(--bad)" hidden></p>
+  </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarAdm">Iniciar admissão</button>`);
+}
+
+/* ============ eventos ============ */
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-fichaform],[data-rmdep],[data-aprovar],[data-recusar],[data-vermov],[data-editusr],[data-usrtab],[data-hcloja],[data-pdfferias],[data-assinou],[data-act],[data-go],[data-ficha],[data-close],[data-close-overlay],[data-savecolab],[data-editcolab],[data-holerite],[data-progferias],[data-rescisao],[data-adm-next],[data-adm-back],[data-cell],[data-banco],[data-ffiltro],[data-transmitir],[data-vaga-adm],[data-loja-colab],[data-loja-escala],[data-editloja],[data-aso],[data-afastar],[data-retorno],[data-saveloja],[data-avaliar],[data-rate],[data-parecer],[data-verav],[data-xptab]");
+  if(!t)return;
+  const d=t.dataset;
+  if(d.closeOverlay!==undefined){if(ev.target===t)closeModal();return}
+  if(d.close!==undefined){closeModal();return}
+  if(d.go){location.hash=d.go;return}
+  if(d.act==="entrar"){entrar();return}
+  if(d.act==="importarPlanilha"||d.act==="importarPlanilhaOutra"){planilhaModal();return}
+  if(d.act==="modeloPlanilha"){baixarModeloPlanilha();return}
+  if(d.act==="confirmarPlanilha"){confirmarPlanilha();return}
+  if(d.act==="salvarFicha"){salvarFicha();return}
+  if(d.act==="addDep"){lerDepsDoForm();FX.deps.push({nome:"",parentesco:"",nascimento:"",cpf:"",ir:false});$("#fx-deps").innerHTML=depsHTML();return}
+  if(d.rmdep!==undefined){lerDepsDoForm();FX.deps.splice(Number(d.rmdep),1);$("#fx-deps").innerHTML=depsHTML();return}
+  if(d.fichaform){abrirFichaForm(d.fichaform);return}
+  if(d.act==="sair"){sair();return}
+  if(d.act==="novoUsuario"){usuarioForm();return}
+  if(d.act==="salvarUsuario"){salvarUsuario(d.login);return}
+  if(d.act==="atualizarLog"){LOGV=null;render();return}
+  if(d.hcloja){const todas=ST.stores.map(s=>s.id);let sel=(UI.hcLojas||[]).filter(id=>todas.includes(id));
+    if(d.hcloja==="all")sel=[];else if(!sel.length)sel=[d.hcloja];else sel=sel.includes(d.hcloja)?sel.filter(x=>x!==d.hcloja):[...sel,d.hcloja];
+    UI.hcLojas=sel.length===todas.length?[]:sel;render();return}
+  if(d.act==="hcExcel"){exportarHeadcount();return}
+  if(d.usrtab){UI.usrTab=d.usrtab;if(d.usrtab==="log")LOGV=null;render();return}
+  if(d.editusr){usuarioForm(d.editusr);return}
+  if(d.pdfferias){const [eid,ini]=d.pdfferias.split("|");avisoFeriasPDF(eid,ini);return}
+  if(d.assinou){const [eid,ini]=d.assinou.split("|");
+    if(G()){enviarMov({tipo:"ferias_assinada",eid,ini},"Assinatura registrada e enviada ao RH");return}
+    const e=emp(eid);const f=e&&e.ferias.find(x=>x.inicio===ini);if(f){f.assinado=TODAY;logEvento("Aviso de férias assinado",e.nome+" · férias de "+fdate(ini));commit("Assinatura registrada")}return}
+  if(d.aprovar||d.recusar){closeModal();t.disabled=true;decidirMov(d.aprovar||d.recusar,!!d.aprovar).then(msg=>commit(msg));return}
+  if(d.vermov){const id=d.vermov;const m=SOLIC.find(x=>x.id===id);const e=m&&emp(m.eid);if(e&&m.av)mostrarAv(e,{...m.av,media:mediaNotas(m.av.notas||{})},`<button class="btn" data-recusar="${esc(id)}">Recusar</button><button class="btn btn-primary" data-aprovar="${esc(id)}">Aprovar</button>`);return}
+  if(d.holerite){holeriteModal(d.holerite);return}
+  if(d.ficha){fichaModal(d.ficha);return}
+  if(d.editcolab){colabForm(emp(d.editcolab));return}
+  if(d.savecolab!==undefined){saveColab(d.savecolab);return}
+  if(d.progferias){feriasModal(d.progferias);return}
+  if(d.rescisao){rescisaoModal(d.rescisao);return}
+  if(d.aso&&G()){closeModal();enviarMov({tipo:"aso",eid:d.aso,data:addMonths(TODAY,12)},"Renovação de ASO enviada ao RH");return}
+  if(d.aso){const e=emp(d.aso);e.aso=addMonths(TODAY,12);closeModal();commit("ASO de "+e.nome.split(" ")[0]+" renovado até "+fdate(e.aso));return}
+  if(d.afastar){const e=emp(d.afastar);e.afastado=true;ST.eventos.push({id:uid(),codigo:"S-2230",desc:"Afastamento temporário",ref:e.nome,data:TODAY,status:"Pendente"});closeModal();commit(e.nome.split(" ")[0]+" afastado(a); S-2230 pendente");return}
+  if(d.retorno){const e=emp(d.retorno);e.afastado=false;ST.eventos.push({id:uid(),codigo:"S-2230",desc:"Retorno de afastamento",ref:e.nome,data:TODAY,status:"Pendente"});closeModal();commit("Retorno registrado");return}
+  if(d.admNext){const a=ST.admissoes.find(x=>x.id===d.admNext);
+    if(a.etapa===3){a.etapa=4;ST.emps.push({id:uid(),nome:a.nome,cpf:"—",cargo:a.cargo,lojaId:a.lojaId,admissao:a.inicio,salario:a.salario,dependentes:0,vt:true,comissao:CARGOS[a.cargo]?.com?2.5:0,vendas:0,he:0,banco:0,afastado:false,desligado:null,ferias:[],avaliacoes:[],aso:addMonths(a.inicio,12)});
+      ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:a.nome,data:addDays(a.inicio,-1),status:"Pendente"});commit(a.nome.split(" ")[0]+" admitido(a)")}
+    else{a.etapa++;commit()}return}
+  if(d.admBack){const a=ST.admissoes.find(x=>x.id===d.admBack);a.etapa=Math.max(0,a.etapa-1);commit();return}
+  if(d.cell){const [eid,k]=d.cell.split("|");const s=store(UI.escLoja);const cur=escalaSemana(s,UI.escSemana)[eid].map(x=>x==="FE"?"T":x);cur[k]=cur[k]==="T"?"F":"T";const key=s.id+"|"+UI.escSemana+"|"+eid;ST.escalaOverrides[key]=cur;
+    if(G()){render();const mid="esc_"+UI.escSemana+"_"+eid;clearTimeout(ESC_T[mid]);ESC_T[mid]=setTimeout(()=>enviarMov({id:mid,tipo:"escala",eid,key,dias:cur},"Escala enviada ao RH"),900);return}
+    commit();return}
+  if(d.banco&&G()){const [eid,m]=d.banco.split("|");enviarMov({tipo:"banco",eid,min:Number(m)},Number(m)>0?"Crédito de 1h enviado ao RH":"Folga de 8h enviada ao RH");return}
+  if(d.banco){const [eid,m]=d.banco.split("|");emp(eid).banco+=Number(m);commit(Number(m)>0?"1 hora lançada":"Folga de 8h compensada");return}
+  if(d.xptab){UI.xpTab=d.xptab;render();return}
+  if(d.avaliar){const [eid,m]=d.avaliar.split("|");avaliacaoModal(eid,Number(m));return}
+  if(d.verav){const [eid,aid]=d.verav.split("|");verAvaliacao(eid,aid);return}
+  if(d.rate){if(!AV)return;const [k,n]=d.rate.split("|");AV.notas[k]=Number(n);t.parentElement.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===t));avResumo();return}
+  if(d.parecer){AV.parecer=d.parecer;t.parentElement.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b===t));avResumo();return}
+  if(d.ffiltro){UI.feriasFiltro=d.ffiltro;render();return}
+  if(d.transmitir){ST.eventos.find(x=>x.id===d.transmitir).status="Transmitido";commit("Evento marcado como transmitido");return}
+  if(d.vagaAdm){const v=ST.vagas.find(x=>x.id===d.vagaAdm);admForm({cargo:v.cargo,lojaId:v.lojaId,salario:CARGOS[v.cargo]?Math.round(CARGOS[v.cargo].sal[0]):1700,obs:v.tipo==="Temporário"?"Temporário (Lei 6.019)":"",vagaId:v.id});return}
+  if(d.lojaColab){UI.loja=d.lojaColab;UI.status="";location.hash="colaboradores";return}
+  if(d.lojaEscala){UI.escLoja=d.lojaEscala;location.hash="ponto";return}
+  if(d.editloja){lojaForm(d.editloja);return}
+  if(d.saveloja!==undefined){const nome=$("#l-nome").value.trim();if(!nome)return;const data={nome,cidade:$("#l-cid").value.trim(),tipo:$("#l-tipo").value,quadro:Number($("#l-quadro").value)||1};
+    if(d.saveloja){Object.assign(store(d.saveloja),data)}else{ST.stores.push({id:"s"+uid(),...data})}closeModal();commit("Unidade salva");return}
+  const act=d.act;
+  if(act==="salvarAval"){salvarAvaliacao(t);return}
+  if(act==="iniciarExemplo"){iniciarRH(seedData());return}
+  if(act==="iniciarZero"){iniciarRH({exemplo:false,stores:[{id:"s1",nome:"Brasileiríssima Loja 1",cidade:"",tipo:"Loja de rua",quadro:10}],emps:[],cfg:JSON.parse(JSON.stringify(DEFAULT_CFG))});return}
+  if(act==="aprovarTodas"){t.disabled=true;(async()=>{let n=0;for(const m of SOLIC.slice()){await decidirMov(m.id,true);n++}commit(n+" solicitações aprovadas")})();return}
+  if(act==="novoColab"){abrirFichaForm(null,dadosVazios(),[],"");FX.importado=false;renderFichaForm()}
+  if(act==="novaLoja") lojaForm();
+  if(act==="novaAdm") admForm();
+  if(act==="novaVaga") vagaForm();
+  if(act==="progFerias") feriasModal();
+  if(act==="simRescisao") rescisaoModal();
+  if(act==="semanaAnt"){UI.escSemana=addDays(UI.escSemana,-7);render()}
+  if(act==="semanaProx"){UI.escSemana=addDays(UI.escSemana,7);render()}
+  if(act==="salvarFerias"){const e=emp($("#fe-emp").value);const dias=Number($("#fe-dias").value);const ini=$("#fe-ini").value;
+    if(!ini){toast("Escolha a data de início.");return}
+    if(e.ferias.some(f=>f.inicio===ini)){toast("Já existem férias programadas nessa data para "+e.nome.split(" ")[0]+".");return}
+    e.ferias.push({inicio:ini,dias,abono:dias===20,programadoEm:TODAY,programadoPor:SESSION?SESSION.login:""});
+    logEvento("Férias programadas",e.nome+" · "+fdate(ini)+" · "+dias+" dias");commit();
+    modal("Férias programadas",`<div class="who"><div class="avatar" style="width:48px;height:48px">${initials(e.nome)}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)} · ${esc(store(e.lojaId).nome)}</span></div></div>
+      <div class="kv"><div><span>Início</span><b class="num">${fdate(ini)}</b></div><div><span>Fim</span><b class="num">${fdate(addDays(ini,dias-1))}</b></div><div><span>Retorno</span><b class="num">${fdate(addDays(ini,dias))}</b></div><div><span>Abono</span><b>${dias===20?"10 dias":"Não"}</b></div></div>
+      <div class="note">O aviso de férias já está disponível para o gerente da loja no portal. Baixe o PDF, colha a assinatura do colaborador e marque como assinado.</div>`,
+      `<button class="btn" data-close>Fechar</button><button class="btn btn-primary" data-pdfferias="${e.id}|${ini}">Baixar aviso em PDF</button>`)}
+  if(act==="confirmarDeslig"){
+    if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toque de novo para confirmar";return}
+    const e=emp($("#rs-emp").value);e.desligado={data:$("#rs-data").value,tipo:$("#rs-tipo").value};
+    ST.eventos.push({id:uid(),codigo:"S-2299",desc:"Desligamento",ref:e.nome,data:e.desligado.data,status:"Pendente"});closeModal();commit(e.nome.split(" ")[0]+" desligado(a); S-2299 pendente")}
+  if(act==="salvarAdm"){const nome=$("#a-nome").value.trim();if(!nome){const er=$("#a-err");er.hidden=false;er.textContent="Informe o nome do candidato.";return}
+    ST.admissoes.push({id:uid(),nome,cargo:$("#a-cargo").value,lojaId:$("#a-loja").value,salario:Number($("#a-sal").value),inicio:$("#a-ini").value,obs:$("#a-obs").value,etapa:0});closeModal();
+    if(page!=="admissao")location.hash="admissao";commit("Admissão iniciada")}
+  if(act==="salvarVaga"){ST.vagas.push({id:uid(),cargo:$("#v-cargo").value,lojaId:$("#v-loja").value,qtd:Number($("#v-qtd").value)||1,tipo:$("#v-tipo").value,abertura:TODAY,candidatos:0,status:"Divulgação"});closeModal();commit("Vaga aberta")}
+  if(act==="fecharFolha"){ST.folhasFechadas[UI.comp]=TODAY;ST.eventos.push({id:uid(),codigo:"S-1200",desc:"Remuneração "+compLabel(UI.comp),ref:UI.folhaLoja?store(UI.folhaLoja).nome:"Todas as unidades",data:TODAY,status:"Pendente"},{id:uid(),codigo:"S-1299",desc:"Fechamento dos periódicos",ref:compLabel(UI.comp),data:TODAY,status:"Pendente"});commit("Folha de "+compLabel(UI.comp)+" fechada")}
+  if(act==="recarga"){const tot=Number($(".kpi.hero .val").textContent.replace(/[^\d,]/g,"").replace(",","."));ST.recargas.unshift({comp:curComp,data:TODAY,valor:tot});commit("Recarga registrada")}
+  if(act==="transmitirTodos"){ST.eventos.forEach(e=>e.status="Transmitido");commit("Todos os eventos marcados como transmitidos")}
+  if(act==="limpar"){
+    if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Apagar exemplos? Toque de novo";return}
+    ST=normalize({exemplo:false,stores:[{id:"s1",nome:"Brasileiríssima Loja 1",cidade:"",tipo:"Loja de rua",quadro:10}],emps:[],cfg:ST.cfg});commit("Pronto. Cadastre sua primeira unidade e equipe.")}
+  if(act==="restaurar"){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Substituir tudo pelos exemplos? Toque de novo";return}ST=normalize(seedData());commit("Dados de exemplo recarregados")}
+  if(act==="gerarBackup"){$("#backup").value=JSON.stringify(ST)}
+  if(act==="copiarBackup"){const ta=$("#backup");if(!ta.value)ta.value=JSON.stringify(ST);navigator.clipboard?.writeText(ta.value).then(()=>toast("Backup copiado"),()=>{ta.select();toast("Selecionado. Use Copiar do teclado")})}
+  if(act==="importar"){try{const o=JSON.parse($("#backup").value);if(!o.emps||!o.stores)throw 0;ST=normalize(o);commit("Backup importado")}catch(e){toast("Não foi possível ler o backup. Cole o texto completo gerado por aqui.")}}
+});
+document.addEventListener("input",ev=>{
+  const t=ev.target;
+  if(t.id==="f-busca"){UI.busca=t.value;const pos=t.selectionStart;render();const n=$("#f-busca");n.focus();n.setSelectionRange(pos,pos)}
+  if(t.id==="f-logbusca"){UI.logBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-logbusca");n.focus();n.setSelectionRange(pos,pos)}
+  if(t.dataset.ben){ST.cfg.beneficios[t.dataset.ben]=Number(t.value)||0;save();const id=t.id,pos=t.selectionStart;render();const n=$("#"+id);n.focus()}
+  if(t.dataset.cfg){const p=t.dataset.cfg.split("|");if(p.length===1)ST.cfg[p[0]]=Number(t.value)||0;else ST.cfg[p[0]][Number(p[1])][Number(p[2])]=Number(t.value)||0;save()}
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target;
+  if(t.id==="f-loja"){UI.loja=t.value;render()}
+  if(t.id==="f-status"){UI.status=t.value;render()}
+  if(t.id==="f-comp"){UI.comp=t.value;render()}
+  if(t.id==="f-folhaloja"){UI.folhaLoja=t.value;render()}
+  if(t.id==="f-escloja"){UI.escLoja=t.value;render()}
+  if(t.dataset.vagaStatus){ST.vagas.find(v=>v.id===t.dataset.vagaStatus).status=t.value;commit("Etapa atualizada")}
+  if(["fe-emp","fe-ini","fe-dias"].includes(t.id))feriasCalc();
+  if(["rs-emp","rs-tipo","rs-data","rs-aviso"].includes(t.id)){rescisaoCalc();const b=document.querySelector('[data-act="confirmarDeslig"]');if(b){b.dataset.confirm="";b.textContent="Confirmar desligamento"}}
+});
+document.addEventListener("change",ev=>{
+  if(ev.target.id==="u-perfil")$("#u-loja-f").hidden=ev.target.value==="rh";
+  if(ev.target.id==="pl-file")lerPlanilha(ev.target.files[0]);
+  if(ev.target.id&&ev.target.id.startsWith("fx-"))ev.target.classList.remove("vazio");
+});
+document.addEventListener("dragover",ev=>{const z=ev.target.closest&&ev.target.closest("#pl-drop");if(z){ev.preventDefault();z.classList.add("over")}});
+document.addEventListener("dragleave",ev=>{const z=ev.target.closest&&ev.target.closest("#pl-drop");if(z)z.classList.remove("over")});
+document.addEventListener("drop",ev=>{const z=ev.target.closest&&ev.target.closest("#pl-drop");if(z){ev.preventDefault();z.classList.remove("over");lerPlanilha(ev.dataTransfer.files[0])}});
+document.addEventListener("keydown",ev=>{
+  if(ev.key==="Escape")closeModal();
+  if(ev.key==="Enter"&&ev.target.tagName==="INPUT"){const f=ev.target.closest("form");if(!f)return;
+    const acao={"form-login":entrar}[f.id];if(acao){ev.preventDefault();acao()}}
+});
+document.addEventListener("submit",ev=>ev.preventDefault());
+
+function avaliacaoModal(eid,marco){
+  const e=emp(eid);if(!e)return;
+  AV={eid,marco,notas:{},parecer:null};
+  const dx=Math.min(90,diffDays(e.admissao,TODAY));const prazo=addDays(e.admissao,marco-1);
+  const ops=marco===45?[["prorrogar","Prorrogar até 90 dias"],["efetivar","Efetivar agora"],["encerrar","Encerrar no 45º dia"]]:[["efetivar","Efetivar"],["encerrar","Encerrar no 90º dia"]];
+  modal("Avaliação de "+marco+" dias",`
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${initials(e.nome)}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)} · ${esc(store(e.lojaId).nome)} · admissão ${fdate(e.admissao)}</span></div></div>
+    <div><span class="xp-lbl num">Dia ${dx} de 90 · prazo desta avaliação ${fdate(prazo)}</span><div class="xp" style="width:100%"><i style="width:${Math.max(0,dx)/90*100}%"></i><b style="left:calc(50% - 1px)"></b></div></div>
+    <div class="form-grid">
+      <div class="field"><label for="av-quem">Avaliador(a)</label><input class="input" id="av-quem" value="${esc(gestorDe(e.lojaId))}"></div>
+      <div class="field"><label for="av-data">Data da avaliação</label><input class="input" id="av-data" type="date" value="${TODAY}"></div>
+    </div>
+    <div><div class="scale-hint"><span>1 Insatisfatório</span><span>3 Dentro do esperado</span><span>5 Excelente</span></div>
+    ${criterios(e.cargo).map(c=>`<div class="crit"><p>${c.t}<small>${c.d}</small></p><div class="rate" role="group" aria-label="${c.t}">${[1,2,3,4,5].map(n=>`<button type="button" data-rate="${c.k}|${n}" title="${ESCALA[n]}">${n}</button>`).join("")}</div></div>`).join("")}</div>
+    <div class="form-grid">
+      <div class="field"><label for="av-faltas">Faltas no período</label><input class="input num" id="av-faltas" type="number" min="0" value="0"></div>
+      <div class="field"><label for="av-atrasos">Atrasos no período</label><input class="input num" id="av-atrasos" type="number" min="0" value="0"></div>
+      <div class="field full"><label for="av-fortes">Pontos fortes</label><textarea class="input" id="av-fortes" rows="2"></textarea></div>
+      <div class="field full"><label for="av-desenv">Pontos a desenvolver</label><textarea class="input" id="av-desenv" rows="2"></textarea></div>
+    </div>
+    <div class="field"><label>Decisão</label><div class="seg" role="radiogroup">${ops.map(([k,t])=>`<button type="button" data-parecer="${k}">${t}</button>`).join("")}</div></div>
+    <div class="av-sum" id="av-sum"></div>
+    <p class="small" id="av-err" style="color:var(--bad)" hidden></p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarAval" id="av-save">Salvar avaliação</button>`);
+  avResumo();
+}
+function avResumo(){
+  const e=emp(AV.eid);const tot=criterios(e.cargo).length;const n=Object.keys(AV.notas).length;const m=mediaNotas(AV.notas);
+  const r=n?recomenda(m):null;
+  $("#av-sum").innerHTML=`<div><span class="small muted">Nota média · ${n} de ${tot} critérios</span><br><b class="num">${n?m.toLocaleString("pt-BR",{minimumFractionDigits:1}):"—"}</b></div>${r?`<span class="chip ${r.c}">${r.t}</span>`:`<span class="small muted">Dê uma nota de 1 a 5 em cada critério</span>`}`;
+  const b=$("#av-save");if(b){b.dataset.confirm="";b.className="btn "+(AV.parecer==="encerrar"?"btn-danger":"btn-primary");b.textContent=AV.parecer==="encerrar"?"Salvar e encerrar contrato":AV.parecer==="efetivar"?"Salvar e efetivar":"Salvar avaliação"}
+}
+function salvarAvaliacao(btn){
+  const e=emp(AV.eid);const err=$("#av-err");const cs=criterios(e.cargo);
+  const falta=cs.filter(c=>!AV.notas[c.k]);
+  if(falta.length){err.hidden=false;err.textContent="Falta dar nota em: "+falta.map(c=>c.t).join(", ")+".";return}
+  if(!AV.parecer){err.hidden=false;err.textContent="Escolha a decisão: "+(AV.marco===45?"prorrogar, efetivar ou encerrar.":"efetivar ou encerrar.");return}
+  if(!$("#av-quem").value.trim()){err.hidden=false;err.textContent="Informe quem fez a avaliação.";return}
+  if(AV.parecer==="encerrar"&&btn.dataset.confirm!=="1"){btn.dataset.confirm="1";btn.textContent="Toque de novo para encerrar o contrato";return}
+  const a={id:uid(),marco:AV.marco,data:$("#av-data").value||TODAY,avaliador:$("#av-quem").value.trim(),notas:{...AV.notas},media:mediaNotas(AV.notas),
+    faltas:Number($("#av-faltas").value)||0,atrasos:Number($("#av-atrasos").value)||0,fortes:$("#av-fortes").value.trim(),desenvolver:$("#av-desenv").value.trim(),parecer:AV.parecer};
+  AV=null;closeModal();
+  if(G()){enviarMov({tipo:"avaliacao",eid:e.id,av:a},"Avaliação enviada ao RH para aprovação");return}
+  commit(aplicarAvaliacao(e,a));
+}
+function verAvaliacao(eid,aid){
+  const e=emp(eid);const a=e&&(e.avaliacoes||[]).find(x=>x.id===aid);if(!a)return;
+  mostrarAv(e,a,`<button class="btn" data-ficha="${e.id}">Abrir ficha</button><button class="btn btn-primary" data-close>Fechar</button>`);
+}
+function mostrarAv(e,a,foot){
+  const r=recomenda(a.media);const pc=a.pendente?{t:"Aguardando RH",c:"c-warn"}:PARECER[a.parecer];
+  modal("Avaliação de "+a.marco+" dias",`
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${initials(e.nome)}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)} · ${esc(store(e.lojaId).nome)}</span></div><span class="chip ${pc.c}" style="margin-left:auto">${pc.t}</span></div>
+    <div class="note">Decisão: <b>${esc(PARECER[a.parecer].t)}</b></div>
+    <div class="av-sum"><div><span class="small muted">Nota média</span><br><b class="num">${a.media.toLocaleString("pt-BR",{minimumFractionDigits:1})}</b></div><span class="chip ${r.c}">${r.t}</span></div>
+    <div>${criterios(e.cargo).map(c=>{const n=a.notas[c.k]||0;return `<div class="crit"><p>${c.t}<small>${n?ESCALA[n]:"Sem nota"}</small></p><div class="rate" aria-label="Nota ${n}">${[1,2,3,4,5].map(i=>`<button type="button" tabindex="-1" class="${i===n?"on":""}" style="cursor:default" aria-hidden="true">${i}</button>`).join("")}</div></div>`}).join("")}</div>
+    <div class="kv"><div><span>Avaliador(a)</span><b>${esc(a.avaliador)}</b></div><div><span>Data</span><b class="num">${fdate(a.data)}</b></div><div><span>Faltas</span><b class="num">${a.faltas}</b></div><div><span>Atrasos</span><b class="num">${a.atrasos}</b></div></div>
+    ${a.fortes?`<div class="note"><b>Pontos fortes:</b> ${esc(a.fortes)}</div>`:""}
+    ${a.desenvolver?`<div class="note"><b>Pontos a desenvolver:</b> ${esc(a.desenvolver)}</div>`:""}`,foot);
+}
+function lojaForm(id){
+  const s=id?store(id):{nome:"",cidade:"",tipo:"Shopping",quadro:12};
+  modal(id?"Editar unidade":"Nova unidade",`<form class="form-grid">
+    <div class="field full"><label for="l-nome">Nome da unidade</label><input class="input" id="l-nome" value="${esc(s.nome)}"></div>
+    <div class="field"><label for="l-cid">Cidade/UF</label><input class="input" id="l-cid" value="${esc(s.cidade)}"></div>
+    <div class="field"><label for="l-tipo">Formato</label><select class="input" id="l-tipo">${["Shopping","Loja de rua","Outlet","Quiosque","Centro de distribuição"].map(x=>`<option ${x===s.tipo?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="field"><label for="l-quadro">Quadro ideal (pessoas)</label><input class="input num" id="l-quadro" type="number" min="1" value="${s.quadro}"></div>
+  </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-saveloja="${id||""}">Salvar unidade</button>`);
+}
+function vagaForm(){
+  modal("Abrir vaga",`<form class="form-grid">
+    <div class="field"><label for="v-cargo">Cargo</label><select class="input" id="v-cargo">${cargoOpts("Vendedor(a)")}</select></div>
+    <div class="field"><label for="v-loja">Unidade</label><select class="input" id="v-loja">${lojaOpts("s1",false)}</select></div>
+    <div class="field"><label for="v-qtd">Posições</label><input class="input num" id="v-qtd" type="number" min="1" value="1"></div>
+    <div class="field"><label for="v-tipo">Contrato</label><select class="input" id="v-tipo"><option>Efetivo</option><option>Temporário</option><option>Aprendiz</option><option>Intermitente</option></select></div>
+  </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarVaga">Abrir vaga</button>`);
+}
+
+boot();
+</script>
+</body>
+</html>
