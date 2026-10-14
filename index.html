@@ -515,7 +515,7 @@ function linhas(){
   const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});return o};
   const priv=e=>{const o={};Object.keys(e).forEach(k=>{if(k!=="id"&&!PUB.includes(k))o[k]=e[k]});return o};
   return {
-    lojas:ST.stores.map(s=>[s.id,{id:s.id,nome:s.nome,cidade:s.cidade||"",tipo:s.tipo||"",quadro:Number(s.quadro)||0}]),
+    lojas:ST.stores.map(s=>{const {id,nome,cidade,tipo,quadro,...extra}=s;return [s.id,{id:s.id,nome:s.nome,cidade:s.cidade||"",tipo:s.tipo||"",quadro:Number(s.quadro)||0,dados:extra}]}),
     colaboradores:ST.emps.map(e=>[e.id,{id:e.id,loja_id:e.lojaId,dados:pub(e)}]),
     colaboradores_privado:ST.emps.map(e=>[e.id,{id:e.id,dados:priv(e)}]),
     escalas:Object.entries(ST.escalaOverrides).map(([k,d])=>[k,{chave:k,loja_id:k.split("|")[0],dias:d}]),
@@ -556,7 +556,7 @@ async function carregarRH(){
   const priv=new Map(pr.map(r=>[r.id,r.dados]));
   const d=(est[0]&&est[0].dados)||{};
   ST=normalize({...d,
-    stores:lj.map(r=>({id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.id.localeCompare(b.id)),
+    stores:lj.map(r=>({...(r.dados||{}),id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.id.localeCompare(b.id)),
     emps:co.map(r=>({id:r.id,...(priv.get(r.id)||{}),...r.dados,lojaId:r.loja_id})),
     escalaOverrides:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     admissoes:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id})),
@@ -580,7 +580,7 @@ async function carregarLog(){
 async function carregarGerente(){
   const [lj,co,es,ad]=await Promise.all(["lojas","colaboradores","escalas","admissoes"].map(t=>tudo(t)));
   if(!lj.length)throw new Error("sem lojas");
-  BASE_G={stores:lj.map(r=>({id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.nome.localeCompare(b.nome)),
+  BASE_G={stores:lj.map(r=>({...(r.dados||{}),id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.nome.localeCompare(b.nome)),
     emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
@@ -1582,7 +1582,7 @@ const FICHA=[
   {s:"Documentos",c:[["cpf","CPF"],["pis","PIS/NIS"],["rg","RG"],["rgOrgao","Órgão emissor do RG"],["rgUf","UF do RG"],["rgEmissao","Emissão do RG","d"],["ctpsNumero","CTPS número"],["ctpsSerie","CTPS série"],["ctpsUf","CTPS UF"],["tituloEleitor","Título de eleitor"],["reservista","Certificado de reservista"],["cnh","CNH"],["cnhCategoria","CNH categoria"],["reservistaCategoria","Reservista categoria"],["pisCadastro","PIS cadastrado em","d"],["ctpsEmissao","CTPS expedição","d"],["tituloZona","Título · zona"],["tituloSecao","Título · seção"]]},
   {s:"Endereço e contato",c:[["logradouro","Logradouro","t",1],["numero","Número"],["complemento","Complemento"],["bairro","Bairro"],["cidade","Cidade"],["uf","UF"],["cep","CEP"],["telefone","Telefone celular"],["telefoneResidencial","Telefone residencial"],["email","E-mail"]]},
   {s:"Dados bancários",c:[["banco","Banco ou domicílio bancário"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"]]},
-  {s:"Vínculo e registro",c:[["empregador","Empregador","t",1],["cnpj","CNPJ do empregador"],["nFicha","Nº da ficha"],["opcaoFgts","Opção FGTS em","d"],["fgtsConta","FGTS · conta vinculada"],["cargoRegistro","Cargo no registro"],["cboRegistro","CBO no registro"],["funcao","Função"],["salarioRegistro","Salário no registro (R$)","n"],["salarioPor","Salário por (mês, dia ou hora)"],["ultimoReajuste","Data do último reajuste","d"],["ultimaAlteracaoCargo","Última alteração de cargo","d"],["sindical","Contribuição sindical","t",1],["beneficiarios","Beneficiários","t",1]]},
+  {s:"Vínculo e registro",c:[["empregador","Empregador","t",1],["cnpj","CNPJ do empregador"],["nFicha","Nº da ficha"],["centroCusto","Centro de custo"],["centroCustoCodigo","Código do centro de custo"],["opcaoFgts","Opção FGTS em","d"],["fgtsConta","FGTS · conta vinculada"],["cargoRegistro","Cargo no registro"],["cboRegistro","CBO no registro"],["funcao","Função"],["salarioRegistro","Salário no registro (R$)","n"],["salarioPor","Salário por (mês, dia ou hora)"],["ultimoReajuste","Data do último reajuste","d"],["ultimaAlteracaoCargo","Última alteração de cargo","d"],["sindical","Contribuição sindical","t",1],["beneficiarios","Beneficiários","t",1]]},
   {s:"Ocorrências",c:[["afastamentosTxt","Afastamentos e acidentes","t",1],["obsTransferencias","Transferências e advertências","t",1],["observacoes","Observações","t",1],["fichasAnteriores","Fichas anteriores","t",1],["alertaImportacao","Alerta da importação","t",1]]},
   {s:"Contrato de trabalho",c:[["matricula","Matrícula"],["cargo","Cargo","cargo"],["cbo","CBO"],["lojaId","Unidade","loja"],["admissao","Data de admissão","d"],["salario","Salário (R$)","n"],["tipoContrato","Tipo de contrato","tc"],["jornada","Jornada"],["horario","Horário de trabalho"],["intervalo","Horário de intervalo"],["comissao","Comissão sobre vendas (%)","n"],["vt","Optante pelo vale-transporte","b"]]}
 ];
@@ -2394,7 +2394,7 @@ function dpPdfConsolidado(){
     resumo:[["Desligamentos",ag.length],["Verbas rescisórias",brl(tot("total"))],["FGTS (multa + mês)",brl(tot("fgts"))],["Custo estimado total",brl(tot("custo"))]],
     colunas:["Colaborador","Cargo","Unidade","Admissão","Data prevista","Tipo / aviso","Justificativa","Verbas","FGTS","Custo estimado"],
     larguras:[36,26,38,17,17,30,0,22,20,24],
-    linhas:[...ag.map(p=>{const e=emp(p.eid)||{};return [p.nome,p.cargo,store(p.lojaId).nome,fdate(e.admissao),fdate(p.data),TIPOS[p.tipo]+" · aviso "+(AVISO_T[p.aviso]||"").toLowerCase(),p.justificativa,brl(p.calc.total),brl(p.calc.multa+p.calc.fgtsMes),brl(p.calc.custo)]}),
+    linhas:[...ag.map(p=>{const e=emp(p.eid)||{};return [p.nome,p.cargo,store(p.lojaId).nome+(emp(p.eid)?"\nCC: "+rateioTexto(emp(p.eid)):""),fdate(e.admissao),fdate(p.data),TIPOS[p.tipo]+" · aviso "+(AVISO_T[p.aviso]||"").toLowerCase(),p.justificativa,brl(p.calc.total),brl(p.calc.multa+p.calc.fgtsMes),brl(p.calc.custo)]}),
       [{content:"TOTAL",colSpan:7,styles:{fontStyle:"bold",halign:"right"}},{content:brl(tot("total")),styles:{fontStyle:"bold"}},{content:brl(tot("fgts")),styles:{fontStyle:"bold"}},{content:brl(tot("custo")),styles:{fontStyle:"bold"}}]],
     arquivo:"desligamentos-aprovacao-diretoria-"+TODAY+".pdf",log:["Relatório de desligamentos para diretoria emitido",ag.length+" desligamentos · "+brl(tot("custo"))],
     depois:(doc,y)=>{const W=doc.internal.pageSize.getWidth();assinaturasPDF(doc,y,W,12,[16,32,26],[91,109,100])}});
@@ -2424,6 +2424,7 @@ function camposExport(){
     add(sec.s,"f_"+k,t,e=>f(e)[k],tp==="d"?"d":tp==="n"?"n":tp==="b"?"b":"t");
   }));
   add("Vínculo e registro","unidadeCnpj","CNPJ da unidade",e=>store(e.lojaId).cnpj||"");
+  add("Vínculo e registro","rateioCC","Rateio de centros de custo",e=>typeof rateioTexto==="function"?rateioTexto(e):"");
   add("Situação e controles","feriasSit","Situação das férias",e=>e.desligado?"":situacaoFerias(e).st.t);
   add("Situação e controles","feriasPend","Períodos de férias em aberto",e=>e.desligado?"":situacaoFerias(e).pend,"n");
   add("Situação e controles","feriasLimite","Limite para conceder férias",e=>{if(e.desligado)return "";const s=situacaoFerias(e);return s.pend?s.limite:""},"d");
@@ -2562,6 +2563,7 @@ function pjFicha(id){
     ${PJ_FICHA.map((sec,i)=>{const itens=sec.c.map(c=>[c[1],val(c)]).filter(x=>x[1]!=="");return itens.length?`<details class="fx-view" ${i<3?"open":""}><summary>${sec.s}</summary><div class="kv">${itens.map(([t,x])=>`<div><span>${esc(t)}</span><b style="white-space:pre-wrap">${esc(x)}</b></div>`).join("")}</div></details>`:""}).join("")}
     ${(p.beneficios||[]).length?`<details class="fx-view" open><summary>Benefícios <span class="muted small">${p.beneficios.length}</span></summary><div class="table-wrap"><table><thead><tr><th>Benefício</th><th class="r">Valor mensal</th><th>Observação</th></tr></thead><tbody>${p.beneficios.map(b=>`<tr><td>${esc(b.tipo)}</td><td class="r num">${brl(Number(b.valor)||0)}</td><td>${esc(b.obs||"")}</td></tr>`).join("")}</tbody></table></div></details>`:""}
     ${(p.faixas||[]).length?`<details class="fx-view" open><summary>Faixas de comissão</summary><div class="table-wrap"><table><thead><tr><th class="r">De</th><th class="r">Até</th><th class="r">Comissão</th></tr></thead><tbody>${p.faixas.map(f=>`<tr><td class="r num">${brl(Number(f.de)||0)}</td><td class="r num">${f.ate?brl(Number(f.ate)):"acima"}</td><td class="r num">${(Number(f.perc)||0).toLocaleString("pt-BR")}%</td></tr>`).join("")}</tbody></table></div></details>`:""}
+    ${typeof rateioSecao==="function"?rateioSecao(p,"pj"):""}
     ${(p.historico||[]).length?`<details class="fx-view"><summary>Histórico do contrato <span class="muted small">${p.historico.length}</span></summary><div class="av-list">${p.historico.slice().reverse().map(h=>`<div class="alert"><span class="chip c-info">${esc(h.acao)}</span><div style="min-width:0"><b style="white-space:normal">${esc(h.detalhe||"")}</b><span>${new Date(h.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}${h.por?" · "+esc(h.por):""}</span></div><span></span></div>`).join("")}</div></details>`:""}`,
     p.encerrado?`<button class="btn btn-ghost" data-pjexcluir="${p.id}" style="color:var(--bad)">Excluir</button><button class="btn" data-pjreativar="${p.id}">Reativar contrato</button><button class="btn btn-primary" data-pjeditar="${p.id}">Editar</button>`:
     `<button class="btn btn-danger" data-pjencerrar="${p.id}">Encerrar contrato</button>${p.fim?`<button class="btn" data-pjrenovar="${p.id}">Renovar 12 meses</button>`:""}<button class="btn btn-primary" data-pjeditar="${p.id}">Editar</button>`);
@@ -2736,6 +2738,7 @@ function pjCamposExport(){
   add("Resumo","diasVencer","Dias para vencer",p=>p.fim&&!p.encerrado?diffDays(TODAY,p.fim):"","n");
   add("Resumo","encerradoEm","Encerrado em",p=>p.encerrado?p.encerrado.data:"","d");
   add("Resumo","motivoEnc","Motivo do encerramento",p=>p.encerrado?p.encerrado.motivo:"");
+  add("Resumo","rateioCC","Rateio de centros de custo",p=>rateioTexto(p,"pj"));
   return L;
 }
 const PJ_PRESETS={
@@ -3195,12 +3198,17 @@ function aprovCard(tipo){
 }
 /* ============ zerar a base para começar do zero ============ */
 function zerarModal(){
-  modal("Apagar todos os dados",`<div class="note" style="border-color:var(--bad)"><b>Esta ação não pode ser desfeita.</b> Serão apagados ${ST.emps.length} colaboradores, ${ST.stores.length} unidades, ${(ST.pjs||[]).length} prestadores PJ e todo o histórico (férias, avaliações, medidas, escalas, desligamentos programados e solicitações). Usuários e configurações de folha continuam.</div>
+  modal("Apagar todos os dados",`<div class="note" style="border-color:var(--bad)"><b>Esta ação não pode ser desfeita.</b> Serão apagados ${ST.emps.length} colaboradores, ${ST.stores.length} unidades, ${(ST.pjs||[]).length} prestadores PJ e todo o histórico (férias, avaliações, medidas, escalas, desligamentos programados, solicitações, mensagens do correio, candidatos da pré-admissão, documentos anexados e os arquivos guardados, planejamento e folhas importadas). Ficam só os usuários de acesso, o log de acessos e as configurações de folha.</div>
     <p class="small">Depois, os gerentes precisarão ter as lojas marcadas de novo em Usuários.</p>
     <div class="field"><label for="zr-txt">Para confirmar, digite <b>ZERAR</b></label><input class="input" id="zr-txt" autocomplete="off" autocapitalize="characters"></div><p class="small" id="zr-err" style="color:var(--bad)" hidden></p>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="baixarBackup">Baixar backup antes</button><button class="btn btn-danger" data-act="zerarOk">Apagar tudo</button>`);
 }
-async function antesDeZerar(){const {error}=await SB.from("solicitacoes").delete().not("id","is",null);if(error)return false;const r2=await SB.from("mensagens").delete().not("id","is",null);if(r2.error)return false;SOLIC=[];SOLIC_ALL=[];MSGS=[];return true}
+async function antesDeZerar(){const {error}=await SB.from("solicitacoes").delete().not("id","is",null);if(error)return false;const r2=await SB.from("mensagens").delete().not("id","is",null);if(r2.error)return false;SOLIC=[];SOLIC_ALL=[];MSGS=[];
+  const {data:arqs}=await SB.from("anexos").select("caminho").not("caminho","is",null).limit(5000);
+  const cam=(arqs||[]).map(x=>x.caminho);for(let i=0;i<cam.length;i+=100){const r=await SB.storage.from("anexos").remove(cam.slice(i,i+100));if(r.error)return false}
+  const r3=await SB.from("anexos").delete().not("id","is",null);if(r3.error)return false;
+  const r4=await SB.from("candidatos").delete().not("id","is",null);if(r4.error)return false;
+  ANX=[];CANDS=[];return true}
 async function zerarOk(){
   if(($("#zr-txt").value||"").trim().toUpperCase()!=="ZERAR"){const el=$("#zr-err");el.hidden=false;el.textContent="Digite ZERAR para confirmar.";return}
   if(!(await antesDeZerar())){toast("Não foi possível apagar as solicitações. Verifique a conexão e tente de novo.");return}
@@ -3366,7 +3374,7 @@ function wfp(){
   w.regimes=w.regimes||{lucro_real:{inss:20,rat:1,fap:1,terceiros:5.8},lucro_presumido:{inss:20,rat:1,fap:1,terceiros:5.8},simples:{inss:0,rat:0,fap:1,terceiros:0}};
   w.legais=w.legais||{fgts:ST.cfg.fgts||8,multa:40,semJusta:70,aviso:60,an:20,vt:ST.cfg.vtPct||6,diasUteis:26,dsr:4.5,taxaAgencia:0};
   w.formatos=w.formatos||[{id:"loja_rua",nome:"Loja de rua",dias:6,abre:"08:00",fecha:"20:00",fc:1.35,hNot:0,pesoCom:1.2},{id:"loja_aeroporto",nome:"Loja aeroporto",dias:7,abre:"05:00",fecha:"23:00",fc:1.7,hNot:1,pesoCom:1},{id:"quiosque_aeroporto",nome:"Quiosque aeroporto",dias:7,abre:"05:00",fecha:"23:00",fc:1.45,hNot:1,pesoCom:0.9}];
-  if(!w.empresas){const m=new Map();ST.stores.forEach(s=>{const k=soDig(s.cnpj||"")||"sem";if(!m.has(k)){const e=ST.emps.find(x=>x.lojaId===s.id&&x.ficha&&x.ficha.empregador);m.set(k,{id:k,nome:e?e.ficha.empregador:(k==="sem"?"Empresa sem CNPJ cadastrado":"Empresa "+fmtCNPJ(k)),cnpj:k==="sem"?"":fmtCNPJ(k),regime:"lucro_real"})}});w.empresas=[...m.values()]}
+  if(!w.empresas){const m=new Map();ST.stores.forEach(s=>{const k=soDig(s.cnpj||"")||"sem";if(!m.has(k)){const e=ST.emps.find(x=>x.lojaId===s.id&&x.ficha&&x.ficha.empregador);m.set(k,{id:k,nome:e?e.ficha.empregador:(k==="sem"?"Empresa sem CNPJ cadastrado":"Empresa "+fmtCNPJ(k)),cnpj:k==="sem"?"":fmtCNPJ(k),regime:s.regime||"lucro_real"})}});w.empresas=[...m.values()]}
   w.lojas=w.lojas||{};ST.stores.forEach(s=>{if(!w.lojas[s.id])w.lojas[s.id]={formato:wfpFormatoAuto(s),empresa:soDig(s.cnpj||"")||"sem",fat:0}});
   if(!w.cargos){const g={};ativos().forEach(e=>{(g[e.cargo]=g[e.cargo]||[]).push(Number(e.salario)||0)});
     w.cargos=Object.entries(g).map(([cargo,l])=>{l.sort((a,b)=>a-b);const med=l[Math.floor(l.length/2)];const com=ativos().some(e=>e.cargo===cargo&&e.comissao>0)||/vend/i.test(cargo);return {id:uid(),cargo,faixa:"A",salario:Math.max(med,ST.cfg.salarioMinimo),comissao:com,premio:true,peso:/gerente/i.test(cargo)&&!/sub/i.test(cargo)?2:/sub|supervis|lider|líder/i.test(cargo)?1.5:1}}).sort((a,b)=>a.cargo.localeCompare(b.cargo))}
@@ -3389,13 +3397,13 @@ function wfpBase(){
 function wfpSimular(cen){
   const w=wfp(),L=w.legais;
   const meses=[...Array(Number(cen.meses)||12)].map((_,i)=>addMonths(cen.inicio,i));
-  const res={meses,unid:{},tot:{hc:meses.map(()=>0),custo:meses.map(()=>0),fat:meses.map(()=>0),rub:{},nat:{}},cargos:{}};
+  const res={meses,unid:{},tot:{hc:meses.map(()=>0),custo:meses.map(()=>0),fat:meses.map(()=>0),rub:{},nat:{}},cargos:{},cc:{}};
   const soma=(o,k,i,v)=>{(o[k]=o[k]||meses.map(()=>0))[i]+=v};
   const varHist={};
   cen.unidades.filter(u=>u.ativo!==false).forEach(u=>{
     const fmt=w.formatos.find(f=>f.id===u.formato)||w.formatos[0];const emp_=w.empresas.find(e=>e.id===u.empresa);const R_=w.regimes[(emp_&&emp_.regime)||"lucro_real"];
     const enc=(R_.inss+R_.rat*R_.fap+R_.terceiros)/100,fgts=L.fgts/100;
-    const fc=Number(u.fc)||fmt.fc;
+    const fc=Number(u.fc)||fmt.fc;const ccUnid=ccNorm(u.cc||(u.lojaId?store(u.lojaId).centroCusto:"")||"")||CC_SEM;
     const turnReal=u.lojaId&&u.real?calcRotatividade([u.lojaId]).turnover:null;
     const t=(u.turnover!=null&&u.turnover!==""?Number(u.turnover):cen.turnover!=null&&cen.turnover!==""?Number(cen.turnover):turnReal!=null?turnReal:60)/100;
     const rc=w.regrasCom.find(r=>r.id===u.regraCom),rp=w.regrasPremio.find(r=>r.id===u.regraPremio);
@@ -3414,7 +3422,7 @@ function wfpSimular(cen){
       const fd=Math.pow(1+(Number(cen.dissidio)||0)/100,anosDiss);
       // pessoas do mês: reais + postos simulados
       const pessoas=[];
-      if(u.real&&u.lojaId)ativos().filter(e=>e.lojaId===u.lojaId).forEach(e=>{const cg=w.cargos.find(c=>c.cargo===e.cargo);pessoas.push({cargo:e.cargo,tipo:"clt",S:(Number(e.salario)||0)*fd,hNot:0,n:1,com:e.comissao>0||(cg&&cg.comissao),premio:cg?cg.premio:true,peso:cg?cg.peso:1,vt:e.vt!==false})});
+      if(u.real&&u.lojaId)ativos().filter(e=>e.lojaId===u.lojaId).forEach(e=>{const cg=w.cargos.find(c=>c.cargo===e.cargo);pessoas.push({cargo:e.cargo,tipo:"clt",S:(Number(e.salario)||0)*fd,hNot:0,n:1,com:e.comissao>0||(cg&&cg.comissao),premio:cg?cg.premio:true,peso:cg?cg.peso:1,vt:e.vt!==false,o:e})});
       (u.postos||[]).forEach(p=>{
         if(p.ini&&m<p.ini.slice(0,7)+"-01")return;if(p.fim&&m>p.fim.slice(0,7)+"-01")return;
         const cg=w.cargos.find(c=>c.cargo===p.cargo)||{salario:ST.cfg.salarioMinimo,comissao:false,premio:false,peso:1};
@@ -3422,7 +3430,7 @@ function wfpSimular(cen){
         if(n>0)pessoas.push({cargo:p.cargo,tipo:p.tipo||"clt",S:(Number(cg.salario)||0)*fd,hNot:Number(p.hNot)||0,n,com:cg.comissao,premio:cg.premio,peso:cg.peso||1,vt:true,pj:Number(p.pj)||0,novo:true});
       });
       // PJ reais da unidade (módulo Prestadores PJ)
-      if(u.real&&u.lojaId)(ST.pjs||[]).filter(p=>!p.encerrado&&p.lojaId===u.lojaId&&(!p.fim||p.fim>=m||p.renovacao)).forEach(p=>pessoas.push({cargo:"PJ · "+pjNome(p),tipo:"pj",S:0,n:1,pjValor:pjCusto(p)}));
+      if(u.real&&u.lojaId)(ST.pjs||[]).filter(p=>!p.encerrado&&p.lojaId===u.lojaId&&(!p.fim||p.fim>=m||p.renovacao)).forEach(p=>pessoas.push({cargo:"PJ · "+pjNome(p),tipo:"pj",S:0,n:1,pjValor:pjCusto(p),o:p,otipo:"pj"}));
       // pool de comissão e rateio
       let pool=0;
       if(rc&&fat>0){
@@ -3456,6 +3464,7 @@ function wfpSimular(cen){
         }
         let tot=0;Object.entries(r).forEach(([k,v])=>{if(!v)return;tot+=v;soma(R.rub,k,i,v);soma(R.nat,WFP_RUB[k][1],i,v);soma(res.tot.rub,k,i,v);soma(res.tot.nat,WFP_RUB[k][1],i,v)});
         R.custo[i]+=tot;if(p.tipo!=="pj"&&p.tipo!=="terceirizado"||p.novo){R.hc[i]+=p.n}
+        {const pr=p.o?rateioDe(p.o,p.otipo):[];(pr.length?pr:[{cc:ccUnid,pct:100}]).forEach(pt=>{const X=res.cc[pt.cc]=res.cc[pt.cc]||{custo:meses.map(()=>0),hc:meses.map(()=>0),nat:{}};const f=pt.pct/100;X.custo[i]+=tot*f;if(p.tipo!=="pj"&&p.tipo!=="terceirizado"||p.novo)X.hc[i]+=p.n*f;Object.entries(r).forEach(([k,v])=>{if(!v)return;const nk=WFP_RUB[k][1];(X.nat[nk]=X.nat[nk]||meses.map(()=>0))[i]+=v*f})})}
         const ck=p.tipo==="pj"&&!p.novo?"PJ (contratos)":p.cargo;const C=R.cargos[ck]=R.cargos[ck]||{hc:meses.map(()=>0),custo:meses.map(()=>0),tipo:p.tipo};C.hc[i]+=p.n;C.custo[i]+=tot;
       });
       if(i>0)R.adm[i]=Math.max(0,R.hc[i]-R.hc[i-1])+R.hc[i]*t/12;else R.adm[i]=R.hc[i]*t/12;
@@ -3539,6 +3548,8 @@ function wfpResumo(cen){
   ${nats.map(n=>{const v=s(r.tot.nat[n]),vb=s(rb.tot.nat[n]);return `<tr><td><b>${WFP_NAT[n]}</b><div class="small muted">${Object.entries(WFP_RUB).filter(([,x])=>x[1]===n).map(([k,x])=>s(r.tot.rub[k])?x[0]+": "+brl(s(r.tot.rub[k])):"").filter(Boolean).join(" · ")}</div></td><td class="r num">${brl(v)}</td><td class="r num">${pct(v/tot*100)}</td><td class="r num">${brl(vb)}</td><td class="r num" style="color:${v-vb>0?"var(--bad)":"inherit"}">${cen.tipo==="base"?"—":(v-vb>0?"+":"")+brl(v-vb)}</td></tr>`}).join("")}
   <tr><td><b>Custo total</b></td><td class="r num"><b>${brl(r.k.custo)}</b></td><td class="r num">100%</td><td class="r num">${brl(rb.k.custo)}</td><td class="r num"><b>${cen.tipo==="base"?"—":brl(r.k.custo-rb.k.custo)}</b></td></tr></tbody></table></div>
   <p class="small muted">A DRE mês a mês por rubrica, a visão de caixa e a comparação entre cenários entram na próxima etapa.</p></div>
+  ${(()=>{const ks=Object.keys(r.cc||{}).sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999)||a.localeCompare(b));if(!ks.length)return "";const tt=r.k.custo||1;
+    return `<div class="card"><h2>Por centro de custo</h2><p class="small muted">Colaboradores reais e PJ pelo rateio da ficha; postos simulados pelo centro de custo da unidade.</p><div class="table-wrap"><table><thead><tr><th>Centro de custo</th><th class="r">HC final</th>${Object.keys(WFP_NAT).map(n=>`<th class="r">${WFP_NAT[n]}</th>`).join("")}<th class="r">Custo no horizonte</th><th class="r">% do total</th></tr></thead><tbody>${ks.map(c=>{const X=r.cc[c];const cu=s(X.custo);return `<tr><td>${esc(c)}</td><td class="r num">${(X.hc[X.hc.length-1]||0).toLocaleString("pt-BR",{maximumFractionDigits:1})}</td>${Object.keys(WFP_NAT).map(n=>`<td class="r num">${X.nat[n]?brl(s(X.nat[n])):"—"}</td>`).join("")}<td class="r num"><b>${brl(cu)}</b></td><td class="r num">${pct(cu/tt*100)}</td></tr>`}).join("")}</tbody></table></div></div>`})()}
   <div class="card"><h2>Por unidade</h2><div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Formato</th><th class="r">HC final</th><th class="r">Faturamento</th><th class="r">Variável</th><th class="r">Custo</th><th class="r">Custo/HC/mês</th><th class="r">Folha/vendas</th></tr></thead><tbody>${cen.unidades.filter(u=>u.ativo!==false).map(u=>{const R=r.unid[u.id];if(!R)return "";const c=s(R.custo),f=s(R.fat),hc=s(R.hc)/R.hc.length;
     return `<tr><td>${esc(u.nome)}</td><td>${esc(R.formato)}</td><td class="r num">${n0(R.hc[R.hc.length-1])}</td><td class="r num">${f?brl(f):"—"}</td><td class="r num">${brl(s(R.nat.variavel))}</td><td class="r num"><b>${brl(c)}</b></td><td class="r num">${hc?brl(c/r.meses.length/hc):"—"}</td><td class="r num">${f?pct(c/f*100):"—"}</td></tr>`}).join("")}</tbody></table></div></div>`;
 }
@@ -3558,6 +3569,7 @@ function wfpUnidModal(cen,i){
     ${f("","Faturamento mensal médio (R$)",`<input class="input" id="wu-fat" type="number" step="1000" min="0" value="${v("fat")}">`)}
     ${f("","Meta mensal (R$, para faixas)",`<input class="input" id="wu-meta" type="number" step="1000" min="0" value="${v("meta")}" placeholder="vazio = faturamento">`)}
     ${f("","Sazonalidade",`<select class="input" id="wu-saz">${Object.entries(WFP_SAZ).map(([k,x])=>`<option value="${k}" ${k===u.saz?"selected":""}>${x[0]}</option>`).join("")}</select>`)}
+    ${f("","Centro de custo (vazio = da unidade)",`<input class="input" id="wu-cc" list="wu-ccs" value="${v("cc")}"><datalist id="wu-ccs">${ccLista().map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`)}
     ${f("","Regra de comissão",`<select class="input" id="wu-regraCom"><option value="">Sem comissão</option>${w.regrasCom.map(x=>`<option value="${x.id}" ${x.id===u.regraCom?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>`)}
     ${f("","Prêmio",`<select class="input" id="wu-regraPremio"><option value="">Sem prêmio</option>${w.regrasPremio.map(x=>`<option value="${x.id}" ${x.id===u.regraPremio?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>`)}
     ${f("","Transporte de aeroporto: custo por pessoa/dia (R$)",`<input class="input" id="wu-rota" type="number" step="0.5" min="0" value="${v("rota")}" placeholder="vazio = vale-transporte legal">`)}
@@ -3570,7 +3582,7 @@ function wfpSalvarUnid(){
   if(!u.real){u.nome=g("nome");if(!u.nome)return err("Informe o nome da unidade.");}
   u.formato=g("formato");u.empresa=g("empresa");if(!u.real){u.abertura=g("abertura")||"";u.antecedencia=Number(g("antecedencia"))||0}
   u.fechamento=g("fechamento")||"";const fc=g("fc");if(fc&&(Number(fc)<1||Number(fc)>2.5))return err("O fator de cobertura deve ficar entre 1,0 e 2,5.");u.fc=fc?Number(fc):null;
-  const t=g("turnover");u.turnover=t===""?null:Number(t);u.fat=Number(g("fat"))||0;u.meta=Number(g("meta"))||0;u.saz=g("saz");u.regraCom=g("regraCom");u.regraPremio=g("regraPremio");u.rota=Number(g("rota"))||0;
+  const t=g("turnover");u.turnover=t===""?null:Number(t);u.fat=Number(g("fat"))||0;u.meta=Number(g("meta"))||0;u.saz=g("saz");u.cc=ccNorm(g("cc")||"");u.regraCom=g("regraCom");u.regraPremio=g("regraPremio");u.rota=Number(g("rota"))||0;
   const nova=UI.wfpU==null;if(nova)cen.unidades.push(u);closeModal();commit(nova?"Unidade incluída":"Unidade atualizada");if(nova)wfpPostosModal(cen.unidades.length-1);
 }
 function wfpPostosModal(i){
@@ -3688,10 +3700,11 @@ function wfpFolhaTela(){
   return lista+folhaDetalhe(sel);
 }
 function folhaTotais(f){
-  const w=wfp(),ev=w.eventos||{};const nat={},rub={},loja={},cargo={};let total=0;
-  (f.agreg||[]).forEach(([l,c,cod,v0])=>{const e=ev[cod]||{};const n=e.nat||"fixo";if(n==="ignorar")return;const v=e.tipo==="D"?-Math.abs(v0):v0;nat[n]=(nat[n]||0)+v;rub[e.rub||"?"]=(rub[e.rub||"?"]||0)+v;total+=v;
+  const w=wfp(),ev=w.eventos||{};const nat={},rub={},loja={},cargo={},cc={};let total=0;
+  (f.agreg||[]).forEach(([l,c,cod,v0,ccx])=>{const e=ev[cod]||{};const n=e.nat||"fixo";if(n==="ignorar")return;const v=e.tipo==="D"?-Math.abs(v0):v0;
+    {const K=ccx||ccNorm(store(l).centroCusto)||CC_SEM;const X=cc[K]=cc[K]||{total:0,nat:{}};X.total+=v;X.nat[n]=(X.nat[n]||0)+v}nat[n]=(nat[n]||0)+v;rub[e.rub||"?"]=(rub[e.rub||"?"]||0)+v;total+=v;
     const L=loja[l]=loja[l]||{total:0,nat:{}};L.total+=v;L.nat[n]=(L.nat[n]||0)+v;const C=cargo[c]=cargo[c]||{total:0};C.total+=v});
-  return {nat,rub,loja,cargo,total};
+  return {nat,rub,loja,cargo,cc,total};
 }
 function folhaDetalhe(f){
   const w=wfp(),ev=w.eventos||{},t=folhaTotais(f);
@@ -3710,6 +3723,7 @@ function folhaDetalhe(f){
     <div class="kv" style="margin-top:10px"><div><span>Encargos efetivos sobre a remuneração</span><b class="num">${pct(encReal)} realizado · ${pct(encSim)} simulador</b></div><div><span>Custo médio por colaborador</span><b class="num">${f.hc?brl(t.total/f.hc):"—"} realizado · ${sim.k.hcFinal?brl(sim.k.custo/sim.k.hcFinal):"—"} simulador</b></div><div><span>Benefícios por colaborador</span><b class="num">${f.hc?brl((t.nat.beneficio||0)/f.hc):"—"} realizado · ${sim.k.hcFinal?brl(simNat("beneficio")/sim.k.hcFinal):"—"} simulador</b></div></div></div>
   <div class="card"><h2>Por loja</h2><div class="table-wrap"><table><thead><tr><th>Loja</th><th class="r">Colaboradores</th>${Object.keys(WFP_NAT).map(k=>`<th class="r">${WFP_NAT[k]}</th>`).join("")}<th class="r">Total</th><th class="r">Por pessoa</th></tr></thead><tbody>${Object.entries(t.loja).sort((a,b)=>b[1].total-a[1].total).map(([l,L])=>{const n=pess(l);
     return `<tr><td>${l==="?"?"<i>Sem loja identificada</i>":esc(store(l).nome)}</td><td class="r num">${n0(n)}</td>${Object.keys(WFP_NAT).map(k=>`<td class="r num">${L.nat[k]?brl(L.nat[k]):"—"}</td>`).join("")}<td class="r num"><b>${brl(L.total)}</b></td><td class="r num">${n?brl(L.total/n):"—"}</td></tr>`}).join("")}</tbody></table></div></div>
+  <div class="card"><h2>Por centro de custo</h2><p class="small muted">Cada linha da folha dividida pelo rateio de centro de custo do colaborador no momento da importação.</p><div class="table-wrap"><table><thead><tr><th>Centro de custo</th>${Object.keys(WFP_NAT).map(k=>`<th class="r">${WFP_NAT[k]}</th>`).join("")}<th class="r">Total</th><th class="r">% do mês</th></tr></thead><tbody>${Object.entries(t.cc).sort((a,b)=>(parseInt(a[0])||999)-(parseInt(b[0])||999)||a[0].localeCompare(b[0])).map(([c,X])=>`<tr><td>${esc(c)}</td>${Object.keys(WFP_NAT).map(k=>`<td class="r num">${X.nat[k]?brl(X.nat[k]):"—"}</td>`).join("")}<td class="r num"><b>${brl(X.total)}</b></td><td class="r num">${pct(X.total/(t.total||1)*100)}</td></tr>`).join("")}</tbody></table></div></div>
   <div class="card"><h2>Eventos da folha e classificação</h2><p class="small muted">A classificação fica guardada para os próximos meses. Descontos do colaborador (INSS do empregado, IRRF, adiantamento) não são custo da empresa.</p>
     <div class="table-wrap"><table><thead><tr><th>Código</th><th>Evento</th><th>Tipo no arquivo</th><th>Classificação no custo</th><th>Rubrica</th><th class="r">Valor no mês</th></tr></thead><tbody>${codigos.map(cod=>{const e=ev[cod]||{};
       return `<tr><td class="num">${esc(cod)}</td><td>${esc(e.nome||"")}</td><td class="small">${esc(FOLHA_TIPOS[e.tipo]||e.tipo||"—")}</td><td><select class="input" data-folhaev="${esc(cod)}|nat">${folhaNatOpts(e.nat)}</select></td>
@@ -3770,11 +3784,11 @@ function folhaProcessar(aoa,origem,ficticia){
     const cod=String(v.codigo||semAcento(v.evento||"").slice(0,30)).trim(),tipo=String(v.tipo||"P").trim().toUpperCase().slice(0,1);
     if(!eventos[cod])eventos[cod]={nome:String(v.evento||cod).trim(),tipo};
     const C=comps.get(comp)||{agreg:new Map(),pessoas:new Map()};comps.set(comp,C);
-    const k=loja+"\u0001"+cargo+"\u0001"+cod;C.agreg.set(k,(C.agreg.get(k)||0)+valor);
+    const pts=(e?rateioDe(e):[]);(pts.length?pts:[{cc:ccNorm(store(loja).centroCusto)||CC_SEM,pct:100}]).forEach(pt=>{const k=loja+"\u0001"+cargo+"\u0001"+cod+"\u0001"+pt.cc;C.agreg.set(k,(C.agreg.get(k)||0)+valor*pt.pct/100)});
     const pk=loja+"|"+cargo;const id=e?e.id:semAcento(v.nome||v.cpf||v.matricula||Math.random());(C.pessoas.get(pk)||C.pessoas.set(pk,new Set()).get(pk)).add(id);linhas++;
   });
   if(!comps.size)return {erro:"Nenhuma linha com valor encontrada."};
-  return {origem,ficticia:!!ficticia,linhas,ign,naoLig:[...naoLig],eventos,comps:[...comps.entries()].map(([comp,C])=>({comp,agreg:[...C.agreg.entries()].map(([k,v])=>{const [l,c,cod]=k.split("\u0001");return [l,c,cod,r2(v)]}),pessoas:Object.fromEntries([...C.pessoas.entries()].map(([k,s])=>[k,s.size])),hc:new Set([...C.pessoas.values()].flatMap(s=>[...s])).size}))};
+  return {origem,ficticia:!!ficticia,linhas,ign,naoLig:[...naoLig],eventos,comps:[...comps.entries()].map(([comp,C])=>({comp,agreg:[...C.agreg.entries()].map(([k,v])=>{const [l,c,cod,cc]=k.split("\u0001");return [l,c,cod,r2(v),cc]}),pessoas:Object.fromEntries([...C.pessoas.entries()].map(([k,s])=>[k,s.size])),hc:new Set([...C.pessoas.values()].flatMap(s=>[...s])).size}))};
 }
 async function folhaLerArquivo(file){
   if(!file)return;if(!window.XLSX){toast("O leitor de planilhas não carregou. Recarregue a página.");return}
@@ -3816,6 +3830,205 @@ document.addEventListener("change",ev=>{
   if(t.id==="folha-file"){const f=t.files[0];t.value="";folhaLerArquivo(f);return}
   if(t.dataset&&t.dataset.folhaev){const [cod,k]=t.dataset.folhaev.split("|");const w=wfp();w.eventos[cod]={...(w.eventos[cod]||{}),[k]:t.value};save();render();return}
 });
+/* ============ rateio do custo entre centros de custo (colaboradores e prestadores PJ) ============
+   Colaborador: e.ficha.rateioCC = [{cc, pct}] · PJ: p.rateioCC = [{cc, pct}] (soma 100%).
+   Sem rateio = 100% no centro de custo da ficha (ou do PJ), ou no da unidade. Usado por todos os processos de custo. */
+const ccNorm=s=>String(s||"").replace(/\s+/g," ").trim();
+const CC_SEM="(sem centro de custo)";
+function ccLista(){const s=new Set();ST.stores.forEach(x=>{if(x.centroCusto)s.add(ccNorm(x.centroCusto))});ST.emps.forEach(e=>{const f=e.ficha||{};if(f.centroCusto)s.add(ccNorm(f.centroCusto));(f.rateioCC||[]).forEach(r=>r.cc&&s.add(ccNorm(r.cc)))});(ST.pjs||[]).forEach(p=>{if(p.centroCusto)s.add(ccNorm(p.centroCusto));(p.rateioCC||[]).forEach(r=>r.cc&&s.add(ccNorm(r.cc)))});return [...s].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999)||a.localeCompare(b))}
+const rtAlvo=(tipo,id)=>tipo==="pj"?(ST.pjs||[]).find(x=>x.id===id):emp(id);
+const rtDados=(tipo,o)=>tipo==="pj"?o:(o.ficha=o.ficha||{});
+function rateioDe(o,tipo){
+  tipo=tipo||(o&&o.razaoSocial!==undefined&&o.ficha===undefined?"pj":"emp");if(!o)return [];
+  const f=tipo==="pj"?o:(o.ficha||{});const r=(f.rateioCC||[]).filter(x=>x.cc&&Number(x.pct)>0);
+  if(r.length)return r.map(x=>({cc:ccNorm(x.cc),pct:Number(x.pct)}));
+  const base=f.centroCusto||(o.lojaId?store(o.lojaId).centroCusto:"")||"";return base?[{cc:ccNorm(base),pct:100}]:[];
+}
+const rateioTexto=(o,tipo)=>rateioDe(o,tipo).map(x=>x.cc+" "+x.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%").join(" · ");
+/* divide valores pelo rateio: devolve [{cc, valores}] */
+function ratear(o,valores,tipo){const r=rateioDe(o,tipo);const parts=r.length?r:[{cc:CC_SEM,pct:100}];return parts.map(x=>{const v={};Object.entries(valores).forEach(([k,n])=>{v[k]=(Number(n)||0)*x.pct/100});return {cc:x.cc,pct:x.pct,valores:v}})}
+/* acumula uma lista de {o, tipo, valores} por centro de custo */
+function porCC(itens){const m={};itens.forEach(it=>ratear(it.o,it.valores,it.tipo).forEach(p=>{const L=m[p.cc]=m[p.cc]||{pessoas:0,v:{}};L.pessoas+=p.pct/100;Object.entries(p.valores).forEach(([k,n])=>{L.v[k]=(L.v[k]||0)+n})}));return m}
+/* card com a tabela por centro de custo e exportação em Excel */
+let CC_TAB={};
+function ccCard(id,titulo,itens,colunas,nota){
+  const m=porCC(itens);CC_TAB[id]={titulo,m,colunas};const ks=Object.keys(m).sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999)||a.localeCompare(b));
+  const tot=k=>ks.reduce((t,c)=>t+(m[c].v[k]||0),0);
+  return `<div class="card"><div class="card-head"><div><h2>${esc(titulo)}</h2><p>${nota||"Valores divididos pelo rateio de centro de custo de cada pessoa (ficha do colaborador ou do PJ)."}</p></div><button class="btn btn-sm" data-ccxls="${id}">Exportar Excel</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Centro de custo</th><th class="r">Pessoas (equivalente)</th>${colunas.map(c=>`<th class="r">${esc(c[1])}</th>`).join("")}</tr></thead><tbody>${ks.map(c=>`<tr><td>${c===CC_SEM?`<i>${c}</i>`:esc(c)}</td><td class="r num">${m[c].pessoas.toLocaleString("pt-BR",{maximumFractionDigits:2})}</td>${colunas.map(([k])=>`<td class="r num">${brl(m[c].v[k]||0)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="${colunas.length+2}" class="empty">Sem valores.</td></tr>`}</tbody>
+  <tfoot><tr><td>Total</td><td class="r num">${ks.reduce((t,c)=>t+m[c].pessoas,0).toLocaleString("pt-BR",{maximumFractionDigits:2})}</td>${colunas.map(([k])=>`<td class="r num">${brl(tot(k))}</td>`).join("")}</tr></tfoot></table></div></div>`;
+}
+function ccExcel(id){
+  const t=CC_TAB[id];if(!t)return;if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const ks=Object.keys(t.m).sort();const aoa=[["Centro de custo","Pessoas (equivalente)",...t.colunas.map(c=>c[1])],...ks.map(c=>[c,r2(t.m[c].pessoas),...t.colunas.map(([k])=>r2(t.m[c].v[k]||0))])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=aoa[0].map((h,i)=>({wch:i===0?40:Math.max(14,h.length+2)}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Por centro de custo");
+  salvarXLSX(wb,slugCC(t.titulo)+"-"+TODAY+".xlsx").then(ok=>{if(ok)logEvento("Exportação por centro de custo",t.titulo)});
+}
+const slugCC=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+/* encargos patronais (%) pelo regime da empresa da unidade */
+function encPatronalPct(lojaId){
+  const w=ST.wfp;const s=store(lojaId);let reg=s.regime||"lucro_real";
+  if(w&&w.lojas&&w.lojas[lojaId]&&w.empresas){const e=w.empresas.find(x=>x.id===w.lojas[lojaId].empresa);if(e)reg=e.regime}
+  const R=(w&&w.regimes&&w.regimes[reg])||(reg==="simples"?{inss:0,rat:0,fap:1,terceiros:0}:{inss:20,rat:1,fap:1,terceiros:5.8});
+  return R.inss+R.rat*R.fap+R.terceiros;
+}
+/* ---- seção na ficha e editor de rateio ---- */
+function rateioSecao(o,tipo){
+  tipo=tipo||"emp";if(G())return "";const r=rateioDe(o,tipo);const multi=(rtDados(tipo,o).rateioCC||[]).length>1;const base=tipo==="pj"?pjCusto(o):(Number(o.salario)||0);
+  return `<details class="fx-view" ${multi?"open":""}><summary>Centro de custo ${multi?`<span class="chip c-brand">rateado em ${r.length}</span>`:""}</summary>
+    ${r.length?`<div class="table-wrap"><table><thead><tr><th>Centro de custo</th><th class="r">%</th><th class="r">${tipo==="pj"?"Custo mensal rateado":"Salário rateado"}</th></tr></thead><tbody>${r.map(x=>`<tr><td>${esc(x.cc)}</td><td class="r num">${x.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})}%</td><td class="r num">${brl(base*x.pct/100)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="small muted">Sem centro de custo cadastrado.</p>`}
+    <button class="btn btn-sm" data-rateio="${tipo}|${o.id}" style="margin-top:8px">${multi?"Editar rateio":r.length?"Ratear em dois ou mais centros de custo":"Definir centro de custo"}</button></details>`;
+}
+let RT_ED=null;
+function rateioModal(tipo,id){
+  const o=rtAlvo(tipo,id);if(!o)return;const atual=rateioDe(o,tipo);
+  RT_ED={tipo,id,linhas:(atual.length?atual:[{cc:"",pct:100}]).map(x=>({...x}))};if(RT_ED.linhas.length===1)RT_ED.linhas.push({cc:"",pct:0});
+  if(RT_ED.linhas.length===2&&!RT_ED.linhas[1].cc&&RT_ED.linhas[0].pct===100){RT_ED.linhas[0].pct=50;RT_ED.linhas[1].pct=50}
+  rateioRender();
+}
+function rateioRender(){
+  const o=rtAlvo(RT_ED.tipo,RT_ED.id);const base=RT_ED.tipo==="pj"?pjCusto(o):(Number(o.salario)||0);const nome=RT_ED.tipo==="pj"?pjNome(o):o.nome;
+  const tot=RT_ED.linhas.reduce((t,x)=>t+(Number(x.pct)||0),0);const ok=Math.abs(tot-100)<0.005;
+  modal("Rateio de centro de custo · "+nome,`<p class="small muted">${RT_ED.tipo==="pj"?"O custo do contrato (valor, benefícios e comissões)":"O custo do colaborador (salário, variáveis, encargos, benefícios, provisões e rescisão)"} é dividido entre os centros de custo pelos percentuais abaixo, em todos os relatórios do sistema. A soma precisa dar 100%.</p>
+    <datalist id="rt-ccs">${ccLista().map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
+    <div class="table-wrap"><table><thead><tr><th>Centro de custo</th><th class="r">%</th><th class="r">${RT_ED.tipo==="pj"?"Custo rateado":"Salário rateado"}</th><th></th></tr></thead><tbody>${RT_ED.linhas.map((x,i)=>`<tr>
+      <td><input class="input" list="rt-ccs" data-rtl="${i}|cc" value="${esc(x.cc)}" placeholder="Escolha ou digite o centro de custo" style="min-width:260px"></td>
+      <td class="r"><input class="input num" type="number" min="0" max="100" step="0.01" data-rtl="${i}|pct" value="${esc(x.pct)}" style="width:90px;text-align:right"></td>
+      <td class="r num">${brl(base*(Number(x.pct)||0)/100)}</td>
+      <td>${RT_ED.linhas.length>1?`<button class="btn btn-sm btn-ghost" data-rtdel="${i}" aria-label="Remover centro de custo">✕</button>`:""}</td></tr>`).join("")}
+      <tr><td><button class="btn btn-sm" data-rtadd="1">+ Centro de custo</button></td><td class="r num"><b style="color:${ok?"var(--ok)":"var(--bad)"}">${tot.toLocaleString("pt-BR",{maximumFractionDigits:2})}%</b></td><td class="r num">${brl(base*tot/100)}</td><td></td></tr></tbody></table></div>
+    ${ok?"":`<p class="small" style="color:var(--bad)">A soma está em ${tot.toLocaleString("pt-BR",{maximumFractionDigits:2})}%. Ajuste para 100%${tot<100?" (faltam "+(100-tot).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%)":" (sobram "+(tot-100).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%)"}.</p>`}
+    <p class="small" id="rt-err" style="color:var(--bad)" hidden></p>`,
+    `<button class="btn btn-ghost" data-rtlimpar="1">Voltar para um só centro de custo</button><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-rtsalvar="1">Salvar rateio</button>`);
+}
+function rateioSalvar(){
+  const o=rtAlvo(RT_ED.tipo,RT_ED.id);const f=rtDados(RT_ED.tipo,o);const err=m=>{const el=$("#rt-err");el.hidden=false;el.textContent=m};
+  const l=RT_ED.linhas.map(x=>({cc:ccNorm(x.cc),pct:Math.round((Number(x.pct)||0)*100)/100})).filter(x=>x.cc||x.pct);
+  if(!l.length)return err("Informe pelo menos um centro de custo.");
+  if(l.some(x=>!x.cc))return err("Informe o centro de custo de todas as linhas.");
+  if(l.some(x=>!(x.pct>0)))return err("Todo centro de custo precisa de um percentual maior que zero.");
+  if(new Set(l.map(x=>x.cc)).size!==l.length)return err("O mesmo centro de custo aparece mais de uma vez.");
+  const tot=l.reduce((t,x)=>t+x.pct,0);if(Math.abs(tot-100)>=0.005)return err("A soma dos percentuais precisa ser 100% (está em "+tot.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%).");
+  if(l.length===1){f.centroCusto=l[0].cc;delete f.rateioCC}else{f.rateioCC=l;if(!f.centroCusto)f.centroCusto=l.slice().sort((a,b)=>b.pct-a.pct)[0].cc}
+  const nome=RT_ED.tipo==="pj"?pjNome(o):o.nome;logEvento("Rateio de centro de custo",nome+" · "+rateioTexto(o,RT_ED.tipo));
+  const tipo=RT_ED.tipo;RT_ED=null;closeModal();commit("Rateio salvo");if(tipo==="pj")pjFicha(o.id);else fichaModal(o.id);
+}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-rateio],[data-rtadd],[data-rtdel],[data-rtsalvar],[data-rtlimpar],[data-ccxls]");if(!t)return;const d=t.dataset;
+  if(d.ccxls){ccExcel(d.ccxls);return}
+  if(d.rateio){const [tp,id]=d.rateio.includes("|")?d.rateio.split("|"):["emp",d.rateio];closeModal();rateioModal(tp,id);return}
+  if(d.rtadd){const falta=Math.max(0,100-RT_ED.linhas.reduce((s,x)=>s+(Number(x.pct)||0),0));RT_ED.linhas.push({cc:"",pct:Math.round(falta*100)/100});rateioRender();return}
+  if(d.rtdel!==undefined){RT_ED.linhas.splice(Number(d.rtdel),1);rateioRender();return}
+  if(d.rtlimpar){const o=rtAlvo(RT_ED.tipo,RT_ED.id);const p=RT_ED.linhas.slice().sort((a,b)=>(Number(b.pct)||0)-(Number(a.pct)||0))[0];RT_ED.linhas=[{cc:(p&&p.cc)||rtDados(RT_ED.tipo,o).centroCusto||"",pct:100}];rateioRender();return}
+  if(d.rtsalvar){rateioSalvar();return}
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset||!t.dataset.rtl||!RT_ED)return;const [i,k]=t.dataset.rtl.split("|");RT_ED.linhas[Number(i)][k]=k==="pct"?Number(t.value)||0:t.value;rateioRender()});
+/* ---- cards por centro de custo de cada processo ---- */
+function folhaCCCard(rows){
+  return ccCard("folha","Custo da folha por centro de custo · "+compLabel(UI.comp),rows.map(({e,f})=>{const enc=encPatronalPct(e.lojaId)/100;const p13=f.bruto/12,pf=f.bruto/12*4/3;
+    return {o:e,valores:{bruto:f.bruto,encargos:f.bruto*enc,fgts:f.fgts,provisoes:(p13+pf)*(1+enc+0.08),custo:f.bruto*(1+enc)+f.fgts+(p13+pf)*(1+enc+0.08)}}}),
+    [["bruto","Remuneração bruta"],["encargos","Encargos patronais"],["fgts","FGTS"],["provisoes","Provisões (13º, férias + encargos)"],["custo","Custo total"]],
+    "Remuneração e FGTS da folha calculada; encargos patronais pelo regime da empresa de cada unidade (Planejamento → Tabelas); provisões de 13º e férias + 1/3 com encargos. Dividido pelo rateio de cada colaborador.");
+}
+function benefCCCard(calc){
+  return ccCard("beneficios","Recarga de benefícios por centro de custo · "+compLabel(curComp),ativos().filter(e=>!e.afastado).map(e=>{const c=calc(e);return {o:e,valores:{alim:c.alim,ref:c.ref,mob:c.mob,bem:c.bem,tot:c.alim+c.ref+c.mob+c.bem}}}),
+    [["alim","Alimentação"],["ref","Refeição"],["mob","Mobilidade"],["bem","Bem-estar"],["tot","Total"]]);
+}
+function deslCCCard(){
+  const l=(ST.desligProg||[]).filter(p=>["aguardando","aprovado"].includes(p.status));if(!l.length)return "";
+  return ccCard("desligamentos","Custo dos desligamentos programados por centro de custo",l.map(p=>({o:emp(p.eid)||{lojaId:p.lojaId},valores:{verbas:p.calc.total,fgts:p.calc.multa+p.calc.fgtsMes,custo:p.calc.custo}})),
+    [["verbas","Verbas rescisórias"],["fgts","FGTS (multa + mês)"],["custo","Custo estimado"]],"Programações aguardando a diretoria ou aprovadas, divididas pelo rateio de cada colaborador.");
+}
+function pjCCCard(){
+  const l=(ST.pjs||[]).filter(p=>!p.encerrado);if(!l.length)return "";
+  return ccCard("pjs","Custo mensal dos prestadores PJ por centro de custo",l.map(p=>({o:p,tipo:"pj",valores:{valor:pjValorBase(p),ben:pjBeneficios(p),custo:pjCusto(p)}})),[["valor","Valor do contrato"],["ben","Benefícios"],["custo","Custo mensal"]],"Contratos ativos, divididos pelo rateio de cada contrato.");
+}
+/* ============ centros de custo: cadastro e rateio em todos os processos de custo ============ */
+function ccCadastro(){if(!ST.centrosCusto){const vistos=new Set();ST.centrosCusto=[];const add=n=>{n=ccNorm(n);if(!n||vistos.has(n))return;vistos.add(n);ST.centrosCusto.push({id:uid(),nome:n,codigo:(n.match(/^(\d+)/)||[])[1]||"",ativo:true,origem:"importado"})};
+  ST.stores.forEach(s=>add(s.centroCusto));ST.emps.forEach(e=>{const f=e.ficha||{};add(f.centroCusto);(f.rateioCC||[]).forEach(r=>add(r.cc))});(ST.pjs||[]).forEach(p=>{add(p.centroCusto);(p.rateioCC||[]).forEach(r=>add(r.cc))})}return ST.centrosCusto}
+const ccUso=n=>{n=ccNorm(n);let c=0;ST.emps.filter(e=>!e.desligado).forEach(e=>{if(rateioDe(e).some(x=>x.cc===n))c++});(ST.pjs||[]).filter(p=>!p.encerrado).forEach(p=>{if(rateioDe(p,"pj").some(x=>x.cc===n))c++});return c};
+function ccCadastroCard(){
+  const l=ccCadastro().slice().sort((a,b)=>(parseInt(a.codigo)||999)-(parseInt(b.codigo)||999)||a.nome.localeCompare(b.nome));
+  return `<div class="card"><div class="card-head"><div><h2>Centros de custo</h2><p>Lista usada no rateio de colaboradores e prestadores PJ. Os importados da folha entram sozinhos; crie aqui os demais.</p></div><button class="btn btn-sm btn-primary" data-ccnovo="1">+ Centro de custo</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Centro de custo</th><th>Origem</th><th class="r">Pessoas e contratos</th><th>Situação</th><th></th></tr></thead><tbody>${l.map(c=>{const u=ccUso(c.nome);return `<tr style="${c.ativo===false?"opacity:.55":""}"><td class="num">${esc(c.codigo||"—")}</td><td><b>${esc(c.nome)}</b></td><td class="small">${c.origem==="importado"?"Importado da folha":"Criado no portal"}</td><td class="r num">${u}</td><td><span class="chip ${c.ativo===false?"c-mute":"c-ok"}">${c.ativo===false?"Inativo":"Ativo"}</span></td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm btn-ghost" data-ccativo="${c.id}">${c.ativo===false?"Reativar":"Inativar"}</button>${u?"":`<button class="btn btn-sm btn-ghost" data-ccdel="${c.id}" style="color:var(--bad)">Excluir</button>`}</div></td></tr>`}).join("")||`<tr><td colspan="6" class="empty">Nenhum centro de custo cadastrado.</td></tr>`}</tbody></table></div></div>`;
+}
+function ccNovoModal(){modal("Novo centro de custo",`<form class="form-grid"><div class="field"><label for="ccn-cod">Código</label><input class="input" id="ccn-cod" placeholder="Ex.: 88"></div><div class="field"><label for="ccn-nome">Nome</label><input class="input" id="ccn-nome" placeholder="Ex.: Núcleo de Apoio ao Negócio"></div><p class="full small muted">O nome completo fica "código - nome", igual ao padrão da folha.</p><p class="full small" id="ccn-err" style="color:var(--bad)" hidden></p></form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-ccsalvar="1">Criar</button>`)}
+function ccSalvarNovo(){const cod=$("#ccn-cod").value.trim(),nm=$("#ccn-nome").value.trim();const err=m=>{const el=$("#ccn-err");el.hidden=false;el.textContent=m};
+  if(nm.length<2)return err("Informe o nome do centro de custo.");const nome=ccNorm((cod?cod+"-":"")+nm.toUpperCase());
+  if(ccCadastro().some(c=>semAcento(c.nome)===semAcento(nome)))return err("Esse centro de custo já existe.");
+  if(cod&&ccCadastro().some(c=>c.codigo===cod))return err("Já existe centro de custo com o código "+cod+".");
+  ST.centrosCusto.push({id:uid(),nome,codigo:cod,ativo:true,origem:"portal",criadoEm:TODAY});logEvento("Centro de custo criado",nome);closeModal();commit("Centro de custo criado")}
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-ccnovo],[data-ccsalvar],[data-ccativo],[data-ccdel]");if(!t)return;const d=t.dataset;
+  if(d.ccnovo){ccNovoModal(d.ccnovo);return}if(d.ccsalvar){ccSalvarNovo();return}
+  if(d.ccativo){const c=ccCadastro().find(x=>x.id===d.ccativo);c.ativo=c.ativo===false;logEvento("Centro de custo "+(c.ativo?"reativado":"inativado"),c.nome);commit();return}
+  if(d.ccdel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const c=ccCadastro().find(x=>x.id===d.ccdel);ST.centrosCusto=ST.centrosCusto.filter(x=>x.id!==d.ccdel);logEvento("Centro de custo excluído",c?c.nome:"");commit("Excluído");return}});
+/* a lista do rateio passa a incluir o cadastro (só ativos) */
+const ccListaBase=ccLista;ccLista=function(){const s=new Set(ccListaBase());ccCadastro().forEach(c=>{if(c.ativo!==false)s.add(c.nome);else s.delete(c.nome)});return [...s].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999)||a.localeCompare(b))};
+/* cartões por centro de custo em cada processo */
+const R_FOLHA_BASE=R.folha;R.folha=()=>{const rows=ativos().filter(e=>!UI.folhaLoja||e.lojaId===UI.folhaLoja).map(e=>({e,f:folha(e,UI.comp)}));return R_FOLHA_BASE()+folhaCCCard(rows)};
+const R_BENEF_BASE=R.beneficios;R.beneficios=()=>{const b=ST.cfg.beneficios,dm=diasMes(curComp);const calc=e=>{const d=feriasEmCurso(e)?0:dm.uteis;return {alim:b.alimentacao,ref:b.refeicao*d,mob:e.vt?b.mobilidadeDia*d:0,bem:b.bemestar}};return R_BENEF_BASE()+benefCCCard(calc)};
+const R_DESL_BASE=R.desligamentos;R.desligamentos=()=>R_DESL_BASE()+deslCCCard();
+const R_PJS_BASE=R.pjs;R.pjs=()=>R_PJS_BASE()+pjCCCard();
+const R_CONFIG_CC=R.config;R.config=()=>R_CONFIG_CC()+ccCadastroCard();
+/* ============ subcentros de custo (ex.: 88 - Núcleo de Apoio ao Negócio → NAN - RH, NAN - Comercial, NAN - Financeiro/Administrativo) ============ */
+const ccCadastroSemSub=ccCadastro;
+ccCadastro=function(){const l=ccCadastroSemSub();
+  const nan=l.find(c=>!c.pai&&(c.codigo==="88"||/NUCLEO DE APOIO/.test(semAcento(c.nome).toUpperCase())));
+  if(nan&&!ST.ccSubCriados){ST.ccSubCriados=true;[["88.1","NAN - RH"],["88.2","NAN - COMERCIAL"],["88.3","NAN - FINANCEIRO/ADMINISTRATIVO"]].forEach(([cod,nm])=>{const nome=cod+" - "+nm;if(!l.some(c=>c.nome===nome))l.push({id:uid(),nome,codigo:cod,ativo:true,origem:"portal",pai:nan.id,criadoEm:TODAY})})}
+  return l};
+const ccFilhos=id=>ccCadastro().filter(c=>c.pai===id);
+const ccPaiDe=nome=>{const c=ccCadastro().find(x=>x.nome===ccNorm(nome));return c&&c.pai?ccCadastro().find(x=>x.id===c.pai):null};
+const ccOrdem=(a,b)=>{const na=parseFloat(String(a).replace(",","."))||999,nb=parseFloat(String(b).replace(",","."))||999;return na-nb||String(a).localeCompare(String(b))};
+/* pessoas e contratos lançados direto no centro principal (sem subclassificação) */
+function ccNoPrincipal(c){const n=c.nome;const L=[];ST.emps.filter(e=>!e.desligado).forEach(e=>{const r=rateioDe(e).find(x=>x.cc===n);if(r)L.push({tipo:"emp",o:e,pct:r.pct})});(ST.pjs||[]).filter(p=>!p.encerrado).forEach(p=>{const r=rateioDe(p,"pj").find(x=>x.cc===n);if(r)L.push({tipo:"pj",o:p,pct:r.pct})});return L}
+ccCadastroCard=function(){
+  const todos=ccCadastro();const tops=todos.filter(c=>!c.pai).sort((a,b)=>ccOrdem(a.codigo||a.nome,b.codigo||b.nome));
+  const linha=(c,sub)=>{const u=ccUso(c.nome);const fil=sub?[]:ccFilhos(c.id);const pend=fil.length?ccNoPrincipal(c).length:0;
+    return `<tr style="${c.ativo===false?"opacity:.55":""}"><td class="num">${esc(c.codigo||"—")}</td><td style="${sub?"padding-left:28px":""}">${sub?"↳ ":""}<b>${esc(c.nome)}</b>${fil.length?` <span class="chip c-info">${fil.length} subcentros</span>`:""}${pend?`<br><span class="small" style="color:var(--warn)">${pend} pessoa(s) ou contrato(s) ainda no centro principal, sem subclassificação</span>`:""}</td>
+    <td class="small">${c.origem==="importado"?"Importado da folha":"Criado no portal"}</td><td class="r num">${u}</td><td><span class="chip ${c.ativo===false?"c-mute":"c-ok"}">${c.ativo===false?"Inativo":"Ativo"}</span></td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap">${fil.length&&pend?`<button class="btn btn-sm btn-primary" data-ccclass="${c.id}">Classificar</button>`:""}${sub?"":`<button class="btn btn-sm" data-ccnovo="${c.id}">+ Subcentro</button>`}<button class="btn btn-sm btn-ghost" data-ccativo="${c.id}">${c.ativo===false?"Reativar":"Inativar"}</button>${u||ccFilhos(c.id).length?"":`<button class="btn btn-sm btn-ghost" data-ccdel="${c.id}" style="color:var(--bad)">Excluir</button>`}</div></td></tr>`};
+  return `<div class="card"><div class="card-head"><div><h2>Centros de custo</h2><p>Lista usada no rateio de colaboradores e prestadores PJ. Os importados da folha entram sozinhos. Crie novos centros ou subcentros (subclassificação) de um centro existente.</p></div><button class="btn btn-sm btn-primary" data-ccnovo="1">+ Centro de custo</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Centro de custo</th><th>Origem</th><th class="r">Pessoas e contratos</th><th>Situação</th><th></th></tr></thead><tbody>${tops.map(c=>linha(c,false)+ccFilhos(c.id).sort((a,b)=>ccOrdem(a.codigo,b.codigo)).map(f=>linha(f,true)).join("")).join("")||`<tr><td colspan="6" class="empty">Nenhum centro de custo cadastrado.</td></tr>`}</tbody></table></div></div>`;
+};
+let CC_PAI_NOVO=null;
+ccNovoModal=function(paiId){const pai=paiId&&paiId!=="1"?ccCadastro().find(c=>c.id===paiId):null;CC_PAI_NOVO=pai?pai.id:null;
+  const prox=pai?(pai.codigo||"")+"."+(ccFilhos(pai.id).length+1):"";
+  modal(pai?"Novo subcentro de "+pai.nome:"Novo centro de custo",`<form class="form-grid"><div class="field"><label for="ccn-cod">Código</label><input class="input" id="ccn-cod" value="${esc(prox)}" placeholder="Ex.: 88"></div><div class="field"><label for="ccn-nome">Nome</label><input class="input" id="ccn-nome" placeholder="${pai?"Ex.: NAN - Comercial":"Ex.: Projetos especiais"}"></div><p class="full small muted">${pai?"O subcentro aparece agrupado no centro principal nos relatórios, com subtotal.":"O nome completo fica \"código - nome\", igual ao padrão da folha."}</p><p class="full small" id="ccn-err" style="color:var(--bad)" hidden></p></form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-ccsalvar="1">Criar</button>`)};
+ccSalvarNovo=function(){const cod=$("#ccn-cod").value.trim(),nm=$("#ccn-nome").value.trim();const err=m=>{const el=$("#ccn-err");el.hidden=false;el.textContent=m};
+  if(nm.length<2)return err("Informe o nome.");const nome=ccNorm((cod?cod+" - ":"")+nm.toUpperCase());
+  if(ccCadastro().some(c=>semAcento(c.nome)===semAcento(nome)))return err("Esse centro de custo já existe.");
+  if(cod&&ccCadastro().some(c=>c.codigo===cod))return err("Já existe centro de custo com o código "+cod+".");
+  ST.centrosCusto.push({id:uid(),nome,codigo:cod,ativo:true,origem:"portal",pai:CC_PAI_NOVO||undefined,criadoEm:TODAY});logEvento(CC_PAI_NOVO?"Subcentro de custo criado":"Centro de custo criado",nome);CC_PAI_NOVO=null;closeModal();commit("Criado")};
+/* classificar quem está no centro principal entre os subcentros */
+let CC_CLASS=null;
+function ccClassificarModal(id){const c=ccCadastro().find(x=>x.id===id);const fil=ccFilhos(id).filter(f=>f.ativo!==false);const L=ccNoPrincipal(c);CC_CLASS={id,itens:L.map(x=>({...x,dest:""}))};
+  modal("Classificar · "+c.nome,`<p class="small muted">Escolha o subcentro de cada pessoa ou contrato. Quem estiver rateado só troca a parte que está no centro principal; os demais percentuais ficam como estão.</p>
+  <div class="tabs-inline" style="margin-bottom:8px">${fil.map(f=>`<button type="button" class="pill" data-cctodos="${esc(f.nome)}">Todos em ${esc(f.nome.replace(/^[\d.]+ - /,""))}</button>`).join("")}</div>
+  <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Cargo</th><th class="r">% no centro</th><th>Subcentro</th></tr></thead><tbody>${CC_CLASS.itens.map((x,i)=>`<tr><td>${esc(x.tipo==="pj"?pjNome(x.o):x.o.nome)}</td><td class="small">${esc(x.tipo==="pj"?"Prestador PJ":x.o.cargo)}</td><td class="r num">${x.pct.toLocaleString("pt-BR")}%</td><td><select class="input" data-ccdest="${i}"><option value="">Manter em ${esc(c.nome)}</option>${fil.map(f=>`<option value="${esc(f.nome)}">${esc(f.nome)}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-ccclassok="1">Salvar classificação</button>`)}
+function ccClassificarSalvar(){const c=ccCadastro().find(x=>x.id===CC_CLASS.id);let n=0;
+  CC_CLASS.itens.forEach((x,i)=>{const el=document.querySelector(`[data-ccdest="${i}"]`);const d=el?el.value:x.dest;if(!d)return;const f=x.tipo==="pj"?x.o:(x.o.ficha=x.o.ficha||{});
+    if((f.rateioCC||[]).length)f.rateioCC=f.rateioCC.map(r=>ccNorm(r.cc)===c.nome?{...r,cc:d}:r);else f.centroCusto=d;
+    if(ccNorm(f.centroCusto)===c.nome)f.centroCusto=d;n++});
+  logEvento("Classificação em subcentros",c.nome+" · "+n+" pessoa(s)/contrato(s)");CC_CLASS=null;closeModal();commit(n+" classificado(s)")}
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-ccclass],[data-ccclassok],[data-cctodos]");if(!t)return;const d=t.dataset;
+  if(d.ccclass){ccClassificarModal(d.ccclass);return}if(d.ccclassok){ccClassificarSalvar();return}
+  if(d.cctodos){document.querySelectorAll("[data-ccdest]").forEach(s=>{s.value=d.cctodos});return}});
+/* relatórios: subcentros agrupados com subtotal do centro principal */
+const ccCardSemSub=ccCard;
+ccCard=function(id,titulo,itens,colunas,nota){
+  let html=ccCardSemSub(id,titulo,itens,colunas,nota);const m=CC_TAB[id].m;
+  const pais={};Object.keys(m).forEach(k=>{const p=ccPaiDe(k);if(p)(pais[p.nome]=pais[p.nome]||[]).push(k)});if(!Object.keys(pais).length)return html;
+  const ks=Object.keys(m).sort(ccOrdem);const rows=[];const feitos=new Set();
+  const lin=(k,ind)=>`<tr><td style="${ind?"padding-left:24px":""}">${ind?"↳ ":""}${k===CC_SEM?`<i>${k}</i>`:esc(k)}</td><td class="r num">${m[k].pessoas.toLocaleString("pt-BR",{maximumFractionDigits:2})}</td>${colunas.map(([c])=>`<td class="r num">${brl(m[k].v[c]||0)}</td>`).join("")}</tr>`;
+  ks.forEach(k=>{if(feitos.has(k))return;const p=ccPaiDe(k);const pai=p?p.nome:(pais[k]?k:null);
+    if(pai&&!feitos.has(pai)){const grupo=[pai,...(pais[pai]||[])].filter(x=>m[x]);grupo.forEach(x=>feitos.add(x));
+      if(m[pai])rows.push(lin(pai,false).replace("<td style=\"\">",'<td><span class="small muted">sem subclassificação · </span>'));(pais[pai]||[]).sort(ccOrdem).forEach(x=>rows.push(lin(x,true)));
+      const sp=grupo.reduce((t,x)=>t+m[x].pessoas,0);rows.push(`<tr style="background:var(--brand-tint)"><td><b>Subtotal ${esc(pai)}</b></td><td class="r num"><b>${sp.toLocaleString("pt-BR",{maximumFractionDigits:2})}</b></td>${colunas.map(([c])=>`<td class="r num"><b>${brl(grupo.reduce((t,x)=>t+(m[x].v[c]||0),0))}</b></td>`).join("")}</tr>`);return}
+    feitos.add(k);rows.push(lin(k,false))});
+  return html.replace(/<tbody>[\s\S]*?<\/tbody>/,"<tbody>"+rows.join("")+"</tbody>");
+};
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
@@ -4372,6 +4585,7 @@ function fichaModal(id){
     </div>
     ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
     ${avSecao(e)}
+    ${typeof rateioSecao==="function"?rateioSecao(e):""}
     ${mdSecaoFicha(e)}
     ${typeof anexosSecao==="function"?anexosSecao(e):""}
     ${fichaSecao(e)}`,
