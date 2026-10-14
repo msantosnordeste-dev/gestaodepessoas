@@ -4029,6 +4029,22 @@ ccCard=function(id,titulo,itens,colunas,nota){
     feitos.add(k);rows.push(lin(k,false))});
   return html.replace(/<tbody>[\s\S]*?<\/tbody>/,"<tbody>"+rows.join("")+"</tbody>");
 };
+/* ============ importar backup de arquivo (.json) na versão Claude: substitui o cadastro, mantém os usuários ============ */
+async function importarBackupClaude(file){
+  if(!file)return;if(ROLE!=="rh"){toast("Só o RH pode importar backup.");return}
+  let o;try{o=JSON.parse(await file.text())}catch(e){toast("Arquivo inválido. Use o backup .json baixado no portal.");return}
+  if(!o||!Array.isArray(o.emps)||!Array.isArray(o.stores)){toast("Este arquivo não é um backup do Gestão de Pessoas.");return}
+  if(ST&&ST.emps.length&&!confirm("Substituir TODOS os dados atuais pelos do backup ("+o.emps.length+" colaboradores, "+o.stores.length+" unidades)? Registros que não estiverem no backup serão apagados. Os usuários de acesso continuam."))return;
+  const usuarios=ST.usuarios,desv=ST.contasDesvinculadas,cfg=ST.cfg;
+  ["formato","versao","geradoEm","por","usuarios","contasDesvinculadas"].forEach(k=>delete o[k]);
+  if(o.escala&&!o.escalaOverrides){const m={};o.escala.forEach(x=>{m[x.k]=x.d});o.escalaOverrides=m;delete o.escala}
+  const ids=new Set(o.stores.map(s=>s.id));o.emps.forEach(e=>{if(e.lojaId&&!ids.has(e.lojaId)){ids.add(e.lojaId);o.stores.push({id:e.lojaId,nome:"Unidade "+e.lojaId,cidade:"",tipo:"Loja de rua",quadro:0})}});
+  o.cfg=o.cfg||cfg;o.exemplo=false;o.usuarios=usuarios;o.contasDesvinculadas=desv;
+  ST=normalize(o);if(typeof resumoBase==="function")resumoBase();
+  logEvento("Backup importado",file.name+" · "+ST.emps.length+" colaboradores · "+ST.stores.length+" unidades");
+  commit("Importando "+ST.emps.length+" colaboradores. Aguarde \"Tudo salvo\".");
+}
+document.addEventListener("change",ev=>{if(ev.target.id==="bk-file-c"){const f=ev.target.files[0];ev.target.value="";importarBackupClaude(f)}});
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
