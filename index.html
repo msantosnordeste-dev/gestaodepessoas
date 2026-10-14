@@ -860,6 +860,7 @@ const ICON={
   beneficios:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/>',
   pjs:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
   medidas:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5M12 16v.5"/>',
+  planejamento:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/><circle cx="19" cy="8" r="1.5"/>',
   correio:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   desligamentos:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   experiencia:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
@@ -889,6 +890,7 @@ const PAGES=[
   {id:"correio",t:"Correio"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
+  {id:"planejamento",t:"Planejamento"},
   {g:"Pessoas"},
   {id:"colaboradores",t:"Colaboradores"},
   {id:"pjs",t:"Prestadores PJ"},
@@ -3346,6 +3348,474 @@ function verAvMov(k){
   const pend=x.m.status==="pendente"&&!G();
   mostrarAv(e,{...x.m.av,media:mediaNotas(x.m.av.notas||{})},pend?`<button class="btn" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-primary" data-aprovar="${esc(k)}">Aprovar</button>`:`<button class="btn btn-primary" data-close>Fechar</button>`);
 }
+/* ============ Planejamento da força de trabalho (WFP) · simulador de cenários ============
+   Tudo fica em ST.wfp (estado do RH): funciona igual na versão Claude e na versão internet.
+   Motor de custo total do colaborador: docs/WFP-especificacao.md, seções 2 e 3. */
+const WFP_REGIMES={lucro_real:"Lucro Real",lucro_presumido:"Lucro Presumido",simples:"Simples Nacional (Anexo I)"};
+const WFP_TIPOS={clt:{t:"CLT efetivo",enc:true,prov:true,resc:true,ben:true},clt_temporario:{t:"CLT temporário",enc:true,prov:true,resc:false,ben:true},pj:{t:"PJ",enc:false,prov:false,resc:false,ben:false},terceirizado:{t:"Terceirizado",enc:false,prov:false,resc:false,ben:false}};
+const WFP_TURNOS={unico:"Turno único",manha:"Manhã",tarde:"Tarde",noite:"Noite",madrugada:"Madrugada"};
+const WFP_NAT={fixo:"Fixo",variavel:"Variável",encargo:"Encargos",beneficio:"Benefícios",provisao:"Provisões",terceiros:"PJ e terceiros"};
+const WFP_RUB={salario:["Salários","fixo"],adic_noturno:["Adicional noturno + DSR","fixo"],comissao:["Comissões + DSR","variavel"],premio:["Prêmios","variavel"],
+  inss:["INSS patronal","encargo"],rat:["RAT × FAP","encargo"],terceiros:["Terceiros (Sistema S, sal.-educação, INCRA)","encargo"],fgts:["FGTS","encargo"],
+  beneficios:["Benefícios","beneficio"],prov_13:["Provisão de 13º","provisao"],prov_ferias:["Provisão de férias + 1/3","provisao"],enc_prov:["Encargos sobre provisões","provisao"],prov_resc:["Provisão de rescisão","provisao"],
+  pj:["Contratos PJ e terceiros","terceiros"],agencia:["Taxa de agência (temporário)","terceiros"]};
+const WFP_SAZ={nenhuma:["Sem sazonalidade",{}],aeroporto:["Varejo de aeroporto",{"01":1.2,"07":1.15,"11":1.1,"12":1.45}],rua:["Varejo de rua",{"01":0.8,"02":0.85,"05":1.1,"11":1.15,"12":1.5}]};
+const wfpFormatoAuto=s=>{const n=semAcento((s.nome||"")+" "+(s.tipo||""));return /aeroporto|terminal/.test(n)?(/quiosque/.test(n)?"quiosque_aeroporto":"loja_aeroporto"):"loja_rua"};
+function wfp(){
+  if(!ST.wfp)ST.wfp={};const w=ST.wfp;
+  w.regimes=w.regimes||{lucro_real:{inss:20,rat:1,fap:1,terceiros:5.8},lucro_presumido:{inss:20,rat:1,fap:1,terceiros:5.8},simples:{inss:0,rat:0,fap:1,terceiros:0}};
+  w.legais=w.legais||{fgts:ST.cfg.fgts||8,multa:40,semJusta:70,aviso:60,an:20,vt:ST.cfg.vtPct||6,diasUteis:26,dsr:4.5,taxaAgencia:0};
+  w.formatos=w.formatos||[{id:"loja_rua",nome:"Loja de rua",dias:6,abre:"08:00",fecha:"20:00",fc:1.35,hNot:0,pesoCom:1.2},{id:"loja_aeroporto",nome:"Loja aeroporto",dias:7,abre:"05:00",fecha:"23:00",fc:1.7,hNot:1,pesoCom:1},{id:"quiosque_aeroporto",nome:"Quiosque aeroporto",dias:7,abre:"05:00",fecha:"23:00",fc:1.45,hNot:1,pesoCom:0.9}];
+  if(!w.empresas){const m=new Map();ST.stores.forEach(s=>{const k=soDig(s.cnpj||"")||"sem";if(!m.has(k)){const e=ST.emps.find(x=>x.lojaId===s.id&&x.ficha&&x.ficha.empregador);m.set(k,{id:k,nome:e?e.ficha.empregador:(k==="sem"?"Empresa sem CNPJ cadastrado":"Empresa "+fmtCNPJ(k)),cnpj:k==="sem"?"":fmtCNPJ(k),regime:"lucro_real"})}});w.empresas=[...m.values()]}
+  w.lojas=w.lojas||{};ST.stores.forEach(s=>{if(!w.lojas[s.id])w.lojas[s.id]={formato:wfpFormatoAuto(s),empresa:soDig(s.cnpj||"")||"sem",fat:0}});
+  if(!w.cargos){const g={};ativos().forEach(e=>{(g[e.cargo]=g[e.cargo]||[]).push(Number(e.salario)||0)});
+    w.cargos=Object.entries(g).map(([cargo,l])=>{l.sort((a,b)=>a-b);const med=l[Math.floor(l.length/2)];const com=ativos().some(e=>e.cargo===cargo&&e.comissao>0)||/vend/i.test(cargo);return {id:uid(),cargo,faixa:"A",salario:Math.max(med,ST.cfg.salarioMinimo),comissao:com,premio:true,peso:/gerente/i.test(cargo)&&!/sub/i.test(cargo)?2:/sub|supervis|lider|líder/i.test(cargo)?1.5:1}}).sort((a,b)=>a.cargo.localeCompare(b.cargo))}
+  w.beneficios=w.beneficios||[{id:uid(),nome:"Vale-refeição",base:"dia",valor:ST.cfg.beneficios?.refeicao??31,vidas:1,desc:0,vt:false},{id:uid(),nome:"Vale-alimentação",base:"mes",valor:ST.cfg.beneficios?.alimentacao??480,vidas:1,desc:0,vt:false},
+    {id:uid(),nome:"Vale-transporte",base:"dia",valor:ST.cfg.beneficios?.mobilidadeDia??9.4,vidas:1,desc:0,vt:true},{id:uid(),nome:"Bem-estar",base:"mes",valor:ST.cfg.beneficios?.bemestar??60,vidas:1,desc:0,vt:false}];
+  w.regrasCom=w.regrasCom||[{id:"rc1",nome:"2% sobre o faturamento da loja",tipo:"pct_faturamento",pct:2,margem:0,faixas:[],fixo:0,teto:0,rateio:"peso",dsr:true},
+    {id:"rc2",nome:"Faixas de meta (0% até 90% · 1,5% até 100% · 2,5% acima)",tipo:"faixas_meta",pct:0,margem:0,faixas:[{ate:90,pct:0},{ate:100,pct:1.5},{ate:null,pct:2.5}],fixo:0,teto:4500,rateio:"peso",dsr:true}];
+  w.regrasPremio=w.regrasPremio||[{id:"rp1",nome:"Prêmio trimestral de 10% do salário (70% de chance)",tipo:"pct_salario",valor:10,prob:70,periodo:3,salarial:false}];
+  w.cenarios=w.cenarios||[];
+  return w;
+}
+function wfpBase(){
+  const w=wfp();let b=w.cenarios.find(c=>c.tipo==="base");
+  if(!b){b={id:uid(),nome:"Base · quadro real",tipo:"base",inicio:addMonths(TODAY.slice(0,7)+"-01",1),meses:12,dissidio:0,dissidioMes:5,turnover:null,abs:3,criadoEm:TODAY,
+    unidades:ST.stores.filter(lojaTemGente).map(s=>({id:uid(),lojaId:s.id,nome:s.nome,formato:w.lojas[s.id].formato,empresa:w.lojas[s.id].empresa,real:true,ativo:true,abertura:"",fechamento:"",antecedencia:15,fc:null,turnover:null,fat:Number(w.lojas[s.id].fat)||0,meta:0,saz:"nenhuma",regraCom:"rc1",regraPremio:"",rota:0,postos:[]}))};
+    w.cenarios.unshift(b)}
+  return b;
+}
+/* ---------------- motor ---------------- */
+function wfpSimular(cen){
+  const w=wfp(),L=w.legais;
+  const meses=[...Array(Number(cen.meses)||12)].map((_,i)=>addMonths(cen.inicio,i));
+  const res={meses,unid:{},tot:{hc:meses.map(()=>0),custo:meses.map(()=>0),fat:meses.map(()=>0),rub:{},nat:{}},cargos:{}};
+  const soma=(o,k,i,v)=>{(o[k]=o[k]||meses.map(()=>0))[i]+=v};
+  const varHist={};
+  cen.unidades.filter(u=>u.ativo!==false).forEach(u=>{
+    const fmt=w.formatos.find(f=>f.id===u.formato)||w.formatos[0];const emp_=w.empresas.find(e=>e.id===u.empresa);const R_=w.regimes[(emp_&&emp_.regime)||"lucro_real"];
+    const enc=(R_.inss+R_.rat*R_.fap+R_.terceiros)/100,fgts=L.fgts/100;
+    const fc=Number(u.fc)||fmt.fc;
+    const turnReal=u.lojaId&&u.real?calcRotatividade([u.lojaId]).turnover:null;
+    const t=(u.turnover!=null&&u.turnover!==""?Number(u.turnover):cen.turnover!=null&&cen.turnover!==""?Number(cen.turnover):turnReal!=null?turnReal:60)/100;
+    const rc=w.regrasCom.find(r=>r.id===u.regraCom),rp=w.regrasPremio.find(r=>r.id===u.regraPremio);
+    const saz=(WFP_SAZ[u.saz]||WFP_SAZ.nenhuma)[1];
+    const R={nome:u.nome,formato:fmt.nome,hc:meses.map(()=>0),custo:meses.map(()=>0),fat:meses.map(()=>0),com:meses.map(()=>0),rub:{},nat:{},cargos:{},adm:meses.map(()=>0)};res.unid[u.id]=R;
+    const abre=u.abertura?u.abertura.slice(0,7)+"-01":"",fecha=u.fechamento?u.fechamento.slice(0,7)+"-01":"";
+    const antecMeses=Math.ceil((Number(u.antecedencia)||0)/30);
+    meses.forEach((m,i)=>{
+      if(fecha&&m>=fecha)return;
+      const preAbertura=abre&&m<abre;if(preAbertura&&m<addMonths(abre,-antecMeses))return;
+      const idade=abre?Math.round((parse(m)-parse(abre))/(30.44*864e5)):99;
+      const rampa=preAbertura?0:idade<=0?0.6:idade===1?0.8:1;
+      const fat=(Number(u.fat)||0)*(saz[m.slice(5,7)]||1)*rampa;R.fat[i]=fat;
+      // dissídio: aplica a partir do mês da data-base dentro do horizonte (uma vez por ano)
+      const anosDiss=meses.slice(0,i+1).filter(x=>Number(x.slice(5,7))===Number(cen.dissidioMes)).length;
+      const fd=Math.pow(1+(Number(cen.dissidio)||0)/100,anosDiss);
+      // pessoas do mês: reais + postos simulados
+      const pessoas=[];
+      if(u.real&&u.lojaId)ativos().filter(e=>e.lojaId===u.lojaId).forEach(e=>{const cg=w.cargos.find(c=>c.cargo===e.cargo);pessoas.push({cargo:e.cargo,tipo:"clt",S:(Number(e.salario)||0)*fd,hNot:0,n:1,com:e.comissao>0||(cg&&cg.comissao),premio:cg?cg.premio:true,peso:cg?cg.peso:1,vt:e.vt!==false})});
+      (u.postos||[]).forEach(p=>{
+        if(p.ini&&m<p.ini.slice(0,7)+"-01")return;if(p.fim&&m>p.fim.slice(0,7)+"-01")return;
+        const cg=w.cargos.find(c=>c.cargo===p.cargo)||{salario:ST.cfg.salarioMinimo,comissao:false,premio:false,peso:1};
+        const n=p.manual!=null&&p.manual!==""?Number(p.manual):(p.tipo==="pj"||p.tipo==="terceirizado")?Number(p.postos)||0:Math.ceil((Number(p.postos)||0)*fc-1e-9);
+        if(n>0)pessoas.push({cargo:p.cargo,tipo:p.tipo||"clt",S:(Number(cg.salario)||0)*fd,hNot:Number(p.hNot)||0,n,com:cg.comissao,premio:cg.premio,peso:cg.peso||1,vt:true,pj:Number(p.pj)||0,novo:true});
+      });
+      // PJ reais da unidade (módulo Prestadores PJ)
+      if(u.real&&u.lojaId)(ST.pjs||[]).filter(p=>!p.encerrado&&p.lojaId===u.lojaId&&(!p.fim||p.fim>=m||p.renovacao)).forEach(p=>pessoas.push({cargo:"PJ · "+pjNome(p),tipo:"pj",S:0,n:1,pjValor:pjCusto(p)}));
+      // pool de comissão e rateio
+      let pool=0;
+      if(rc&&fat>0){
+        if(rc.tipo==="pct_faturamento")pool=fat*(rc.pct/100)*(fmt.pesoCom||1);
+        else if(rc.tipo==="pct_margem")pool=fat*(rc.margem/100)*(rc.pct/100);
+        else if(rc.tipo==="faixas_meta"){const meta=(Number(u.meta)||Number(u.fat)||1)*(saz[m.slice(5,7)]||1);const at=fat/meta*100;const fx=(rc.faixas||[]).slice().sort((a,b)=>(a.ate??1e9)-(b.ate??1e9)).find(f=>f.ate==null||at<=f.ate);pool=fat*((fx?fx.pct:0)/100)}
+        else if(rc.tipo==="fixo_por_meta"){const meta=Number(u.meta)||Number(u.fat)||0;pool=fat>=meta*(saz[m.slice(5,7)]||1)?(rc.fixo||0)*pessoas.filter(p=>p.com).reduce((t,p)=>t+p.n,0):0}
+      }
+      const eleg=pessoas.filter(p=>p.com&&p.tipo!=="pj"&&p.tipo!=="terceirizado");
+      const pesoTot=eleg.reduce((t,p)=>t+p.n*(rc&&rc.rateio==="peso"?p.peso:1),0);
+      pessoas.forEach(p=>{
+        const T=WFP_TIPOS[p.tipo]||WFP_TIPOS.clt;const r={};
+        if(p.tipo==="pj"||p.tipo==="terceirizado"){r.pj=(p.pjValor||p.pj||0)*p.n}
+        else{
+          const S=p.S,dias=L.diasUteis;
+          const AN=S/220*(L.an/100)*p.hNot*(60/52.5)*dias,dsrAN=AN/dias*L.dsr;
+          let com=p.com&&pesoTot?pool*((rc&&rc.rateio==="peso"?p.peso:1)/pesoTot):0;if(rc&&rc.teto>0)com=Math.min(com,rc.teto);
+          const dsrCom=rc&&rc.dsr?com/dias*L.dsr:0;
+          let pr=0;if(rp&&p.premio)pr=(rp.tipo==="pct_salario"?S*rp.valor/100:rp.valor)*(rp.prob/100)/(rp.periodo||1);
+          const F=S+AN+dsrAN,V=com+dsrCom+(rp&&rp.salarial?pr:0),Rm=F+V;
+          r.salario=S*p.n;r.adic_noturno=(AN+dsrAN)*p.n;r.comissao=(com+dsrCom)*p.n;r.premio=pr*p.n;
+          if(T.enc){r.inss=Rm*R_.inss/100*p.n;r.rat=Rm*R_.rat*R_.fap/100*p.n;r.terceiros=Rm*R_.terceiros/100*p.n;r.fgts=Rm*fgts*p.n}
+          if(T.prov){const k=u.id+"|"+p.cargo+"|"+p.tipo;const h=varHist[k]=varHist[k]||[];h.push(V);if(h.length>12)h.shift();const mv=h.reduce((a,b)=>a+b,0)/h.length;
+            const base=F+mv,p13=base/12,pf=base/12*(4/3);r.prov_13=p13*p.n;r.prov_ferias=pf*p.n;r.enc_prov=(p13+pf)*(enc+fgts)*p.n}
+          if(T.resc&&t>0){const ps=L.semJusta/100,tm=Math.min(60,12/t);const multa=Rm*fgts*tm*(L.multa/100)*t*ps/12;const avisoDias=30+Math.min(60,3*Math.floor(tm/12));const aviso=Rm*(avisoDias/30)*(1+enc+fgts)*(L.aviso/100)*t*ps/12;r.prov_resc=(multa+aviso)*p.n}
+          if(T.ben){let b=0;w.beneficios.forEach(x=>{const dt=L.diasUteis*(1-(Number(cen.abs)||0)/100);
+            if(x.vt){if(!p.vt)return;b+=u.rota>0?u.rota*dt:Math.max(0,x.valor*dt-S*L.vt/100);return}
+            const v=x.base==="dia"?x.valor*dt:x.base==="vida"?x.valor*(x.vidas||1):x.base==="pct"?S*x.valor/100:x.valor;b+=v*(1-(x.desc||0)/100)});r.beneficios=b*p.n}
+          if(p.tipo==="clt_temporario"&&L.taxaAgencia>0){const sub=Object.values(r).reduce((a,b)=>a+b,0);r.agencia=sub*L.taxaAgencia/100}
+          R.com[i]+=r.comissao;
+        }
+        let tot=0;Object.entries(r).forEach(([k,v])=>{if(!v)return;tot+=v;soma(R.rub,k,i,v);soma(R.nat,WFP_RUB[k][1],i,v);soma(res.tot.rub,k,i,v);soma(res.tot.nat,WFP_RUB[k][1],i,v)});
+        R.custo[i]+=tot;if(p.tipo!=="pj"&&p.tipo!=="terceirizado"||p.novo){R.hc[i]+=p.n}
+        const ck=p.tipo==="pj"&&!p.novo?"PJ (contratos)":p.cargo;const C=R.cargos[ck]=R.cargos[ck]||{hc:meses.map(()=>0),custo:meses.map(()=>0),tipo:p.tipo};C.hc[i]+=p.n;C.custo[i]+=tot;
+      });
+      if(i>0)R.adm[i]=Math.max(0,R.hc[i]-R.hc[i-1])+R.hc[i]*t/12;else R.adm[i]=R.hc[i]*t/12;
+      res.tot.hc[i]+=R.hc[i];res.tot.custo[i]+=R.custo[i];res.tot.fat[i]+=R.fat[i];
+    });
+  });
+  const s=a=>a.reduce((x,y)=>x+y,0);
+  res.k={hcFinal:res.tot.hc[res.tot.hc.length-1]||0,hcMedio:s(res.tot.hc)/meses.length,custo:s(res.tot.custo),custoMes:s(res.tot.custo)/meses.length,fat:s(res.tot.fat)};
+  res.k.porMil=res.k.fat?res.k.custo/res.k.fat*1000:0;res.k.folhaFat=res.k.fat?res.k.custo/res.k.fat*100:0;
+  return res;
+}
+let WFP_CACHE={};
+function wfpRes(cen){const k=cen.id+"|"+JSON.stringify(cen)+"|"+JSON.stringify(ST.wfp.legais)+JSON.stringify(ST.wfp.regimes)+JSON.stringify(ST.wfp.empresas)+JSON.stringify(ST.wfp.formatos)+JSON.stringify(ST.wfp.cargos)+JSON.stringify(ST.wfp.beneficios)+JSON.stringify(ST.wfp.regrasCom)+JSON.stringify(ST.wfp.regrasPremio);
+  if(WFP_CACHE[cen.id]&&WFP_CACHE[cen.id].k===k)return WFP_CACHE[cen.id].r;const r=wfpSimular(cen);WFP_CACHE[cen.id]={k,r};return r}
+/* ---------------- telas ---------------- */
+const wfpMes=m=>{const [y,mm]=m.split("-");return MESES[Number(mm)-1].slice(0,3)+"/"+y.slice(2)};
+const mi=v=>Math.abs(v)>=1e6?(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:2})+" mi":Math.abs(v)>=1e3?(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":n0(v);
+const wfpCen=()=>{const w=wfp();return w.cenarios.find(c=>c.id===UI.wfpCen)};
+R.planejamento=()=>{
+  const w=wfp();wfpBase();
+  const tab=UI.wfpTab||"cenarios";const cen=wfpCen();
+  const tabs=`<div class="tabs-inline" style="margin-bottom:14px">${[["cenarios","Cenários"],...(cen?[["param","Parâmetros"],["unid","Unidades e postos"],["quadro","Quadro"],["resumo","Resumo do custo"]]:[]),["folha","Folha realizada"],["tabelas","Tabelas"]].map(([k,t])=>`<button class="pill ${tab===k?"on":""}" data-wfptab="${k}">${t}</button>`).join("")}</div>`;
+  const acoes=tab==="cenarios"?`<button class="btn btn-primary" data-wfp="novo">+ Novo cenário</button>`:cen&&tab!=="tabelas"&&tab!=="folha"?`<button class="btn" data-wfptab="cenarios">← Cenários</button>`:"";
+  return header("Visão geral","Planejamento da força de trabalho",acoes)+tabs+(tab==="folha"?wfpFolhaTela():tab==="tabelas"?wfpTabelas():tab==="cenarios"||!cen?wfpLista():wfpPainel(cen)+(tab==="param"?wfpParam(cen):tab==="unid"?wfpUnidades(cen):tab==="quadro"?wfpQuadro(cen):wfpResumo(cen)));
+};
+function wfpLista(){
+  const w=wfp(),b=wfpBase(),rb=wfpRes(b);
+  return `<div class="note">Cada cenário é uma cópia isolada (sandbox). A <b>Base</b> reflete o quadro real atual. Duplique a base para simular aberturas, fechamentos, dissídio, metas de venda e comissões sem alterar nada do cadastro.</div>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Cenário</th><th>Horizonte</th><th class="r">Unidades</th><th class="r">HC final</th><th class="r">Custo no horizonte</th><th class="r">Δ vs base</th><th></th></tr></thead><tbody>${w.cenarios.map(c=>{const r=wfpRes(c);const d=c.tipo==="base"?null:(r.k.custo-rb.k.custo)/(rb.k.custo||1)*100;
+    return `<tr class="click" data-wfpabrir="${c.id}"><td><b>${esc(c.nome)}</b><br><span class="small muted">${c.tipo==="base"?"Quadro real":"Simulação"} · criado em ${fdate(c.criadoEm)}</span></td><td class="num">${wfpMes(c.inicio)} a ${wfpMes(addMonths(c.inicio,c.meses-1))}</td><td class="r num">${c.unidades.filter(u=>u.ativo!==false).length}</td><td class="r num">${n0(r.k.hcFinal)}</td><td class="r num">${brl(r.k.custo)}</td><td class="r num" style="color:${d==null?"inherit":d>0?"var(--bad)":"var(--ok)"}">${d==null?"—":(d>0?"+":"")+d.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%"}</td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm" data-wfpabrir="${c.id}">Abrir</button><button class="btn btn-sm btn-ghost" data-wfpdup="${c.id}">Duplicar</button>${c.tipo==="base"?`<button class="btn btn-sm btn-ghost" data-wfpatualizar="${c.id}" title="Recriar a base a partir do quadro real de hoje">Atualizar base</button>`:`<button class="btn btn-sm btn-ghost" data-wfpdel="${c.id}" style="color:var(--bad)">Excluir</button>`}</div></td></tr>`}).join("")}</tbody></table></div></div>`;
+}
+function wfpPainel(cen){
+  const r=wfpRes(cen),rb=wfpRes(wfpBase());const d=cen.tipo==="base"?null:r.k.custo-rb.k.custo;
+  return `<div class="card" style="position:sticky;top:8px;z-index:5"><div class="toolbar" style="margin:0;align-items:center"><b style="font-size:1.05rem">${esc(cen.nome)}</b><span class="chip ${cen.tipo==="base"?"c-info":"c-brand"}">${cen.tipo==="base"?"Base":"Simulação"}</span><span class="muted small">${wfpMes(cen.inicio)} a ${wfpMes(addMonths(cen.inicio,cen.meses-1))} · atualiza ao vivo</span></div>
+  <div class="grid kpis" style="margin-top:10px">
+    <div class="card kpi hero"><span class="lbl">Custo total no horizonte</span><span class="val num">${brl(r.k.custo)}</span><span class="sub">${d==null?"cenário base":(d>0?"+":"")+brl(d)+" vs base ("+(d>0?"+":"")+(d/(rb.k.custo||1)*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%)"}</span></div>
+    <div class="card kpi"><span class="lbl">Headcount final</span><span class="val num">${n0(r.k.hcFinal)}</span><span class="sub">médio ${r.k.hcMedio.toLocaleString("pt-BR",{maximumFractionDigits:1})}</span></div>
+    <div class="card kpi"><span class="lbl">Custo médio mensal</span><span class="val num">${brl(r.k.custoMes)}</span><span class="sub">${r.k.hcMedio?brl(r.k.custoMes/r.k.hcMedio)+" por pessoa":""}</span></div>
+    <div class="card kpi"><span class="lbl">Folha sobre vendas</span><span class="val num">${r.k.fat?pct(r.k.folhaFat):"—"}</span><span class="sub">${r.k.fat?brl(r.k.porMil)+" por R$ 1.000 vendidos":"informe o faturamento das unidades"}</span></div>
+  </div></div>`;
+}
+const wfpInp=(campo,v,tp,extra)=>`<input class="input" data-wfpc="${campo}" value="${esc(v??"")}" ${tp?'type="'+tp+'"':""} ${extra||""}>`;
+function wfpParam(cen){
+  const ro=cen.tipo==="base";
+  return `<div class="card"><h2>Parâmetros gerais</h2>${ro?`<p class="small muted">Na base, ajuste o horizonte e as premissas de reajuste. Para simular aberturas, duplique a base.</p>`:""}<div class="form-grid">
+    <div class="field full"><label>Nome do cenário</label>${wfpInp("nome",cen.nome)}</div>
+    <div class="field"><label>Primeiro mês</label>${wfpInp("inicio",cen.inicio.slice(0,7),"month")}</div>
+    <div class="field"><label>Horizonte</label><select class="input" data-wfpc="meses">${[12,18,24,36].map(n=>`<option value="${n}" ${Number(cen.meses)===n?"selected":""}>${n} meses</option>`).join("")}</select></div>
+    <div class="field"><label>Dissídio / reajuste (%)</label>${wfpInp("dissidio",cen.dissidio,"number",'step="0.1"')}</div>
+    <div class="field"><label>Mês da data-base</label><select class="input" data-wfpc="dissidioMes">${MESES.map((n,i)=>`<option value="${i+1}" ${Number(cen.dissidioMes)===i+1?"selected":""}>${n}</option>`).join("")}</select></div>
+    <div class="field"><label>Turnover anual (%)</label>${wfpInp("turnover",cen.turnover,"number",'step="1" placeholder="vazio = real de cada loja"')}</div>
+    <div class="field"><label>Absenteísmo (%)</label>${wfpInp("abs",cen.abs,"number",'step="0.5"')}</div>
+  </div><p class="small muted">Turnover vazio usa a rotatividade real dos últimos 12 meses de cada loja (unidades novas usam 60%, se não informado na unidade). Encargos e benefícios vêm da aba <b>Tabelas</b>.</p></div>`;
+}
+function wfpUnidades(cen){
+  const w=wfp(),r=wfpRes(cen);const s=a=>a.reduce((x,y)=>x+y,0);
+  const optF=v=>w.formatos.map(f=>`<option value="${f.id}" ${f.id===v?"selected":""}>${esc(f.nome)}</option>`).join("");
+  const optE=v=>w.empresas.map(e=>`<option value="${esc(e.id)}" ${e.id===v?"selected":""}>${esc(e.nome)} · ${WFP_REGIMES[e.regime]}</option>`).join("");
+  const optC=v=>`<option value="">Sem comissão</option>`+w.regrasCom.map(x=>`<option value="${x.id}" ${x.id===v?"selected":""}>${esc(x.nome)}</option>`).join("");
+  return `<div class="card"><div class="card-head"><div><h2>Unidades e simulador de vendas × comissão</h2><p>Altere o faturamento mensal ou a regra de comissão e veja o custo recalcular na hora.</p></div><button class="btn btn-primary" data-wfp="novaUnid">+ Nova unidade</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Incluir</th><th>Unidade</th><th>Formato</th><th>Empresa · regime</th><th class="r">Faturamento mensal (R$)</th><th>Comissão</th><th class="r">HC final</th><th class="r">Comissão média/mês</th><th class="r">Custo no horizonte</th><th class="r">Por R$ 1.000</th><th></th></tr></thead><tbody>${cen.unidades.map((u,i)=>{const R=r.unid[u.id]||{hc:[0],custo:[0],com:[0],fat:[0]};const fat=s(R.fat||[0]),cus=s(R.custo);
+    return `<tr style="${u.ativo===false?"opacity:.55":""}"><td><input type="checkbox" data-wfpu="${i}|ativo" ${u.ativo!==false?"checked":""} aria-label="Incluir unidade"></td><td><b>${esc(u.nome)}</b><br><span class="small muted">${u.real?"Unidade real":"Nova"+(u.abertura?" · abre em "+wfpMes(u.abertura.slice(0,7)+"-01"):"")}${(u.postos||[]).length?" · "+u.postos.length+" posto(s) simulado(s)":""}</span></td>
+    <td><select class="input" data-wfpu="${i}|formato" style="min-width:140px">${optF(u.formato)}</select></td><td><select class="input" data-wfpu="${i}|empresa" style="min-width:170px">${optE(u.empresa)}</select></td>
+    <td class="r"><input class="input num" type="number" step="1000" min="0" data-wfpu="${i}|fat" value="${esc(u.fat||0)}" style="width:130px;text-align:right"></td><td><select class="input" data-wfpu="${i}|regraCom" style="min-width:160px">${optC(u.regraCom)}</select></td>
+    <td class="r num">${n0(R.hc[R.hc.length-1]||0)}</td><td class="r num">${brl(s(R.com)/(R.com.filter(x=>x>0).length||1))}</td><td class="r num"><b>${brl(cus)}</b></td><td class="r num">${fat?brl(cus/fat*1000):"—"}</td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm" data-wfpposto="${i}">Postos</button><button class="btn btn-sm btn-ghost" data-wfpuedit="${i}">Editar</button>${u.real?"":`<button class="btn btn-sm btn-ghost" data-wfpudel="${i}" style="color:var(--bad)" aria-label="Remover unidade">✕</button>`}</div></td></tr>`}).join("")}</tbody></table></div>
+  <p class="small muted">Unidade real: o quadro atual entra com os salários reais (+ dissídio). Postos simulados somam ao quadro real. Headcount dos postos = postos simultâneos × fator de cobertura do formato.</p></div>`;
+}
+function wfpQuadro(cen){
+  const r=wfpRes(cen);const ms=r.meses;
+  const linha=(nome,a,cls)=>`<tr${cls?' class="'+cls+'"':""}><td>${nome}</td>${a.map(v=>`<td class="r num">${v?v.toLocaleString("pt-BR",{maximumFractionDigits:1}):"—"}</td>`).join("")}</tr>`;
+  return `<div class="card"><h2>Quadro projetado (headcount por mês)</h2><div class="table-wrap"><table><thead><tr><th>Unidade · cargo</th>${ms.map(m=>`<th class="r">${wfpMes(m)}</th>`).join("")}</tr></thead><tbody>
+  ${cen.unidades.filter(u=>u.ativo!==false).map(u=>{const R=r.unid[u.id];if(!R)return "";return linha(`<b>${esc(u.nome)}</b>`,R.hc)+Object.entries(R.cargos).sort((a,b)=>a[0].localeCompare(b[0])).map(([c,C])=>linha(`<span class="small" style="padding-left:14px">${esc(c)}${C.tipo!=="clt"?" · "+(WFP_TIPOS[C.tipo]||{}).t:""}</span>`,C.hc)).join("")+linha(`<span class="small muted" style="padding-left:14px">Admissões necessárias (expansão + reposição)</span>`,R.adm.map(x=>Math.round(x*10)/10))}).join("")}
+  ${linha("<b>Total</b>",r.tot.hc)}</tbody></table></div></div>`;
+}
+function wfpResumo(cen){
+  const r=wfpRes(cen),rb=wfpRes(wfpBase());const s=a=>(a||[]).reduce((x,y)=>x+y,0);
+  const nats=Object.keys(WFP_NAT);const tot=r.k.custo||1;
+  return `<div class="card"><h2>Custo por natureza no horizonte</h2><div class="table-wrap"><table><thead><tr><th>Natureza</th><th class="r">Cenário</th><th class="r">% do total</th><th class="r">Base</th><th class="r">Δ</th></tr></thead><tbody>
+  ${nats.map(n=>{const v=s(r.tot.nat[n]),vb=s(rb.tot.nat[n]);return `<tr><td><b>${WFP_NAT[n]}</b><div class="small muted">${Object.entries(WFP_RUB).filter(([,x])=>x[1]===n).map(([k,x])=>s(r.tot.rub[k])?x[0]+": "+brl(s(r.tot.rub[k])):"").filter(Boolean).join(" · ")}</div></td><td class="r num">${brl(v)}</td><td class="r num">${pct(v/tot*100)}</td><td class="r num">${brl(vb)}</td><td class="r num" style="color:${v-vb>0?"var(--bad)":"inherit"}">${cen.tipo==="base"?"—":(v-vb>0?"+":"")+brl(v-vb)}</td></tr>`}).join("")}
+  <tr><td><b>Custo total</b></td><td class="r num"><b>${brl(r.k.custo)}</b></td><td class="r num">100%</td><td class="r num">${brl(rb.k.custo)}</td><td class="r num"><b>${cen.tipo==="base"?"—":brl(r.k.custo-rb.k.custo)}</b></td></tr></tbody></table></div>
+  <p class="small muted">A DRE mês a mês por rubrica, a visão de caixa e a comparação entre cenários entram na próxima etapa.</p></div>
+  <div class="card"><h2>Por unidade</h2><div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Formato</th><th class="r">HC final</th><th class="r">Faturamento</th><th class="r">Variável</th><th class="r">Custo</th><th class="r">Custo/HC/mês</th><th class="r">Folha/vendas</th></tr></thead><tbody>${cen.unidades.filter(u=>u.ativo!==false).map(u=>{const R=r.unid[u.id];if(!R)return "";const c=s(R.custo),f=s(R.fat),hc=s(R.hc)/R.hc.length;
+    return `<tr><td>${esc(u.nome)}</td><td>${esc(R.formato)}</td><td class="r num">${n0(R.hc[R.hc.length-1])}</td><td class="r num">${f?brl(f):"—"}</td><td class="r num">${brl(s(R.nat.variavel))}</td><td class="r num"><b>${brl(c)}</b></td><td class="r num">${hc?brl(c/r.meses.length/hc):"—"}</td><td class="r num">${f?pct(c/f*100):"—"}</td></tr>`}).join("")}</tbody></table></div></div>`;
+}
+function wfpUnidModal(cen,i){
+  const w=wfp(),u=i!=null?cen.unidades[i]:{id:uid(),lojaId:"",nome:"",formato:"loja_aeroporto",empresa:(w.empresas[0]||{}).id,real:false,ativo:true,abertura:addMonths(cen.inicio,3).slice(0,7),fechamento:"",antecedencia:15,fc:null,turnover:null,fat:0,meta:0,saz:"aeroporto",regraCom:"rc1",regraPremio:"",rota:0,postos:[]};
+  UI.wfpU=i==null?null:i;UI.wfpNovo=u;
+  const f=(k,t,inp)=>`<div class="field"><label>${t}</label>${inp}</div>`;const v=k=>esc(u[k]??"");
+  modal(i==null?"Nova unidade no cenário":"Editar "+u.nome,`<form class="form-grid">
+    <div class="field full"><label for="wu-nome">Nome</label><input class="input" id="wu-nome" value="${v("nome")}" placeholder="Ex.: Aeroporto GRU · Terminal 3 · Loja" ${u.real?"disabled":""}></div>
+    ${f("","Formato",`<select class="input" id="wu-formato">${w.formatos.map(x=>`<option value="${x.id}" ${x.id===u.formato?"selected":""}>${esc(x.nome)} · fator ${x.fc.toLocaleString("pt-BR")}</option>`).join("")}</select>`)}
+    ${f("","Empresa (define o regime tributário)",`<select class="input" id="wu-empresa">${w.empresas.map(e=>`<option value="${esc(e.id)}" ${e.id===u.empresa?"selected":""}>${esc(e.nome)} · ${WFP_REGIMES[e.regime]}</option>`).join("")}</select>`)}
+    ${u.real?"":f("","Mês de abertura",`<input class="input" id="wu-abertura" type="month" value="${esc((u.abertura||"").slice(0,7))}">`)}
+    ${f("","Mês de fechamento (opcional)",`<input class="input" id="wu-fechamento" type="month" value="${esc((u.fechamento||"").slice(0,7))}">`)}
+    ${u.real?"":f("","Contratar antes da abertura (dias)",`<input class="input" id="wu-antecedencia" type="number" min="0" value="${v("antecedencia")}">`)}
+    ${f("","Fator de cobertura (vazio = do formato)",`<input class="input" id="wu-fc" type="number" step="0.01" min="1" max="2.5" value="${v("fc")}">`)}
+    ${f("","Turnover anual % (vazio = do cenário)",`<input class="input" id="wu-turnover" type="number" step="1" value="${v("turnover")}">`)}
+    ${f("","Faturamento mensal médio (R$)",`<input class="input" id="wu-fat" type="number" step="1000" min="0" value="${v("fat")}">`)}
+    ${f("","Meta mensal (R$, para faixas)",`<input class="input" id="wu-meta" type="number" step="1000" min="0" value="${v("meta")}" placeholder="vazio = faturamento">`)}
+    ${f("","Sazonalidade",`<select class="input" id="wu-saz">${Object.entries(WFP_SAZ).map(([k,x])=>`<option value="${k}" ${k===u.saz?"selected":""}>${x[0]}</option>`).join("")}</select>`)}
+    ${f("","Regra de comissão",`<select class="input" id="wu-regraCom"><option value="">Sem comissão</option>${w.regrasCom.map(x=>`<option value="${x.id}" ${x.id===u.regraCom?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>`)}
+    ${f("","Prêmio",`<select class="input" id="wu-regraPremio"><option value="">Sem prêmio</option>${w.regrasPremio.map(x=>`<option value="${x.id}" ${x.id===u.regraPremio?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>`)}
+    ${f("","Transporte de aeroporto: custo por pessoa/dia (R$)",`<input class="input" id="wu-rota" type="number" step="0.5" min="0" value="${v("rota")}" placeholder="vazio = vale-transporte legal">`)}
+    <p class="full small" id="wu-err" style="color:var(--bad)" hidden></p></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-wfp="salvarUnid">${i==null?"Incluir e definir postos":"Salvar"}</button>`);
+}
+function wfpSalvarUnid(){
+  const cen=wfpCen(),u=UI.wfpNovo,g=k=>{const el=$("#wu-"+k);return el?el.value.trim():undefined};
+  const err=m=>{const el=$("#wu-err");el.hidden=false;el.textContent=m};
+  if(!u.real){u.nome=g("nome");if(!u.nome)return err("Informe o nome da unidade.");}
+  u.formato=g("formato");u.empresa=g("empresa");if(!u.real){u.abertura=g("abertura")||"";u.antecedencia=Number(g("antecedencia"))||0}
+  u.fechamento=g("fechamento")||"";const fc=g("fc");if(fc&&(Number(fc)<1||Number(fc)>2.5))return err("O fator de cobertura deve ficar entre 1,0 e 2,5.");u.fc=fc?Number(fc):null;
+  const t=g("turnover");u.turnover=t===""?null:Number(t);u.fat=Number(g("fat"))||0;u.meta=Number(g("meta"))||0;u.saz=g("saz");u.regraCom=g("regraCom");u.regraPremio=g("regraPremio");u.rota=Number(g("rota"))||0;
+  const nova=UI.wfpU==null;if(nova)cen.unidades.push(u);closeModal();commit(nova?"Unidade incluída":"Unidade atualizada");if(nova)wfpPostosModal(cen.unidades.length-1);
+}
+function wfpPostosModal(i){
+  const cen=wfpCen(),u=cen.unidades[i],w=wfp();UI.wfpPi=i;const fmt=w.formatos.find(f=>f.id===u.formato)||w.formatos[0];const fc=Number(u.fc)||fmt.fc;
+  const rows=(u.postos||[]).map((p,k)=>{const hc=p.manual!=null&&p.manual!==""?Number(p.manual):(p.tipo==="pj"||p.tipo==="terceirizado")?Number(p.postos)||0:Math.ceil((Number(p.postos)||0)*fc-1e-9);
+    return `<tr><td><select class="input" data-wfpp="${k}|cargo">${cargoOpts(p.cargo)}</select></td><td><select class="input" data-wfpp="${k}|tipo">${Object.entries(WFP_TIPOS).map(([t,x])=>`<option value="${t}" ${t===p.tipo?"selected":""}>${x.t}</option>`).join("")}</select></td>
+    <td><select class="input" data-wfpp="${k}|turno">${Object.entries(WFP_TURNOS).map(([t,x])=>`<option value="${t}" ${t===p.turno?"selected":""}>${x}</option>`).join("")}</select></td>
+    <td><input class="input num" type="number" step="0.25" min="0" data-wfpp="${k}|postos" value="${esc(p.postos)}" style="width:80px"></td><td><input class="input num" type="number" step="0.5" min="0" max="7" data-wfpp="${k}|hNot" value="${esc(p.hNot||0)}" style="width:70px"></td>
+    <td><input class="input" type="month" data-wfpp="${k}|ini" value="${esc((p.ini||"").slice(0,7))}" style="width:140px"></td><td><input class="input" type="month" data-wfpp="${k}|fim" value="${esc((p.fim||"").slice(0,7))}" style="width:140px"></td>
+    <td>${p.tipo==="pj"||p.tipo==="terceirizado"?`<input class="input num" type="number" step="100" min="0" data-wfpp="${k}|pj" value="${esc(p.pj||0)}" style="width:100px" placeholder="R$/mês">`:`<input class="input num" type="number" min="0" data-wfpp="${k}|manual" value="${esc(p.manual??"")}" style="width:70px" placeholder="auto">`}</td>
+    <td class="r num"><b>${hc}</b></td><td><button class="btn btn-sm btn-ghost" data-wfppdel="${k}" aria-label="Remover posto">✕</button></td></tr>`}).join("");
+  const tot=(u.postos||[]).reduce((t,p)=>t+(p.manual!=null&&p.manual!==""?Number(p.manual):(p.tipo==="pj"||p.tipo==="terceirizado")?Number(p.postos)||0:Math.ceil((Number(p.postos)||0)*fc-1e-9)),0);
+  modal("Postos · "+u.nome,`<p class="small muted">Postos simultâneos por turno. Headcount = postos × fator de cobertura (${fc.toLocaleString("pt-BR")} · ${esc(fmt.nome)}), arredondado para cima. Para PJ e terceirizado o headcount é o número de postos e o custo é o valor do contrato. Período vazio = o horizonte inteiro (use início e fim para temporários).</p>
+    <div class="table-wrap"><table><thead><tr><th>Cargo</th><th>Vínculo</th><th>Turno</th><th>Postos</th><th>Horas noturnas/dia</th><th>De</th><th>Até</th><th>HC manual ou contrato PJ</th><th class="r">HC</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="empty">Nenhum posto. Use "+ Posto".</td></tr>`}</tbody></table></div>
+    <div class="toolbar" style="margin-top:10px"><button class="btn btn-sm" data-wfp="addPosto">+ Posto</button><span class="muted small">Headcount simulado desta unidade: <b>${tot}</b>${u.real?" (soma ao quadro real)":""}</span></div>`,
+    `<button class="btn btn-primary" data-wfp="fecharPostos">Concluir</button>`);
+}
+/* ---- tabelas ---- */
+function wfpTabelas(){
+  const w=wfp();const L=w.legais;
+  const num=(path,v,step)=>`<input class="input num" type="number" step="${step||0.01}" data-wfpt="${path}" value="${esc(v)}" style="width:100px">`;
+  return `<div class="card"><h2>Empresas e regime tributário</h2><p class="small muted">Cada CNPJ da rede com o seu regime. A unidade herda o regime da empresa.</p><div class="table-wrap"><table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Regime</th><th class="r">Unidades</th></tr></thead><tbody>${w.empresas.map((e,i)=>`<tr><td><input class="input" data-wfpt="empresas.${i}.nome" value="${esc(e.nome)}"></td><td class="num">${esc(e.cnpj||"—")}</td><td><select class="input" data-wfpt="empresas.${i}.regime">${Object.entries(WFP_REGIMES).map(([k,t])=>`<option value="${k}" ${k===e.regime?"selected":""}>${t}</option>`).join("")}</select></td><td class="r num">${Object.values(w.lojas).filter(x=>x.empresa===e.id).length}</td></tr>`).join("")}</tbody></table></div>
+    <div class="tabs-inline" style="margin-top:8px"><button class="btn btn-sm" data-wfp="addEmpresa">+ Empresa</button></div></div>
+  <div class="card"><h2>Unidades reais: formato e empresa</h2><div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Formato</th><th>Empresa</th><th class="r">Faturamento mensal (R$)</th></tr></thead><tbody>${ST.stores.filter(lojaTemGente).map(s=>{const x=w.lojas[s.id];return `<tr><td>${esc(s.nome)}</td><td><select class="input" data-wfpt="lojas.${s.id}.formato">${w.formatos.map(f=>`<option value="${f.id}" ${f.id===x.formato?"selected":""}>${esc(f.nome)}</option>`).join("")}</select></td><td><select class="input" data-wfpt="lojas.${s.id}.empresa">${w.empresas.map(e=>`<option value="${esc(e.id)}" ${e.id===x.empresa?"selected":""}>${esc(e.nome)}</option>`).join("")}</select></td><td class="r">${num("lojas."+s.id+".fat",x.fat||0,1000)}</td></tr>`}).join("")}</tbody></table></div><p class="small muted">Esses valores entram na Base na próxima vez que ela for atualizada (botão "Atualizar base").</p></div>
+  <div class="card"><h2>Encargos por regime (%)</h2><div class="table-wrap"><table><thead><tr><th>Regime</th><th>INSS patronal</th><th>RAT</th><th>FAP</th><th>Terceiros</th><th class="r">Total s/ folha (+ FGTS ${L.fgts}%)</th></tr></thead><tbody>${Object.entries(WFP_REGIMES).map(([k,t])=>{const r=w.regimes[k];return `<tr><td><b>${t}</b></td><td>${num("regimes."+k+".inss",r.inss)}</td><td>${num("regimes."+k+".rat",r.rat)}</td><td>${num("regimes."+k+".fap",r.fap,0.0001)}</td><td>${num("regimes."+k+".terceiros",r.terceiros)}</td><td class="r num">${pct(r.inss+r.rat*r.fap+r.terceiros+L.fgts)}</td></tr>`}).join("")}</tbody></table></div>
+    <p class="small muted">Valores de partida: Lucro Real e Presumido com INSS 20%, RAT 1% (varejo), FAP 1,0 e terceiros 5,8% (salário-educação 2,5, SESC 1,5, SENAC 1,0, SEBRAE 0,6, INCRA 0,2). Simples Nacional Anexo I: contribuição patronal dentro do DAS. <b>Confirme com a contabilidade.</b></p>
+    <div class="form-grid" style="margin-top:8px">${[["fgts","FGTS (%)"],["multa","Multa do FGTS na demissão (%)"],["semJusta","Desligamentos sem justa causa (% do turnover)"],["aviso","Aviso prévio indenizado (% dos sem justa)"],["an","Adicional noturno (%)"],["vt","Desconto do vale-transporte (%)"],["diasUteis","Dias trabalhados no mês"],["dsr","Domingos e feriados no mês (DSR)"],["taxaAgencia","Taxa da agência de temporários (%)"]].map(([k,t])=>`<div class="field"><label>${t}</label>${num("legais."+k,L[k],0.1)}</div>`).join("")}</div></div>
+  <div class="card"><h2>Formatos operacionais</h2><div class="table-wrap"><table><thead><tr><th>Formato</th><th>Dias de operação/semana</th><th>Abre</th><th>Fecha</th><th>Fator de cobertura</th><th>Peso da comissão</th></tr></thead><tbody>${w.formatos.map((f,i)=>`<tr><td><b>${esc(f.nome)}</b></td><td>${num("formatos."+i+".dias",f.dias,1)}</td><td><input class="input" type="time" data-wfpt="formatos.${i}.abre" value="${esc(f.abre)}"></td><td><input class="input" type="time" data-wfpt="formatos.${i}.fecha" value="${esc(f.fecha)}"></td><td>${num("formatos."+i+".fc",f.fc,0.01)}</td><td>${num("formatos."+i+".pesoCom",f.pesoCom,0.05)}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h2>Cargos e salários de referência</h2><p>Usados nos postos simulados. Importados do quadro real (salário mediano por cargo).</p></div><button class="btn btn-sm" data-wfp="addCargo">+ Cargo</button></div><div class="table-wrap"><table><thead><tr><th>Cargo</th><th>Faixa</th><th class="r">Salário base (R$)</th><th>Comissionado</th><th>Prêmio</th><th>Peso no rateio</th><th></th></tr></thead><tbody>${w.cargos.map((c,i)=>`<tr><td><input class="input" data-wfpt="cargos.${i}.cargo" value="${esc(c.cargo)}"></td><td><input class="input" data-wfpt="cargos.${i}.faixa" value="${esc(c.faixa)}" style="width:60px"></td><td class="r">${num("cargos."+i+".salario",c.salario,10)}</td><td><input type="checkbox" data-wfpt="cargos.${i}.comissao" ${c.comissao?"checked":""}></td><td><input type="checkbox" data-wfpt="cargos.${i}.premio" ${c.premio?"checked":""}></td><td>${num("cargos."+i+".peso",c.peso,0.1)}</td><td><button class="btn btn-sm btn-ghost" data-wfpdelt="cargos|${i}" aria-label="Remover cargo">✕</button></td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h2>Benefícios por pessoa</h2><p>Vale-transporte: custo diário menos o desconto legal; em aeroporto com rota fretada, informe o custo na unidade.</p></div><button class="btn btn-sm" data-wfp="addBen">+ Benefício</button></div><div class="table-wrap"><table><thead><tr><th>Benefício</th><th>Cálculo</th><th class="r">Valor (R$ ou %)</th><th>Vidas (plano)</th><th>Desconto do colaborador (%)</th><th>É vale-transporte</th><th></th></tr></thead><tbody>${w.beneficios.map((b,i)=>`<tr><td><input class="input" data-wfpt="beneficios.${i}.nome" value="${esc(b.nome)}"></td><td><select class="input" data-wfpt="beneficios.${i}.base">${[["dia","Por dia trabalhado"],["mes","Por mês"],["vida","Por vida (plano)"],["pct","% do salário"]].map(([k,t])=>`<option value="${k}" ${k===b.base?"selected":""}>${t}</option>`).join("")}</select></td><td class="r">${num("beneficios."+i+".valor",b.valor,0.1)}</td><td>${num("beneficios."+i+".vidas",b.vidas||1,0.1)}</td><td>${num("beneficios."+i+".desc",b.desc||0,1)}</td><td><input type="checkbox" data-wfpt="beneficios.${i}.vt" ${b.vt?"checked":""}></td><td><button class="btn btn-sm btn-ghost" data-wfpdelt="beneficios|${i}" aria-label="Remover benefício">✕</button></td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h2>Regras de comissão</h2><p>Pool da loja rateado entre os cargos comissionados (por headcount ou pelo peso do cargo), com DSR (Súmula 27 do TST).</p></div><button class="btn btn-sm" data-wfp="addRegra">+ Regra</button></div><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>%</th><th>Margem bruta %</th><th>Faixas (até % da meta: comissão %)</th><th>Fixo por pessoa (R$)</th><th>Teto mensal (R$)</th><th>Rateio</th><th>DSR</th><th></th></tr></thead><tbody>${w.regrasCom.map((r,i)=>`<tr><td><input class="input" data-wfpt="regrasCom.${i}.nome" value="${esc(r.nome)}" style="min-width:200px"></td><td><select class="input" data-wfpt="regrasCom.${i}.tipo">${[["pct_faturamento","% do faturamento"],["pct_margem","% da margem"],["faixas_meta","Faixas de meta"],["fixo_por_meta","Fixo se bater a meta"]].map(([k,t])=>`<option value="${k}" ${k===r.tipo?"selected":""}>${t}</option>`).join("")}</select></td><td>${num("regrasCom."+i+".pct",r.pct,0.1)}</td><td>${num("regrasCom."+i+".margem",r.margem,1)}</td><td><input class="input" data-wfpfx="${i}" value="${esc((r.faixas||[]).map(f=>(f.ate==null?"acima":f.ate)+":"+String(f.pct).replace(".",",")).join("; "))}" placeholder="90:0; 100:1,5; acima:2,5" style="min-width:180px"></td><td>${num("regrasCom."+i+".fixo",r.fixo,10)}</td><td>${num("regrasCom."+i+".teto",r.teto,100)}</td><td><select class="input" data-wfpt="regrasCom.${i}.rateio"><option value="peso" ${r.rateio==="peso"?"selected":""}>Peso do cargo</option><option value="hc" ${r.rateio!=="peso"?"selected":""}>Por pessoa</option></select></td><td><input type="checkbox" data-wfpt="regrasCom.${i}.dsr" ${r.dsr?"checked":""}></td><td><button class="btn btn-sm btn-ghost" data-wfpdelt="regrasCom|${i}" aria-label="Remover regra">✕</button></td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><div class="card-head"><div><h2>Prêmios por desempenho</h2><p>Provisionados todo mês pela probabilidade de atingimento. Sem natureza salarial = sem encargos (art. 457 §2º CLT).</p></div><button class="btn btn-sm" data-wfp="addPremio">+ Prêmio</button></div><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Valor (% ou R$)</th><th>Chance de atingir (%)</th><th>Período (meses)</th><th>Natureza salarial</th><th></th></tr></thead><tbody>${w.regrasPremio.map((r,i)=>`<tr><td><input class="input" data-wfpt="regrasPremio.${i}.nome" value="${esc(r.nome)}" style="min-width:200px"></td><td><select class="input" data-wfpt="regrasPremio.${i}.tipo"><option value="pct_salario" ${r.tipo==="pct_salario"?"selected":""}>% do salário</option><option value="valor_fixo" ${r.tipo!=="pct_salario"?"selected":""}>Valor fixo</option></select></td><td>${num("regrasPremio."+i+".valor",r.valor,1)}</td><td>${num("regrasPremio."+i+".prob",r.prob,5)}</td><td>${num("regrasPremio."+i+".periodo",r.periodo,1)}</td><td><input type="checkbox" data-wfpt="regrasPremio.${i}.salarial" ${r.salarial?"checked":""}></td><td><button class="btn btn-sm btn-ghost" data-wfpdelt="regrasPremio|${i}" aria-label="Remover prêmio">✕</button></td></tr>`).join("")}</tbody></table></div></div>`;
+}
+/* ---- ações ---- */
+function wfpSet(obj,path,val){const ks=path.split(".");let o=obj;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];const k=ks[ks.length-1];const atual=o[k];o[k]=typeof atual==="number"?(val===""?0:Number(val)):val}
+function wfpDuplicar(id){const w=wfp(),c=w.cenarios.find(x=>x.id===id);const n=JSON.parse(JSON.stringify(c));n.id=uid();n.tipo="simulacao";n.nome=(c.tipo==="base"?"Simulação":c.nome)+" · cópia";n.baseId=c.id;n.criadoEm=TODAY;n.unidades.forEach(u=>{u.id=uid()});w.cenarios.push(n);logEvento("Cenário de planejamento criado",n.nome);UI.wfpCen=n.id;UI.wfpTab="param";commit("Cenário criado. Dê um nome e ajuste as premissas.")}
+let WFP_T=null;const wfpSalvarDepois=()=>{clearTimeout(WFP_T);WFP_T=setTimeout(()=>{save()},700)};
+function wfpRerender(){const a=document.activeElement;const sel=a&&a.dataset?Object.keys(a.dataset).map(k=>"[data-"+k.replace(/[A-Z]/g,m=>"-"+m.toLowerCase())+'="'+a.dataset[k]+'"]').join(""):"";const pos=a&&a.selectionStart;
+  if($("#modal-root").innerHTML&&UI.wfpPi!=null&&document.querySelector("[data-wfpp]")){wfpPostosModal(UI.wfpPi)}render();
+  if(sel){const n=document.querySelector(sel);if(n){n.focus();try{if(pos!=null)n.setSelectionRange(pos,pos)}catch(e){}}}}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-wfptab],[data-wfp],[data-wfpabrir],[data-wfpdup],[data-wfpdel],[data-wfpatualizar],[data-wfpposto],[data-wfpuedit],[data-wfpudel],[data-wfppdel],[data-wfpdelt]");if(!t)return;
+  const d=t.dataset,w=wfp(),cen=wfpCen();
+  if(d.wfptab){UI.wfpTab=d.wfptab;if(d.wfptab==="cenarios")UI.wfpCen=null;render();return}
+  if(d.wfpabrir){UI.wfpCen=d.wfpabrir;UI.wfpTab="unid";render();return}
+  if(d.wfpdup){wfpDuplicar(d.wfpdup);return}
+  if(d.wfpdel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const c=w.cenarios.find(x=>x.id===d.wfpdel);w.cenarios=w.cenarios.filter(x=>x.id!==d.wfpdel);logEvento("Cenário de planejamento excluído",c?c.nome:"");commit("Cenário excluído");return}
+  if(d.wfpatualizar){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Recriar com o quadro de hoje?";return}w.cenarios=w.cenarios.filter(x=>x.tipo!=="base");wfpBase();commit("Base atualizada com o quadro real de hoje");return}
+  if(d.wfp==="novo"){wfpDuplicar(wfpBase().id);return}
+  if(d.wfp==="novaUnid"){wfpUnidModal(cen,null);return}
+  if(d.wfpuedit!==undefined){wfpUnidModal(cen,Number(d.wfpuedit));return}
+  if(d.wfp==="salvarUnid"){wfpSalvarUnid();return}
+  if(d.wfpudel!==undefined){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Remover?";return}cen.unidades.splice(Number(d.wfpudel),1);commit("Unidade removida do cenário");return}
+  if(d.wfpposto!==undefined){wfpPostosModal(Number(d.wfpposto));return}
+  if(d.wfp==="addPosto"){const u=cen.unidades[UI.wfpPi];(u.postos=u.postos||[]).push({id:uid(),cargo:(w.cargos.find(c=>/vend/i.test(c.cargo))||w.cargos[0]||{cargo:"Vendedor(a)"}).cargo,tipo:"clt",turno:"unico",postos:1,hNot:0,ini:"",fim:"",pj:0,manual:""});wfpSalvarDepois();wfpPostosModal(UI.wfpPi);render();return}
+  if(d.wfppdel!==undefined){cen.unidades[UI.wfpPi].postos.splice(Number(d.wfppdel),1);wfpSalvarDepois();wfpPostosModal(UI.wfpPi);render();return}
+  if(d.wfp==="fecharPostos"){UI.wfpPi=null;closeModal();commit("Postos atualizados");return}
+  if(d.wfp==="addEmpresa"){w.empresas.push({id:uid(),nome:"Nova empresa",cnpj:"",regime:"simples"});commit();return}
+  if(d.wfp==="addCargo"){w.cargos.push({id:uid(),cargo:"Novo cargo",faixa:"A",salario:ST.cfg.salarioMinimo,comissao:false,premio:true,peso:1});commit();return}
+  if(d.wfp==="addBen"){w.beneficios.push({id:uid(),nome:"Plano de saúde",base:"vida",valor:300,vidas:1.4,desc:20,vt:false});commit();return}
+  if(d.wfp==="addRegra"){w.regrasCom.push({id:uid(),nome:"Nova regra",tipo:"pct_faturamento",pct:1.5,margem:0,faixas:[],fixo:0,teto:0,rateio:"peso",dsr:true});commit();return}
+  if(d.wfp==="addPremio"){w.regrasPremio.push({id:uid(),nome:"Novo prêmio",tipo:"valor_fixo",valor:200,prob:60,periodo:1,salarial:false});commit();return}
+  if(d.wfpdelt){const [lst,i]=d.wfpdelt.split("|");if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="?";return}w[lst].splice(Number(i),1);commit("Removido");return}
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target;if(!t.dataset)return;const w=ST&&ST.wfp;if(!w)return;const cen=wfpCen();
+  const val=t.type==="checkbox"?t.checked:t.value;
+  if(t.dataset.wfpc&&cen){const k=t.dataset.wfpc;if(k==="inicio"){if(!val)return;cen.inicio=val+"-01"}else if(k==="meses"||k==="dissidioMes")cen[k]=Number(val);else if(k==="dissidio"||k==="abs")cen[k]=Number(val)||0;else if(k==="turnover")cen[k]=val===""?null:Number(val);else cen[k]=val;wfpSalvarDepois();wfpRerender();return}
+  if(t.dataset.wfpu&&cen){const [i,k]=t.dataset.wfpu.split("|");const u=cen.unidades[Number(i)];u[k]=k==="fat"?Number(val)||0:val;wfpSalvarDepois();wfpRerender();return}
+  if(t.dataset.wfpp&&cen){const [k,c]=t.dataset.wfpp.split("|");const p=cen.unidades[UI.wfpPi].postos[Number(k)];p[c]=["postos","hNot","pj"].includes(c)?Number(val)||0:c==="manual"?(val===""?"":Number(val)):val;wfpSalvarDepois();wfpRerender();return}
+  if(t.dataset.wfpt){wfpSet(w,t.dataset.wfpt,val);wfpSalvarDepois();wfpRerender();return}
+  if(t.dataset.wfpfx!==undefined){const r=w.regrasCom[Number(t.dataset.wfpfx)];r.faixas=String(val).split(/;\s*/).map(s=>s.trim()).filter(Boolean).map(s=>{const [a,b]=s.split(":");return {ate:/acima/i.test(a)?null:Number(String(a).replace(",",".")),pct:Number(String(b||0).replace(",","."))}}).filter(f=>isFinite(f.pct));wfpSalvarDepois();wfpRerender();return}
+});
+/* ============ Planejamento · Folha realizada (importação mensal da folha de pagamento) ============
+   Formato padrão (CSV ou Excel, uma linha por colaborador × evento):
+   competencia | matricula | cpf | nome | loja | cargo | codigo_evento | descricao_evento | tipo | valor
+   tipo: P provento · D desconto do colaborador · E encargo da empresa · B benefício (custo da empresa) · V provisão
+   Guardado agregado por loja × cargo × evento em ST.wfp.folhas (leve, cabe no estado do RH). */
+const FOLHA_COLS=[["competencia","Competência (AAAA-MM)"],["matricula","Matrícula"],["cpf","CPF"],["nome","Nome"],["loja","Loja"],["cargo","Cargo"],["codigo","Código do evento"],["evento","Descrição do evento"],["tipo","Tipo (P/D/E/B/V)"],["valor","Valor (R$)"]];
+const FOLHA_ALIAS={competencia:["competencia","comp","mes","mes referencia","referencia","periodo"],matricula:["matricula","registro","chapa","cod funcionario","codigo funcionario"],cpf:["cpf"],nome:["nome","colaborador","funcionario","empregado"],
+  loja:["loja","unidade","filial","estabelecimento","centro de custo","departamento"],cargo:["cargo","funcao"],codigo:["codigo evento","codigo","cod evento","evento cod","rubrica cod","verba"],
+  evento:["descricao evento","descricao","evento","rubrica","nome evento","nome da verba"],tipo:["tipo","natureza","p/d","tipo evento"],valor:["valor","valor r$","montante","total"]};
+const FOLHA_TIPOS={P:"Provento",D:"Desconto do colaborador",E:"Encargo da empresa",B:"Benefício da empresa",V:"Provisão"};
+/* sugestão de classificação pelo nome do evento */
+function folhaSugerir(nome,tipo){
+  const n=semAcento(nome);
+  if(tipo==="D"){if(/falta|atraso|dsr descontado/.test(n))return {nat:"fixo",rub:"salario"};return {nat:"ignorar",rub:""}}
+  if(/inss.*(empresa|patronal)|cpp|cota patronal/.test(n))return {nat:"encargo",rub:"inss"};
+  if(/\brat\b|\bsat\b|fap|risco ambiental/.test(n))return {nat:"encargo",rub:"rat"};
+  if(/terceiro|outras entidades|sistema s|salario educacao|sesc|senac|sebrae|incra/.test(n))return {nat:"encargo",rub:"terceiros"};
+  if(/fgts/.test(n))return /multa|rescis/.test(n)?{nat:"provisao",rub:"prov_resc"}:{nat:"encargo",rub:"fgts"};
+  if(/provis|prov\./.test(n))return /13|decimo/.test(n)?{nat:"provisao",rub:"prov_13"}:/feria/.test(n)?{nat:"provisao",rub:"prov_ferias"}:/encargo/.test(n)?{nat:"provisao",rub:"enc_prov"}:{nat:"provisao",rub:"prov_resc"};
+  if(/aviso|indeniza|rescis|multa/.test(n))return {nat:"provisao",rub:"prov_resc"};
+  if(/13|decimo terceiro/.test(n))return {nat:"provisao",rub:"prov_13"};
+  if(/feria/.test(n))return {nat:"provisao",rub:"prov_ferias"};
+  if(/comiss|dsr s\/? ?com|dsr sobre com/.test(n))return {nat:"variavel",rub:"comissao"};
+  if(/premio|bonus|bonifica|gratifica.*meta|ppr|plr/.test(n))return {nat:"variavel",rub:"premio"};
+  if(/hora.? extra|h\.?e\.|horas extras/.test(n))return {nat:"variavel",rub:"comissao"};
+  if(/noturno/.test(n))return {nat:"fixo",rub:"adic_noturno"};
+  if(/vale.?transporte|\bvt\b|vale.?refei|\bvr\b|vale.?alim|\bva\b|plano|saude|odonto|seguro|cesta|refeicao|alimentacao|bem.?estar/.test(n))return {nat:"beneficio",rub:"beneficios"};
+  if(tipo==="E")return {nat:"encargo",rub:"inss"};
+  if(tipo==="B")return {nat:"beneficio",rub:"beneficios"};
+  if(tipo==="V")return {nat:"provisao",rub:"prov_13"};
+  return {nat:"fixo",rub:"salario"};
+}
+const folhaNatOpts=v=>[...Object.entries(WFP_NAT),["ignorar","Não é custo da empresa"]].map(([k,t])=>`<option value="${k}" ${k===v?"selected":""}>${t}</option>`).join("");
+/* ---- tela ---- */
+function wfpFolhaTela(){
+  const w=wfp();const fs=(w.folhas||[]).slice().sort((a,b)=>b.comp.localeCompare(a.comp));const sel=fs.find(f=>f.comp===UI.folhaComp)||fs[0];
+  const lista=`<div class="card"><div class="card-head"><div><h2>Folha realizada</h2><p>Importe a folha do mês (CSV ou Excel no formato padrão) para compor o custo real por loja, cargo e natureza e comparar com o que o simulador calcula.</p></div>
+    <div class="tabs-inline"><button class="btn" data-folha="modelo">Baixar modelo</button><button class="btn" data-folha="ficticia">Gerar folha fictícia</button><label class="btn btn-primary" style="cursor:pointer">Importar folha (CSV ou Excel)<input type="file" id="folha-file" accept=".csv,.xlsx,.xls" hidden></label></div></div>
+    ${fs.length?`<div class="table-wrap"><table><thead><tr><th>Competência</th><th class="r">Colaboradores</th>${Object.keys(WFP_NAT).map(k=>`<th class="r">${WFP_NAT[k]}</th>`).join("")}<th class="r">Custo total</th><th>Origem</th><th></th></tr></thead><tbody>${fs.map(f=>{const t=folhaTotais(f);
+      return `<tr class="click ${sel&&sel.comp===f.comp?"on":""}" data-folhasel="${f.comp}" style="${sel&&sel.comp===f.comp?"background:var(--brand-tint)":""}"><td><b>${compLabel(f.comp)}</b>${f.ficticia?` <span class="chip c-warn">fictícia</span>`:""}</td><td class="r num">${n0(f.hc)}</td>${Object.keys(WFP_NAT).map(k=>`<td class="r num">${brl(t.nat[k]||0)}</td>`).join("")}<td class="r num"><b>${brl(t.total)}</b></td><td class="small">${esc(f.origem)}<br><span class="muted">${new Date(f.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}${f.por?" · "+esc(f.por):""}</span></td><td><button class="btn btn-sm btn-ghost" data-folhadel="${f.comp}" style="color:var(--bad)">Excluir</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Nenhuma folha importada. Para testar, use <b>Gerar folha fictícia</b>.</div>`}</div>`;
+  if(!sel)return lista;
+  return lista+folhaDetalhe(sel);
+}
+function folhaTotais(f){
+  const w=wfp(),ev=w.eventos||{};const nat={},rub={},loja={},cargo={};let total=0;
+  (f.agreg||[]).forEach(([l,c,cod,v0])=>{const e=ev[cod]||{};const n=e.nat||"fixo";if(n==="ignorar")return;const v=e.tipo==="D"?-Math.abs(v0):v0;nat[n]=(nat[n]||0)+v;rub[e.rub||"?"]=(rub[e.rub||"?"]||0)+v;total+=v;
+    const L=loja[l]=loja[l]||{total:0,nat:{}};L.total+=v;L.nat[n]=(L.nat[n]||0)+v;const C=cargo[c]=cargo[c]||{total:0};C.total+=v});
+  return {nat,rub,loja,cargo,total};
+}
+function folhaDetalhe(f){
+  const w=wfp(),ev=w.eventos||{},t=folhaTotais(f);
+  const codigos=[...new Set((f.agreg||[]).map(x=>x[2]))].sort();
+  const somaCod=cod=>(f.agreg||[]).filter(x=>x[2]===cod).reduce((a,x)=>a+x[3],0);
+  const pess=k=>Object.entries(f.pessoas||{}).filter(([x])=>x.startsWith(k+"|")).reduce((a,[,n])=>a+n,0);
+  // calibração: simulador rodando o quadro real na mesma competência
+  const b=wfpBase();const sim=wfpSimular({...JSON.parse(JSON.stringify(b)),inicio:f.comp+"-01",meses:1,dissidio:0});
+  const simNat=k=>(sim.tot.nat[k]||[0])[0];
+  const fv=(t.nat.fixo||0)+(t.nat.variavel||0);const encReal=fv?(t.nat.encargo||0)/fv*100:0;
+  const fvSim=simNat("fixo")+simNat("variavel");const encSim=fvSim?simNat("encargo")/fvSim*100:0;
+  return `<div class="card"><h2>Calibração · ${compLabel(f.comp)}: realizado × simulador</h2><p class="small muted">O simulador roda o quadro real atual para a mesma competência. Diferenças grandes indicam parâmetros a ajustar em <b>Tabelas</b>.</p>
+    <div class="table-wrap"><table><thead><tr><th>Natureza</th><th class="r">Realizado</th><th class="r">Simulador</th><th class="r">Diferença</th></tr></thead><tbody>${Object.keys(WFP_NAT).map(k=>{const r=t.nat[k]||0,s=simNat(k);const d=s?((r-s)/s*100):null;
+      return `<tr><td>${WFP_NAT[k]}</td><td class="r num">${brl(r)}</td><td class="r num">${brl(s)}</td><td class="r num" style="color:${d!=null&&Math.abs(d)>10?"var(--bad)":"inherit"}">${d==null?"—":(d>0?"+":"")+d.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%"}</td></tr>`}).join("")}
+    <tr><td><b>Total</b></td><td class="r num"><b>${brl(t.total)}</b></td><td class="r num"><b>${brl(sim.k.custo)}</b></td><td class="r num"><b>${sim.k.custo?((t.total-sim.k.custo)/sim.k.custo*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%":"—"}</b></td></tr></tbody></table></div>
+    <div class="kv" style="margin-top:10px"><div><span>Encargos efetivos sobre a remuneração</span><b class="num">${pct(encReal)} realizado · ${pct(encSim)} simulador</b></div><div><span>Custo médio por colaborador</span><b class="num">${f.hc?brl(t.total/f.hc):"—"} realizado · ${sim.k.hcFinal?brl(sim.k.custo/sim.k.hcFinal):"—"} simulador</b></div><div><span>Benefícios por colaborador</span><b class="num">${f.hc?brl((t.nat.beneficio||0)/f.hc):"—"} realizado · ${sim.k.hcFinal?brl(simNat("beneficio")/sim.k.hcFinal):"—"} simulador</b></div></div></div>
+  <div class="card"><h2>Por loja</h2><div class="table-wrap"><table><thead><tr><th>Loja</th><th class="r">Colaboradores</th>${Object.keys(WFP_NAT).map(k=>`<th class="r">${WFP_NAT[k]}</th>`).join("")}<th class="r">Total</th><th class="r">Por pessoa</th></tr></thead><tbody>${Object.entries(t.loja).sort((a,b)=>b[1].total-a[1].total).map(([l,L])=>{const n=pess(l);
+    return `<tr><td>${l==="?"?"<i>Sem loja identificada</i>":esc(store(l).nome)}</td><td class="r num">${n0(n)}</td>${Object.keys(WFP_NAT).map(k=>`<td class="r num">${L.nat[k]?brl(L.nat[k]):"—"}</td>`).join("")}<td class="r num"><b>${brl(L.total)}</b></td><td class="r num">${n?brl(L.total/n):"—"}</td></tr>`}).join("")}</tbody></table></div></div>
+  <div class="card"><h2>Eventos da folha e classificação</h2><p class="small muted">A classificação fica guardada para os próximos meses. Descontos do colaborador (INSS do empregado, IRRF, adiantamento) não são custo da empresa.</p>
+    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Evento</th><th>Tipo no arquivo</th><th>Classificação no custo</th><th>Rubrica</th><th class="r">Valor no mês</th></tr></thead><tbody>${codigos.map(cod=>{const e=ev[cod]||{};
+      return `<tr><td class="num">${esc(cod)}</td><td>${esc(e.nome||"")}</td><td class="small">${esc(FOLHA_TIPOS[e.tipo]||e.tipo||"—")}</td><td><select class="input" data-folhaev="${esc(cod)}|nat">${folhaNatOpts(e.nat)}</select></td>
+      <td><select class="input" data-folhaev="${esc(cod)}|rub"><option value="">—</option>${Object.entries(WFP_RUB).map(([k,x])=>`<option value="${k}" ${k===e.rub?"selected":""}>${x[0]}</option>`).join("")}</select></td><td class="r num">${brl(somaCod(cod))}</td></tr>`}).join("")}</tbody></table></div></div>
+  ${(f.naoLigados||[]).length?`<div class="card"><h2>Linhas sem colaborador no cadastro <span class="chip c-warn">${f.naoLigados.length}</span></h2><p class="small muted">Entraram no custo pela loja informada no arquivo. Confira CPF ou matrícula no cadastro.</p><p class="small">${f.naoLigados.slice(0,60).map(esc).join(" · ")}${f.naoLigados.length>60?" …":""}</p></div>`:""}`;
+}
+/* ---- modelo e folha fictícia ---- */
+function folhaModelo(){
+  if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const e=ativos()[0];const comp=addMonths(TODAY.slice(0,7)+"-01",-1).slice(0,7);
+  const ex=e?[[comp,(e.ficha&&e.ficha.matricula)||"123",e.cpf,e.nome,store(e.lojaId).nome,e.cargo,"0001","Salário mensal","P",e.salario],[comp,(e.ficha&&e.ficha.matricula)||"123",e.cpf,e.nome,store(e.lojaId).nome,e.cargo,"0301","INSS empresa","E",r2(e.salario*0.2)],[comp,(e.ficha&&e.ficha.matricula)||"123",e.cpf,e.nome,store(e.lojaId).nome,e.cargo,"0101","INSS do empregado","D",r2(e.salario*0.075)]]:[];
+  const ws=XLSX.utils.aoa_to_sheet([FOLHA_COLS.map(c=>c[1]),...ex]);ws["!cols"]=FOLHA_COLS.map(c=>({wch:Math.max(14,c[1].length+2)}));
+  const leia=XLSX.utils.aoa_to_sheet([["Formato padrão da folha mensal para o portal Gestão de Pessoas"],[""],["Uma linha por colaborador e por evento (verba). Competência no formato AAAA-MM."],["Tipo: P = provento · D = desconto do colaborador · E = encargo da empresa (INSS empresa, RAT, terceiros, FGTS) · B = benefício pago pela empresa · V = provisão (13º, férias, rescisão)."],["CPF ou matrícula ligam a linha ao cadastro; loja e cargo são usados quando o colaborador não é encontrado."],["Salve como CSV (separado por ponto e vírgula) ou Excel."]]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Folha");XLSX.utils.book_append_sheet(wb,leia,"Leia-me");salvarXLSX(wb,"modelo-folha-mensal.xlsx");
+}
+function folhaFicticiaLinhas(comp){
+  const w=wfp(),L=w.legais;const rnd=(a,b)=>a+Math.random()*(b-a);const lin=[];
+  ativos().forEach(e=>{
+    const s=Number(e.salario)||0;if(!s)return;const loja=store(e.lojaId).nome;const mat=(e.ficha&&e.ficha.matricula)||e.id;const add=(cod,ev,tipo,v)=>{if(v>0.004)lin.push([comp,mat,e.cpf,e.nome,loja,e.cargo,cod,ev,tipo,r2(v)])};
+    const lj=w.lojas[e.lojaId]||{};const emp_=w.empresas.find(x=>x.id===lj.empresa);const R_=w.regimes[(emp_&&emp_.regime)||"lucro_real"];const aero=/aeroporto/.test(lj.formato||"");
+    add("0001","Salário mensal","P",s);
+    const com=e.comissao>0?s*rnd(0.15,0.55):0;add("0020","Comissões","P",com);add("0021","DSR sobre comissões","P",com/26*4.5);
+    const he=Math.random()<0.35?s/220*1.5*Math.round(rnd(2,12)):0;add("0010","Horas extras 50%","P",he);
+    const an=aero&&Math.random()<0.6?s/220*0.2*rnd(15,30)*(60/52.5):0;add("0030","Adicional noturno","P",an);
+    const rem=s+com+com/26*4.5+he+an;
+    add("0101","INSS do empregado","D",rem*0.085);add("0102","IRRF","D",rem>5000?rem*0.05:0);add("0103","Desconto vale-transporte 6%","D",e.vt?s*0.06:0);
+    add("0301","INSS empresa","E",rem*R_.inss/100);add("0302","RAT/FAP","E",rem*R_.rat*R_.fap/100);add("0303","Terceiros (outras entidades)","E",rem*R_.terceiros/100);add("0304","FGTS","E",rem*0.08);
+    add("0201","Vale-transporte (custo empresa)","B",e.vt?rnd(180,320):0);add("0202","Vale-refeição","B",(ST.cfg.beneficios?.refeicao||31)*rnd(22,26));add("0203","Vale-alimentação","B",ST.cfg.beneficios?.alimentacao||480);
+    const p13=rem/12,pf=rem/12*4/3;add("0401","Provisão de 13º salário","V",p13);add("0402","Provisão de férias + 1/3","V",pf);add("0403","Encargos sobre provisões","V",(p13+pf)*((R_.inss+R_.rat*R_.fap+R_.terceiros)/100+0.08));
+  });
+  return lin;
+}
+function folhaFicticiaModal(){
+  const comp=addMonths(TODAY.slice(0,7)+"-01",-1).slice(0,7);
+  modal("Gerar folha fictícia",`<p>Cria uma folha de teste a partir do quadro atual (salários reais, comissões, horas extras e adicional noturno sorteados, encargos pelo regime de cada empresa e benefícios das Tabelas).</p>
+    <div class="field"><label for="ff-comp">Competência</label><input class="input" id="ff-comp" type="month" value="${comp}"></div>
+    <p class="small muted">A competência fica marcada como <b>fictícia</b>. Você pode baixar o arquivo para ver o formato padrão e excluí-la quando importar a folha real.</p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn" data-folha="ficticiaBaixar">Só baixar o arquivo</button><button class="btn btn-primary" data-folha="ficticiaImportar">Gerar e importar</button>`);
+}
+/* ---- importação ---- */
+let FOLHA_IMP=null;
+function folhaMapear(heads){const m={};const usados=new Set();heads.forEach((h,i)=>{const n=semAcento(h).replace(/[()]/g,"").replace(/\s+/g," ").trim();if(!n)return;
+  const k=Object.keys(FOLHA_ALIAS).find(k=>!usados.has(k)&&(FOLHA_ALIAS[k].some(a=>n===a||n.startsWith(a+" "))||semAcento(FOLHA_COLS.find(c=>c[0]===k)[1]).replace(/[()]/g,"").startsWith(n)));if(k){m[i]=k;usados.add(k)}});return m}
+function folhaProcessar(aoa,origem,ficticia){
+  const hi=aoa.findIndex(r=>Object.keys(folhaMapear(r)).length>=4);if(hi<0)return {erro:"Não encontrei os cabeçalhos. Use o modelo (Competência, CPF ou Matrícula, Código e descrição do evento, Tipo, Valor)."};
+  const mp=folhaMapear(aoa[hi]);const tem=k=>Object.values(mp).includes(k);
+  if(!tem("valor")||!(tem("codigo")||tem("evento")))return {erro:"Faltam as colunas de valor e de evento."};
+  const porCpf=new Map(),porMat=new Map(),porNome=new Map();ST.emps.forEach(e=>{const c=soDig(e.cpf||(e.ficha&&e.ficha.cpf));if(c.length===11)porCpf.set(c,e);const m=e.ficha&&e.ficha.matricula;if(m)porMat.set(String(m).trim(),e);porNome.set(semAcento(e.nome),e)});
+  const comps=new Map(),naoLig=new Set(),eventos={};let linhas=0,ign=0;
+  aoa.slice(hi+1).forEach(r=>{
+    const v={};Object.entries(mp).forEach(([i,k])=>v[k]=r[i]);if(r.every(c=>String(c).trim()===""))return;
+    const valor=valNum(v.valor);if(valor==null||!valor){ign++;return}
+    let comp=String(v.competencia||"").trim();const m1=comp.match(/^(\d{4})[-/](\d{1,2})/),m2=comp.match(/^(\d{1,2})[-/](\d{4})/);comp=m1?m1[1]+"-"+String(m1[2]).padStart(2,"0"):m2?m2[2]+"-"+String(m2[1]).padStart(2,"0"):(v.competencia instanceof Date?v.competencia.toISOString().slice(0,7):"");
+    if(!comp)comp=UI.folhaCompPadrao||addMonths(TODAY.slice(0,7)+"-01",-1).slice(0,7);
+    const e=porCpf.get(soDig(v.cpf))||porMat.get(String(v.matricula||"").trim())||porNome.get(semAcento(v.nome||""));
+    const loja=e?e.lojaId:(achaLoja(v.loja||"")||"?"),cargo=e?e.cargo:(String(v.cargo||"").trim()||"Não informado");
+    if(!e&&v.nome)naoLig.add(String(v.nome).trim());
+    const cod=String(v.codigo||semAcento(v.evento||"").slice(0,30)).trim(),tipo=String(v.tipo||"P").trim().toUpperCase().slice(0,1);
+    if(!eventos[cod])eventos[cod]={nome:String(v.evento||cod).trim(),tipo};
+    const C=comps.get(comp)||{agreg:new Map(),pessoas:new Map()};comps.set(comp,C);
+    const k=loja+"\u0001"+cargo+"\u0001"+cod;C.agreg.set(k,(C.agreg.get(k)||0)+valor);
+    const pk=loja+"|"+cargo;const id=e?e.id:semAcento(v.nome||v.cpf||v.matricula||Math.random());(C.pessoas.get(pk)||C.pessoas.set(pk,new Set()).get(pk)).add(id);linhas++;
+  });
+  if(!comps.size)return {erro:"Nenhuma linha com valor encontrada."};
+  return {origem,ficticia:!!ficticia,linhas,ign,naoLig:[...naoLig],eventos,comps:[...comps.entries()].map(([comp,C])=>({comp,agreg:[...C.agreg.entries()].map(([k,v])=>{const [l,c,cod]=k.split("\u0001");return [l,c,cod,r2(v)]}),pessoas:Object.fromEntries([...C.pessoas.entries()].map(([k,s])=>[k,s.size])),hc:new Set([...C.pessoas.values()].flatMap(s=>[...s])).size}))};
+}
+async function folhaLerArquivo(file){
+  if(!file)return;if(!window.XLSX){toast("O leitor de planilhas não carregou. Recarregue a página.");return}
+  try{let wb;
+    if(/\.csv$/i.test(file.name)){const buf=await file.arrayBuffer();let txt;try{txt=new TextDecoder("utf-8",{fatal:true}).decode(buf)}catch(e){txt=new TextDecoder("windows-1252").decode(buf)}const l1=txt.split(/\r?\n/)[0]||"";wb=XLSX.read(txt.replace(/^﻿/,""),{type:"string",FS:(l1.match(/;/g)||[]).length>(l1.match(/,/g)||[]).length?";":",",raw:true})}
+    else wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:true,blankrows:false});
+    folhaPrevia(folhaProcessar(aoa,file.name,false));
+  }catch(e){console.error(e);toast("Não foi possível ler este arquivo. Salve como .xlsx ou .csv e tente de novo.")}
+}
+function folhaPrevia(r){
+  if(r.erro){toast(r.erro);return}
+  FOLHA_IMP=r;const w=wfp();const ex=new Set((w.folhas||[]).map(f=>f.comp));const novosEv=Object.keys(r.eventos).filter(c=>!(w.eventos||{})[c]);
+  modal("Conferir importação da folha",`<div class="kv"><div><span>Arquivo</span><b>${esc(r.origem)}</b></div><div><span>Linhas com valor</span><b class="num">${n0(r.linhas)}</b></div><div><span>Competências</span><b>${r.comps.map(c=>compLabel(c.comp)+(ex.has(c.comp)?" (substitui)":"")).join(", ")}</b></div><div><span>Colaboradores</span><b class="num">${r.comps.map(c=>c.hc).join(" / ")}</b></div><div><span>Eventos novos a classificar</span><b class="num">${novosEv.length}</b></div><div><span>Sem colaborador no cadastro</span><b class="num">${r.naoLig.length}</b></div></div>
+    ${r.comps.some(c=>ex.has(c.comp))?`<div class="note"><b>Atenção:</b> competências já importadas serão substituídas.</div>`:""}
+    ${novosEv.length?`<div class="table-wrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Código</th><th>Evento</th><th>Tipo</th><th>Classificação sugerida</th></tr></thead><tbody>${novosEv.map(c=>{const e=r.eventos[c];const s=folhaSugerir(e.nome,e.tipo);return `<tr><td class="num">${esc(c)}</td><td>${esc(e.nome)}</td><td>${esc(FOLHA_TIPOS[e.tipo]||e.tipo)}</td><td><select class="input" data-folhanovo="${esc(c)}">${folhaNatOpts(s.nat)}</select></td></tr>`}).join("")}</tbody></table></div><p class="small muted">Você pode mudar a classificação depois, na tela da competência.</p>`:""}`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-folha="confirmar">Importar</button>`);
+}
+function folhaConfirmar(){
+  const r=FOLHA_IMP;if(!r)return;const w=wfp();w.eventos=w.eventos||{};w.folhas=w.folhas||[];
+  Object.entries(r.eventos).forEach(([c,e])=>{if(w.eventos[c])return;const s=folhaSugerir(e.nome,e.tipo);const el=document.querySelector(`[data-folhanovo="${typeof CSS!=="undefined"&&CSS.escape?CSS.escape(c):c}"]`);w.eventos[c]={nome:e.nome,tipo:e.tipo,nat:(el&&el.value)||s.nat,rub:s.rub}});
+  r.comps.forEach(c=>{w.folhas=w.folhas.filter(f=>f.comp!==c.comp);w.folhas.push({comp:c.comp,origem:r.origem,ficticia:r.ficticia,em:new Date().toISOString(),por:SESSION?SESSION.nome:"",hc:c.hc,agreg:c.agreg,pessoas:c.pessoas,naoLigados:r.naoLig.slice(0,300)})});
+  w.folhas=w.folhas.sort((a,b)=>a.comp.localeCompare(b.comp)).slice(-18);
+  UI.folhaComp=r.comps[r.comps.length-1].comp;logEvento("Folha realizada importada",r.origem+" · "+r.comps.map(c=>c.comp).join(", ")+(r.ficticia?" (fictícia)":""));FOLHA_IMP=null;closeModal();commit("Folha importada");
+}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-folha],[data-folhasel],[data-folhadel]");if(!t)return;const d=t.dataset;
+  if(d.folha==="modelo"){folhaModelo();return}
+  if(d.folha==="ficticia"){folhaFicticiaModal();return}
+  if(d.folha==="ficticiaBaixar"||d.folha==="ficticiaImportar"){const comp=$("#ff-comp").value;if(!comp){toast("Escolha a competência.");return}const lin=folhaFicticiaLinhas(comp);
+    if(d.folha==="ficticiaBaixar"){if(!window.XLSX){toast("O gerador de planilhas não carregou.");return}const ws=XLSX.utils.aoa_to_sheet([FOLHA_COLS.map(c=>c[1]),...lin]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Folha");salvarXLSX(wb,"folha-ficticia-"+comp+".xlsx");return}
+    folhaPrevia(folhaProcessar([FOLHA_COLS.map(c=>c[1]),...lin],"Folha fictícia gerada no portal",true));return}
+  if(d.folha==="confirmar"){folhaConfirmar();return}
+  if(d.folhasel){UI.folhaComp=d.folhasel;render();return}
+  if(d.folhadel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const w=wfp();w.folhas=(w.folhas||[]).filter(f=>f.comp!==d.folhadel);logEvento("Folha realizada excluída",d.folhadel);commit("Competência excluída");return}
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target;
+  if(t.id==="folha-file"){const f=t.files[0];t.value="";folhaLerArquivo(f);return}
+  if(t.dataset&&t.dataset.folhaev){const [cod,k]=t.dataset.folhaev.split("|");const w=wfp();w.eventos[cod]={...(w.eventos[cod]||{}),[k]:t.value};save();render();return}
+});
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
