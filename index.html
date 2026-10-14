@@ -1005,7 +1005,7 @@ function dadosHeadcount(){
   const sel=(UI.hcLojas||[]).filter(id=>todas.includes(id));
   const ids=sel.length?sel:todas;
   const lojas=ST.stores.filter(s=>ids.includes(s.id));
-  const at=ativos().filter(e=>ids.includes(e.lojaId));
+  const at=ativos().filter(e=>ids.includes(e.lojaId)&&ccOk(e));
   const mapa={};
   at.forEach(e=>{const r=mapa[e.cargo]||(mapa[e.cargo]={cargo:e.cargo,total:0,porLoja:{},exp:0,ferias:0,afast:0});
     r.total++;r.porLoja[e.lojaId]=(r.porLoja[e.lojaId]||0)+1;const k=status(e).k;if(k==="experiencia")r.exp++;if(k==="ferias")r.ferias++;if(k==="afastado")r.afast++});
@@ -1019,9 +1019,7 @@ R.headcount=()=>{
   const quadro=lojas.reduce((t,s)=>t+(Number(s.quadro)||0),0);
   const st={experiencia:0,ferias:0,afastado:0};at.forEach(e=>{const k=status(e).k;if(k in st)st[k]++});
   const curto=n=>n.replace(/^Brasileiríssima /,"");
-  const filtro=`<div class="hc-filtro" role="group" aria-label="Unidades">
-    <button class="pill ${todas?"on":""}" data-hcloja="all" aria-pressed="${todas}">Todas as unidades</button>
-    ${ST.stores.filter(lojaTemGente).map(s=>{const on=!todas&&lojas.some(l=>l.id===s.id);return `<button class="pill ${on?"on":""}" data-hcloja="${esc(s.id)}" aria-pressed="${on}">${esc(curto(s.nome))}</button>`}).join("")}</div>`;
+  const filtro=`<div class="toolbar" style="margin:0;flex-wrap:wrap;gap:8px">${msel("hc","Unidades",ST.stores.filter(lojaTemGente).map(s=>[s.id,curto(s.nome)]),todas?[]:lojas.map(l=>l.id),"Todas")}</div>`;
   const escopo=todas?(ST.stores.length>1?"todas as "+ST.stores.length+" unidades":esc(ST.stores[0].nome)):lojas.length===1?esc(lojas[0].nome):lojas.length+" unidades selecionadas";
   return header(G()?"Minha loja":"Visão geral","Headcount por função",`<button class="btn" data-act="hcExcel">Baixar Excel</button>`)+`
   <div class="card" style="padding:16px 22px">${filtro}<p class="small muted" style="margin-top:10px">Mostrando ${escopo}. Toque nas unidades para combinar; "Todas" volta à visão completa.</p></div>
@@ -1058,7 +1056,7 @@ function entradaTransferencia(e){
   return t.split("||").some(seg=>{const ds=seg.match(/\d{2}\/\d{2}\/\d{4}/g)||[];const sai=ds[1]?valData(ds[1]):"";return sai&&Math.abs(diffDays(sai,e.admissao))<=3});
 }
 function calcRotatividade(ids){
-  const pool=ST.emps.filter(e=>!ids||ids.includes(e.lojaId));
+  const pool=ST.emps.filter(e=>(!ids||ids.includes(e.lojaId))&&ccOk(e));
   const ativoEm=(e,d)=>e.admissao&&e.admissao<=d&&(!e.desligado||e.desligado.data>d);
   const base=TODAY.slice(0,7)+"-01";
   const meses=[...Array(12)].map((_,i)=>{const ini=addMonths(base,i-11);const fimM=addDays(addMonths(ini,1),-1);return {comp:ini.slice(0,7),ini,fim:fimM>TODAY?TODAY:fimM}});
@@ -1090,7 +1088,7 @@ const corTurn=v=>v>=60?"c-bad":v>=30?"c-warn":"c-ok";
 R.rotatividade=()=>{
   const {todas,sel,ids}=rtIds();const r=calcRotatividade(ids||(G()?todas:null));
   const curto=n=>n.replace(/^Brasileiríssima /,"");
-  const filtro=`<div class="hc-filtro" role="group" aria-label="Unidades"><button class="pill ${!sel.length?"on":""}" data-rtloja="all">Todas as unidades</button>${ST.stores.filter(lojaTemGente).map(s=>`<button class="pill ${sel.includes(s.id)?"on":""}" data-rtloja="${esc(s.id)}">${esc(curto(s.nome))}</button>`).join("")}</div>`;
+  const filtro=`<div class="toolbar" style="margin:0;flex-wrap:wrap;gap:8px">${msel("rt","Unidades",ST.stores.filter(lojaTemGente).map(s=>[s.id,curto(s.nome)]),sel,"Todas")}</div>`;
   const maxM=Math.max(1,...r.mensal.map(m=>Math.max(m.adm,m.des)));
   const totalInic=Object.values(r.porInic).reduce((a,b)=>a+b,0)||1;
   const maxT=Math.max(1,...r.porTempo.map(x=>x.n));
@@ -1206,6 +1204,7 @@ function colabsTela(){
     if(UI.status==="" && s==="desligado") return false;
     if(UI.status && UI.status!==s) return false;
     if(UI.loja && e.lojaId!==UI.loja) return false;
+    if(!ccOk(e)) return false;
     if(UI.busca){const n=semAcento(UI.busca),d=soDig(UI.busca);if(!(semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(n)||(d.length>=3&&soDig(e.cpf).includes(d))))return false}
     return true}).sort((a,b)=>a.nome.localeCompare(b.nome));
 }
@@ -1265,7 +1264,7 @@ R.recrutamento=()=>header("Pessoas","Recrutamento",`<button class="btn btn-prima
 R.ponto=()=>{
   const s=store(UI.escLoja);const ws=UI.escSemana;const esc_=escalaSemana(s,ws);
   const dias=[...Array(7)].map((_,k)=>addDays(ws,k));
-  const list=ativos().filter(e=>e.lojaId===s.id);
+  const list=ativos().filter(e=>e.lojaId===s.id&&ccOk(e));
   const prev=[1,2].map(k=>escalaSemana(s,addDays(ws,-7*k)));
   const rows=list.map(e=>{
     const d=esc_[e.id];const folgas=d.filter(x=>x!=="T").length;
@@ -1289,6 +1288,7 @@ R.ponto=()=>{
 
 function feriasLista(){
   let list=ativos().map(e=>({e,sf:situacaoFerias(e)}));
+  list=list.filter(x=>ccOk(x.e));
   if(UI.fLoja)list=list.filter(x=>x.e.lojaId===UI.fLoja);
   if(UI.fBusca){const n=semAcento(UI.fBusca),d=soDig(UI.fBusca);list=list.filter(x=>semAcento([x.e.nome,x.e.cargo,store(x.e.lojaId).nome].join(" ")).includes(n)||(d.length>=3&&soDig(x.e.cpf).includes(d)))}
   if(UI.feriasFiltro==="atencao") list=list.filter(x=>x.sf.st.ord<=1);
@@ -1316,7 +1316,7 @@ R.ferias=()=>{
 
 R.folha=()=>{
   const comps=[...Array(6)].map((_,i)=>addMonths(curComp+"-01",-i).slice(0,7));
-  const list=ativos().filter(e=>!UI.folhaLoja||e.lojaId===UI.folhaLoja).sort((a,b)=>a.lojaId.localeCompare(b.lojaId)||a.nome.localeCompare(b.nome));
+  const list=ativos().filter(e=>(!UI.folhaLoja||e.lojaId===UI.folhaLoja)&&ccOk(e)).sort((a,b)=>a.lojaId.localeCompare(b.lojaId)||a.nome.localeCompare(b.nome));
   const rows=list.map(e=>({e,f:folha(e,UI.comp)}));
   const T=k=>rows.reduce((s,r)=>s+(typeof k==="function"?k(r.f):r.f[k]),0);
   const fechada=ST.folhasFechadas[UI.comp];
@@ -1344,7 +1344,7 @@ R.folha=()=>{
 R.beneficios=()=>{
   const b=ST.cfg.beneficios;const dm=diasMes(curComp);
   const calc=e=>{const diasFe=feriasEmCurso(e)?0:dm.uteis;return {alim:b.alimentacao,ref:b.refeicao*diasFe,mob:e.vt?b.mobilidadeDia*diasFe:0,bem:b.bemestar}};
-  const porLoja=ST.stores.map(s=>{const es=ativos().filter(e=>e.lojaId===s.id&&!e.afastado);const t=es.reduce((acc,e)=>{const c=calc(e);acc.alim+=c.alim;acc.ref+=c.ref;acc.mob+=c.mob;acc.bem+=c.bem;return acc},{alim:0,ref:0,mob:0,bem:0});return {s,n:es.length,...t,tot:t.alim+t.ref+t.mob+t.bem}});
+  const porLoja=ST.stores.map(s=>{const es=ativos().filter(e=>e.lojaId===s.id&&!e.afastado&&ccOk(e));const t=es.reduce((acc,e)=>{const c=calc(e);acc.alim+=c.alim;acc.ref+=c.ref;acc.mob+=c.mob;acc.bem+=c.bem;return acc},{alim:0,ref:0,mob:0,bem:0});return {s,n:es.length,...t,tot:t.alim+t.ref+t.mob+t.bem}});
   const tot=porLoja.reduce((s,x)=>s+x.tot,0);
   const feita=ST.recargas.find(r=>r.comp===curComp);
   return header("Departamento Pessoal","Benefícios flexíveis",feita?`<span class="chip c-ok">Recarga de ${compLabel(curComp)} registrada</span>`:`<button class="btn btn-primary" data-act="recarga">Registrar recarga de ${compLabel(curComp)}</button>`)+`
@@ -1371,7 +1371,7 @@ R.experiencia=()=>{
   const all=acomp.flatMap(e=>marcos(e));
   const hist=ST.emps.flatMap(e=>(e.avaliacoes||[]).map(a=>({e,a}))).sort((x,y)=>y.a.data.localeCompare(x.a.data));
   const fin=hist.filter(h=>(h.a.marco===90||h.a.parecer!=="prorrogar")&&diffDays(h.a.data,TODAY)<=365);
-  const passa=e=>(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca))||(soDig(UI.xBusca).length>=3&&soDig(e.cpf).includes(soDig(UI.xBusca))));
+  const passa=e=>ccOk(e)&&(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca))||(soDig(UI.xBusca).length>=3&&soDig(e.cpf).includes(soDig(UI.xBusca))));
   const acompV=acomp.filter(passa),histV=hist.filter(h=>passa(h.e));
   const nV=UI.xpTab==="acomp"?acompV.length:histV.length;
   const taxa=fin.length?fin.filter(h=>h.a.parecer==="efetivar").length/fin.length*100:0;
@@ -1406,6 +1406,7 @@ R.desligamentos=()=>{
   const lojasD=ST.stores.filter(s=>porLoja[s.id]).sort((a,b)=>porLoja[b.id]-porLoja[a.id]||a.nome.localeCompare(b.nome));
   const selL=(UI.dLojas||[]).filter(id=>porLoja[id]);
   if(selL.length)des=des.filter(e=>selL.includes(e.lojaId));
+  des=des.filter(e=>ccOk(e));
   if(UI.dTipo)des=des.filter(e=>(INICIATIVA[e.desligado.tipo]||"empresa")===UI.dTipo);
   if(UI.dBusca){const n=semAcento(UI.dBusca),dg=soDig(UI.dBusca);des=des.filter(e=>semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(n)||(dg.length>=3&&soDig(e.cpf).includes(dg)))}
   const vis=des.slice(0,300);
@@ -2147,7 +2148,7 @@ function relatorioFerias(){
     larguras:[42,30,46,18,34,20,16,30,0],linhas,arquivo:"programacao-ferias-"+TODAY+".pdf",log:["Relatório de férias emitido",list.length+" colaboradores · "+fNome]});
 }
 function relatorioExperiencia(){
-  const passa=e=>(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca))||(soDig(UI.xBusca).length>=3&&soDig(e.cpf).includes(soDig(UI.xBusca))));
+  const passa=e=>ccOk(e)&&(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca))||(soDig(UI.xBusca).length>=3&&soDig(e.cpf).includes(soDig(UI.xBusca))));
   if(UI.xpTab==="hist"){
     const hist=ST.emps.flatMap(e=>(e.avaliacoes||[]).map(a=>({e,a}))).filter(h=>passa(h.e)).sort((x,y)=>y.a.data.localeCompare(x.a.data));
     pdfTabela({titulo:"Avaliações de experiência",filtros:filtrosTexto(UI.xBusca,UI.xLoja,"Histórico de avaliações"),
@@ -2525,7 +2526,7 @@ function pjComResumo(p){
 const pjBenTexto=p=>(p.beneficios||[]).map(b=>b.tipo+": "+brl(Number(b.valor)||0)+(b.obs?" ("+b.obs+")":"")).join("; ");
 const pjFaixasTexto=p=>(p.faixas||[]).map(f=>brl(Number(f.de)||0)+" a "+(f.ate?brl(Number(f.ate)):"acima")+": "+(Number(f.perc)||0).toLocaleString("pt-BR")+"%").join("; ");
 function pjLista(){
-  let l=(ST.pjs||[]).slice();
+  let l=(ST.pjs||[]).filter(p=>ccOk(p,"pj"));
   const sit=UI.pjSit||"ativos";
   if(sit==="ativos")l=l.filter(p=>!p.encerrado);
   if(sit==="vencendo")l=l.filter(p=>["vencendo","vencido"].includes(pjSituacao(p).k));
@@ -2803,7 +2804,7 @@ function mdSugestao(e){
 function mdDescTipo(m){return MD_TIPOS[m.tipo].t+(m.tipo==="suspensao"&&m.dias?" de "+m.dias+" dia"+(m.dias===1?"":"s"):"")}
 function mdLista(){
   const per=UI.mPer||"12m",ini=addDays(TODAY,-364);
-  let l=mdTodas();
+  let l=mdTodas().filter(x=>ccOk(x.e));
   if(per==="12m")l=l.filter(x=>x.m.data>=ini);
   if(UI.mLoja)l=l.filter(x=>x.e.lojaId===UI.mLoja);
   if(UI.mTipo)l=l.filter(x=>UI.mTipo==="anuladas"?x.m.anulada:UI.mTipo==="pendentes"?(!x.m.anulada&&x.m.ciencia==="pendente"&&x.m.tipo!=="orientacao"):x.m.tipo===UI.mTipo);
@@ -3348,7 +3349,7 @@ const xpGerLista=()=>todasSolic().filter(x=>x.m.tipo==="avaliacao").sort((a,b)=>
 const xpGerPend=()=>xpGerLista().filter(x=>x.m.status==="pendente").length;
 function xpGerTab(){
   const ch=s=>s==="aprovado"?`<span class="chip c-ok">Aprovada · finalizada</span>`:s==="recusado"?`<span class="chip c-bad">Recusada</span>`:`<span class="chip c-warn">Aguardando RH</span>`;
-  const passa=e=>(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca)));
+  const passa=e=>ccOk(e)&&(!UI.xLoja||e.lojaId===UI.xLoja)&&(!UI.xBusca||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(semAcento(UI.xBusca)));
   const l=xpGerLista().filter(({m})=>{const e=emp(m.eid);return !e||passa(e)});
   return `<div class="table-wrap"><table><thead><tr><th>Enviada em</th>${G()?"":"<th>Gerente</th>"}<th>Colaborador</th><th>Marco</th><th>Nota</th><th>Parecer do gerente</th><th>Situação</th><th></th></tr></thead><tbody>${l.map(({m,k})=>{const e=emp(m.eid);const a=m.av||{};const nota=mediaNotas(a.notas||{});
     return `<tr><td class="num">${m.em?new Date(m.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—"}</td>${G()?"":`<td>${esc(autorMov(m))}</td>`}<td>${e?whoCell(e):"—"}</td><td class="num">${a.marco||"—"} dias</td><td class="num"><b>${nota.toLocaleString("pt-BR",{minimumFractionDigits:1})}</b></td><td>${esc((PARECER[a.parecer]||{}).t||"—")}</td><td>${ch(m.status)}${m.status!=="pendente"&&(m.decididoEm||m.decidido)?`<br><span class="small muted">em ${fdate(String(m.decididoEm||m.decidido).slice(0,10))}</span>`:""}${m.motivo?`<br><span class="small muted">${esc(m.motivo)}</span>`:""}</td>
@@ -3934,16 +3935,16 @@ function folhaCCCard(rows){
     "Remuneração e FGTS da folha calculada; encargos patronais pelo regime da empresa de cada unidade (Planejamento → Tabelas); provisões de 13º e férias + 1/3 com encargos. Dividido pelo rateio de cada colaborador.");
 }
 function benefCCCard(calc){
-  return ccCard("beneficios","Recarga de benefícios por centro de custo · "+compLabel(curComp),ativos().filter(e=>!e.afastado).map(e=>{const c=calc(e);return {o:e,valores:{alim:c.alim,ref:c.ref,mob:c.mob,bem:c.bem,tot:c.alim+c.ref+c.mob+c.bem}}}),
+  return ccCard("beneficios","Recarga de benefícios por centro de custo · "+compLabel(curComp),ativos().filter(e=>!e.afastado&&ccOk(e)).map(e=>{const c=calc(e);return {o:e,valores:{alim:c.alim,ref:c.ref,mob:c.mob,bem:c.bem,tot:c.alim+c.ref+c.mob+c.bem}}}),
     [["alim","Alimentação"],["ref","Refeição"],["mob","Mobilidade"],["bem","Bem-estar"],["tot","Total"]]);
 }
 function deslCCCard(){
-  const l=(ST.desligProg||[]).filter(p=>["aguardando","aprovado"].includes(p.status));if(!l.length)return "";
+  const l=(ST.desligProg||[]).filter(p=>["aguardando","aprovado"].includes(p.status)&&ccOk(emp(p.eid)));if(!l.length)return "";
   return ccCard("desligamentos","Custo dos desligamentos programados por centro de custo",l.map(p=>({o:emp(p.eid)||{lojaId:p.lojaId},valores:{verbas:p.calc.total,fgts:p.calc.multa+p.calc.fgtsMes,custo:p.calc.custo}})),
     [["verbas","Verbas rescisórias"],["fgts","FGTS (multa + mês)"],["custo","Custo estimado"]],"Programações aguardando a diretoria ou aprovadas, divididas pelo rateio de cada colaborador.");
 }
 function pjCCCard(){
-  const l=(ST.pjs||[]).filter(p=>!p.encerrado);if(!l.length)return "";
+  const l=(ST.pjs||[]).filter(p=>!p.encerrado&&ccOk(p,"pj"));if(!l.length)return "";
   return ccCard("pjs","Custo mensal dos prestadores PJ por centro de custo",l.map(p=>({o:p,tipo:"pj",valores:{valor:pjValorBase(p),ben:pjBeneficios(p),custo:pjCusto(p)}})),[["valor","Valor do contrato"],["ben","Benefícios"],["custo","Custo mensal"]],"Contratos ativos, divididos pelo rateio de cada contrato.");
 }
 /* ============ centros de custo: cadastro e rateio em todos os processos de custo ============ */
@@ -3969,7 +3970,7 @@ document.addEventListener("click",ev=>{const t=ev.target.closest("[data-ccnovo],
 /* a lista do rateio passa a incluir o cadastro (só ativos) */
 const ccListaBase=ccLista;ccLista=function(){const s=new Set(ccListaBase());ccCadastro().forEach(c=>{if(c.ativo!==false)s.add(c.nome);else s.delete(c.nome)});return [...s].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999)||a.localeCompare(b))};
 /* cartões por centro de custo em cada processo */
-const R_FOLHA_BASE=R.folha;R.folha=()=>{const rows=ativos().filter(e=>!UI.folhaLoja||e.lojaId===UI.folhaLoja).map(e=>({e,f:folha(e,UI.comp)}));return R_FOLHA_BASE()+folhaCCCard(rows)};
+const R_FOLHA_BASE=R.folha;R.folha=()=>{const rows=ativos().filter(e=>(!UI.folhaLoja||e.lojaId===UI.folhaLoja)&&ccOk(e)).map(e=>({e,f:folha(e,UI.comp)}));return R_FOLHA_BASE()+folhaCCCard(rows)};
 const R_BENEF_BASE=R.beneficios;R.beneficios=()=>{const b=ST.cfg.beneficios,dm=diasMes(curComp);const calc=e=>{const d=feriasEmCurso(e)?0:dm.uteis;return {alim:b.alimentacao,ref:b.refeicao*d,mob:e.vt?b.mobilidadeDia*d:0,bem:b.bemestar}};return R_BENEF_BASE()+benefCCCard(calc)};
 const R_DESL_BASE=R.desligamentos;R.desligamentos=()=>R_DESL_BASE()+deslCCCard();
 const R_PJS_BASE=R.pjs;R.pjs=()=>R_PJS_BASE()+pjCCCard();
@@ -4049,6 +4050,43 @@ async function importarBackupClaude(file){
   commit("Importando "+ST.emps.length+" colaboradores. Aguarde \"Tudo salvo\".");
 }
 document.addEventListener("change",ev=>{if(ev.target.id==="bk-file-c"){const f=ev.target.files[0];ev.target.value="";importarBackupClaude(f)}});
+/* ============ filtros compactos (lista suspensa com várias escolhas) e filtro de centro de custo em todas as rotinas ============ */
+function msel(chave,rotulo,opcoes,sel,todosTxt){
+  sel=sel||[];const n=sel.length;const nome=v=>(opcoes.find(o=>o[0]===v)||[v,v])[1];
+  const txt=!n?todosTxt:n===1?nome(sel[0]):n+" selecionados";const aberto=UI.mselAberto===chave;const tmp=aberto?(UI.mselTmp||sel):sel;
+  return `<div class="msel" style="position:relative;display:inline-block;vertical-align:middle"><button type="button" class="btn btn-sm ${n?"btn-primary":""}" data-msel="${chave}" aria-expanded="${aberto}" title="${esc(n?sel.map(nome).join(" · "):todosTxt)}" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(rotulo)}: ${esc(txt)} ▾</button>
+  ${aberto?`<div class="msel-pop" style="position:absolute;z-index:40;top:calc(100% + 6px);left:0;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:10px">
+    <input class="input" data-mselbusca="${chave}" placeholder="Buscar…" autocomplete="off" style="margin-bottom:8px">
+    <div class="tabs-inline" style="margin-bottom:6px"><button type="button" class="btn btn-sm btn-ghost" data-mseltodos="${chave}">Marcar todos</button><button type="button" class="btn btn-sm btn-ghost" data-msellimpar="${chave}">Limpar</button><span class="small muted" style="align-self:center">${tmp.length?tmp.length+" marcado(s)":"nenhum = todos"}</span></div>
+    <div style="max-height:300px;overflow:auto">${opcoes.map(([v,t,ind])=>`<label class="check" style="display:flex;padding:5px 2px${ind?";padding-left:22px":""}" data-mselitem="${esc(semAcento(t))}"><input type="checkbox" data-mselop="${chave}" value="${esc(v)}" ${tmp.includes(v)?"checked":""}> ${esc(t)}</label>`).join("")}</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button type="button" class="btn btn-sm" data-mselfechar="1">Cancelar</button><button type="button" class="btn btn-sm btn-primary" data-mselok="${chave}">Aplicar</button></div></div>`:""}</div>`;
+}
+const MSEL_CAMPO={hc:"hcLojas",rt:"rtLojas",cc:"ccF"};
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-msel],[data-mseltodos],[data-msellimpar],[data-mselok],[data-mselfechar]");
+  if(!t){if(UI.mselAberto&&!ev.target.closest(".msel-pop")){UI.mselAberto=null;UI.mselTmp=null;render()}return}
+  const d=t.dataset;
+  if(d.msel){if(UI.mselAberto===d.msel){UI.mselAberto=null;UI.mselTmp=null}else{UI.mselAberto=d.msel;UI.mselTmp=(UI[MSEL_CAMPO[d.msel]]||[]).slice()}render();const b=document.querySelector(`[data-mselbusca="${d.msel}"]`);if(b)b.focus();return}
+  if(d.mseltodos){UI.mselTmp=[...document.querySelectorAll(`[data-mselop="${d.mseltodos}"]`)].map(i=>i.value);document.querySelectorAll(`[data-mselop="${d.mseltodos}"]`).forEach(i=>i.checked=true);return}
+  if(d.msellimpar){UI.mselTmp=[];document.querySelectorAll(`[data-mselop="${d.msellimpar}"]`).forEach(i=>i.checked=false);return}
+  if(d.mselfechar){UI.mselAberto=null;UI.mselTmp=null;render();return}
+  if(d.mselok){const todas=document.querySelectorAll(`[data-mselop="${d.mselok}"]`).length;const sel=UI.mselTmp||[];UI[MSEL_CAMPO[d.mselok]]=sel.length===todas&&d.mselok!=="cc"?[]:sel;UI.mselAberto=null;UI.mselTmp=null;render();return}
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset||!t.dataset.mselop)return;const s=new Set(UI.mselTmp||[]);if(t.checked)s.add(t.value);else s.delete(t.value);UI.mselTmp=[...s];const sp=t.closest(".msel-pop").querySelector(".tabs-inline .small");if(sp)sp.textContent=s.size?s.size+" marcado(s)":"nenhum = todos"});
+document.addEventListener("input",ev=>{const t=ev.target;if(!t.dataset||!t.dataset.mselbusca)return;const n=semAcento(t.value);t.closest(".msel-pop").querySelectorAll("[data-mselitem]").forEach(l=>{l.style.display=!n||l.dataset.mselitem.includes(n)?"flex":"none"})});
+/* filtro global de centro de custo (vale em todas as rotinas listadas) */
+const CC_PAGINAS=["headcount","rotatividade","colaboradores","experiencia","ferias","desligamentos","folha","beneficios","medidas","pjs","ponto"];
+function ccOk(o,tipo){const f=UI.ccF||[];if(!f.length||ROLE!=="rh")return true;if(!o)return false;const S=new Set(f);
+  return rateioDe(o,tipo).some(x=>S.has(x.cc)||(typeof ccPaiDe==="function"&&ccPaiDe(x.cc)&&S.has(ccPaiDe(x.cc).nome)))}
+function ccFiltroCtl(){
+  if(ROLE!=="rh"||!CC_PAGINAS.includes(page))return "";
+  const cad=typeof ccCadastro==="function"?ccCadastro():[];const tops=cad.filter(c=>!c.pai&&c.ativo!==false).sort((a,b)=>ccOrdem(a.codigo||a.nome,b.codigo||b.nome));
+  const ops=[];tops.forEach(c=>{ops.push([c.nome,c.nome]);cad.filter(x=>x.pai===c.id&&x.ativo!==false).sort((a,b)=>ccOrdem(a.codigo,b.codigo)).forEach(x=>ops.push([x.nome,x.nome,1]))});
+  ccLista().forEach(n=>{if(!ops.some(o=>o[0]===n))ops.push([n,n])});
+  return msel("cc","Centro de custo",ops,UI.ccF||[],"Todos");
+}
+const headerSemCC=header;
+header=function(eyebrow,title,actions=""){return headerSemCC(eyebrow,title,ccFiltroCtl()+actions)};
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
