@@ -507,7 +507,7 @@ async function tudo(t,ordem){
 }
 
 /* ---- gravação: compara com o que já está no banco e envia só o que mudou ---- */
-const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado"];
+const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado","gestorId"];
 const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id"};
 const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores"];
 function setSync(s){SYNC=s;const el=document.getElementById("sync");if(el){el.textContent=s==="saving"?"Salvando…":s==="error"?"Erro ao salvar":"Tudo salvo";el.className="sync "+s}}
@@ -2428,6 +2428,7 @@ function camposExport(){
     add(sec.s,"f_"+k,t,e=>f(e)[k],tp==="d"?"d":tp==="n"?"n":tp==="b"?"b":"t");
   }));
   add("Vínculo e registro","unidadeCnpj","CNPJ da unidade",e=>store(e.lojaId).cnpj||"");
+  add("Vínculo e registro","gestor","Reporta a (gestor imediato)",e=>{if(typeof reportaA!=="function")return "";const g=reportaA(e);return g?g.g.nome+(g.auto?" (automático)":""):""});
   add("Vínculo e registro","rateioCC","Rateio de centros de custo",e=>typeof rateioTexto==="function"?rateioTexto(e):"");
   add("Situação e controles","feriasSit","Situação das férias",e=>e.desligado?"":situacaoFerias(e).st.t);
   add("Situação e controles","feriasPend","Períodos de férias em aberto",e=>e.desligado?"":situacaoFerias(e).pend,"n");
@@ -4087,6 +4088,164 @@ function ccFiltroCtl(){
 }
 const headerSemCC=header;
 header=function(eyebrow,title,actions=""){return headerSemCC(eyebrow,title,ccFiltroCtl()+actions)};
+/* ============ organograma da unidade (aba do Headcount) ============
+   Nível pelo cargo: 1 liderança · 2 supervisão · 3 equipe. O RH pode ajustar o nível de cada cargo (ST.orgNiveis). */
+const ORG_NIVEIS={1:"Liderança da unidade",2:"Supervisão e coordenação",3:"Equipe"};
+function orgNivel(cargo){
+  const aj=(ST.orgNiveis||{})[cargo];if(aj)return Number(aj);
+  const n=semAcento(cargo||"");
+  if(/subgerente|sub gerente|supervis|encarregad|responsavel|lider|chefe|coordenador de loja/.test(n))return 2;
+  if(/gerente|diretor|socio|coordenador|head/.test(n))return 1;
+  return 3;
+}
+function orgUnidadePadrao(){const ls=ST.stores.filter(lojaTemGente);const sel=(UI.hcLojas||[]).find(id=>ls.some(s=>s.id===id));return UI.orgLoja&&ls.some(s=>s.id===UI.orgLoja)?UI.orgLoja:sel||(ls[0]||{}).id}
+function orgDados(lojaId){
+  const pessoas=ativos().filter(e=>e.lojaId===lojaId&&ccOk(e)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const niv={1:[],2:[],3:[]};pessoas.forEach(e=>niv[orgNivel(e.cargo)].push(e));
+  const grupos={};niv[3].forEach(e=>{(grupos[e.cargo]=grupos[e.cargo]||[]).push(e)});
+  const vagas=(ST.vagas||[]).filter(v=>v.lojaId===lojaId).map(v=>({cargo:v.cargo,qtd:Number(v.qtd)||1,status:v.status}));
+  const adm=(ST.admissoes||[]).filter(a=>a.lojaId===lojaId&&a.etapa<4);
+  return {pessoas,niv,grupos,vagas,adm};
+}
+function orgCard(e,peq){const s=status(e);const tempo=monthsBetween(e.admissao,TODAY);
+  return `<div class="org-p ${peq?"peq":""}" data-ficha="${e.id}" title="${esc(e.nome)} · ${esc(e.cargo)}"><div class="avatar">${esc(initials(e.nome))}</div><div style="min-width:0"><b>${esc(e.nome.split(" ").slice(0,2).join(" "))}</b><span>${peq?"":esc(e.cargo)+" · "}${tempo>=12?Math.floor(tempo/12)+"a "+(tempo%12)+"m":tempo+"m"} de casa</span>${s.k!=="ativo"?`<span class="chip ${s.c}" style="margin-top:3px;width:max-content">${s.t}</span>`:""}</div></div>`}
+function orgPagina(){
+  const lojaId=orgUnidadePadrao();const s=store(lojaId);if(!lojaId)return header(G()?"Minha loja":"Visão geral","Headcount")+orgAbas()+`<div class="card empty">Nenhuma unidade com equipe.</div>`;
+  const d=orgDados(lojaId);const vagasPorCargo={};d.vagas.forEach(v=>{vagasPorCargo[v.cargo]=(vagasPorCargo[v.cargo]||0)+v.qtd});
+  const extras=c=>`${vagasPorCargo[c]?Array.from({length:vagasPorCargo[c]},()=>`<div class="org-p vaga"><div class="avatar">+</div><div><b>Vaga aberta</b><span>${esc(c)}</span></div></div>`).join(""):""}${d.adm.filter(a=>a.cargo===c).map(a=>`<div class="org-p adm"><div class="avatar">${esc(initials(a.nome))}</div><div><b>${esc(a.nome.split(" ").slice(0,2).join(" "))}</b><span>em admissão · início ${fdate(a.inicio)}</span></div></div>`).join("")}`;
+  const cargosNivel=n=>[...new Set([...d.niv[n].map(e=>e.cargo),...d.vagas.filter(v=>orgNivel(v.cargo)===n).map(v=>v.cargo),...d.adm.filter(a=>orgNivel(a.cargo)===n).map(a=>a.cargo)])];
+  const nivelHTML=n=>{const cs=cargosNivel(n);if(!cs.length)return "";
+    if(n<3)return `<div class="org-nivel"><div class="org-rot">${ORG_NIVEIS[n]}</div><div class="org-linha">${cs.map(c=>d.niv[n].filter(e=>e.cargo===c).map(e=>orgCard(e)).join("")+extras(c)).join("")}</div></div>`;
+    return `<div class="org-nivel"><div class="org-rot">${ORG_NIVEIS[3]}</div><div class="org-grupos">${cs.sort((a,b)=>(d.grupos[b]||[]).length-(d.grupos[a]||[]).length).map(c=>`<div class="org-grupo"><div class="org-gh"><b>${esc(c)}</b><span class="chip c-mute">${(d.grupos[c]||[]).length}</span></div>${(d.grupos[c]||[]).map(e=>orgCard(e,true)).join("")}${extras(c)}</div>`).join("")}</div></div>`};
+  const lojas=ST.stores.filter(lojaTemGente);const quadro=Number(s.quadro)||0;
+  const nAus=d.pessoas.filter(e=>["ferias","afastado"].includes(status(e).k)).length;
+  return header(G()?"Minha loja":"Visão geral","Headcount",`<button class="btn" data-act="orgPdf">Baixar PDF</button>`)+orgAbas()+`
+  <div class="card" style="padding:14px 18px"><div class="toolbar" style="margin:0;flex-wrap:wrap;gap:10px">
+    <select class="input" id="f-orgloja" aria-label="Unidade" style="max-width:420px">${lojas.map(x=>`<option value="${esc(x.id)}" ${x.id===lojaId?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>
+    <span class="chip c-info">${d.pessoas.length} pessoa${d.pessoas.length===1?"":"s"}${quadro?" de "+quadro+" no quadro":""}</span>${d.vagas.length?`<span class="chip c-warn">${d.vagas.reduce((t,v)=>t+v.qtd,0)} vaga(s) aberta(s)</span>`:""}${d.adm.length?`<span class="chip c-brand">${d.adm.length} em admissão</span>`:""}${nAus?`<span class="chip c-mute">${nAus} de férias ou afastado(s)</span>`:""}
+    ${s.centroCusto?`<span class="small muted">Centro de custo: ${esc(s.centroCusto)}</span>`:""}</div></div>
+  <style>.org{overflow-x:auto}.org-topo{text-align:center;margin-bottom:14px}.org-topo b{display:block;font-size:1.1rem}.org-topo span{color:var(--muted);font-size:.8rem}.org-nivel{display:flex;flex-direction:column;align-items:center;gap:8px}.org-rot{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.org-linha{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.org-con{width:2px;height:22px;background:var(--line);margin:6px auto}.org-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;cursor:pointer;text-align:left}.org-p:hover{background:var(--brand-tint)}.org-p b{display:block;font-size:.85rem}.org-p span{display:block;font-size:.72rem;color:var(--muted)}.org-p.peq{min-width:0;max-width:none;border-width:1px;padding:6px 8px;margin-top:6px}.org-p.peq .avatar{width:26px;height:26px;font-size:.65rem}.org-p.vaga{border-style:dotted;border-color:var(--warn);cursor:default;background:transparent}.org-p.adm{border-style:dashed;border-color:var(--info,#3b82f6);cursor:default}.org-grupos{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:flex-start}.org-grupo{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:200px;background:var(--surface-2)}.org-gh{display:flex;justify-content:space-between;gap:8px;align-items:center}@media print{.side,.topbar .top-actions,.tabs-inline,details.card{display:none!important}}</style>
+  <div class="card org"><div class="org-topo"><b>${esc(s.nome)}</b><span>${esc(s.cidade||"")}${s.cnpj?" · CNPJ "+esc(s.cnpj):""}</span></div>
+    ${[1,2,3].map(nivelHTML).filter(Boolean).join(`<div class="org-con"></div>`)||`<div class="empty">Nenhum colaborador nesta unidade${(UI.ccF||[]).length?" com o filtro de centro de custo":""}.</div>`}
+    <p class="small muted" style="margin-top:14px">Clique numa pessoa para abrir a ficha. Pontilhado = vaga aberta (Recrutamento) · tracejado = em admissão.</p></div>
+  ${G()?"":orgNiveisCard(d)}`;
+}
+const orgAbas=()=>`<div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${UI.hcTab!=="org"?"on":""}" data-hctab="quadro">Headcount por função</button><button class="pill ${UI.hcTab==="org"?"on":""}" data-hctab="org">Organograma da unidade</button></div>`;
+function orgNiveisCard(d){
+  const cargos=[...new Set(ativos().map(e=>e.cargo))].sort((a,b)=>orgNivel(a)-orgNivel(b)||a.localeCompare(b));
+  return `<details class="card"><summary style="cursor:pointer"><b>Ajustar nível dos cargos no organograma</b> <span class="small muted">· vale para todas as unidades</span></summary>
+  <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Cargo</th><th>Nível</th><th class="r">Pessoas na rede</th></tr></thead><tbody>${cargos.map(c=>`<tr><td>${esc(c)}</td><td><select class="input" data-orgnivel="${esc(c)}" style="max-width:260px">${[1,2,3].map(n=>`<option value="${n}" ${orgNivel(c)===n?"selected":""}>${n} · ${ORG_NIVEIS[n]}</option>`).join("")}</select>${(ST.orgNiveis||{})[c]?` <span class="chip c-info">ajustado</span>`:""}</td><td class="r num">${ativos().filter(e=>e.cargo===c).length}</td></tr>`).join("")}</tbody></table></div></details>`;
+}
+function orgPdf(){
+  if(!window.jspdf||!window.jspdf.jsPDF){toast("O gerador de PDF não carregou. Recarregue a página.");return}
+  const lojaId=orgUnidadePadrao();const s=store(lojaId);const d=orgDados(lojaId);
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:"landscape"});const W=297,H=210,M=12,verde=[11,127,74],tinta=[16,32,26],cinza=[91,109,100];
+  doc.setFillColor(...verde);doc.rect(0,0,W,16,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("BRASILEIRÍSSIMA · Gestão de Pessoas",M,10.5);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text("Organograma",W-M,10.5,{align:"right"});
+  doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(s.nome,M,26);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...cinza);
+  doc.text([s.cidade,s.cnpj?"CNPJ "+s.cnpj:"",s.centroCusto?"CC "+s.centroCusto:"",d.pessoas.length+" pessoas"+(s.quadro?" de "+s.quadro+" no quadro":""),"posição em "+fdate(TODAY)].filter(Boolean).join(" · "),M,32);
+  let y=40;const caixa=(x,yy,w,h,t1,t2,t3,tipo)=>{doc.setDrawColor(...(tipo==="vaga"?[200,160,0]:verde));doc.setLineWidth(tipo==="vaga"?0.3:0.4);if(tipo==="vaga")doc.setLineDashPattern([1,1],0);doc.setFillColor(...(tipo==="lider"?[230,244,236]:[255,255,255]));doc.roundedRect(x,yy,w,h,1.5,1.5,"FD");doc.setLineDashPattern([],0);
+    doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(doc.splitTextToSize(t1,w-3)[0],x+w/2,yy+4.5,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...cinza);if(t2)doc.text(doc.splitTextToSize(t2,w-3)[0],x+w/2,yy+8.5,{align:"center"});if(t3)doc.text(t3,x+w/2,yy+12,{align:"center"})};
+  const linha=(itens,tipo)=>{if(!itens.length)return;const bw=Math.min(48,(W-2*M-(itens.length-1)*4)/itens.length),tot=itens.length*bw+(itens.length-1)*4;let x=(W-tot)/2;
+    if(y>14){doc.setDrawColor(...cinza);doc.setLineWidth(0.3);doc.line(W/2,y-6,W/2,y-2)}
+    itens.forEach(it=>{caixa(x,y,bw,14,it[0],it[1],it[2],it[3]||tipo);x+=bw+4});y+=22};
+  const vagas=n=>d.vagas.filter(v=>orgNivel(v.cargo)===n).flatMap(v=>Array.from({length:v.qtd},()=>["Vaga aberta",v.cargo,"","vaga"]));
+  const st=e=>{const x=status(e);return x.k==="ativo"?"":x.t};
+  linha([...d.niv[1].map(e=>[e.nome.split(" ").slice(0,2).join(" "),e.cargo,st(e),"lider"]),...vagas(1)],"lider");
+  linha([...d.niv[2].map(e=>[e.nome.split(" ").slice(0,2).join(" "),e.cargo,st(e)]),...vagas(2)]);
+  const gs=Object.entries(d.grupos).sort((a,b)=>b[1].length-a[1].length);
+  if(gs.length){doc.setDrawColor(...cinza);doc.line(W/2,y-6,W/2,y-2);const cw=Math.min(60,(W-2*M-(gs.length-1)*4)/gs.length);let x=(W-(gs.length*cw+(gs.length-1)*4))/2;
+    gs.forEach(([c,l])=>{const v=d.vagas.filter(z=>z.cargo===c).reduce((t,z)=>t+z.qtd,0);const h=8+l.length*4.2+(v?4.2:0);doc.setDrawColor(...verde);doc.setFillColor(247,250,248);doc.roundedRect(x,y,cw,h,1.5,1.5,"FD");
+      doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(doc.splitTextToSize(c+" ("+l.length+")",cw-3)[0],x+cw/2,y+5,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(7);
+      l.forEach((e,i)=>{doc.setTextColor(...tinta);const t=e.nome.split(" ").slice(0,2).join(" ")+(st(e)?" · "+st(e):"");doc.text(doc.splitTextToSize(t,cw-4)[0],x+2,y+9.5+i*4.2)});
+      if(v){doc.setTextColor(170,120,0);doc.text("+ "+v+" vaga(s) aberta(s)",x+2,y+9.5+l.length*4.2)}x+=cw+4})}
+  doc.setFontSize(7.5);doc.setTextColor(...cinza);doc.text("Emitido em "+new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+(SESSION?" por "+SESSION.nome:"")+" · portal Gestão de Pessoas",M,H-6);
+  salvarPDF(doc,"organograma-"+slugCC(s.nome)+"-"+TODAY+".pdf").then(ok=>{if(ok)logEvento("Organograma emitido",s.nome)});
+}
+const R_HEADCOUNT_BASE=R.headcount;
+R.headcount=()=>{if(UI.hcTab==="org")return orgPagina();const h=R_HEADCOUNT_BASE();const j=h.indexOf('<div class="card"',Math.max(0,h.indexOf('class="topbar"')));return j<0?orgAbas()+h:h.slice(0,j)+orgAbas()+h.slice(j)};
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-hctab]");if(t){UI.hcTab=t.dataset.hctab;render();return}if(ev.target.closest('[data-act="orgPdf"]'))orgPdf()});
+document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="f-orgloja"){UI.orgLoja=t.value;render();return}
+  if(t.dataset&&t.dataset.orgnivel){const c=t.dataset.orgnivel,n=Number(t.value);ST.orgNiveis=ST.orgNiveis||{};const auto=(()=>{const o=ST.orgNiveis[c];delete ST.orgNiveis[c];const a=orgNivel(c);if(o)ST.orgNiveis[c]=o;return a})();if(n===auto)delete ST.orgNiveis[c];else ST.orgNiveis[c]=n;logEvento("Nível do organograma ajustado",c+" → "+ORG_NIVEIS[n]);commit()}});
+/* ============ "Reporta a" (gestor imediato) e organograma em árvore ============
+   e.gestorId = id do gestor imediato. Sem gestor informado, a pessoa liga ao líder mais próximo da unidade (nível acima pelo cargo). */
+function gestorAuto(e){
+  const n=orgNivel(e.cargo);if(n===1)return null;
+  const mesmos=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id);
+  for(let k=n-1;k>=1;k--){const c=mesmos.filter(x=>orgNivel(x.cargo)===k).sort((a,b)=>a.admissao.localeCompare(b.admissao));if(c.length)return c[0]}
+  return null;
+}
+function reportaA(e){if(e.gestorId){const g=emp(e.gestorId);if(g&&!g.desligado)return {g,auto:false}}const a=gestorAuto(e);return a?{g:a,auto:true}:null}
+const subordinadosDiretos=id=>ativos().filter(x=>x.gestorId===id);
+function criaCiclo(eid,gid){let cur=emp(gid);const vis=new Set();while(cur&&!vis.has(cur.id)){if(cur.id===eid)return true;vis.add(cur.id);const g=reportaA(cur);cur=g?g.g:null}return false}
+function gestorSecao(e){
+  if(G())return "";const r=reportaA(e);const subs=ativos().filter(x=>{const g=reportaA(x);return g&&g.g.id===e.id});
+  return `<details class="fx-view" ${e.gestorId||subs.length?"open":""}><summary>Reporta a${subs.length?` <span class="chip c-info">${subs.length} pessoa${subs.length===1?"":"s"} reportam a ${esc(primeiro(e.nome))}</span>`:""}</summary>
+    <div class="kv"><div><span>Gestor imediato</span><b>${r?`<span data-ficha="${r.g.id}" style="cursor:pointer;text-decoration:underline">${esc(r.g.nome)}</span> · ${esc(r.g.cargo)}${r.g.lojaId!==e.lojaId?" · "+esc(store(r.g.lojaId).nome):""}${r.auto?` <span class="chip c-mute">automático pelo cargo</span>`:""}`:"— (topo da unidade)"}</b></div>
+    ${subs.length?`<div><span>Equipe direta</span><b style="white-space:normal">${subs.map(x=>`<span data-ficha="${x.id}" style="cursor:pointer;text-decoration:underline">${esc(x.nome.split(" ").slice(0,2).join(" "))}</span>`).join(" · ")}</b></div>`:""}</div>
+    <button class="btn btn-sm" data-gestor="${e.id}" style="margin-top:8px">${e.gestorId?"Alterar gestor imediato":"Definir gestor imediato"}</button></details>`;
+}
+let GT_ED=null;
+function gestorModal(eid){
+  const e=emp(eid);GT_ED={eid};const mesma=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id).sort((a,b)=>orgNivel(a.cargo)-orgNivel(b.cargo)||a.nome.localeCompare(b.nome));
+  const outras=ativos().filter(x=>x.lojaId!==e.lojaId&&orgNivel(x.cargo)<=2).sort((a,b)=>store(a.lojaId).nome.localeCompare(store(b.lojaId).nome)||a.nome.localeCompare(b.nome));
+  const op=x=>`<option value="${x.id}" ${x.id===e.gestorId?"selected":""}>${esc(x.nome)} · ${esc(x.cargo)}${x.lojaId!==e.lojaId?" · "+esc(store(x.lojaId).nome):""}</option>`;const a=gestorAuto(e);
+  modal("Gestor imediato · "+e.nome,`<p class="small muted">A quem ${esc(primeiro(e.nome))} reporta no dia a dia. Usado no organograma e nos relatórios de equipe.</p>
+    <div class="field"><label for="gt-busca">Buscar</label><input class="input" id="gt-busca" placeholder="Digite parte do nome, cargo ou unidade" autocomplete="off"></div>
+    <div class="field"><label for="gt-sel">Reporta a</label><select class="input" id="gt-sel" size="10" style="height:auto"><option value="" ${!e.gestorId?"selected":""}>Automático pelo cargo${a?" ("+esc(a.nome)+")":" (topo da unidade)"}</option>
+      ${mesma.length?`<optgroup label="${esc(store(e.lojaId).nome)}">${mesma.map(op).join("")}</optgroup>`:""}${outras.length?`<optgroup label="Lideranças de outras unidades">${outras.map(op).join("")}</optgroup>`:""}</select></div>
+    <p class="small" id="gt-err" style="color:var(--bad)" hidden></p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-gtsalvar="1">Salvar</button>`);
+}
+function gestorSalvar(){
+  const e=emp(GT_ED.eid);const v=$("#gt-sel").value;const err=m=>{const el=$("#gt-err");el.hidden=false;el.textContent=m};
+  if(v&&v===e.id)return err("A pessoa não pode reportar a si mesma.");
+  if(v&&criaCiclo(e.id,v))return err("Isso criaria um ciclo: o gestor escolhido já reporta, direta ou indiretamente, a "+primeiro(e.nome)+".");
+  const ant=e.gestorId;if(v)e.gestorId=v;else delete e.gestorId;
+  logEvento("Gestor imediato alterado",e.nome+" → "+(v?emp(v).nome:"automático pelo cargo")+(ant&&emp(ant)?" (antes: "+emp(ant).nome+")":""));GT_ED=null;closeModal();commit("Gestor imediato salvo");fichaModal(e.id);
+}
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-gestor],[data-gtsalvar]");if(!t)return;if(t.dataset.gestor){closeModal();gestorModal(t.dataset.gestor);return}if(t.dataset.gtsalvar)gestorSalvar()});
+document.addEventListener("input",ev=>{if(ev.target.id!=="gt-busca")return;const n=semAcento(ev.target.value);document.querySelectorAll("#gt-sel option").forEach(o=>{if(!o.value)return;o.hidden=!!n&&!semAcento(o.textContent).includes(n)})});
+/* ---- organograma em árvore ---- */
+function orgArvore(lojaId){
+  const pessoas=ativos().filter(e=>e.lojaId===lojaId&&ccOk(e));const ids=new Set(pessoas.map(e=>e.id));
+  const filhos={},raizes=[],externos={};
+  pessoas.forEach(e=>{const r=reportaA(e);if(r&&ids.has(r.g.id)&&!criaCiclo(e.id,r.g.id)){(filhos[r.g.id]=filhos[r.g.id]||[]).push({e,auto:r.auto})}
+    else if(r&&!ids.has(r.g.id)&&!r.auto){(externos[r.g.id]=externos[r.g.id]||[]).push({e,auto:false})}else raizes.push(e)});
+  const ord=(a,b)=>orgNivel(a.e?a.e.cargo:a.cargo)-orgNivel(b.e?b.e.cargo:b.cargo)||(a.e||a).cargo.localeCompare((b.e||b).cargo)||(a.e||a).nome.localeCompare((b.e||b).nome);
+  Object.values(filhos).forEach(l=>l.sort(ord));raizes.sort(ord);
+  return {pessoas,filhos,raizes,externos};
+}
+function orgNo(e,T,auto,prof){
+  const fs=T.filhos[e.id]||[];const folhas=fs.filter(x=>!(T.filhos[x.e.id]||[]).length);const ramos=fs.filter(x=>(T.filhos[x.e.id]||[]).length);
+  let sub="";
+  if(ramos.length)sub+=`<div class="org-ramos">${ramos.map(x=>`<div class="org-ramo">${orgNo(x.e,T,x.auto,prof+1)}</div>`).join("")}</div>`;
+  if(folhas.length){const g={};folhas.forEach(x=>{(g[x.e.cargo]=g[x.e.cargo]||[]).push(x)});
+    sub+=`<div class="org-grupos">${Object.entries(g).sort((a,b)=>b[1].length-a[1].length).map(([c,l])=>`<div class="org-grupo"><div class="org-gh"><b>${esc(c)}</b><span class="chip c-mute">${l.length}</span></div>${l.map(x=>orgCard(x.e,true)).join("")}</div>`).join("")}</div>`}
+  return `<div class="org-no">${orgCard(e).replace('class="org-p','class="org-p'+(auto?" auto":""))}${fs.length?`<div class="org-con"></div>${sub}`:""}</div>`;
+}
+const ORG_PAGINA_NIVEIS=orgPagina;
+orgPagina=function(){
+  const html=ORG_PAGINA_NIVEIS();const lojaId=orgUnidadePadrao();if(!lojaId)return html;
+  const T=orgArvore(lojaId);const d=orgDados(lojaId);
+  const vagas=d.vagas.flatMap(v=>Array.from({length:v.qtd},()=>`<div class="org-p vaga"><div class="avatar">+</div><div><b>Vaga aberta</b><span>${esc(v.cargo)}</span></div></div>`)).join("")+d.adm.map(a=>`<div class="org-p adm"><div class="avatar">${esc(initials(a.nome))}</div><div><b>${esc(a.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(a.cargo)} · em admissão</span></div></div>`).join("");
+  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);return `<div class="org-no"><div class="org-p externo" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)} · ${esc(store(g.lojaId).nome)}</span><span class="chip c-info" style="margin-top:3px;width:max-content">outra unidade</span></div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,false,1)).join("")}</div></div>`}).join("");
+  const arvore=`<div class="org-arvore">${T.raizes.map(e=>orgNo(e,T,false,0)).join("")}${ext}</div>${vagas?`<div class="org-nivel" style="margin-top:18px"><div class="org-rot">Vagas abertas e admissões em andamento</div><div class="org-linha">${vagas}</div></div>`:""}`;
+  const legenda=`<p class="small muted" style="margin-top:14px">Linhas pelo campo "Reporta a" da ficha. Borda tracejada fina = ligação automática pelo cargo (sem gestor informado). Clique numa pessoa para abrir a ficha e definir a quem ela reporta.</p>`;
+  const css=`<style>.org-arvore{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;align-items:flex-start}.org-no{display:flex;flex-direction:column;align-items:center}.org-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.org-ramo{display:flex;flex-direction:column;align-items:center}.org-p.auto{border-style:dashed;border-width:1px}.org-p.externo{border-color:var(--info,#3b82f6);background:transparent}</style>`;
+  const ini=html.indexOf('<div class="card org">');if(ini<0)return html;const fim=html.indexOf("</p></div>",ini);if(fim<0)return html;
+  return html.slice(0,ini)+css+`<div class="card org"><div class="org-topo"><b>${esc(store(lojaId).nome)}</b><span>${esc(store(lojaId).cidade||"")}${store(lojaId).cnpj?" · CNPJ "+esc(store(lojaId).cnpj):""}</span></div>${T.pessoas.length?arvore:`<div class="empty">Nenhum colaborador nesta unidade${(UI.ccF||[]).length?" com o filtro de centro de custo":""}.</div>`}${legenda}</div>`+html.slice(fim+10);
+};
+orgPdf=function(){
+  const lojaId=orgUnidadePadrao();const s=store(lojaId);const T=orgArvore(lojaId);const linhas=[];
+  const vis=new Set();const add=(e,prof,auto)=>{if(vis.has(e.id))return;vis.add(e.id);const st=status(e);const g=reportaA(e);
+    linhas.push([("    ".repeat(prof))+(prof?"└ ":"")+e.nome,e.cargo,ORG_NIVEIS[orgNivel(e.cargo)],g?g.g.nome+(g.auto?" (automático)":""):"—",st.k==="ativo"?"":st.t,fdate(e.admissao)]);
+    (T.filhos[e.id]||[]).forEach(x=>add(x.e,prof+1,x.auto))};
+  T.raizes.forEach(e=>add(e,0));Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);linhas.push([g.nome+" (outra unidade)",g.cargo,"",store(g.lojaId).nome,"",""]);l.forEach(x=>add(x.e,1,false))});
+  pdfTabela({titulo:"Organograma · "+s.nome,filtros:[s.cidade,s.cnpj?"CNPJ "+s.cnpj:"",s.centroCusto?"CC "+s.centroCusto:"","posição em "+fdate(TODAY)].filter(Boolean).join(" · "),
+    resumo:[["Pessoas",T.pessoas.length],["Quadro ideal",s.quadro||"—"],["Com gestor informado",T.pessoas.filter(e=>e.gestorId).length]],
+    colunas:["Nome (hierarquia)","Cargo","Nível","Reporta a","Situação","Admissão"],larguras:[78,48,40,62,24,0],linhas,fonte:8,
+    arquivo:"organograma-"+slugCC(s.nome)+"-"+TODAY+".pdf",log:["Organograma emitido",s.nome]});
+};
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
@@ -4643,6 +4802,7 @@ function fichaModal(id){
     </div>
     ${emExperiencia(e)?`<div class="note">Contrato de experiência: 1º período termina em ${fdate(addDays(e.admissao,44))}, prorrogação até ${fdate(addDays(e.admissao,89))}.</div>`:""}
     ${avSecao(e)}
+    ${typeof gestorSecao==="function"?gestorSecao(e):""}
     ${typeof rateioSecao==="function"?rateioSecao(e):""}
     ${mdSecaoFicha(e)}
     ${typeof anexosSecao==="function"?anexosSecao(e):""}
