@@ -1230,7 +1230,7 @@ R.lojas=()=>{
   const at=ativos();
   return header("Pessoas","Lojas e unidades",`<button class="btn btn-primary" data-act="novaLoja">+ Nova unidade</button>`)+`
   <div class="grid store-cards">${ST.stores.map(s=>{
-    const es=at.filter(e=>e.lojaId===s.id);const g=es.find(e=>/Gerente|Supervisor/.test(e.cargo));
+    const es=at.filter(e=>e.lojaId===s.id);const g=(s.gestorId&&emp(s.gestorId))||es.find(e=>/Gerente|Supervisor/.test(e.cargo));
     const custo=es.reduce((t,e)=>t+folha(e).bruto,0);const vendas=es.reduce((t,e)=>t+(e.vendas||0),0);
     const gap=s.quadro-es.length;
     return `<div class="card store"><div class="store-top"><div><h2>${esc(s.nome)}</h2><span>${esc(s.tipo)} · ${esc(s.cidade)}</span>${s.cnpj?`<span style="display:block">${esc(s.empregador||"")} · CNPJ ${esc(s.cnpj)}</span>`:""}</div>
@@ -4210,7 +4210,7 @@ function orgArvore(lojaId){
   const pessoas=ativos().filter(e=>e.lojaId===lojaId&&ccOk(e));const ids=new Set(pessoas.map(e=>e.id));
   const filhos={},raizes=[],externos={};
   pessoas.forEach(e=>{const r=reportaA(e);if(r&&ids.has(r.g.id)&&!criaCiclo(e.id,r.g.id)){(filhos[r.g.id]=filhos[r.g.id]||[]).push({e,auto:r.auto})}
-    else if(r&&!ids.has(r.g.id)&&!r.auto){(externos[r.g.id]=externos[r.g.id]||[]).push({e,auto:false})}else raizes.push(e)});
+    else if(r&&!ids.has(r.g.id)){(externos[r.g.id]=externos[r.g.id]||[]).push({e,auto:r.auto})}else raizes.push(e)});
   const ord=(a,b)=>orgNivel(a.e?a.e.cargo:a.cargo)-orgNivel(b.e?b.e.cargo:b.cargo)||(a.e||a).cargo.localeCompare((b.e||b).cargo)||(a.e||a).nome.localeCompare((b.e||b).nome);
   Object.values(filhos).forEach(l=>l.sort(ord));raizes.sort(ord);
   return {pessoas,filhos,raizes,externos};
@@ -4246,6 +4246,77 @@ orgPdf=function(){
     colunas:["Nome (hierarquia)","Cargo","Nível","Reporta a","Situação","Admissão"],larguras:[78,48,40,62,24,0],linhas,fonte:8,
     arquivo:"organograma-"+slugCC(s.nome)+"-"+TODAY+".pdf",log:["Organograma emitido",s.nome]});
 };
+/* ============ gestor responsável da unidade e busca de lojas por gerente ============ */
+/* quem fica no topo da unidade (sem líder acima pelo cargo) passa a reportar ao gestor responsável da unidade */
+const gestorAutoBase=gestorAuto;
+gestorAuto=function(e){const a=gestorAutoBase(e);if(a)return a;const s=store(e.lojaId);if(s.gestorId&&s.gestorId!==e.id){const g=emp(s.gestorId);if(g&&!g.desligado)return g}return null};
+const usuariosGerentes=()=>{const l=typeof USUARIOS!=="undefined"?(USUARIOS||[]).filter(u=>u.perfil==="gerente"):(ST.usuarios||[]).filter(u=>u.perfil==="gerente");return l.map(u=>({nome:u.nome,login:u.login,lojas:u.lojas||[],ativo:u.ativo!==false}))};
+const mesmoNome=(a,b)=>{const x=semAcento(a||"").trim(),y=semAcento(b||"").trim();return x&&y&&(x===y||x.startsWith(y+" ")||y.startsWith(x+" "))};
+function gerentesLista(){
+  const L=[];ativos().filter(e=>orgNivel(e.cargo)<=2||ST.stores.some(s=>s.gestorId===e.id)).forEach(e=>L.push({k:"e:"+e.id,nome:e.nome,sub:e.cargo+" · "+store(e.lojaId).nome,e}));
+  usuariosGerentes().forEach(u=>{if(!L.some(x=>x.e&&mesmoNome(x.e.nome,u.nome)))L.push({k:"u:"+u.login,nome:u.nome,sub:"Usuário do portal (sem cadastro de colaborador)",u})});
+  return L.sort((a,b)=>a.nome.localeCompare(b.nome));
+}
+function lojasDoGerente(k){
+  const it=gerentesLista().find(x=>x.k===k);if(!it)return {it:null,lojas:[]};const m={};const add=(id,mot)=>{if(!id)return;(m[id]=m[id]||new Set()).add(mot)};
+  const e=it.e;const u=usuariosGerentes().find(x=>e?mesmoNome(x.nome,e.nome):x.login===(it.u||{}).login);
+  if(e){add(e.lojaId,"Lotação (unidade da ficha)");ST.stores.forEach(s=>{if(s.gestorId===e.id)add(s.id,"Gestor responsável da unidade")});
+    const rep={};ativos().forEach(x=>{if(x.id===e.id)return;const r=reportaA(x);if(r&&r.g.id===e.id){rep[x.lojaId]=(rep[x.lojaId]||0)+1}});Object.entries(rep).forEach(([id,n])=>add(id,n+" pessoa"+(n===1?"":"s")+" reporta"+(n===1?"":"m")+" a ele(a)"))}
+  if(u)u.lojas.forEach(id=>add(id,"Acesso no portal (login "+u.login+")"));
+  return {it,u,lojas:Object.entries(m).map(([id,s])=>({s:store(id),id,motivos:[...s]})).sort((a,b)=>a.s.nome.localeCompare(b.s.nome))};
+}
+function lojasPorGerenteCard(){
+  if(G())return "";const ls=gerentesLista();const k=UI.lgGer||"";const r=k?lojasDoGerente(k):null;
+  const chip=t=>`<span class="chip ${/Gestor/.test(t)?"c-brand":/Lota/.test(t)?"c-ok":/Acesso/.test(t)?"c-info":"c-mute"}">${esc(t)}</span>`;
+  const sem=r&&r.it&&r.it.e&&r.u?r.lojas.filter(x=>!x.motivos.some(m=>/Acesso/.test(m))&&x.motivos.some(m=>/Gestor|reporta/.test(m))):[];
+  return `<div class="card"><div class="card-head"><div><h2>Lojas por gerente</h2><p>Escolha um gerente ou líder para ver todas as unidades ligadas a ele e o motivo de cada vínculo.</p></div></div>
+  <div class="toolbar" style="margin:0 0 10px"><input class="input search" id="lg-busca" type="search" placeholder="Filtrar a lista por nome" autocomplete="off" style="max-width:260px">
+    <select class="input" id="lg-ger" style="max-width:520px"><option value="">Escolha o gerente…</option>${ls.map(x=>`<option value="${esc(x.k)}" ${x.k===k?"selected":""}>${esc(x.nome)} · ${esc(x.sub)}</option>`).join("")}</select>${r&&r.lojas.length?`<span class="chip c-info">${r.lojas.length} unidade${r.lojas.length===1?"":"s"}</span>`:""}</div>
+  ${!r?"":!r.lojas.length?`<div class="empty">Nenhuma unidade vinculada a ${esc(r.it?r.it.nome:"")}.</div>`:`<div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Vínculo</th><th class="r">Ativos</th><th class="r">Quadro</th><th>Centro de custo</th><th></th></tr></thead><tbody>${r.lojas.map(x=>`<tr><td><b>${esc(x.s.nome)}</b><br><span class="small muted">${esc(x.s.cidade||"")}</span></td><td style="white-space:normal">${x.motivos.map(chip).join(" ")}</td><td class="r num">${ativos().filter(e=>e.lojaId===x.id).length}</td><td class="r num">${x.s.quadro||"—"}</td><td class="small">${esc(x.s.centroCusto||"")}</td>
+    <td><div class="tabs-inline" style="flex-wrap:nowrap"><button class="btn btn-sm" data-lgorg="${esc(x.id)}">Organograma</button><button class="btn btn-sm btn-ghost" data-loja-colab="${esc(x.id)}">Equipe</button></div></td></tr>`).join("")}</tbody></table></div>
+  ${sem.length?`<div class="note" style="margin-top:10px">O login <b>${esc(r.u.login)}</b> não tem acesso a ${sem.map(x=>esc(x.s.nome)).join(", ")}. Libere em <b>Usuários</b> para ${esc(primeiro(r.it.nome))} ver essas equipes.</div>`:""}
+  ${r.it&&r.it.e&&r.lojas.length>1?`<p class="small muted" style="margin-top:8px">Para dividir o custo de ${esc(primeiro(r.it.nome))} entre as unidades, use <b>Centro de custo → Ratear</b> na ficha dele(a). Rateio atual: ${esc(rateioTexto(r.it.e)||"—")}.</p>`:""}`}</div>`;
+}
+const R_LOJAS_BASE=R.lojas;R.lojas=()=>{const h=R_LOJAS_BASE();const i=h.indexOf('<div class="grid store-cards">');return i<0?h+lojasPorGerenteCard():h.slice(0,i)+lojasPorGerenteCard()+h.slice(i)};
+/* ficha: unidades sob responsabilidade */
+const gestorSecaoBase=gestorSecao;
+gestorSecao=function(e){const h=gestorSecaoBase(e);if(!h)return h;const r=lojasDoGerente("e:"+e.id);const ls=r.lojas.filter(x=>x.motivos.some(m=>/Gestor|reporta/.test(m)));if(!ls.length)return h;
+  return h.replace("</div>\n    <button",`<div><span>Unidades sob responsabilidade</span><b style="white-space:normal">${ls.map(x=>esc(x.s.nome)).join(" · ")}</b></div></div>\n    <button`)};
+document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="lg-ger"){UI.lgGer=t.value;render()}});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="lg-busca")return;const n=semAcento(t.value);document.querySelectorAll("#lg-ger option").forEach(o=>{if(!o.value)return;o.hidden=!!n&&!semAcento(o.textContent).includes(n)})});
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-lgorg]");if(!t)return;UI.orgLoja=t.dataset.lgorg;UI.hcTab="org";location.hash="headcount";});
+/* ============ organograma: quem atua na unidade pelo centro de custo, com lotação em outra loja ============ */
+/* lojas cujo centro de custo é o informado (ou o centro principal de um subcentro) */
+function lojasDoCC(cc){cc=ccNorm(cc);const pai=typeof ccPaiDe==="function"?ccPaiDe(cc):null;return ST.stores.filter(s=>{const x=ccNorm(s.centroCusto||"");return x&&(x===cc||(pai&&x===pai.nome))})}
+/* outras lojas em que a pessoa atua pelo rateio (exclui a loja de lotação e centros compartilhados pela própria lotação) */
+function atuacaoOutrasLojas(e){const casa=ccNorm(store(e.lojaId).centroCusto||"");const out={};
+  rateioDe(e).forEach(r=>{lojasDoCC(r.cc).forEach(s=>{if(s.id===e.lojaId||ccNorm(s.centroCusto||"")===casa)return;out[s.id]=(out[s.id]||0)+r.pct})});
+  return Object.entries(out).map(([id,pct])=>({s:store(id),id,pct}))}
+let ORG_CRUZ=new Map();
+const orgArvoreBase=orgArvore;
+orgArvore=function(lojaId){
+  const T=orgArvoreBase(lojaId);ORG_CRUZ=new Map();const ids=new Set(T.pessoas.map(e=>e.id));
+  const vis=ativos().filter(e=>e.lojaId!==lojaId&&ccOk(e)).map(e=>({e,a:atuacaoOutrasLojas(e).find(x=>x.id===lojaId)})).filter(x=>x.a);
+  if(!vis.length)return T;
+  const topo=T.raizes.slice().sort((a,b)=>orgNivel(a.cargo)-orgNivel(b.cargo))[0];
+  vis.forEach(({e,a})=>{ORG_CRUZ.set(e.id,{pct:a.pct});const r=reportaA(e);const pai=r&&ids.has(r.g.id)?r.g:topo;
+    if(pai){(T.filhos[pai.id]=T.filhos[pai.id]||[]).push({e,auto:!r||!ids.has(r.g.id),cruzado:true})}else T.raizes.push(e)});
+  T.visitantes=vis.map(x=>x.e);T.pessoas=T.pessoas.concat(T.visitantes);return T;
+};
+const orgCardBase=orgCard;
+orgCard=function(e,peq){let h=orgCardBase(e,peq);
+  const c=ORG_CRUZ.get(e.id);
+  if(c&&e.lojaId!==UI.orgLojaAtual){h=h.replace('class="org-p','class="org-p cruzado').replace("</div></div>",`<span class="org-x">Lotação: ${esc(store(e.lojaId).nome)} · ${c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})}% aqui</span></div></div>`);return h}
+  const outras=atuacaoOutrasLojas(e);
+  if(outras.length)h=h.replace("</div></div>",`<span class="org-x2">também atua em ${outras.map(x=>esc(x.s.nome.replace(/ · .*$/,""))+" ("+x.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%)").join(", ")}</span></div></div>`);
+  return h};
+const orgPaginaCruz=orgPagina;
+orgPagina=function(){UI.orgLojaAtual=orgUnidadePadrao();const h=orgPaginaCruz();
+  const css=`<style>.org-p.cruzado{border-color:#8b5cf6!important;background:color-mix(in srgb,#8b5cf6 10%,var(--surface))!important;border-style:solid!important}.org-p.cruzado .avatar{background:#8b5cf6;color:#fff}.org-x{display:block;font-size:.7rem;color:#7c3aed;font-weight:600;margin-top:2px}.org-x2{display:block;font-size:.68rem;color:#7c3aed;margin-top:2px}</style>`;
+  return h.replace("Linhas pelo campo \"Reporta a\" da ficha.","Linhas pelo campo \"Reporta a\" da ficha. <b style=\"color:#7c3aed\">Caixa lilás</b> = atua nesta unidade pelo rateio de centro de custo, com lotação em outra loja.").replace('<div class="card org">',css+'<div class="card org">')};
+/* PDF: identifica quem tem lotação em outra loja */
+const orgPdfCruz=orgPdf;
+orgPdf=function(){UI.orgLojaAtual=orgUnidadePadrao();const pt=pdfTabela;pdfTabela=function(o){o.linhas=o.linhas.map(l=>{const nome=String(l[0]).replace(/^[\s└]+/,"");const e=ativos().find(x=>x.nome===nome);if(e&&ORG_CRUZ.has(e.id)&&e.lojaId!==UI.orgLojaAtual){l=l.slice();l[4]=(l[4]?l[4]+" · ":"")+"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)"}return l});if(o.resumo&&ORG_CRUZ.size)o.resumo.push(["Atuam aqui com lotação em outra loja",ORG_CRUZ.size]);return pt(o)};try{orgPdfCruz()}finally{pdfTabela=pt}};
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
 const ANX_HORAS=24;
@@ -5080,8 +5151,8 @@ document.addEventListener("click",ev=>{
   if(d.lojaColab){UI.loja=d.lojaColab;UI.status="";location.hash="colaboradores";return}
   if(d.lojaEscala){UI.escLoja=d.lojaEscala;location.hash="ponto";return}
   if(d.editloja){lojaForm(d.editloja);return}
-  if(d.saveloja!==undefined){const nome=$("#l-nome").value.trim();if(!nome)return;const data={nome,cidade:$("#l-cid").value.trim(),tipo:$("#l-tipo").value,quadro:Number($("#l-quadro").value)||1};
-    if(d.saveloja){Object.assign(store(d.saveloja),data)}else{ST.stores.push({id:"s"+uid(),...data})}closeModal();commit("Unidade salva");return}
+  if(d.saveloja!==undefined){const nome=$("#l-nome").value.trim();if(!nome)return;const data={nome,cidade:$("#l-cid").value.trim(),tipo:$("#l-tipo").value,quadro:Number($("#l-quadro").value)||1,gestorId:($("#l-gestor")&&$("#l-gestor").value)||undefined};if(!data.gestorId)delete data.gestorId;
+    if(d.saveloja){const st_=store(d.saveloja);if(!data.gestorId)delete st_.gestorId;Object.assign(st_,data);logEvento("Unidade alterada",nome+(data.gestorId?" · gestor responsável "+emp(data.gestorId).nome:""))}else{ST.stores.push({id:"s"+uid(),...data})}closeModal();commit("Unidade salva");return}
   const act=d.act;
   if(act==="salvarAval"){salvarAvaliacao(t);return}
   if(act==="iniciarExemplo"){iniciarRH(seedData());return}
@@ -5252,6 +5323,7 @@ function lojaForm(id){
     <div class="field"><label for="l-cid">Cidade/UF</label><input class="input" id="l-cid" value="${esc(s.cidade)}"></div>
     <div class="field"><label for="l-tipo">Formato</label><select class="input" id="l-tipo">${["Shopping","Loja de rua","Outlet","Quiosque","Centro de distribuição"].map(x=>`<option ${x===s.tipo?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="field"><label for="l-quadro">Quadro ideal (pessoas)</label><input class="input num" id="l-quadro" type="number" min="1" value="${s.quadro}"></div>
+    <div class="field full"><label for="l-gestor">Gestor responsável pela unidade</label><select class="input" id="l-gestor"><option value="">Automático (líder da própria unidade pelo cargo)</option>${ativos().filter(e=>typeof orgNivel!=="function"||orgNivel(e.cargo)<=2).sort((a,b)=>(a.lojaId===id?0:1)-(b.lojaId===id?0:1)||a.nome.localeCompare(b.nome)).map(e=>`<option value="${e.id}" ${e.id===s.gestorId?"selected":""}>${esc(e.nome)} · ${esc(e.cargo)} · ${esc(store(e.lojaId).nome)}</option>`).join("")}</select><span class="small muted">Use quando um gerente responde por mais de uma unidade: quem está no topo desta unidade passa a reportar a ele no organograma.</span></div>
   </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-saveloja="${id||""}">Salvar unidade</button>`);
 }
 function vagaForm(){
