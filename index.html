@@ -508,8 +508,8 @@ async function tudo(t,ordem){
 
 /* ---- gravação: compara com o que já está no banco e envia só o que mudou ---- */
 const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado","gestorId"];
-const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id"};
-const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores"];
+const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id",org_unidades:"loja_id"};
+const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores","org_unidades"];
 function setSync(s){SYNC=s;const el=document.getElementById("sync");if(el){el.textContent=s==="saving"?"Salvando…":s==="error"?"Erro ao salvar":"Tudo salvo";el.className="sync "+s}}
 function linhas(){
   const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});return o};
@@ -521,7 +521,8 @@ function linhas(){
     escalas:Object.entries(ST.escalaOverrides).map(([k,d])=>[k,{chave:k,loja_id:k.split("|")[0],dias:d}]),
     admissoes:ST.admissoes.map(a=>[a.id,{id:a.id,loja_id:a.lojaId,dados:a}]),
     rh_estado:[["1",{id:1,dados:(()=>{const {stores,emps,escalaOverrides,admissoes,pjs,usuarios,contasDesvinculadas,mensagens,...rest}=ST;return {...rest,exemplo:!!ST.exemplo}})()}]],
-    prestadores:(ST.pjs||[]).map(p=>[p.id,{id:p.id,dados:p}])
+    prestadores:(ST.pjs||[]).map(p=>[p.id,{id:p.id,dados:p}]),
+    org_unidades:orgSnapshots()
   };
 }
 function primeLast(){const L=linhas();ORDEM.forEach(t=>{LAST[t]=new Map(L[t].map(([k,o])=>[k,JSON.stringify(o)]))})}
@@ -562,7 +563,7 @@ async function carregarRH(){
     admissoes:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id})),
     pjs:pj.map(r=>({...r.dados,id:r.id})),
     cfg:d.cfg||clone(DEFAULT_CFG)});
-  primeLast();resumoBase();
+  primeLast();resumoBase();await orgPublicadaSync();
   await Promise.all([carregarSolicitacoes(),carregarUsuarios(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()]);
   limpezaAnexos().catch(()=>{});
   return true;
@@ -598,6 +599,7 @@ async function atualizarPeriodico(){
   try{
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
     else if(ROLE==="gerente"){await carregarGerente()}
+    await carregarPlanos();
     renderSafe();
   }catch(e){}
 }
@@ -879,6 +881,7 @@ const PAGES_G=[
   {id:"rotatividade",t:"Rotatividade"},
   {id:"colaboradores",t:"Equipe"},
   {id:"experiencia",t:"Experiência"},
+  {id:"td",t:"T&D"},
   {id:"ponto",t:"Ponto e escalas"},
   {id:"ferias",t:"Férias"},
   {g:"RH"},
@@ -898,6 +901,7 @@ const PAGES=[
   {id:"recrutamento",t:"Recrutamento"},
   {id:"admissao",t:"Admissões"},
   {id:"experiencia",t:"Experiência"},
+  {id:"td",t:"T&D"},
   {g:"Departamento Pessoal"},
   {id:"ponto",t:"Ponto e escalas"},
   {id:"ferias",t:"Férias"},
@@ -959,7 +963,7 @@ function painelLoja(){
     <div class="bars">${ST.stores.filter(lojaTemGente).map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div></div>`:""}
   <div class="grid two">
     <div class="card"><div class="card-head"><div><h2>Pendências ${varias?"das lojas":"da loja"}</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
-      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>
     <div class="card"><div class="card-head"><div><h2>Chegando na equipe</h2><p>Admissões em andamento pelo RH</p></div></div>
       <div class="alerts">${ST.admissoes.map(a=>`<div class="alert"><div class="avatar">${initials(a.nome)}</div><div style="min-width:0"><b>${esc(a.nome)}</b><span>${esc(a.cargo)} · início ${fdate(a.inicio)}</span></div><span class="chip ${["c-mute","c-info","c-warn","c-brand","c-ok"][a.etapa]}">${ETAPAS[a.etapa].t}</span></div>`).join("")||`<div class="empty">Nenhuma admissão em andamento para esta loja.</div>`}</div></div>
   </div>`;
@@ -1190,7 +1194,7 @@ R.painel=()=>{
   <div class="grid two">
     <div class="card">
       <div class="card-head"><div><h2>Pendências do DP</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
-      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div>
     </div>
     <div class="card">
       <div class="card-head"><div><h2>Próximos passos</h2><p>Admissões em andamento</p></div><button class="btn btn-sm" data-go="admissao">Ver todas</button></div>
@@ -1517,12 +1521,13 @@ async function iniciarSessao(novoLogin){
     else if(ROLE==="colaborador")await carregarColaborador();
     else await carregarGerente();
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
+  await carregarPlanos().catch(()=>{});
   mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
-  SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;$(".app").classList.remove("colab");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
+  SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;$(".app").classList.remove("colab");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
   location.hash="";mostrarTela("login");
 }
 async function boot(){
@@ -3245,7 +3250,7 @@ async function carregarMensagens(){
 function ligarTempoReal(){
   if(RT||!SB)return;
   const at=()=>{clearTimeout(RT_T);RT_T=setTimeout(()=>atualizarPeriodico(),700)};
-  RT=SB.channel("gp-correio").on("postgres_changes",{event:"*",schema:"public",table:"solicitacoes"},at).on("postgres_changes",{event:"*",schema:"public",table:"mensagens"},at).on("postgres_changes",{event:"*",schema:"public",table:"anexos"},at).on("postgres_changes",{event:"*",schema:"public",table:"candidatos"},at).subscribe();
+  RT=SB.channel("gp-correio").on("postgres_changes",{event:"*",schema:"public",table:"solicitacoes"},at).on("postgres_changes",{event:"*",schema:"public",table:"mensagens"},at).on("postgres_changes",{event:"*",schema:"public",table:"anexos"},at).on("postgres_changes",{event:"*",schema:"public",table:"candidatos"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao_eventos"},at).subscribe();
 }
 function resultadoMov(m,e){
   if(m.tipo!=="avaliacao"||!m.av)return "";
@@ -4885,19 +4890,22 @@ const R_CONFIG_BASE=R.config;R.config=()=>R_CONFIG_BASE()+cartasCfgCard();
 /* ============ acesso do colaborador (T&D) · só na versão internet ============
    O colaborador cria o login com CPF + data de nascimento (função "colaborador") e entra com CPF e senha.
    Ele não lê tabelas de pessoas: os próprios dados vêm de meus_dados(), e o menu dele é só o "Meu espaço". */
-let MEU=null;
-const PAGES_C=[{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"meusdados",t:"Meus dados"}];
+let MEU=null,MEU_ORG=null;
+const PAGES_C=[{g:"Meu espaço"},{id:"meustd",t:"Treinamentos"},{id:"minhaequipe",t:"Minha equipe"},{id:"meusdados",t:"Meus dados"}];
 ICON.meustd='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>';
+ICON.minhaequipe='<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>';
 ICON.meusdados='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';
 PERFIS.colaborador="Colaborador";
 // no celular o menu do colaborador ocupa uma linha inteira, com os itens divididos igualmente
-document.head.insertAdjacentHTML("beforeend",`<style>@media (max-width:860px){.app.colab{grid-template-rows:auto minmax(0,1fr)}.app.colab .side{flex-wrap:wrap;align-content:flex-start;row-gap:8px}.app.colab .nav,.app.colab .logo,.app.colab .side-foot{margin:0}.app.colab .logo{flex:1}.app.colab .nav{order:3;flex:1 0 100%;overflow:visible}.app.colab .nav a{flex:1;justify-content:center}}</style>`);
+document.head.insertAdjacentHTML("beforeend",`<style>@media (max-width:860px){.app.colab{grid-template-rows:auto minmax(0,1fr)}.app.colab .side{flex-wrap:wrap;align-content:flex-start;row-gap:8px}.app.colab .nav,.app.colab .logo,.app.colab .side-foot{margin:0}.app.colab .logo{flex:1}.app.colab .nav{order:3;flex:1 0 100%;flex-wrap:wrap;gap:4px;overflow:visible}.app.colab .nav a{flex:1 1 auto;justify-content:center;padding:7px 8px}.app.colab .nav a svg{display:none}}</style>`);
 const loginDeCPF=s=>/^[\d.\-\s]+$/.test(s)&&soDig(s).length===11?soDig(s):s;
 async function carregarColaborador(){
   const {data,error}=await SB.rpc("meus_dados");
   if(error)throw error;
   if(!data){SESSION=null;await SB.auth.signOut();throw Object.assign(new Error("sem vínculo"),{semVinculo:true})}
   MEU=data;$(".app").classList.add("colab");
+  const org=await SB.from("org_unidades").select("dados").eq("loja_id",data.loja_id).maybeSingle();
+  MEU_ORG=org.error||!org.data?null:org.data.dados;
   ST=normalize({exemplo:false,stores:[{id:data.loja_id,nome:data.loja_nome||"",cidade:data.cidade||"",tipo:"",quadro:0}],emps:[],admissoes:[],escalaOverrides:{},cfg:clone(DEFAULT_CFG)});
 }
 function tempoCasa(adm){
@@ -4911,6 +4919,61 @@ R.meusdados=()=>{
   const itens=[["Nome",m.nome],["Cargo",m.cargo],["Unidade",m.loja_nome],["Cidade",m.cidade],["Admissão",m.admissao?fdate(m.admissao):""],["Tempo de casa",m.admissao?tempoCasa(m.admissao):""],["Login","CPF "+fmtCPF(SESSION?SESSION.login:"")]];
   return header("Meu espaço","Meus dados")+`<div class="card"><div class="form-grid">${itens.map(([k,v])=>`<div class="field"><label>${k}</label><b>${esc(v||"—")}</b></div>`).join("")}</div>
   <div class="note" style="margin-top:14px">Algum dado errado? Fale com o RH. Por segurança, salário, documentos e dados pessoais não aparecem aqui.</div></div>`;
+};
+
+/* ---- organograma da unidade: o RH publica uma cópia por unidade só com nome, cargo e a quem reporta ----
+   dados = {n: nome da unidade, p: [[id, nome, cargo, id de quem reporta, tipo ("" | "ext" outra unidade | "vis" atua pelo CC), detalhe]]}
+   (chaves de uma letra: o jsonb devolve na mesma ordem e a comparação com o que já está gravado não muda à toa) */
+function orgSnapshot(lojaId){
+  const T=orgArvore(lojaId),L=[],vis=new Set();
+  const add=(e,pai)=>{if(vis.has(e.id))return;vis.add(e.id);L.push([e.id,e.nome,e.cargo||"",pai,"",""]);(T.filhos[e.id]||[]).forEach(x=>add(x.e,e.id))};
+  T.raizes.forEach(e=>add(e,null));
+  Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,"ext",store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
+  (T.visitantes||[]).forEach(e=>{if(vis.has(e.id))return;vis.add(e.id);const c=ORG_CRUZ.get(e.id);
+    L.push([e.id,e.nome,e.cargo||"",null,"vis","Lotação: "+store(e.lojaId).nome+(c?" · "+c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"% aqui":"")])});
+  return {n:store(lojaId).nome,p:L};
+}
+// sem o filtro de centro de custo da tela do RH
+function orgCalcular(){const f=UI.ccF;UI.ccF=[];try{return ST.stores.map(s=>[s.id,{loja_id:s.id,dados:orgSnapshot(s.id)}])}finally{UI.ccF=f}}
+// o cálculo leva ~0,2 s: cada gravação usa a última cópia e recalcula 2 s depois da última alteração
+let ORG_SNAP=null,ORG_T=null;
+function orgSnapshots(){
+  if(!ORG_SNAP){ORG_SNAP=orgCalcular();return ORG_SNAP}
+  clearTimeout(ORG_T);
+  ORG_T=setTimeout(()=>{if(ROLE!=="rh"||!ST)return;const n=orgCalcular();if(JSON.stringify(n)!==JSON.stringify(ORG_SNAP)){ORG_SNAP=n;persist()}},2000);
+  return ORG_SNAP;
+}
+// ao abrir o portal do RH: compara com o que está publicado e envia o que mudou
+async function orgPublicadaSync(){
+  const {data,error}=await SB.from("org_unidades").select("loja_id,dados");
+  if(error){const i=ORDEM.indexOf("org_unidades");if(i>=0)ORDEM.splice(i,1);return}
+  LAST.org_unidades=new Map(data.map(r=>[r.loja_id,JSON.stringify({loja_id:r.loja_id,dados:r.dados})]));
+  setTimeout(persist,0);
+}
+function orgColabHTML(o){
+  const P=o.p.map(([id,nome,cargo,pai,tipo,extra])=>({id,nome,cargo,pai,tipo,extra}));
+  const filhos={};P.forEach(x=>{if(x.pai)(filhos[x.pai]=filhos[x.pai]||[]).push(x)});
+  const eu=MEU&&MEU.id;
+  const card=(x,peq)=>`<div class="org-p${peq?" peq":""}${x.tipo==="ext"?" externo":""}${x.tipo==="vis"?" cruzado":""}${x.id===eu?" voce":""}"><div class="avatar">${esc(initials(x.nome))}</div><div style="min-width:0"><b>${esc(x.nome.split(" ").slice(0,2).join(" "))}</b>${peq?"":`<span>${esc(x.cargo)}</span>`}${x.tipo==="ext"?`<span class="chip c-info" style="margin-top:3px;width:max-content">${esc(x.extra)}</span>`:""}${x.tipo==="vis"?`<span class="org-x">${esc(x.extra)}</span>`:""}${x.id===eu?`<span class="chip c-ok" style="margin-top:3px;width:max-content">Você</span>`:""}</div></div>`;
+  const no=x=>{
+    const fs=filhos[x.id]||[],ramos=fs.filter(f=>(filhos[f.id]||[]).length),folhas=fs.filter(f=>!(filhos[f.id]||[]).length);
+    let sub="";
+    if(ramos.length)sub+=`<div class="org-ramos">${ramos.map(f=>`<div class="org-ramo">${no(f)}</div>`).join("")}</div>`;
+    if(folhas.length){const g={};folhas.forEach(f=>{(g[f.cargo]=g[f.cargo]||[]).push(f)});
+      sub+=`<div class="org-grupos">${Object.entries(g).sort((a,b)=>b[1].length-a[1].length).map(([c,l])=>`<div class="org-grupo"><div class="org-gh"><b>${esc(c)}</b><span class="chip c-mute">${l.length}</span></div>${l.map(f=>card(f,true)).join("")}</div>`).join("")}</div>`}
+    return `<div class="org-no">${card(x)}${fs.length?`<div class="org-con"></div>${sub}`:""}</div>`;
+  };
+  const raizes=P.filter(x=>!x.pai&&x.tipo!=="vis"),visit=P.filter(x=>x.tipo==="vis");
+  const gv={};visit.forEach(x=>{(gv[x.cargo]=gv[x.cargo]||[]).push(x)});
+  const faixa=visit.length?`<div class="org-nivel" style="margin-top:22px;border-top:2px dashed #c4b5fd;padding-top:14px"><div class="org-rot" style="color:#7c3aed">Também atuam nesta unidade · lotação em outra loja</div><div class="org-grupos">${Object.entries(gv).map(([c,l])=>`<div class="org-grupo" style="border-color:#c4b5fd"><div class="org-gh"><b>${esc(c)}</b><span class="chip c-mute">${l.length}</span></div>${l.map(x=>card(x)).join("")}</div>`).join("")}</div></div>`:"";
+  return `<div class="org-arvore">${raizes.map(no).join("")}</div>${faixa}`;
+}
+R.minhaequipe=()=>{
+  const css=`<style>.org{overflow-x:auto}.org-topo{text-align:center;margin-bottom:14px}.org-topo b{display:block;font-size:1.1rem}.org-topo span{color:var(--muted);font-size:.8rem}.org-nivel{display:flex;flex-direction:column;align-items:center;gap:8px}.org-rot{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.org-con{width:2px;height:22px;background:var(--line);margin:6px auto}.org-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;text-align:left}.org-p b{display:block;font-size:.85rem}.org-p span{display:block;font-size:.72rem;color:var(--muted)}.org-p.peq{min-width:0;max-width:none;border-width:1px;padding:6px 8px;margin-top:6px}.org-p.peq .avatar{width:26px;height:26px;font-size:.65rem}.org-grupos{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:flex-start}.org-grupo{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:200px;background:var(--surface-2)}.org-gh{display:flex;justify-content:space-between;gap:8px;align-items:center}.org-arvore{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;align-items:flex-start}.org-no{display:flex;flex-direction:column;align-items:center}.org-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.org-ramo{display:flex;flex-direction:column;align-items:center}.org-p.externo{border-color:var(--info,#3b82f6);background:transparent}.org-p.cruzado{border-color:#8b5cf6;background:color-mix(in srgb,#8b5cf6 10%,var(--surface))}.org-p.cruzado .avatar{background:#8b5cf6;color:#fff}.org-x{display:block;font-size:.7rem;color:#7c3aed;font-weight:600;margin-top:2px}.org-p.voce{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent)}</style>`;
+  const o=MEU_ORG;
+  return header("Meu espaço","Minha equipe")+css+`<div class="card org"><div class="org-topo"><b>${esc((o&&o.n)||(MEU&&MEU.loja_nome)||"")}</b><span>${esc((MEU&&MEU.cidade)||"")}</span></div>
+  ${o&&o.p.length?orgColabHTML(o):`<p class="empty">O organograma da sua unidade ainda não foi publicado pelo RH.</p>`}
+  <p class="small muted" style="margin-top:14px">Quem lidera e quem faz parte da sua unidade. Borda azul = gestor de outra unidade. Caixas lilás = pessoas de outra loja que também atuam aqui.</p></div>`;
 };
 
 /* ---- primeiro acesso ---- */
@@ -4988,6 +5051,199 @@ document.addEventListener("input",ev=>{
   if(t.id==="f-cabusca"){UI.caBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cabusca");n.focus();n.setSelectionRange(pos,pos)}
 });
 document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.closest&&ev.target.closest("#form-colab")){ev.preventDefault();criarAcessoColab()}});
+
+/* ============ T&D · Plano de Ação · só na versão internet ============
+   RH cria para qualquer colaborador; o gerente, para a equipe das lojas dele (as regras ficam no banco).
+   O colaborador vê os próprios planos e registra ciência, comentários e "concluí" em planos_acao_eventos (só inclusão). */
+let PLANOS=[],PEV=[];
+const PA_ORIGEM={experiencia:"Avaliação de experiência",feedback:"Feedback / desempenho",desenvolvimento:"Desenvolvimento / carreira"};
+const PA_SIT={afazer:["A fazer","c-mute"],andamento:["Em andamento","c-info"],aguardando:["Aguardando confirmação","c-warn"],atrasada:["Atrasada","c-bad"],concluida:["Concluída","c-ok"]};
+ICON.td='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M22 8v6"/>';
+ICON.meuplano='<path d="M9 11l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/>';
+PAGES_C.splice(2,0,{id:"meuplano",t:"Plano de ação"});
+const planoDe=r=>({id:r.id,eid:r.colaborador_id,lojaId:r.loja_id,origem:r.origem,origemRef:r.origem_ref,objetivo:r.objetivo,acoes:Array.isArray(r.acoes)?r.acoes:[],status:r.status,criadoPorNome:r.criado_por_nome||"",criadoEm:r.criado_em,atualizadoEm:r.atualizado_em});
+async function carregarPlanos(){
+  if(!SB||!SESSION)return;
+  const [p,e]=await Promise.all([SB.from("planos_acao").select("*").order("criado_em",{ascending:false}).limit(2000),SB.from("planos_acao_eventos").select("*").order("em").limit(10000)]);
+  PLANOS=p.error?[]:p.data.map(planoDe);PEV=e.error?[]:e.data;
+}
+const paPlano=id=>PLANOS.find(p=>p.id===id);
+const paEventos=(pid,aid)=>PEV.filter(x=>x.plano_id===pid&&(aid===undefined||(x.acao_id||null)===(aid||null)));
+const paCiencia=p=>PEV.find(x=>x.plano_id===p.id&&x.tipo==="ciencia");
+function paSit(p,a){
+  if(a.status==="concluida")return "concluida";
+  const ult=paEventos(p.id,a.id).filter(x=>["concluida","confirmada","devolvida"].includes(x.tipo)).pop();
+  if(ult&&ult.tipo==="concluida")return "aguardando";
+  if(a.prazo&&a.prazo<TODAY)return "atrasada";
+  return a.status==="andamento"?"andamento":"afazer";
+}
+const paChip=k=>`<span class="chip ${PA_SIT[k][1]}">${PA_SIT[k][0]}</span>`;
+const paFeitas=p=>p.acoes.filter(a=>a.status==="concluida").length;
+const paPrazoFinal=p=>p.acoes.map(a=>a.prazo).filter(Boolean).sort().pop()||"";
+const paNome=p=>{const e=emp(p.eid);return e?e.nome:"Colaborador"};
+const quandoPA=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"";
+async function paEvento(pid,aid,tipo,texto){
+  const {error}=await SB.from("planos_acao_eventos").insert({plano_id:pid,acao_id:aid||null,tipo,texto:String(texto||"").slice(0,2000)});
+  if(error){console.error(error);toast("Não foi possível registrar. Verifique a conexão.");return false}
+  await carregarPlanos();return true;
+}
+async function paSalvarAcoes(p,acoes,msg){
+  const {error}=await SB.from("planos_acao").update({acoes}).eq("id",p.id);
+  if(error){console.error(error);toast("Não foi possível salvar.");return false}
+  await carregarPlanos();if(msg)toast(msg);return true;
+}
+
+/* ---- alertas do RH e do gerente ---- */
+const alertasBasePA=alertas;
+alertas=function(){
+  const a=alertasBasePA();
+  if(ROLE==="rh"||ROLE==="gerente")PLANOS.filter(p=>p.status==="aberto").forEach(p=>{
+    const nome=paNome(p);
+    const at=p.acoes.filter(x=>paSit(p,x)==="atrasada"),ag=p.acoes.filter(x=>paSit(p,x)==="aguardando");
+    if(at.length)a.push({sev:1,c:"c-warn",ic:"PA",t:nome+" · plano de ação com "+(at.length===1?"ação vencida":at.length+" ações vencidas"),d:at[0].desc+" · prazo "+fdate(at[0].prazo),pa:p.id});
+    if(ag.length)a.push({sev:1,c:"c-info",ic:"PA",t:nome+" · informou conclusão no plano de ação",d:ag[0].desc+" · confirme ou devolva",pa:p.id});
+    if(!paCiencia(p)&&diffDays(String(p.criadoEm).slice(0,10),TODAY)>=3)a.push({sev:2,c:"c-warn",ic:"PA",t:nome+" · ciência do plano de ação pendente",d:"Criado em "+fdate(String(p.criadoEm).slice(0,10))+" · o colaborador ainda não confirmou que leu",pa:p.id});
+  });
+  return a.sort((x,y)=>x.sev-y.sev);
+};
+
+/* ---- RH e gerente: T&D › Planos de ação ---- */
+function paLista(){
+  const q=semAcento(UI.paBusca||""),sit=UI.paSit||"abertos",lj=UI.paLoja||"";
+  return PLANOS.filter(p=>{
+    if(lj&&p.lojaId!==lj)return false;
+    if(sit==="abertos"&&p.status!=="aberto")return false;
+    if(sit==="encerrados"&&p.status==="aberto")return false;
+    if(sit==="atencao"&&!(p.status==="aberto"&&(!paCiencia(p)||p.acoes.some(a=>["atrasada","aguardando"].includes(paSit(p,a))))))return false;
+    if(q){const e=emp(p.eid);if(!semAcento([paNome(p),e?e.cargo:"",store(p.lojaId).nome,p.objetivo].join(" ")).includes(q))return false}
+    return true;
+  });
+}
+R.td=()=>{
+  const L=paLista();
+  const sitP=p=>p.status==="cancelado"?`<span class="chip c-mute">Cancelado</span>`:p.status==="encerrado"?`<span class="chip c-ok">Encerrado</span>`:p.acoes.some(a=>paSit(p,a)==="atrasada")?paChip("atrasada"):p.acoes.some(a=>paSit(p,a)==="aguardando")?paChip("aguardando"):`<span class="chip c-info">Em andamento</span>`;
+  return header("Pessoas","T&D",`<button class="btn btn-primary" data-panovo="1">+ Novo plano de ação</button>`)+`<div class="card">
+  <div class="toolbar"><div class="seg" role="tablist"><button class="on">Planos de ação</button></div></div>
+  <div class="toolbar"><div class="seg" role="tablist">${[["abertos","Abertos"],["atencao","Precisam de atenção"],["encerrados","Encerrados"],["todos","Todos"]].map(([k,t])=>`<button class="${(UI.paSit||"abertos")===k?"on":""}" data-pasit="${k}">${t}</button>`).join("")}</div>
+    <input class="input search" id="f-pabusca" type="search" placeholder="Buscar por colaborador, cargo, unidade ou objetivo" value="${esc(UI.paBusca||"")}" aria-label="Buscar plano">${ST.stores.length>1?`<select class="input" id="f-paloja" aria-label="Unidade">${lojaOpts(UI.paLoja||"")}</select>`:""}<span class="muted small">${L.length} plano${L.length===1?"":"s"}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Origem</th><th>Objetivo</th><th>Ações</th><th>Prazo final</th><th>Ciência</th><th>Situação</th><th></th></tr></thead>
+  <tbody>${L.map(p=>{const e=emp(p.eid);const c=paCiencia(p);return `<tr><td>${e?whoCell(e):`<b>${esc(paNome(p))}</b>`}</td><td>${esc(store(p.lojaId).nome)}</td><td>${esc(PA_ORIGEM[p.origem]||"")}</td><td style="white-space:normal;min-width:220px">${esc(p.objetivo.length>110?p.objetivo.slice(0,110)+"…":p.objetivo)}</td><td class="num">${paFeitas(p)}/${p.acoes.length}</td><td class="num">${fdate(paPrazoFinal(p))}</td><td>${c?`<span class="chip c-ok">Ciente</span>`:`<span class="chip c-warn">Pendente</span>`}</td><td>${sitP(p)}</td><td><button class="btn btn-sm" data-paabrir="${p.id}">Abrir</button></td></tr>`}).join("")||`<tr><td colspan="9" class="empty">${PLANOS.length?"Nenhum plano com esses filtros.":"Nenhum plano de ação ainda. Use + Novo plano de ação."}</td></tr>`}</tbody></table></div>
+  <div class="note" style="margin-top:14px">O colaborador vê o plano no Meu espaço, confirma que está ciente, comenta e avisa quando concluir uma ação. Quem acompanha confirma a conclusão ou devolve com um comentário.</div></div>`;
+};
+let PAF=null;
+function paAcoesHTML(){return PAF.acoes.map((a,i)=>`<div class="form-grid" style="grid-template-columns:minmax(0,3fr) minmax(0,1.2fr) minmax(0,1.6fr) auto;align-items:end;margin-bottom:8px">
+  <div class="field"><label for="pa-d-${i}">Ação ${i+1}</label><input class="input" id="pa-d-${i}" value="${esc(a.desc)}" placeholder="O que será feito"></div>
+  <div class="field"><label for="pa-p-${i}">Prazo</label><input class="input" id="pa-p-${i}" type="date" value="${esc(a.prazo||"")}"></div>
+  <div class="field"><label for="pa-r-${i}">Responsável</label><input class="input" id="pa-r-${i}" value="${esc(a.resp||"")}"></div>
+  <button class="btn btn-sm btn-ghost" data-parm="${i}" title="Remover ação" ${PAF.acoes.length<2?"disabled":""}>Remover</button></div>`).join("")}
+function paLerAcoes(){PAF.acoes=PAF.acoes.map((a,i)=>({...a,desc:$("#pa-d-"+i).value.trim(),prazo:$("#pa-p-"+i).value,resp:$("#pa-r-"+i).value.trim()}))}
+function paAvOpts(eid,sel){const e=emp(eid);return `<option value="">Sem vínculo</option>`+((e&&e.avaliacoes)||[]).map(a=>`<option value="${esc(a.id)}" ${a.id===sel?"selected":""}>${a.marco} dias · ${fdate(a.data)}${a.parecer?" · "+esc(a.parecer):""}</option>`).join("")}
+function paForm(id,eidIni){
+  const p=id?paPlano(id):null;
+  PAF={id,acoes:p?p.acoes.map(a=>({...a})):[{id:uid(),desc:"",prazo:"",resp:"",status:"afazer"}]};
+  const eid=p?p.eid:eidIni||"";
+  const pessoas=ativos().slice().sort((a,b)=>a.nome.localeCompare(b.nome));
+  modal(p?"Editar plano de ação":"Novo plano de ação",`<form class="form-grid" id="form-pa">
+    <div class="field full"><label for="pa-eid">Colaborador</label><select class="input" id="pa-eid" ${p?"disabled":""}><option value="">Escolha…</option>${(p&&!emp(p.eid)?[{id:p.eid,nome:paNome(p),cargo:"",lojaId:p.lojaId}]:[]).concat(pessoas).map(e=>`<option value="${e.id}" ${e.id===eid?"selected":""}>${esc(e.nome)}${e.cargo?" · "+esc(e.cargo):""}${ST.stores.length>1?" · "+esc(store(e.lojaId).nome):""}</option>`).join("")}</select></div>
+    <div class="field"><label for="pa-orig">Origem</label><select class="input" id="pa-orig">${Object.entries(PA_ORIGEM).map(([k,t])=>`<option value="${k}" ${(p?p.origem:"feedback")===k?"selected":""}>${t}</option>`).join("")}</select></div>
+    <div class="field" id="pa-av-f" ${(p?p.origem:"feedback")==="experiencia"?"":"hidden"}><label for="pa-av">Avaliação de experiência</label><select class="input" id="pa-av">${paAvOpts(eid,p&&p.origemRef)}</select></div>
+    <div class="field full"><label for="pa-obj">Objetivo do plano</label><textarea class="input" id="pa-obj" rows="3" placeholder="O que se espera ao final (por exemplo: dominar o fechamento de caixa sem divergência)">${esc(p?p.objetivo:"")}</textarea></div>
+  </form>
+  <div id="pa-acoes" style="margin-top:6px">${paAcoesHTML()}</div>
+  <button class="btn btn-sm" data-paadd="1">+ Ação</button>
+  <p class="small" id="pa-err" style="color:var(--bad)" hidden></p>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-pasalvar="1" id="pa-salvar">${p?"Salvar alterações":"Criar plano"}</button>`);
+}
+async function paSalvar(){
+  const err=m=>{const el=$("#pa-err");el.hidden=false;el.textContent=m};
+  paLerAcoes();
+  const p=PAF.id?paPlano(PAF.id):null;
+  const eid=p?p.eid:$("#pa-eid").value,origem=$("#pa-orig").value,ref=origem==="experiencia"?$("#pa-av").value:"",objetivo=$("#pa-obj").value.trim();
+  const acoes=PAF.acoes.filter(a=>a.desc);
+  if(!eid)return err("Escolha o colaborador.");
+  if(!objetivo)return err("Escreva o objetivo do plano.");
+  if(!acoes.length)return err("Inclua pelo menos uma ação.");
+  if(acoes.some(a=>!a.prazo))return err("Informe o prazo de todas as ações.");
+  const e=emp(eid);const b=$("#pa-salvar");b.disabled=true;
+  const dados={origem,origem_ref:ref||null,objetivo:objetivo.slice(0,2000),acoes:acoes.map(a=>({id:a.id||uid(),desc:a.desc.slice(0,300),prazo:a.prazo,resp:(a.resp||"").slice(0,120),status:a.status||"afazer"}))};
+  const r=p?await SB.from("planos_acao").update(dados).eq("id",p.id):await SB.from("planos_acao").insert({...dados,colaborador_id:eid,loja_id:e.lojaId});
+  b.disabled=false;
+  if(r.error){console.error(r.error);return err("Não foi possível salvar: "+(r.error.message||"verifique a conexão"))}
+  logEvento(p?"Plano de ação alterado":"Plano de ação criado",(e?e.nome:paNome(p))+" · "+PA_ORIGEM[origem]+" · "+acoes.length+" ação(ões)");
+  await carregarPlanos();closeModal();render();toast(p?"Plano atualizado":"Plano de ação criado. O colaborador já vê no Meu espaço.");
+}
+function paThread(p,aid){
+  const ev=paEventos(p.id,aid).filter(x=>x.tipo!=="ciencia");
+  const rot={comentario:"",concluida:"informou que concluiu",confirmada:"confirmou a conclusão",devolvida:"devolveu"};
+  return ev.length?`<div class="pa-thread">${ev.map(x=>`<div class="pa-msg ${x.perfil==="colaborador"?"colab":""}"><b>${esc(x.autor_nome||"")}</b> <span class="small muted">${quandoPA(x.em)}${rot[x.tipo]?" · "+rot[x.tipo]:""}</span>${x.texto?`<div>${esc(x.texto)}</div>`:""}</div>`).join("")}</div>`:"";
+}
+const PA_CSS=`<style>.pa-acao{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}.pa-acao-h{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}.pa-acao-h b{display:block}.pa-thread{margin-top:8px;display:flex;flex-direction:column;gap:6px}.pa-msg{background:var(--surface-2);border-radius:10px;padding:8px 10px;font-size:.85rem}.pa-msg.colab{background:var(--brand-tint)}.pa-com{display:flex;gap:8px;margin-top:8px}.pa-com .input{flex:1}</style>`;
+function paAbrir(id){
+  const p=paPlano(id);if(!p){toast("Plano não encontrado.");return}
+  const c=paCiencia(p),aberto=p.status==="aberto";
+  const acoes=p.acoes.map(a=>{const s=paSit(p,a);return `<div class="pa-acao"><div class="pa-acao-h"><div style="min-width:0;flex:1"><b>${esc(a.desc)}</b><span class="small muted">Prazo ${fdate(a.prazo)}${a.resp?" · Responsável: "+esc(a.resp):""}</span></div>${paChip(s)}</div>
+    ${aberto?`<div class="tabs-inline" style="margin-top:8px">${s==="aguardando"?`<button class="btn btn-sm btn-primary" data-paconf="${p.id}|${a.id}">Confirmar conclusão</button><button class="btn btn-sm" data-padev="${p.id}|${a.id}">Devolver</button>`:a.status!=="concluida"?`<button class="btn btn-sm" data-pastat="${p.id}|${a.id}|${a.status==="andamento"?"afazer":"andamento"}">${a.status==="andamento"?"Voltar para a fazer":"Marcar em andamento"}</button><button class="btn btn-sm" data-pastat="${p.id}|${a.id}|concluida">Marcar concluída</button>`:`<button class="btn btn-sm btn-ghost" data-pastat="${p.id}|${a.id}|andamento">Reabrir</button>`}</div>`:""}
+    ${paThread(p,a.id)}
+    ${aberto?`<div class="pa-com"><input class="input" id="pa-c-${a.id}" placeholder="Comentário sobre esta ação"><button class="btn btn-sm" data-pacom="${p.id}|${a.id}">Comentar</button></div>`:""}</div>`}).join("");
+  modal("Plano de ação · "+paNome(p),PA_CSS+`<div class="tabs-inline" style="margin-bottom:8px"><span class="chip c-info">${esc(PA_ORIGEM[p.origem]||"")}</span>${c?`<span class="chip c-ok">Ciente em ${quandoPA(c.em)}</span>`:`<span class="chip c-warn">Ciência pendente</span>`}${p.status!=="aberto"?`<span class="chip c-mute">${p.status==="encerrado"?"Encerrado":"Cancelado"}</span>`:""}</div>
+    <p style="margin:0 0 4px"><b>Objetivo:</b> ${esc(p.objetivo)}</p><p class="small muted" style="margin:0">Criado por ${esc(p.criadoPorNome||"—")} em ${quandoPA(p.criadoEm)} · ${esc(store(p.lojaId).nome)}</p>
+    ${acoes}
+    <div class="pa-acao"><b>Comentários gerais</b>${paThread(p,null)}${aberto?`<div class="pa-com"><input class="input" id="pa-c-geral" placeholder="Comentário sobre o plano"><button class="btn btn-sm" data-pacom="${p.id}|">Comentar</button></div>`:""}</div>`,
+  `${aberto?`<button class="btn btn-ghost" data-pacancelar="${p.id}">Cancelar plano</button><button class="btn" data-paeditar="${p.id}">Editar</button><button class="btn" data-paencerrar="${p.id}">Encerrar plano</button>`:`<button class="btn" data-pareabrir="${p.id}">Reabrir plano</button>`}<button class="btn btn-primary" data-close>Fechar</button>`);
+}
+async function paStatusPlano(id,status,msg){
+  const p=paPlano(id);const {error}=await SB.from("planos_acao").update({status}).eq("id",id);
+  if(error){toast("Não foi possível salvar.");return}
+  logEvento("Plano de ação "+(status==="aberto"?"reaberto":status==="encerrado"?"encerrado":"cancelado"),paNome(p));
+  await carregarPlanos();closeModal();render();toast(msg);
+}
+
+/* ---- colaborador: Meu espaço › Plano de ação ---- */
+R.meuplano=()=>{
+  const ab=PLANOS.filter(p=>p.status==="aberto"),enc=PLANOS.filter(p=>p.status==="encerrado");
+  const plano=p=>{const c=paCiencia(p),aberto=p.status==="aberto";return `<div class="card" style="margin-bottom:16px">
+    <div class="tabs-inline" style="margin-bottom:8px"><span class="chip c-info">${esc(PA_ORIGEM[p.origem]||"")}</span>${c?`<span class="chip c-ok">Você confirmou em ${quandoPA(c.em)}</span>`:""}${aberto?"":`<span class="chip c-mute">Encerrado</span>`}</div>
+    <h3 style="margin:0 0 4px">${esc(p.objetivo)}</h3><p class="small muted" style="margin:0">Combinado com ${esc(p.criadoPorNome||"RH")} em ${fdate(String(p.criadoEm).slice(0,10))} · ${paFeitas(p)} de ${p.acoes.length} ações concluídas</p>
+    ${aberto&&!c?`<div class="note" style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">Leia o plano e confirme que está ciente. Se tiver dúvida, deixe um comentário.</span><button class="btn btn-primary" data-pciente="${p.id}">Estou ciente</button></div>`:""}
+    ${p.acoes.map(a=>{const s=paSit(p,a);return `<div class="pa-acao"><div class="pa-acao-h"><div style="min-width:0;flex:1"><b>${esc(a.desc)}</b><span class="small muted">Prazo ${fdate(a.prazo)}${a.resp?" · Responsável: "+esc(a.resp):""}</span></div>${paChip(s)}</div>
+      ${paThread(p,a.id)}
+      ${aberto?`<div class="pa-com"><input class="input" id="pa-c-${a.id}" placeholder="Escreva um comentário"><button class="btn btn-sm" data-pacom="${p.id}|${a.id}">Comentar</button>${s!=="concluida"&&s!=="aguardando"?`<button class="btn btn-sm btn-primary" data-pconcluir="${p.id}|${a.id}">Concluí</button>`:""}</div>`:""}</div>`}).join("")}
+    <div class="pa-acao"><b>Comentários gerais</b>${paThread(p,null)}${aberto?`<div class="pa-com"><input class="input" id="pa-c-geral-${p.id}" placeholder="Comentário sobre o plano"><button class="btn btn-sm" data-pacom="${p.id}|" data-geral="${p.id}">Comentar</button></div>`:""}</div></div>`};
+  return header("Meu espaço","Plano de ação")+PA_CSS+(ab.length?ab.map(plano).join(""):`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum plano de ação aberto.</b><br>Quando seu gestor ou o RH combinar um plano com você, ele aparece aqui.</p></div>`)+
+    (enc.length?`<details class="card" style="margin-top:16px"><summary><b>Planos encerrados (${enc.length})</b></summary>${enc.map(plano).join("")}</details>`:"");
+};
+
+/* ---- eventos ---- */
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-panovo],[data-paabrir],[data-pasit],[data-paadd],[data-parm],[data-pasalvar],[data-paeditar],[data-paencerrar],[data-pacancelar],[data-pareabrir],[data-pastat],[data-paconf],[data-padev],[data-pacom],[data-pciente],[data-pconcluir]");if(!t)return;
+  const d=t.dataset;const [pid,aid,st]=String(d.pastat||d.paconf||d.padev||d.pacom||d.pconcluir||"").split("|");
+  if(d.pacom!==undefined){const inp=d.geral?$("#pa-c-geral-"+d.geral):aid?$("#pa-c-"+aid):$("#pa-c-geral");const tx=inp?inp.value.trim():"";if(!tx){if(inp)inp.focus();return}t.disabled=true;if(await paEvento(pid,aid,"comentario",tx)){if(ROLE==="colaborador")render();else paAbrir(pid)}else t.disabled=false;return}
+  if(d.pciente){t.disabled=true;if(await paEvento(d.pciente,null,"ciencia","")){logEvento("Ciência do plano de ação","Plano "+d.pciente);render();toast("Ciência registrada. Obrigado!")}else t.disabled=false;return}
+  if(d.pconcluir){t.disabled=true;if(await paEvento(pid,aid,"concluida","")){render();toast("Pronto! Seu gestor vai confirmar a conclusão.")}else t.disabled=false;return}
+  if(ROLE!=="rh"&&ROLE!=="gerente")return;
+  if(d.panovo){paForm(null);return}
+  if(d.paabrir){closeModal();paAbrir(d.paabrir);return}
+  if(d.pasit){UI.paSit=d.pasit;render();return}
+  if(d.paadd){paLerAcoes();PAF.acoes.push({id:uid(),desc:"",prazo:"",resp:PAF.acoes[0]?PAF.acoes[0].resp:"",status:"afazer"});$("#pa-acoes").innerHTML=paAcoesHTML();$("#pa-d-"+(PAF.acoes.length-1)).focus();return}
+  if(d.parm!==undefined){paLerAcoes();PAF.acoes.splice(Number(d.parm),1);$("#pa-acoes").innerHTML=paAcoesHTML();return}
+  if(d.pasalvar){paSalvar();return}
+  if(d.paeditar){closeModal();paForm(d.paeditar);return}
+  if(d.paencerrar){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar encerramento";return}paStatusPlano(d.paencerrar,"encerrado","Plano encerrado");return}
+  if(d.pacancelar){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar cancelamento";return}paStatusPlano(d.pacancelar,"cancelado","Plano cancelado. O colaborador deixa de ver.");return}
+  if(d.pareabrir){paStatusPlano(d.pareabrir,"aberto","Plano reaberto");return}
+  if(d.pastat){const p=paPlano(pid);t.disabled=true;if(await paSalvarAcoes(p,p.acoes.map(a=>a.id===aid?{...a,status:st}:a),st==="concluida"?"Ação concluída":"Situação atualizada"))paAbrir(pid);return}
+  if(d.paconf){const p=paPlano(pid);t.disabled=true;if(await paEvento(pid,aid,"confirmada","")&&await paSalvarAcoes(paPlano(pid),paPlano(pid).acoes.map(a=>a.id===aid?{...a,status:"concluida"}:a),"Conclusão confirmada"))paAbrir(pid);return}
+  if(d.padev){const inp=$("#pa-c-"+aid);const tx=inp?inp.value.trim():"";if(!tx){toast("Escreva no comentário da ação o que falta, e clique em Devolver de novo.");if(inp)inp.focus();return}t.disabled=true;if(await paEvento(pid,aid,"devolvida",tx)){await paSalvarAcoes(paPlano(pid),paPlano(pid).acoes.map(a=>a.id===aid?{...a,status:"andamento"}:a));paAbrir(pid)}return}
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target;
+  if(t.id==="pa-orig"){$("#pa-av-f").hidden=t.value!=="experiencia";return}
+  if(t.id==="pa-eid"){$("#pa-av").innerHTML=paAvOpts(t.value,"");const e=emp(t.value);const r=$("#pa-r-0");if(r&&!r.value&&e)r.value=e.nome.split(" ").slice(0,2).join(" ");return}
+  if(t.id==="pa-av"){const e=emp($("#pa-eid").value);const a=e&&(e.avaliacoes||[]).find(x=>x.id===t.value);const o=$("#pa-obj");if(a&&a.desenvolver&&!o.value.trim())o.value=a.desenvolver;return}
+  if(t.id==="f-paloja"){UI.paLoja=t.value;render()}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-pabusca")return;UI.paBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-pabusca");n.focus();n.setSelectionRange(pos,pos)});
+document.addEventListener("keydown",ev=>{if(ev.key!=="Enter"||!ev.target.id||!ev.target.id.startsWith("pa-c-"))return;ev.preventDefault();const b=ev.target.parentElement.querySelector("[data-pacom]");if(b)b.click()});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
