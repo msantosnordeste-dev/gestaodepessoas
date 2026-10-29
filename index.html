@@ -508,8 +508,8 @@ async function tudo(t,ordem){
 
 /* ---- gravação: compara com o que já está no banco e envia só o que mudou ---- */
 const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado","gestorId"];
-const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id",org_unidades:"loja_id"};
-const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores","org_unidades"];
+const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id",org_unidades:"loja_id",org_lideres:"lider_id"};
+const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores","org_unidades","org_lideres"];
 function setSync(s){SYNC=s;const el=document.getElementById("sync");if(el){el.textContent=s==="saving"?"Salvando…":s==="error"?"Erro ao salvar":"Tudo salvo";el.className="sync "+s}}
 function linhas(){
   const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});return o};
@@ -522,7 +522,8 @@ function linhas(){
     admissoes:ST.admissoes.map(a=>[a.id,{id:a.id,loja_id:a.lojaId,dados:a}]),
     rh_estado:[["1",{id:1,dados:(()=>{const {stores,emps,escalaOverrides,admissoes,pjs,usuarios,contasDesvinculadas,mensagens,...rest}=ST;return {...rest,exemplo:!!ST.exemplo}})()}]],
     prestadores:(ST.pjs||[]).map(p=>[p.id,{id:p.id,dados:p}]),
-    org_unidades:orgSnapshots()
+    org_unidades:orgSnapshots(),
+    org_lideres:liderSnapshots()
   };
 }
 function primeLast(){const L=linhas();ORDEM.forEach(t=>{LAST[t]=new Map(L[t].map(([k,o])=>[k,JSON.stringify(o)]))})}
@@ -916,7 +917,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>p.id!=="integracao"||ibLiberada()):ROLE==="gerente"?PAGES_G:PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?PAGES_G:PAGES;
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
 function pendRH(){return SOLIC.length}
@@ -1530,7 +1531,7 @@ async function iniciarSessao(novoLogin){
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
-  SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
+  SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;EQUIPE=[];$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
   location.hash="";mostrarTela("login");
 }
 async function boot(){
@@ -5072,6 +5073,7 @@ async function carregarColaborador(){
   const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);
   TDP=td.error?[]:td.data;
   ST=normalize({exemplo:false,stores:[{id:data.loja_id,nome:data.loja_nome||"",cidade:data.cidade||"",tipo:"",quadro:0}],emps:[],admissoes:[],escalaOverrides:{},cfg:clone(DEFAULT_CFG)});
+  await carregarEquipe();
 }
 function tempoCasa(adm){
   const m=Math.max(0,Math.floor(diffDays(adm,TODAY)/30.44)),a=Math.floor(m/12),r=m%12;
@@ -5172,9 +5174,11 @@ function orgSnapshots(){
 }
 // ao abrir o portal do RH: compara com o que está publicado e envia o que mudou
 async function orgPublicadaSync(){
-  const {data,error}=await SB.from("org_unidades").select("loja_id,dados");
-  if(error){const i=ORDEM.indexOf("org_unidades");if(i>=0)ORDEM.splice(i,1);return}
-  LAST.org_unidades=new Map(data.map(r=>[r.loja_id,JSON.stringify({loja_id:r.loja_id,dados:r.dados})]));
+  const [o,l]=await Promise.all([SB.from("org_unidades").select("loja_id,dados"),SB.from("org_lideres").select("lider_id,dados")]);
+  // tabela ainda não criada no banco: deixa de gravar só ela
+  if(l.error){const i=ORDEM.indexOf("org_lideres");if(i>=0)ORDEM.splice(i,1)}else LAST.org_lideres=new Map(l.data.map(r=>[r.lider_id,JSON.stringify({lider_id:r.lider_id,dados:r.dados})]));
+  if(o.error){const i=ORDEM.indexOf("org_unidades");if(i>=0)ORDEM.splice(i,1);return}
+  LAST.org_unidades=new Map(o.data.map(r=>[r.loja_id,JSON.stringify({loja_id:r.loja_id,dados:r.dados})]));
   setTimeout(persist,0);
 }
 function orgColabHTML(o){
@@ -5288,6 +5292,7 @@ const PA_SIT={afazer:["A fazer","c-mute"],andamento:["Em andamento","c-info"],ag
 ICON.td='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M22 8v6"/>';
 ICON.meuplano='<path d="M9 11l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/>';
 PAGES_C.splice(PAGES_C.findIndex(p=>p.id==="minhaequipe"),0,{id:"meuplano",t:"Plano de ação"});
+const tdTitulo=()=>ROLE==="colaborador"?["Minha liderança","Meu time"]:["Pessoas","T&D"];
 const planoDe=r=>({id:r.id,eid:r.colaborador_id,lojaId:r.loja_id,origem:r.origem,origemRef:r.origem_ref,objetivo:r.objetivo,acoes:Array.isArray(r.acoes)?r.acoes:[],status:r.status,criadoPorNome:r.criado_por_nome||"",criadoEm:r.criado_em,atualizadoEm:r.atualizado_em});
 async function carregarPlanos(){
   if(!SB||!SESSION)return;
@@ -5361,7 +5366,7 @@ function tdIntegracaoHTML(tabs){
   L=L.filter(e=>(!lj||e.lojaId===lj)&&(f==="todos"||sit(e)===f)&&(!q||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(q))).sort((a,b)=>String(b.admissao).localeCompare(String(a.admissao)));
   const chip=e=>{const p=prog.get(e.id),s=sit(e);return s==="aprovado"?`<span class="chip c-ok">Aprovado(a)${p.nota?" · nota "+p.nota:""}</span>`:s==="andamento"?`<span class="chip c-info">Em andamento</span>`:ROLE==="rh"&&!temAcesso.has(e.id)?`<span class="chip c-warn">Sem acesso ao portal</span>`:`<span class="chip c-mute">Não iniciou</span>`};
   const fora=ativos().filter(e=>!prog.has(e.id)&&!(e.admissao&&diffDays(e.admissao,TODAY)<=90));
-  return header("Pessoas","T&D",`<button class="btn" data-ibdemo="1">Ver a trilha</button>`+(ROLE==="rh"?`<button class="btn" data-igliberar="1">Liberar para outra pessoa</button>`:""))+`<div class="card">${tabs}
+  return header(...tdTitulo(),`<button class="btn" data-ibdemo="1">Ver a trilha</button>`+(ROLE==="rh"?`<button class="btn" data-igliberar="1">Liberar para outra pessoa</button>`:""))+`<div class="card">${tabs}
   <div class="note" style="margin:0 0 14px">A trilha <b>Integração Brasileirissima</b> aparece sozinha em Treinamentos para quem tem até 90 dias de casa${ROLE==="rh"?". Para outra pessoa, use Liberar para outra pessoa":""}. O colaborador precisa ter criado o acesso ao portal.</div>
   <div class="toolbar"><div class="seg" role="tablist">${[["todos","Todos ("+(cont.aprovado+cont.andamento+cont.naoiniciou)+")"],["naoiniciou","Não iniciaram ("+cont.naoiniciou+")"],["andamento","Em andamento ("+cont.andamento+")"],["aprovado","Aprovados ("+cont.aprovado+")"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-igsit="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-igbusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.igBusca||"")}" aria-label="Buscar colaborador">${ST.stores.length>1?`<select class="input" id="f-igloja" aria-label="Unidade">${lojaOpts(lj)}</select>`:""}<span class="muted small">${L.length} pessoa${L.length===1?"":"s"}</span></div>
@@ -5372,7 +5377,7 @@ function tdIntegracaoHTML(tabs){
 function tdPlanosHTML(tabs){
   const L=paLista();
   const sitP=p=>p.status==="cancelado"?`<span class="chip c-mute">Cancelado</span>`:p.status==="encerrado"?`<span class="chip c-ok">Encerrado</span>`:p.acoes.some(a=>paSit(p,a)==="atrasada")?paChip("atrasada"):p.acoes.some(a=>paSit(p,a)==="aguardando")?paChip("aguardando"):`<span class="chip c-info">Em andamento</span>`;
-  return header("Pessoas","T&D",`<button class="btn btn-primary" data-panovo="1">+ Novo plano de ação</button>`)+`<div class="card">${tabs}
+  return header(...tdTitulo(),`<button class="btn btn-primary" data-panovo="1">+ Novo plano de ação</button>`)+`<div class="card">${tabs}
   <div class="toolbar"><div class="seg" role="tablist">${[["abertos","Abertos"],["atencao","Precisam de atenção"],["encerrados","Encerrados"],["todos","Todos"]].map(([k,t])=>`<button class="${(UI.paSit||"abertos")===k?"on":""}" data-pasit="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-pabusca" type="search" placeholder="Buscar por colaborador, cargo, unidade ou objetivo" value="${esc(UI.paBusca||"")}" aria-label="Buscar plano">${ST.stores.length>1?`<select class="input" id="f-paloja" aria-label="Unidade">${lojaOpts(UI.paLoja||"")}</select>`:""}<span class="muted small">${L.length} plano${L.length===1?"":"s"}</span></div>
   <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Origem</th><th>Objetivo</th><th>Ações</th><th>Prazo final</th><th>Ciência</th><th>Situação</th><th></th></tr></thead>
@@ -5449,7 +5454,8 @@ async function paStatusPlano(id,status,msg){
 
 /* ---- colaborador: Meu espaço › Plano de ação ---- */
 R.meuplano=()=>{
-  const ab=PLANOS.filter(p=>p.status==="aberto"),enc=PLANOS.filter(p=>p.status==="encerrado");
+  const meus=PLANOS.filter(p=>!MEU||p.eid===MEU.id);
+  const ab=meus.filter(p=>p.status==="aberto"),enc=meus.filter(p=>p.status==="encerrado");
   const plano=p=>{const c=paCiencia(p),aberto=p.status==="aberto";return `<div class="card" style="margin-bottom:16px">
     <div class="tabs-inline" style="margin-bottom:8px"><span class="chip c-info">${esc(PA_ORIGEM[p.origem]||"")}</span>${c?`<span class="chip c-ok">Você confirmou em ${quandoPA(c.em)}</span>`:""}${aberto?"":`<span class="chip c-mute">Encerrado</span>`}</div>
     <h3 style="margin:0 0 4px">${esc(p.objetivo)}</h3><p class="small muted" style="margin:0">Combinado com ${esc(p.criadoPorNome||"RH")} em ${fdate(String(p.criadoEm).slice(0,10))} · ${paFeitas(p)} de ${p.acoes.length} ações concluídas</p>
@@ -5466,10 +5472,10 @@ R.meuplano=()=>{
 document.addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-panovo],[data-paabrir],[data-pasit],[data-paadd],[data-parm],[data-pasalvar],[data-paeditar],[data-paencerrar],[data-pacancelar],[data-pareabrir],[data-pastat],[data-paconf],[data-padev],[data-pacom],[data-pciente],[data-pconcluir]");if(!t)return;
   const d=t.dataset;const [pid,aid,st]=String(d.pastat||d.paconf||d.padev||d.pacom||d.pconcluir||"").split("|");
-  if(d.pacom!==undefined){const inp=d.geral?$("#pa-c-geral-"+d.geral):aid?$("#pa-c-"+aid):$("#pa-c-geral");const tx=inp?inp.value.trim():"";if(!tx){if(inp)inp.focus();return}t.disabled=true;if(await paEvento(pid,aid,"comentario",tx)){if(ROLE==="colaborador")render();else paAbrir(pid)}else t.disabled=false;return}
+  if(d.pacom!==undefined){const inp=d.geral?$("#pa-c-geral-"+d.geral):aid?$("#pa-c-"+aid):$("#pa-c-geral");const tx=inp?inp.value.trim():"";if(!tx){if(inp)inp.focus();return}t.disabled=true;if(await paEvento(pid,aid,"comentario",tx)){if(ROLE==="colaborador"&&(paPlano(pid)||{}).eid===MEU.id)render();else paAbrir(pid)}else t.disabled=false;return}
   if(d.pciente){t.disabled=true;if(await paEvento(d.pciente,null,"ciencia","")){logEvento("Ciência do plano de ação","Plano "+d.pciente);render();toast("Ciência registrada. Obrigado!")}else t.disabled=false;return}
   if(d.pconcluir){t.disabled=true;if(await paEvento(pid,aid,"concluida","")){render();toast("Pronto! Seu gestor vai confirmar a conclusão.")}else t.disabled=false;return}
-  if(ROLE!=="rh"&&ROLE!=="gerente")return;
+  if(!gestorPA())return;
   if(d.panovo){paForm(null);return}
   if(d.paabrir){closeModal();paAbrir(d.paabrir);return}
   if(d.pasit){UI.paSit=d.pasit;render();return}
@@ -5495,7 +5501,7 @@ document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-pabusca")r
 document.addEventListener("keydown",ev=>{if(ev.key!=="Enter"||!ev.target.id||!ev.target.id.startsWith("pa-c-"))return;ev.preventDefault();const b=ev.target.parentElement.querySelector("[data-pacom]");if(b)b.click()});
 /* ---- T&D: abas e Integração ---- */
 document.addEventListener("click",async ev=>{
-  const t=ev.target.closest("[data-tdtab],[data-igsit],[data-igliberar],[data-igliberarok]");if(!t||(ROLE!=="rh"&&ROLE!=="gerente"))return;
+  const t=ev.target.closest("[data-tdtab],[data-igsit],[data-igliberar],[data-igliberarok]");if(!t||!gestorPA())return;
   const d=t.dataset;
   if(d.tdtab){UI.tdTab=d.tdtab;render();return}
   if(d.igsit){UI.igSit=d.igsit;render();return}
@@ -5730,6 +5736,89 @@ document.addEventListener("change",async ev=>{
   if(t.id==="f-chloja"){UI.chLoja=t.value;render()}
 });
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")return;UI.chBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-chbusca");n.focus();n.setSelectionRange(pos,pos)});
+
+/* ============ média liderança no acesso do colaborador · só na versão internet ============
+   Quem tem equipe no "Reporta a" (direta ou indireta) ganha sozinho o menu "Meu time".
+   O portal do RH grava em org_lideres a lista de cada líder (mesma regra do organograma); o líder lê só
+   minha_equipe_dados(): nome, cargo, unidade, admissão, férias, ASO e experiência. Salário, CPF, ficha e banco de horas ficam fora. */
+let EQUIPE=[];
+const souLider=()=>ROLE==="colaborador"&&EQUIPE.length>0;
+const gestorPA=()=>ROLE==="rh"||ROLE==="gerente"||souLider();
+ICON.meutime='<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M5 15.5V13h14v2.5"/>';
+PAGES_C.push({g:"Minha liderança",lid:1},{id:"meutime",t:"Meu time",lid:1});
+
+/* ---- RH: para cada colaborador que lidera alguém, todos abaixo dele, cada um com o id de quem ele reporta ---- */
+function liderSnapshots(){
+  const M=new Map(),colab=new Set(ST.emps.map(e=>e.id));
+  ativos().forEach(e=>{
+    const r=reportaA(e);if(!r)return;
+    const pai=r.g.id,vis=new Set([e.id]);let g=r.g;
+    while(g&&!vis.has(g.id)){vis.add(g.id);if(colab.has(g.id)&&!g.desligado){if(!M.has(g.id))M.set(g.id,[]);M.get(g.id).push([e.id,pai])}const n=reportaA(g);g=n?n.g:null}
+  });
+  return [...M].map(([id,m])=>[id,{lider_id:id,dados:{m}}]);
+}
+
+/* ---- líder: o time vira ST.emps (só os campos liberados), e as telas de T&D e plano de ação funcionam como no gerente ---- */
+async function carregarEquipe(){
+  const {data,error}=await SB.rpc("minha_equipe_dados");
+  EQUIPE=error||!Array.isArray(data)?[]:data;
+  const lojas=new Map(ST.stores.map(s=>[s.id,s]));
+  EQUIPE.forEach(x=>{if(!lojas.has(x.loja_id))lojas.set(x.loja_id,{id:x.loja_id,nome:x.loja_nome||"",cidade:"",tipo:"",quadro:0})});
+  ST.stores=[...lojas.values()];
+  ST.emps=EQUIPE.map(x=>({id:x.id,nome:x.nome||"",cargo:x.cargo||"",lojaId:x.loja_id,admissao:x.admissao||"",aso:x.aso||"",efetivado:!!x.efetivado,afastado:!!x.afastado,desligado:null,
+    ferias:(x.ferias||[]).filter(f=>f&&f.inicio),avaliacoes:x.avaliacoes||[],banco:0,he:0,vendas:0,pai:x.pai}));
+}
+// o líder não recebe os alertas do RH (eles dependem de dados que ele não vê)
+const alertasBaseLid=alertas;
+alertas=function(){return ROLE==="colaborador"?[]:alertasBaseLid()};
+
+const ltPai=e=>e.pai===(MEU&&MEU.id)?MEU.nome:(emp(e.pai)||{}).nome||"";
+const ltDireto=e=>e.pai===(MEU&&MEU.id);
+function ltFiltrados(){
+  const q=semAcento(UI.ltBusca||""),f=UI.ltQuem||"todos",lj=UI.ltLoja||"";
+  return ativos().filter(e=>(f==="todos"||ltDireto(e))&&(!lj||e.lojaId===lj)&&(!q||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(q)));
+}
+function ltFerramentas(n){
+  const dir=ativos().filter(ltDireto).length;
+  return `<div class="toolbar"><div class="seg" role="tablist">${[["todos","Todo o time ("+ativos().length+")"],["diretos","Diretos ("+dir+")"]].map(([k,t])=>`<button class="${(UI.ltQuem||"todos")===k?"on":""}" data-ltquem="${k}">${t}</button>`).join("")}</div>
+    <input class="input search" id="f-ltbusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.ltBusca||"")}" aria-label="Buscar no time">${ST.stores.length>1?`<select class="input" id="f-ltloja" aria-label="Unidade">${lojaOpts(UI.ltLoja||"")}</select>`:""}<span class="muted small">${n} pessoa${n===1?"":"s"}</span></div>`;
+}
+function ltPessoasHTML(tabs){
+  const L=ltFiltrados().sort((a,b)=>a.nome.localeCompare(b.nome)),at=ativos();
+  const st=at.map(status),xp=at.filter(emExperiencia).length;
+  const exp=e=>emExperiencia(e)?marcos(e).map(m=>`<span class="chip ${m.st.c}" title="Avaliação de ${m.m} dias · prazo ${fdate(m.prazo)}">${m.m}d · ${esc(m.st.t)}</span>`).join(" "):`<span class="muted small">Efetivado(a)</span>`;
+  return `<div class="grid kpis" style="margin-bottom:16px">
+    <div class="card kpi"><span class="lbl">Pessoas no time</span><span class="val num">${at.length}</span><span class="sub">${(n=>n+(n===1?" reporta":" reportam"))(at.filter(ltDireto).length)} direto a você</span></div>
+    <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${xp}</span><span class="sub">avaliações de 45 e 90 dias</span></div>
+    <div class="card kpi"><span class="lbl">Ausentes hoje</span><span class="val num">${st.filter(s=>s.k==="ferias"||s.k==="afastado").length}</span><span class="sub">${st.filter(s=>s.k==="ferias").length} em férias · ${st.filter(s=>s.k==="afastado").length} afastado(s)</span></div></div>
+  <div class="card">${tabs}${ltFerramentas(L.length)}
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Reporta a</th><th>Admissão</th><th>Tempo de casa</th><th>Situação</th><th>Experiência</th></tr></thead>
+  <tbody>${L.map(e=>{const s=status(e);return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td>${esc(ltPai(e))}${ltDireto(e)?` <span class="chip c-info">direto</span>`:""}</td><td class="num">${fdate(e.admissao)}</td><td>${e.admissao?tempoCasa(e.admissao):"—"}</td><td><span class="chip ${s.c}">${s.t}</span></td><td style="white-space:normal">${exp(e)}</td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Ninguém com esses filtros.</td></tr>`}</tbody></table></div>
+  <div class="note" style="margin-top:14px">O time segue o "Reporta a" do organograma, com quem reporta a você e quem reporta a eles. Salário, documentos e dados pessoais não aparecem aqui. Algo errado na equipe? Abra um chamado para o RH.</div></div>`;
+}
+function ltFeriasHTML(tabs){
+  const L=ltFiltrados().map(e=>({e,sf:situacaoFerias(e)})).sort((a,b)=>a.sf.st.ord-b.sf.st.ord||a.e.nome.localeCompare(b.e.nome));
+  const aso=e=>{if(!e.aso)return `<span class="muted">—</span>`;const d=diffDays(TODAY,e.aso);return `<span class="num">${fdate(e.aso)}</span> ${d<0?`<span class="chip c-bad">Vencido</span>`:d<=30?`<span class="chip c-warn">Vence em ${d} dia${d===1?"":"s"}</span>`:""}`};
+  return `<div class="card">${tabs}${ltFerramentas(L.length)}
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Férias</th><th class="r">Períodos a gozar</th><th>Período aquisitivo</th><th>Limite para gozar</th><th>Próximas férias</th><th>ASO periódico</th></tr></thead>
+  <tbody>${L.map(({e,sf})=>{const em=feriasEmCurso(e),pr=sf.programada;return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td><span class="chip ${em?"c-ok":sf.st.c}">${em?"Em férias até "+fdate(addDays(em.inicio,em.dias-1)):esc(sf.st.t)}</span></td><td class="num r">${sf.pend}</td><td class="num">${sf.pend?fdate(sf.aquisIni)+" a "+fdate(sf.aquisFim):"—"}</td><td class="num">${sf.pend?fdate(sf.limite):"—"}</td><td class="num">${pr?fdate(pr.inicio)+" · "+pr.dias+" dias":"—"}</td><td>${aso(e)}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">Ninguém com esses filtros.</td></tr>`}</tbody></table></div>
+  <div class="note" style="margin-top:14px">A programação de férias e o agendamento do ASO são feitos pelo RH. Para pedir, abra um chamado.</div></div>`;
+}
+R.meutime=()=>{
+  if(!souLider())return header("Minha liderança","Meu time")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Ninguém reporta a você no organograma.</b><br>Se você lidera uma equipe, peça ao RH para ajustar o "Reporta a".</p></div>`;
+  const tab=UI.ltTab||"pessoas";
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
+  if(tab==="integracao")return tdIntegracaoHTML(tabs);
+  if(tab==="planos")return tdPlanosHTML(tabs);
+  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):ltPessoasHTML(tabs));
+};
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-lttab],[data-ltquem]");if(!t||!souLider())return;
+  if(t.dataset.lttab){UI.ltTab=t.dataset.lttab;render();return}
+  if(t.dataset.ltquem){UI.ltQuem=t.dataset.ltquem;render()}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-ltbusca")return;UI.ltBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-ltbusca");n.focus();n.setSelectionRange(pos,pos)});
+document.addEventListener("change",ev=>{if(ev.target.id==="f-ltloja"){UI.ltLoja=ev.target.value;render()}});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
