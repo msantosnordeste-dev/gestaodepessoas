@@ -599,7 +599,7 @@ async function atualizarPeriodico(){
   try{
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
     else if(ROLE==="gerente"){await carregarGerente()}
-    await carregarPlanos();
+    await carregarPlanos();await carregarChamados();
     renderSafe();
   }catch(e){}
 }
@@ -931,7 +931,7 @@ function renderNav(){
   const nS=G()?MOVS.filter(m=>m.status==="pendente").length:0;
   const nC=correioNaoLidas().length;correioAvisar(nC);
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
-    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
+    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="chamados"&&ROLE==="rh"&&chPendRH()?`<span class="count">${chPendRH()}</span>`:""}${p.id==="meuschamados"&&chPendColab()?`<span class="count">${chPendColab()}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
   $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
@@ -966,7 +966,7 @@ function painelLoja(){
     <div class="bars">${ST.stores.filter(lojaTemGente).map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div></div>`:""}
   <div class="grid two">
     <div class="card"><div class="card-head"><div><h2>Pendências ${varias?"das lojas":"da loja"}</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
-      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.ch?`<button class="btn btn-sm" data-go="chamados">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>
     <div class="card"><div class="card-head"><div><h2>Chegando na equipe</h2><p>Admissões em andamento pelo RH</p></div></div>
       <div class="alerts">${ST.admissoes.map(a=>`<div class="alert"><div class="avatar">${initials(a.nome)}</div><div style="min-width:0"><b>${esc(a.nome)}</b><span>${esc(a.cargo)} · início ${fdate(a.inicio)}</span></div><span class="chip ${["c-mute","c-info","c-warn","c-brand","c-ok"][a.etapa]}">${ETAPAS[a.etapa].t}</span></div>`).join("")||`<div class="empty">Nenhuma admissão em andamento para esta loja.</div>`}</div></div>
   </div>`;
@@ -1197,7 +1197,7 @@ R.painel=()=>{
   <div class="grid two">
     <div class="card">
       <div class="card-head"><div><h2>Pendências do DP</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
-      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div>
+      <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.ch?`<button class="btn btn-sm" data-go="chamados">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div>
     </div>
     <div class="card">
       <div class="card-head"><div><h2>Próximos passos</h2><p>Admissões em andamento</p></div><button class="btn btn-sm" data-go="admissao">Ver todas</button></div>
@@ -1524,7 +1524,7 @@ async function iniciarSessao(novoLogin){
     else if(ROLE==="colaborador")await carregarColaborador();
     else await carregarGerente();
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
-  await carregarPlanos().catch(()=>{});
+  await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();
 }
 async function sair(){
@@ -1821,7 +1821,7 @@ function valData0(v){
   m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+"-"+m[2]+"-"+m[3]:"";
 }
 function valNum(v){if(typeof v==="number")return isFinite(v)?v:null;const s=String(v||"").replace(/[^\d,.-]/g,"");if(!s)return null;const n=Number(s.includes(",")?s.replace(/\./g,"").replace(",","."):s);return isFinite(n)?n:null}
-function achaCargo(v){const fem=s=>s.replace(/(\w{3,})a\b/g,"$1");const n=fem(semAcento(String(v||"").replace(/\(a\)/gi,"")));if(!n)return "";return Object.keys(CARGOS).find(c=>{const x=fem(semAcento(c.replace(/\(a\)/g,"")));return x===n||x.startsWith(n)||n.startsWith(x)})||""}
+function achaCargo(v){const fem=s=>s.replace(/(\w{3,})a\b/g,"$1");const n=fem(semAcento(String(v||"").replace(/\(a\)/gi,"")));if(!n)return "";return Object.keys(CARGOS).concat(typeof cargosExtras==="function"&&ST?cargosExtras():[]).find(c=>{const x=fem(semAcento(c.replace(/\(a\)/g,"")));return x===n||x.startsWith(n)||n.startsWith(x)})||""}
 function achaLoja(v){const n=semAcento(v);if(!n)return "";const sem=s=>semAcento(s).replace(/^brasileirissima /,"");
   return (ST.stores.find(s=>semAcento(s.id)===n||semAcento(s.nome)===n||sem(s.nome)===n.replace(/^brasileirissima /,""))||{}).id||""}
 function achaTipo(v,adm){const n=semAcento(v);if(n){const t=TIPOS_CONTRATO.find(t=>semAcento(t).split(" ")[0]===n.split(" ")[0]||n.includes(semAcento(t).split(" ")[0]));if(t)return t}
@@ -2519,7 +2519,7 @@ function cnpjValido(c){c=soDig(c);if(c.length!==14||/^(\d)\1+$/.test(c))return f
 const fmtCNPJ=c=>{const d=soDig(c);return d.length===14?d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5"):String(c||"")};
 const pjNome=p=>p.nomeFantasia||p.razaoSocial||"—";
 // funções sempre oferecidas no cadastro do prestador, além dos cargos já usados no portal
-const FUNCOES_PRESTADOR=["Gerente de RH","Gerente Adm/Financeiro"];
+const FUNCOES_PRESTADOR=["Gerente de RH","Gerente Adm/Financeiro","Operadora de PCP","Coordenador de PCP"];
 /* o prestador pode ser empresa (CNPJ) ou pessoa física (CPF): o documento fica em p.cnpj e o tipo sai do número de dígitos */
 const docValido=c=>{const d=soDig(c);return d.length===11?cpfValido(d):cnpjValido(d)};
 const fmtDoc=c=>soDig(c).length===11?fmtCPF(c):fmtCNPJ(c);
@@ -2604,7 +2604,7 @@ function pjCampo([k,t,tp,full]){
   if(tp==="b")return `<label class="check ${full?"full":""}"><input type="checkbox" id="${id}" ${v?"checked":""}> ${t}</label>`;
   let inp;
   if(tp==="loja")inp=`<select class="input" id="${id}"><option value="">Sem unidade específica</option>${lojaOpts(v,false)}</select>`;
-  else if(tp==="cargo"){const cs=[...new Set(ativos().map(e=>e.cargo).concat((ST.pjs||[]).map(p=>p.area),FUNCOES_PRESTADOR).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  else if(tp==="cargo"){const cs=[...new Set(ativos().map(e=>e.cargo).concat((ST.pjs||[]).map(p=>p.area),cargosExtras()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
     inp=`<input class="input" id="${id}" list="${id}-lista" placeholder="Escolha um cargo ou digite" value="${esc(v??"")}"><datalist id="${id}-lista">${cs.map(c=>`<option value="${esc(c)}"></option>`).join("")}</datalist>`}
   else if(String(tp).startsWith("sel:"))inp=`<select class="input" id="${id}"><option value="">Selecione…</option>${tp.slice(4).split("|").map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
   else if(full&&/objeto|retencoes|comObs|endereco/.test(k))inp=`<textarea class="input" id="${id}" rows="2">${esc(v??"")}</textarea>`;
@@ -3263,7 +3263,7 @@ async function carregarMensagens(){
 function ligarTempoReal(){
   if(RT||!SB)return;
   const at=()=>{clearTimeout(RT_T);RT_T=setTimeout(()=>atualizarPeriodico(),700)};
-  RT=SB.channel("gp-correio").on("postgres_changes",{event:"*",schema:"public",table:"solicitacoes"},at).on("postgres_changes",{event:"*",schema:"public",table:"mensagens"},at).on("postgres_changes",{event:"*",schema:"public",table:"anexos"},at).on("postgres_changes",{event:"*",schema:"public",table:"candidatos"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao_eventos"},at).subscribe();
+  RT=SB.channel("gp-correio").on("postgres_changes",{event:"*",schema:"public",table:"solicitacoes"},at).on("postgres_changes",{event:"*",schema:"public",table:"mensagens"},at).on("postgres_changes",{event:"*",schema:"public",table:"anexos"},at).on("postgres_changes",{event:"*",schema:"public",table:"candidatos"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao"},at).on("postgres_changes",{event:"*",schema:"public",table:"planos_acao_eventos"},at).on("postgres_changes",{event:"*",schema:"public",table:"chamados"},at).on("postgres_changes",{event:"*",schema:"public",table:"chamados_msgs"},at).subscribe();
 }
 function resultadoMov(m,e){
   if(m.tipo!=="avaliacao"||!m.av)return "";
@@ -4424,6 +4424,37 @@ function redePdf(){
 const R_HEADCOUNT_REDE=R.headcount;R.headcount=()=>UI.hcTab==="rede"?redePagina():R_HEADCOUNT_REDE();
 const R_LOJAS_SUP=R.lojas;R.lojas=()=>{const h=R_LOJAS_SUP();const i=h.indexOf('<div class="grid store-cards">');return i<0?h+supervisoresCard():h.slice(0,i)+supervisoresCard()+h.slice(i)};
 const R_CONFIG_NUC=R.config;R.config=()=>R_CONFIG_NUC()+gestoresNucleoCard();
+
+/* ============ cadastro de cargos e funções (Configurações) ============
+   ST.cargosExtras = cargos cadastrados pelo RH, oferecidos no cargo do colaborador e na função do prestador,
+   mesmo antes de alguém ocupá-los. O nível no organograma usa ST.orgNiveis (o mesmo do Headcount). */
+const cargosExtras=()=>{if(!Array.isArray(ST.cargosExtras))ST.cargosExtras=[...FUNCOES_PRESTADOR];return ST.cargosExtras};
+const LISTA_CARGOS_BASE=listaCargos;
+listaCargos=function(){return [...new Set(LISTA_CARGOS_BASE().concat(cargosExtras()))].sort((a,b)=>a.localeCompare(b))};
+function cargosCard(){
+  if(G())return "";
+  const uso={};ativos().forEach(e=>{if(e.cargo)uso[e.cargo]=(uso[e.cargo]||[0,0]),uso[e.cargo][0]++});(ST.pjs||[]).filter(p=>!p.encerrado&&p.area).forEach(p=>{uso[p.area]=uso[p.area]||[0,0];uso[p.area][1]++});
+  const todos=[...new Set(Object.keys(uso).concat(cargosExtras()))].sort((a,b)=>a.localeCompare(b));
+  const q=semAcento(UI.cgBusca||"");const vis=todos.filter(c=>!q||semAcento(c).includes(q));
+  const usoTxt=c=>{const u=uso[c];if(!u)return `<span class="chip c-mute">Cadastrado · ninguém ainda</span>`;return [u[0]?u[0]+" colaborador"+(u[0]===1?"":"es"):"",u[1]?u[1]+" prestador"+(u[1]===1?"":"es"):""].filter(Boolean).join(" · ")};
+  const nivelSel=c=>{const aj=(ST.orgNiveis||{})[c];return `<select class="input" data-cgnivel="${esc(c)}" aria-label="Nível de ${esc(c)} no organograma"><option value="">Automático (${esc(ORG_NIVEIS[(()=>{const o=(ST.orgNiveis||{})[c];if(o)delete ST.orgNiveis[c];const n=orgNivel(c);if(o)ST.orgNiveis[c]=o;return n})()])})</option>${[1,2,3].map(n=>`<option value="${n}" ${String(aj)===String(n)?"selected":""}>${ORG_NIVEIS[n]}</option>`).join("")}</select>`};
+  return `<div class="card"><div class="card-head"><div><h2>Cargos e funções</h2><p>Cargos oferecidos no cadastro do colaborador e na função do prestador de serviço. Cadastre aqui um cargo novo antes de usá-lo.</p></div></div>
+    <div class="toolbar"><input class="input" id="cg-novo" placeholder="Novo cargo ou função (ex.: Analista de PCP)" maxlength="80" style="flex:1;min-width:220px"><button class="btn btn-primary" data-cgadd="1">+ Incluir</button><input class="input search" id="f-cgbusca" type="search" placeholder="Buscar cargo" value="${esc(UI.cgBusca||"")}" aria-label="Buscar cargo"><span class="muted small">${vis.length} cargo${vis.length===1?"":"s"}</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Cargo ou função</th><th>Em uso por</th><th>Nível no organograma</th><th></th></tr></thead><tbody>
+    ${vis.map(c=>`<tr><td><b>${esc(c)}</b></td><td>${usoTxt(c)}</td><td style="min-width:220px">${nivelSel(c)}</td><td>${!uso[c]&&cargosExtras().includes(c)?`<button class="btn btn-sm btn-ghost" data-cgdel="${esc(c)}">Remover</button>`:""}</td></tr>`).join("")||`<tr><td colspan="4" class="empty">Nenhum cargo encontrado.</td></tr>`}</tbody></table></div>
+    <p class="small muted" style="margin-top:10px">Cargos em uso não podem ser removidos: mude antes o cargo das pessoas. O nível define onde o cargo fica no organograma (liderança, supervisão ou equipe).</p></div>`;
+}
+const R_CONFIG_CG=R.config;R.config=()=>R_CONFIG_CG()+cargosCard();
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-cgadd],[data-cgdel]");if(!t||G())return;
+  if(t.dataset.cgadd){const el=$("#cg-novo");const v=el.value.trim().replace(/\s+/g," ");if(!v){el.focus();return}
+    const ja=listaCargos().concat((ST.pjs||[]).map(p=>p.area||"")).find(c=>semAcento(c)===semAcento(v));if(ja){toast("Esse cargo já existe: "+ja);return}
+    cargosExtras().push(v);logEvento("Cargo cadastrado",v);commit("Cargo incluído: "+v);return}
+  if(t.dataset.cgdel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}ST.cargosExtras=cargosExtras().filter(c=>c!==t.dataset.cgdel);logEvento("Cargo removido",t.dataset.cgdel);commit("Cargo removido")}
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset||t.dataset.cgnivel===undefined||G())return;const c=t.dataset.cgnivel;ST.orgNiveis=ST.orgNiveis||{};
+  if(t.value)ST.orgNiveis[c]=Number(t.value);else delete ST.orgNiveis[c];logEvento("Nível do organograma ajustado",c+" → "+(t.value?ORG_NIVEIS[t.value]:"automático"));commit("Nível atualizado")});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-cgbusca")return;UI.cgBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cgbusca");n.focus();n.setSelectionRange(pos,pos)});
+document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="cg-novo"){ev.preventDefault();const b=document.querySelector("[data-cgadd]");if(b)b.click()}});
 document.addEventListener("click",ev=>{const t=ev.target.closest("[data-supnovo],[data-supedit],[data-supdel],[data-supsalvar],[data-redeorg],[data-act='redePdf']");if(!t)return;const d=t.dataset;
   if(d.supnovo){supModal(null);return}if(d.supedit){supModal(d.supedit);return}if(d.supsalvar){supSalvar();return}
   if(d.supdel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const s=supervisores().find(x=>x.id===d.supdel);ST.supervisores=supervisores().filter(x=>x.id!==d.supdel);logEvento("Supervisor excluído",(refPessoa(s&&s.ref)||{}).nome||"");commit("Supervisor excluído");return}
@@ -5367,6 +5398,228 @@ document.addEventListener("click",async ev=>{
 });
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-igbusca")return;UI.igBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-igbusca");n.focus();n.setSelectionRange(pos,pos)});
 document.addEventListener("change",ev=>{if(ev.target.id==="f-igloja"){UI.igLoja=ev.target.value;render()}});
+
+/* ============ Chamados do colaborador para o RH · só na versão internet ============
+   Tabelas chamados e chamados_msgs (interações, só inclusão); anexos no bucket "chamados" (<colaborador>/<chamado>/<arquivo>).
+   O colaborador abre, conversa, cancela, confirma a solução com nota de 1 a 5 ou reabre (função chamado_colab).
+   O RH atende pela fila em "Chamados": status, prioridade, responsável, respostas e notas internas. */
+let CHAMADOS=[],CHMSG=[],CH_CATS=null;
+const CH_CATS_PADRAO=["Folha e holerite","Férias","Ponto e banco de horas","Benefícios (VT, Caju, plano)","Documentos e declarações","Dados cadastrais","Treinamentos","Outros"];
+const CH_ST={aberto:["Aberto","c-warn"],em_atendimento:["Em atendimento","c-info"],aguardando_colaborador:["Aguardando colaborador","c-brand"],resolvido:["Resolvido","c-ok"],fechado:["Fechado","c-mute"],cancelado:["Cancelado","c-mute"]};
+const CH_ABERTOS=["aberto","em_atendimento","aguardando_colaborador"];
+const CH_PRI={baixa:"Baixa",normal:"Normal",alta:"Alta",urgente:"Urgente"};
+ICON.chamados='<path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/>';
+ICON.meuschamados=ICON.chamados;
+PAGES.splice(PAGES.findIndex(p=>p.id==="correio")+1,0,{id:"chamados",t:"Chamados"});
+PAGES_C.splice(PAGES_C.findIndex(p=>p.id==="minhaequipe"),0,{id:"meuschamados",t:"Chamados"});
+const chCats=()=>ROLE==="colaborador"?(CH_CATS||CH_CATS_PADRAO):((ST.cfg&&ST.cfg.chamadoCategorias&&ST.cfg.chamadoCategorias.length)?ST.cfg.chamadoCategorias:CH_CATS_PADRAO);
+const chDe=id=>CHAMADOS.find(c=>c.id===id);
+const chMsgs=id=>CHMSG.filter(m=>m.chamado_id===id);
+const chStChip=(s,colab)=>`<span class="chip ${CH_ST[s][1]}">${colab&&s==="aguardando_colaborador"?"Aguardando você":CH_ST[s][0]}</span>`;
+const chQuando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"";
+const chHa=d=>{const h=(Date.now()-new Date(d))/36e5;return h<1?"agora há pouco":h<24?"há "+Math.floor(h)+" h":"há "+Math.floor(h/24)+" dia"+(Math.floor(h/24)===1?"":"s")};
+const CH_VISTO=()=>"gp-ch-visto-"+(SESSION?SESSION.login:"");
+function chVisto(){try{return JSON.parse(localStorage.getItem(CH_VISTO())||"{}")}catch(e){return {}}}
+function chMarcarVisto(id){try{const v=chVisto();v[id]=new Date().toISOString();localStorage.setItem(CH_VISTO(),JSON.stringify(v))}catch(e){}}
+const chNovidade=c=>!["fechado","cancelado"].includes(c.status)&&c.ultimo_por==="rh"&&String(c.atualizado_em)>String(chVisto()[c.id]||"");
+const chPendRH=()=>CHAMADOS.filter(c=>CH_ABERTOS.includes(c.status)&&c.ultimo_por==="colaborador").length;
+const chPendColab=()=>CHAMADOS.filter(c=>chNovidade(c)||c.status==="resolvido").length;
+async function carregarChamados(){
+  if(!SB||!SESSION||(ROLE!=="rh"&&ROLE!=="colaborador"))return;
+  const [c,m]=await Promise.all([SB.from("chamados").select("*").order("atualizado_em",{ascending:false}).limit(3000),SB.from("chamados_msgs").select("*").order("em").limit(30000)]);
+  if(!c.error)CHAMADOS=c.data;if(!m.error)CHMSG=m.data;
+  if(ROLE==="colaborador"&&!CH_CATS){const r=await SB.rpc("chamado_categorias");CH_CATS=Array.isArray(r.data)&&r.data.length?r.data:CH_CATS_PADRAO}
+}
+async function chEnviarArquivos(ch,files){
+  const out=[];
+  for(const f of files||[]){
+    if(f.size>10*1024*1024){toast(f.name+": o limite é 10 MB.");continue}
+    if(!/^(application\/pdf|image\/(jpeg|png|webp|heic))$/.test(f.type)){toast(f.name+": envie PDF ou imagem.");continue}
+    const caminho=ch.colaborador_id+"/"+ch.id+"/"+Date.now()+"-"+f.name.replace(/[^\w.\-]+/g,"_").slice(-80);
+    const up=await SB.storage.from("chamados").upload(caminho,f,{contentType:f.type});
+    if(up.error){console.error(up.error);toast("Não foi possível enviar "+f.name+".");continue}
+    out.push({caminho,nome:f.name.slice(0,120),mime:f.type,tamanho:f.size});
+  }
+  return out;
+}
+async function chAbrirAnexo(caminho){
+  const w=window.open("","_blank");const {data,error}=await SB.storage.from("chamados").createSignedUrl(caminho,300);
+  if(error||!data){if(w)w.close();toast("Não foi possível abrir o arquivo.");return}
+  if(w)w.location=data.signedUrl;else location.href=data.signedUrl;
+}
+async function chMensagem(ch,texto,files,tipo){
+  const anexos=await chEnviarArquivos(ch,files);
+  if(!texto&&!anexos.length)return false;
+  const {error}=await SB.from("chamados_msgs").insert({chamado_id:ch.id,tipo:tipo||"mensagem",texto:String(texto||"").slice(0,4000),anexos});
+  if(error){console.error(error);toast("Não foi possível enviar. Verifique a conexão.");return false}
+  return true;
+}
+const CH_CSS=`<style>.ch-thread{display:flex;flex-direction:column;gap:10px;margin:12px 0}.ch-msg{max-width:88%;padding:10px 12px;border-radius:14px;background:var(--surface-2);font-size:.9rem;white-space:pre-wrap;word-break:break-word}.ch-msg.eu{align-self:flex-end;background:var(--brand-tint)}.ch-msg.interna{background:#fef3c7;border:1px dashed #d97706}.ch-msg small{display:block;color:var(--muted);font-size:.72rem;margin-bottom:4px;white-space:normal}.ch-evento{align-self:center;font-size:.75rem;color:var(--muted);text-align:center}.ch-anx{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.ch-anx button{font-size:.78rem}.ch-estrelas{display:flex;gap:6px}.ch-estrelas button{font-size:1.6rem;line-height:1;background:none;border:0;cursor:pointer;color:#d1d5db;padding:2px}.ch-estrelas button.on{color:#f59e0b}.ch-lista{display:flex;flex-direction:column;gap:10px}.ch-item{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface)}.ch-item:hover{border-color:var(--brand)}.ch-item .ch-dot{width:9px;height:9px;border-radius:50%;background:var(--brand);flex:0 0 auto}</style>`;
+function chThreadHTML(c,colab){
+  const eu=colab?"colaborador":"rh";
+  return `<div class="ch-thread">${chMsgs(c.id).map(m=>{
+    if(m.tipo==="status")return `<div class="ch-evento">${chQuando(m.em)} · ${esc(m.autor_nome||"")} mudou para <b>${esc((CH_ST[m.texto]||[m.texto])[0])}</b></div>`;
+    if(m.tipo==="avaliacao"){const [n,t]=String(m.texto).split("|");return `<div class="ch-evento">${chQuando(m.em)} · avaliação ${"★".repeat(+n||0)}${"☆".repeat(5-(+n||0))}${t?" · “"+esc(t)+"”":""}</div>`}
+    const mine=(m.perfil==="colaborador")===(eu==="colaborador");
+    return `<div class="ch-msg ${mine?"eu":""} ${m.tipo==="interna"?"interna":""}"><small>${esc(m.autor_nome||"")}${m.perfil==="colaborador"?"":" · RH"} · ${chQuando(m.em)}${m.tipo==="interna"?" · nota interna (o colaborador não vê)":""}</small>${esc(m.texto||"")}${(m.anexos||[]).length?`<div class="ch-anx">${m.anexos.map(a=>`<button class="btn btn-sm" data-chanexo="${esc(a.caminho)}">📎 ${esc(a.nome)}</button>`).join("")}</div>`:""}</div>`;
+  }).join("")||`<p class="small muted">Sem mensagens.</p>`}</div>`;
+}
+
+/* ---- colaborador: Meu espaço › Chamados ---- */
+R.meuschamados=()=>{
+  const c=UI.chAberto&&chDe(UI.chAberto);
+  if(c){chMarcarVisto(c.id);setTimeout(renderNav,0);const aberto=CH_ABERTOS.includes(c.status);
+    return header("Meu espaço","Chamado #"+c.numero,`<button class="btn" data-chvoltar="1">← Meus chamados</button>`)+CH_CSS+`<div class="card">
+      <div class="tabs-inline" style="margin-bottom:6px">${chStChip(c.status,true)}<span class="chip c-mute">${esc(c.categoria)}</span></div>
+      <h3 style="margin:0 0 4px">${esc(c.assunto)}</h3><p class="small muted" style="margin:0">Aberto em ${chQuando(c.criado_em)}${c.responsavel_nome?" · atendido por "+esc(c.responsavel_nome):""}</p>
+      ${c.status==="aguardando_colaborador"?`<div class="note" style="margin-top:12px">O RH precisa de uma informação sua para continuar. Responda abaixo.</div>`:""}
+      ${chThreadHTML(c,true)}
+      ${c.status==="resolvido"?`<div class="note"><b>O RH marcou este chamado como resolvido.</b> Ficou resolvido para você?
+        <div class="ch-estrelas" role="radiogroup" aria-label="Nota do atendimento" style="margin:10px 0">${[1,2,3,4,5].map(n=>`<button type="button" data-chnota="${n}" aria-label="${n} de 5" class="${(UI.chNota||0)>=n?"on":""}">★</button>`).join("")}</div>
+        <textarea class="input" id="ch-aval" rows="2" placeholder="Comentário sobre o atendimento (opcional)"></textarea>
+        <div class="tabs-inline" style="margin-top:10px"><button class="btn btn-primary" data-chconfirmar="${c.id}">Sim, confirmar e fechar</button><button class="btn" data-chreabrir="${c.id}">Não, reabrir</button></div></div>`:""}
+      ${aberto?`<div class="field" style="margin-top:8px"><label for="ch-resp">Sua mensagem</label><textarea class="input" id="ch-resp" rows="3" placeholder="Escreva aqui"></textarea></div>
+        <div class="toolbar" style="margin-top:8px"><input type="file" id="ch-arq" multiple accept="application/pdf,image/*" aria-label="Anexar arquivos"><button class="btn btn-primary" data-chresponder="${c.id}">Enviar</button><button class="btn btn-ghost" data-chcancelar="${c.id}" style="margin-left:auto">Cancelar chamado</button></div>`:""}
+      ${["fechado","cancelado"].includes(c.status)?`<p class="small muted">Chamado ${c.status==="fechado"?"fechado em "+chQuando(c.fechado_em)+(c.nota?" · sua nota: "+"★".repeat(c.nota):""):"cancelado"}. Precisa de mais alguma coisa? Abra um novo chamado.</p>`:""}</div>`;
+  }
+  const l=CHAMADOS.slice().sort((a,b)=>(CH_ABERTOS.includes(b.status)||b.status==="resolvido")-(CH_ABERTOS.includes(a.status)||a.status==="resolvido")||String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
+  return header("Meu espaço","Chamados",`<button class="btn btn-primary" data-chnovo="1">+ Abrir chamado</button>`)+CH_CSS+`<div class="card">
+    <p class="small muted" style="margin:0 0 12px">Dúvidas e pedidos para o RH: folha, férias, ponto, benefícios, documentos. Você acompanha a resposta por aqui.</p>
+    <div class="ch-lista">${l.map(c=>`<div class="ch-item" data-chver="${c.id}">${chNovidade(c)?`<span class="ch-dot" title="Resposta nova"></span>`:""}<div style="flex:1;min-width:0"><b>#${c.numero} · ${esc(c.assunto)}</b><span class="small muted" style="display:block">${esc(c.categoria)} · atualizado ${chHa(c.atualizado_em)}</span></div>${chStChip(c.status,true)}</div>`).join("")||`<p class="empty" style="padding:20px 8px"><b>Você ainda não abriu nenhum chamado.</b><br>Use + Abrir chamado.</p>`}</div></div>`;
+};
+function chNovoForm(){
+  modal("Abrir chamado para o RH",`<form class="form-grid" id="form-ch">
+    <div class="field full"><label for="chn-cat">Assunto</label><select class="input" id="chn-cat"><option value="">Escolha…</option>${chCats().map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+    <div class="field full"><label for="chn-tit">Resumo</label><input class="input" id="chn-tit" maxlength="160" placeholder="Ex.: desconto do VT veio errado em setembro"></div>
+    <div class="field full"><label for="chn-txt">Descreva o que precisa</label><textarea class="input" id="chn-txt" rows="5" maxlength="4000"></textarea></div>
+    <div class="field full"><label for="chn-arq">Anexos (PDF ou imagem, até 10 MB cada)</label><input type="file" id="chn-arq" multiple accept="application/pdf,image/*"></div>
+  </form><p class="small" id="chn-err" style="color:var(--bad)" hidden></p>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-chabrir="1" id="chn-ok">Abrir chamado</button>`);
+}
+async function chAbrir(){
+  const err=m=>{const el=$("#chn-err");el.hidden=false;el.textContent=m};
+  const categoria=$("#chn-cat").value,assunto=$("#chn-tit").value.trim(),texto=$("#chn-txt").value.trim(),files=[...$("#chn-arq").files];
+  if(!categoria)return err("Escolha o assunto.");if(!assunto)return err("Escreva um resumo.");if(!texto)return err("Descreva o que você precisa.");
+  const b=$("#chn-ok");b.disabled=true;b.textContent="Enviando…";
+  const {data,error}=await SB.from("chamados").insert({colaborador_id:MEU.id,categoria,assunto:assunto.slice(0,160)}).select().single();
+  if(error||!data){b.disabled=false;b.textContent="Abrir chamado";console.error(error);return err("Não foi possível abrir o chamado. Verifique a conexão.")}
+  await chMensagem(data,texto,files);
+  logEvento("Chamado aberto","#"+data.numero+" · "+categoria);
+  await carregarChamados();closeModal();UI.chAberto=data.id;location.hash="meuschamados";render();toast("Chamado #"+data.numero+" aberto. O RH vai responder por aqui.");
+}
+
+/* ---- RH: Chamados ---- */
+function chListaRH(){
+  const f=UI.chFiltro||"abertos",q=semAcento(UI.chBusca||""),cat=UI.chCat||"",lj=UI.chLoja||"";
+  return CHAMADOS.filter(c=>{
+    if(f==="abertos"&&!CH_ABERTOS.includes(c.status))return false;
+    if(f==="rh"&&!(CH_ABERTOS.includes(c.status)&&c.ultimo_por==="colaborador"))return false;
+    if(f==="resolvidos"&&c.status!=="resolvido")return false;
+    if(f==="fechados"&&!["fechado","cancelado"].includes(c.status))return false;
+    if(cat&&c.categoria!==cat)return false;if(lj&&c.loja_id!==lj)return false;
+    if(q){const e=emp(c.colaborador_id);if(!semAcento(["#"+c.numero,c.assunto,c.categoria,e?e.nome:"",c.responsavel_nome||""].join(" ")).includes(q))return false}
+    return true;
+  }).sort((a,b)=>(f==="abertos"||f==="rh")?(["urgente","alta","normal","baixa"].indexOf(a.prioridade)-["urgente","alta","normal","baixa"].indexOf(b.prioridade))||String(a.atualizado_em).localeCompare(String(b.atualizado_em)):String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
+}
+R.chamados=()=>{
+  const L=chListaRH();const ab=CHAMADOS.filter(c=>CH_ABERTOS.includes(c.status));
+  const d30=new Date(Date.now()-30*864e5).toISOString();const res=CHAMADOS.filter(c=>(c.resolvido_em||c.fechado_em)&&String(c.resolvido_em||c.fechado_em)>=d30);
+  const notas=CHAMADOS.filter(c=>c.nota);const media=notas.length?(notas.reduce((t,c)=>t+c.nota,0)/notas.length):0;
+  const prim=CHAMADOS.map(c=>{const r=chMsgs(c.id).find(m=>m.perfil==="rh"&&m.tipo==="mensagem");return r?(new Date(r.em)-new Date(c.criado_em))/36e5:null}).filter(x=>x!==null);
+  const tPrim=prim.length?prim.reduce((a,b)=>a+b,0)/prim.length:null;
+  const quem=c=>{const e=emp(c.colaborador_id);return e?whoCell(e):`<b>Colaborador</b>`};
+  return header("Visão geral","Chamados")+`<div class="grid kpis">
+    <div class="card kpi hero"><span class="lbl">Em aberto</span><span class="val num">${ab.length}</span><span class="sub">${CHAMADOS.length} no total</span></div>
+    <div class="card kpi"><span class="lbl">Aguardando o RH</span><span class="val num">${chPendRH()}</span><span class="sub">última mensagem é do colaborador</span></div>
+    <div class="card kpi"><span class="lbl">Resolvidos em 30 dias</span><span class="val num">${res.length}</span><span class="sub">1ª resposta em média ${tPrim===null?"—":tPrim<24?Math.round(tPrim)+" h":Math.round(tPrim/24)+" dias"}</span></div>
+    <div class="card kpi"><span class="lbl">Nota do atendimento</span><span class="val num">${media?media.toLocaleString("pt-BR",{maximumFractionDigits:1})+" ★":"—"}</span><span class="sub">${notas.length} avaliaç${notas.length===1?"ão":"ões"}</span></div></div>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["abertos","Em aberto ("+ab.length+")"],["rh","Aguardando o RH ("+chPendRH()+")"],["resolvidos","Resolvidos"],["fechados","Fechados"],["todos","Todos"]].map(([k,t])=>`<button class="${(UI.chFiltro||"abertos")===k?"on":""}" data-chfiltro="${k}">${t}</button>`).join("")}</div></div>
+    <div class="toolbar"><input class="input search" id="f-chbusca" type="search" placeholder="Buscar por protocolo, colaborador ou assunto" value="${esc(UI.chBusca||"")}" aria-label="Buscar chamado"><select class="input" id="f-chcat" aria-label="Assunto"><option value="">Todos os assuntos</option>${[...new Set(chCats().concat(CHAMADOS.map(c=>c.categoria)))].map(c=>`<option ${c===UI.chCat?"selected":""}>${esc(c)}</option>`).join("")}</select>${ST.stores.length>1?`<select class="input" id="f-chloja" aria-label="Unidade">${lojaOpts(UI.chLoja||"")}</select>`:""}<span class="muted small">${L.length} chamado${L.length===1?"":"s"}</span></div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Colaborador</th><th>Assunto</th><th>Situação</th><th>Prioridade</th><th>Responsável</th><th>Última interação</th><th></th></tr></thead>
+    <tbody>${L.map(c=>`<tr class="click" data-chrh="${c.id}"><td class="num">${c.numero}</td><td>${quem(c)}</td><td style="white-space:normal;min-width:200px"><b>${esc(c.assunto)}</b><span class="small muted" style="display:block">${esc(c.categoria)}</span></td><td>${chStChip(c.status)}</td><td>${c.prioridade==="urgente"?`<span class="chip c-bad">Urgente</span>`:c.prioridade==="alta"?`<span class="chip c-warn">Alta</span>`:esc(CH_PRI[c.prioridade])}</td><td>${esc(c.responsavel_nome||"—")}</td><td class="num">${c.ultimo_por==="colaborador"&&CH_ABERTOS.includes(c.status)?`<span class="chip c-warn">colaborador</span> `:""}${chHa(c.atualizado_em)}</td><td><button class="btn btn-sm" data-chrh="${c.id}">Abrir</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">${CHAMADOS.length?"Nenhum chamado com esses filtros.":"Nenhum chamado ainda. Os colaboradores abrem pelo Meu espaço."}</td></tr>`}</tbody></table></div></div>`;
+};
+function chAbrirRH(id){
+  const c=chDe(id);if(!c){toast("Chamado não encontrado.");return}UI.chRH=id;
+  const e=emp(c.colaborador_id);const aberto=CH_ABERTOS.includes(c.status);
+  const rhs=[...new Set((USUARIOS||[]).filter(u=>u.perfil==="rh"&&u.ativo).map(u=>u.nome).concat(c.responsavel_nome?[c.responsavel_nome]:[]))];
+  modal("Chamado #"+c.numero+" · "+c.assunto,CH_CSS+`${e?whoCell(e):""}<p class="small muted" style="margin:6px 0 10px">${esc(c.categoria)} · ${e?esc(store(e.lojaId).nome)+" · ":""}aberto em ${chQuando(c.criado_em)}${c.nota?" · avaliação "+"★".repeat(c.nota):""}</p>
+    <div class="form-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="field"><label for="chr-st">Situação</label><select class="input" id="chr-st" data-chcampo="status">${Object.entries(CH_ST).filter(([k])=>k!=="fechado"||c.status==="fechado").map(([k,[t]])=>`<option value="${k}" ${k===c.status?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div class="field"><label for="chr-pri">Prioridade</label><select class="input" id="chr-pri" data-chcampo="prioridade">${Object.entries(CH_PRI).map(([k,t])=>`<option value="${k}" ${k===c.prioridade?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div class="field"><label for="chr-resp">Responsável</label><select class="input" id="chr-resp" data-chcampo="responsavel_nome"><option value="">—</option>${rhs.map(n=>`<option ${n===c.responsavel_nome?"selected":""}>${esc(n)}</option>`).join("")}</select></div>
+    </div>
+    ${chThreadHTML(c,false)}
+    ${c.status==="cancelado"||c.status==="fechado"?"":`<div class="field"><label for="chr-txt">Resposta</label><textarea class="input" id="chr-txt" rows="3" placeholder="Escreva a resposta ao colaborador"></textarea></div>
+    <div class="toolbar" style="margin-top:8px"><input type="file" id="chr-arq" multiple accept="application/pdf,image/*" aria-label="Anexar arquivos"><label class="check"><input type="checkbox" id="chr-int"> Nota interna (o colaborador não vê)</label></div>`}`,
+  `${c.status==="cancelado"||c.status==="fechado"?"":`<button class="btn" data-chenviar="${c.id}|">Enviar</button><button class="btn" data-chenviar="${c.id}|aguardando_colaborador">Enviar e aguardar colaborador</button><button class="btn btn-primary" data-chenviar="${c.id}|resolvido">Enviar e marcar resolvido</button>`}<button class="btn btn-ghost" data-close>Fechar</button>`);
+  if(!c.responsavel_nome&&aberto&&SESSION&&rhs.includes(SESSION.nome)){const s=$("#chr-resp");if(s)s.value=SESSION.nome}
+}
+async function chAtualizar(c,dados,msg){
+  const {error}=await SB.from("chamados").update(dados).eq("id",c.id);
+  if(error){console.error(error);toast("Não foi possível salvar.");return false}
+  await carregarChamados();if(msg)toast(msg);return true;
+}
+
+/* ---- Configurações: assuntos dos chamados (RH) ---- */
+function chCatsCard(){
+  if(ROLE!=="rh")return "";const l=chCats();
+  return `<div class="card"><div class="card-head"><div><h2>Assuntos dos chamados</h2><p>Lista que o colaborador vê ao abrir um chamado para o RH.</p></div></div>
+    <div class="toolbar"><input class="input" id="chc-novo" placeholder="Novo assunto (ex.: Rescisão)" maxlength="80" style="flex:1;min-width:220px"><button class="btn btn-primary" data-chcadd="1">+ Incluir</button></div>
+    <div class="tabs-inline" style="flex-wrap:wrap;gap:8px">${l.map(c=>`<span class="chip c-mute" style="gap:6px">${esc(c)} <button class="btn btn-sm btn-ghost" data-chcdel="${esc(c)}" aria-label="Remover ${esc(c)}" style="padding:0 6px">✕</button></span>`).join("")}</div></div>`;
+}
+const R_CONFIG_CH=R.config;R.config=()=>R_CONFIG_CH()+chCatsCard();
+
+/* ---- alertas do RH ---- */
+const alertasBaseCH=alertas;
+alertas=function(){const a=alertasBaseCH();if(ROLE==="rh"){const v=CHAMADOS.filter(c=>CH_ABERTOS.includes(c.status)&&c.ultimo_por==="colaborador"&&(Date.now()-new Date(c.atualizado_em))>864e5);
+  if(v.length)a.push({sev:1,c:"c-warn",ic:"CH",t:v.length+" chamado"+(v.length===1?"":"s")+" de colaborador sem resposta há mais de 1 dia",d:"Mais antigo: #"+v[v.length-1].numero+" · "+v[v.length-1].assunto,ch:1})}return a.sort((x,y)=>x.sev-y.sev)};
+
+/* ---- eventos ---- */
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-chnovo],[data-chabrir],[data-chver],[data-chvoltar],[data-chresponder],[data-chcancelar],[data-chnota],[data-chconfirmar],[data-chreabrir],[data-chanexo],[data-chfiltro],[data-chrh],[data-chenviar],[data-chcadd],[data-chcdel]");if(!t)return;
+  const d=t.dataset;
+  if(d.chanexo){chAbrirAnexo(d.chanexo);return}
+  if(ROLE==="colaborador"){
+    if(d.chnovo){chNovoForm();return}
+    if(d.chabrir){chAbrir();return}
+    if(d.chver){UI.chAberto=d.chver;UI.chNota=0;render();window.scrollTo(0,0);return}
+    if(d.chvoltar){UI.chAberto=null;render();return}
+    if(d.chnota){UI.chNota=+d.chnota;document.querySelectorAll("[data-chnota]").forEach(b=>b.classList.toggle("on",+b.dataset.chnota<=UI.chNota));return}
+    if(d.chresponder){const c=chDe(d.chresponder);const tx=$("#ch-resp").value.trim(),fs=[...$("#ch-arq").files];if(!tx&&!fs.length){$("#ch-resp").focus();return}t.disabled=true;if(await chMensagem(c,tx,fs)){await carregarChamados();render();toast("Mensagem enviada")}else t.disabled=false;return}
+    const acao=d.chcancelar?"cancelar":d.chconfirmar?"confirmar":d.chreabrir?"reabrir":"";
+    if(acao){const id=d.chcancelar||d.chconfirmar||d.chreabrir;let texto=null;
+      if(acao==="cancelar"&&t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar cancelamento";return}
+      if(acao==="confirmar"&&!UI.chNota){toast("Escolha uma nota de 1 a 5 estrelas.");return}
+      if(acao==="confirmar")texto=($("#ch-aval")||{}).value||"";
+      if(acao==="reabrir"){texto=(($("#ch-aval")||{}).value||"").trim();if(!texto){toast("Conte no comentário o que ainda falta, e clique em reabrir de novo.");$("#ch-aval").focus();return}}
+      t.disabled=true;const {error}=await SB.rpc("chamado_colab",{p_id:id,p_acao:acao,p_nota:acao==="confirmar"?UI.chNota:null,p_texto:texto});
+      if(error){t.disabled=false;toast(error.message||"Não foi possível concluir.");return}
+      await carregarChamados();UI.chNota=0;render();toast(acao==="confirmar"?"Obrigado pela avaliação!":acao==="reabrir"?"Chamado reaberto":"Chamado cancelado");return}
+    return;
+  }
+  if(ROLE!=="rh")return;
+  if(d.chfiltro){UI.chFiltro=d.chfiltro;render();return}
+  if(d.chrh){ev.stopPropagation();chAbrirRH(d.chrh);return}
+  if(d.chenviar){const [id,st]=d.chenviar.split("|");const c=chDe(id);const tx=$("#chr-txt").value.trim(),fs=[...$("#chr-arq").files],interna=$("#chr-int").checked;
+    if(!tx&&!fs.length&&!st){$("#chr-txt").focus();return}
+    if(interna&&st){toast("Nota interna não muda a situação. Desmarque a nota interna para responder ao colaborador.");return}
+    t.disabled=true;
+    const resp=$("#chr-resp").value;if(resp!==(c.responsavel_nome||""))await SB.from("chamados").update({responsavel_nome:resp||null}).eq("id",c.id);
+    if(tx||fs.length){if(!(await chMensagem(c,tx,fs,interna?"interna":"mensagem"))){t.disabled=false;return}}
+    if(st)await SB.from("chamados").update({status:st}).eq("id",c.id);
+    logEvento("Chamado respondido","#"+c.numero+(st?" · "+CH_ST[st][0]:"")+(interna?" · nota interna":""));
+    await carregarChamados();render();chAbrirRH(id);toast(st==="resolvido"?"Resposta enviada e chamado resolvido":"Enviado");return}
+  if(d.chcadd){const el=$("#chc-novo");const v=el.value.trim();if(!v){el.focus();return}const l=chCats().slice();if(l.some(x=>semAcento(x)===semAcento(v))){toast("Esse assunto já existe.");return}ST.cfg.chamadoCategorias=[...l,v];logEvento("Assunto de chamado incluído",v);commit("Assunto incluído");return}
+  if(d.chcdel){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="?";return}ST.cfg.chamadoCategorias=chCats().filter(x=>x!==d.chcdel);logEvento("Assunto de chamado removido",d.chcdel);commit("Assunto removido");return}
+});
+document.addEventListener("change",async ev=>{
+  const t=ev.target;
+  if(t.dataset&&t.dataset.chcampo&&ROLE==="rh"){const c=chDe(UI.chRH);if(!c)return;
+    if(await chAtualizar(c,{[t.dataset.chcampo]:t.value||null},"Chamado atualizado")){render();chAbrirRH(c.id)}return}
+  if(t.id==="f-chcat"){UI.chCat=t.value;render();return}
+  if(t.id==="f-chloja"){UI.chLoja=t.value;render()}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")return;UI.chBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-chbusca");n.focus();n.setSelectionRange(pos,pos)});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
