@@ -682,7 +682,9 @@ const store=id=>ST.stores.find(s=>s.id===id)||{nome:"—",cidade:""};
 /* prestador de serviço como gestor imediato ("Reporta a"): referência "p:<id do prestador>", vista como pessoa no organograma */
 const pjComoPessoa=ref=>{const p=(ST.pjs||[]).find(x=>"p:"+x.id===ref);return p?{id:ref,pj:true,pjId:p.id,nome:p.respNome||p.razaoSocial||p.nomeFantasia||"Prestador",cargo:p.area||"",lojaId:p.lojaId||"",admissao:p.inicio||TODAY,efetivado:true,afastado:false,desligado:p.encerrado?{data:p.encerrado.data,tipo:"pj"}:null,ferias:[],avaliacoes:[]}:undefined};
 const emp=id=>ST.emps.find(e=>e.id===id)||(typeof id==="string"&&id.startsWith("p:")?pjComoPessoa(id):undefined);
-const ativos=()=>ST.emps.filter(e=>!e.desligado);
+// ORG_FORA: ligado enquanto um organograma é montado (os sócios fora da operação saem da lista)
+var ORG_FORA=false;
+const ativos=()=>ST.emps.filter(e=>!e.desligado&&!(ORG_FORA&&e.foraOrg));
 
 /* ============ regras de negócio ============ */
 function feriasEmCurso(e,ref=TODAY){return e.ferias.find(f=>ref>=f.inicio&&ref<=addDays(f.inicio,f.dias-1))}
@@ -4191,11 +4193,11 @@ document.addEventListener("change",ev=>{const t=ev.target;if(t.id==="f-orgloja")
    e.gestorId = id do gestor imediato. Sem gestor informado, a pessoa liga ao líder mais próximo da unidade (nível acima pelo cargo). */
 function gestorAuto(e){
   const n=orgNivel(e.cargo);if(n===1)return null;
-  const mesmos=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id);
+  const mesmos=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id&&!x.foraOrg);
   for(let k=n-1;k>=1;k--){const c=mesmos.filter(x=>orgNivel(x.cargo)===k).sort((a,b)=>a.admissao.localeCompare(b.admissao));if(c.length)return c[0]}
   return null;
 }
-function reportaA(e){if(e.pj)return null;if(e.gestorId){const g=emp(e.gestorId);if(g&&!g.desligado)return {g,auto:false}}const a=gestorAuto(e);return a?{g:a,auto:true}:null}
+function reportaA(e){if(e.pj)return null;if(e.gestorId){const g=emp(e.gestorId);if(g&&!g.desligado&&!g.foraOrg)return {g,auto:false}}const a=gestorAuto(e);return a?{g:a,auto:true}:null}
 const subordinadosDiretos=id=>ativos().filter(x=>x.gestorId===id);
 function criaCiclo(eid,gid){let cur=emp(gid);const vis=new Set();while(cur&&!vis.has(cur.id)){if(cur.id===eid)return true;vis.add(cur.id);const g=reportaA(cur);cur=g?g.g:null}return false}
 function gestorSecao(e){
@@ -4271,7 +4273,7 @@ orgPdf=function(){
 /* ============ gestor responsável da unidade e busca de lojas por gerente ============ */
 /* quem fica no topo da unidade (sem líder acima pelo cargo) passa a reportar ao gestor responsável da unidade */
 const gestorAutoBase=gestorAuto;
-gestorAuto=function(e){const a=gestorAutoBase(e);if(a)return a;const s=store(e.lojaId);if(s.gestorId&&s.gestorId!==e.id){const g=emp(s.gestorId);if(g&&!g.desligado)return g}return null};
+gestorAuto=function(e){const a=gestorAutoBase(e);if(a)return a;const s=store(e.lojaId);if(s.gestorId&&s.gestorId!==e.id){const g=emp(s.gestorId);if(g&&!g.desligado&&!g.foraOrg)return g}return null};
 const usuariosGerentes=()=>{const l=typeof USUARIOS!=="undefined"?(USUARIOS||[]).filter(u=>u.perfil==="gerente"):(ST.usuarios||[]).filter(u=>u.perfil==="gerente");return l.map(u=>({nome:u.nome,login:u.login,lojas:u.lojas||[],ativo:u.ativo!==false}))};
 const mesmoNome=(a,b)=>{const x=semAcento(a||"").trim(),y=semAcento(b||"").trim();return x&&y&&(x===y||x.startsWith(y+" ")||y.startsWith(x+" "))};
 function gerentesLista(){
@@ -4529,6 +4531,21 @@ function ldExcel(){if(typeof XLSX==="undefined"){toast("O gerador de planilhas n
   ws["!cols"]=[{wch:34},{wch:26},{wch:34},{wch:26},{wch:34},{wch:20},{wch:30},{wch:22}];XLSX.utils.book_append_sheet(wb,ws,"Lideranças");
   salvarXLSX(wb,"organograma-liderancas-"+TODAY+".xlsx").then(ok=>{if(ok)logEvento("Organograma por liderança emitido (Excel)",liderancasFiltradas().length+" lideranças")})}
 const R_HEADCOUNT_LD=R.headcount;R.headcount=()=>UI.hcTab==="lider"?liderancasPagina():R_HEADCOUNT_LD();
+
+/* ============ sócios fora do organograma ============
+   e.foraOrg = sócio que não participa da operação: some de todos os organogramas e nunca é "Reporta a" de ninguém
+   (quem reportava a ele passa ao próximo líder). Continua no headcount, na folha e nas demais rotinas. */
+const semSocios=f=>function(...a){const ant=ORG_FORA;ORG_FORA=true;try{return f.apply(this,a)}finally{ORG_FORA=ant}};
+const R_HEADCOUNT_SOC=R.headcount;R.headcount=()=>UI.hcTab&&UI.hcTab!=="quadro"?semSocios(R_HEADCOUNT_SOC)():R_HEADCOUNT_SOC();
+orgPdf=semSocios(orgPdf);redePdf=semSocios(redePdf);ldPdf=semSocios(ldPdf);ldExcel=semSocios(ldExcel);
+const gestorSecaoSoc=gestorSecao;
+gestorSecao=function(e){const h=gestorSecaoSoc(e);if(!h||e.pj)return h;
+  const ck=`<label class="check" style="margin-top:10px"><input type="checkbox" data-foraorg="${e.id}" ${e.foraOrg?"checked":""}> Sócio fora da operação: não aparece no organograma</label>`;
+  const i=h.lastIndexOf("</details>");return i<0?h+ck:h.slice(0,i)+ck+h.slice(i)};
+document.addEventListener("change",ev=>{const t=ev.target;if(!t.dataset||!t.dataset.foraorg||G())return;const e=emp(t.dataset.foraorg);if(!e)return;
+  if(t.checked)e.foraOrg=true;else delete e.foraOrg;
+  logEvento(t.checked?"Retirado do organograma":"Voltou ao organograma",e.nome+(t.checked?" · sócio fora da operação":""));
+  commit(primeiro(e.nome)+(t.checked?" não aparece mais no organograma":" voltou ao organograma"))});
 document.addEventListener("click",ev=>{const t=ev.target.closest("[data-ldso],[data-ldabrir],[data-act='ldPdf'],[data-act='ldExcel']");if(!t)return;const d=t.dataset;
   if(d.ldso){UI.ldSo=d.ldso;render();return}if(d.ldabrir){UI.ldAbrir=!UI.ldAbrir;render();return}if(d.act==="ldPdf"){ldPdf();return}if(d.act==="ldExcel")ldExcel()});
 document.addEventListener("change",ev=>{if(ev.target.id==="f-ldloja"){UI.ldLoja=ev.target.value;render()}});
@@ -5162,8 +5179,8 @@ function orgSnapshot(lojaId){
     L.push([e.id,e.nome,e.cargo||"",null,"vis","Lotação: "+store(e.lojaId).nome+(c?" · "+c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"% aqui":"")])});
   return {n:store(lojaId).nome,p:L};
 }
-// sem o filtro de centro de custo da tela do RH
-function orgCalcular(){const f=UI.ccF;UI.ccF=[];try{return ST.stores.map(s=>[s.id,{loja_id:s.id,dados:orgSnapshot(s.id)}])}finally{UI.ccF=f}}
+// sem o filtro de centro de custo da tela do RH e sem os sócios fora da operação
+function orgCalcular(){const f=UI.ccF,o=ORG_FORA;UI.ccF=[];ORG_FORA=true;try{return ST.stores.map(s=>[s.id,{loja_id:s.id,dados:orgSnapshot(s.id)}])}finally{UI.ccF=f;ORG_FORA=o}}
 // o cálculo leva ~0,2 s: cada gravação usa a última cópia e recalcula 2 s depois da última alteração
 let ORG_SNAP=null,ORG_T=null;
 function orgSnapshots(){
@@ -5748,8 +5765,10 @@ ICON.meutime='<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><c
 PAGES_C.push({g:"Minha liderança",lid:1},{id:"meutime",t:"Meu time",lid:1});
 
 /* ---- RH: para cada colaborador que lidera alguém, todos abaixo dele, cada um com o id de quem ele reporta ---- */
-function liderSnapshots(){
-  const M=new Map(),colab=new Set(ST.emps.map(e=>e.id));
+// sem os sócios fora da operação (ORG_FORA), como no organograma
+function liderSnapshots(){const o=ORG_FORA;ORG_FORA=true;try{return liderCalc()}finally{ORG_FORA=o}}
+function liderCalc(){
+  const M=new Map(),colab=new Set(ativos().map(e=>e.id));
   ativos().forEach(e=>{
     const r=reportaA(e);if(!r)return;
     const pai=r.g.id,vis=new Set([e.id]);let g=r.g;
