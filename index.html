@@ -597,7 +597,7 @@ async function atualizarPeriodico(){
   if(!SB||!SESSION||document.hidden)return;
   try{
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
-    else{await carregarGerente()}
+    else if(ROLE==="gerente"){await carregarGerente()}
     renderSafe();
   }catch(e){}
 }
@@ -909,7 +909,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="gerente"?PAGES_G:PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C:ROLE==="gerente"?PAGES_G:PAGES;
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
 function pendRH(){return SOLIC.length}
@@ -926,9 +926,9 @@ function renderNav(){
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
     `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
-  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
+  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
-function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:"painel";render()}
+function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:ROLE==="colaborador"?"meustd":"painel";render()}
 window.addEventListener("hashchange",go);
 
 function header(eyebrow,title,actions=""){
@@ -975,14 +975,15 @@ R.solicitacoes=()=>{
 /* ---- headcount por função ---- */
 R.usuarios=()=>{
   const tab=UI.usrTab||"usuarios";
-  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["usuarios","Usuários"],["solic","Solicitações"+(SOLIC.length?" ("+SOLIC.length+")":"")],["log","Log de acesso"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-usrtab="${k}">${t}</button>`).join("")}</div></div>`;
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["usuarios","Usuários"],["colabs","Colaboradores"],["solic","Solicitações"+(SOLIC.length?" ("+SOLIC.length+")":"")],["log","Log de acesso"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-usrtab="${k}">${t}</button>`).join("")}</div></div>`;
   const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
   let corpo="";
   if(tab==="usuarios"){
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead>
-    <tbody>${USUARIOS.slice().sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil!=="gerente"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
+    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil!=="gerente"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
       <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
+  } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
   } else if(tab==="solic"){
     const ug=id=>USUARIOS.find(u=>u.user_id===id);
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead>
@@ -995,7 +996,7 @@ R.usuarios=()=>{
     const cor=ev=>/recusad|desativ/i.test(ev)?"c-bad":ev==="Login"?"c-ok":ev==="Logout"?"c-mute":"c-info";
     corpo=`<div class="card">${tabs}<div class="toolbar"><input class="input search" id="f-logbusca" placeholder="Filtrar por usuário, evento ou detalhe" value="${esc(UI.logBusca||"")}" aria-label="Filtrar log"><button class="btn btn-sm" data-act="atualizarLog">Atualizar</button><span class="muted small">${LOGV===null?"Carregando…":vis.length+" registro"+(vis.length===1?"":"s")}</span></div>
     <div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Usuário</th><th>Perfil</th><th>Evento</th><th>Detalhe</th></tr></thead>
-    <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${l.perfil==="rh"?"RH":l.perfil==="gerente"?"Gerente":"—"}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
+    <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${l.perfil==="rh"?"RH":l.perfil==="gerente"?"Gerente":l.perfil==="colaborador"?"Colaborador":"—"}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Mostra os 1.000 registros mais recentes. Tentativas de senha incorreta ficam no painel do Supabase, em Authentication › Logs.</div></div>`;
   }
   return header("Sistema","Usuários e acessos",tab==="usuarios"?`<button class="btn btn-primary" data-act="novoUsuario">+ Novo usuário</button>`:tab==="solic"&&SOLIC.length?`<button class="btn btn-primary" data-act="aprovarTodas">Aprovar todas (${SOLIC.length})</button>`:"")+corpo;
@@ -1474,11 +1475,11 @@ function mostrarTela(k,extra){
     carregando:["Carregando","Só um instante.",""],
     configurar:["Portal ainda não configurado","Preencha o arquivo config.js com o endereço e a chave pública do Supabase. O passo a passo está no LEIAME.md do projeto.",""],
     erro:["Não foi possível carregar os dados","Verifique a conexão e recarregue a página. Se continuar, avise o RH.",`<button class="btn" data-act="sair">Sair</button>`],
-    login:["Entrar no Gestão de Pessoas","Use o usuário e a senha que o RH criou para você.",
+    login:["Entrar no Gestão de Pessoas","Use o seu usuário e senha. Colaborador: entre com o seu CPF.",
       `<form class="form-grid" id="form-login" style="text-align:left">
-        <div class="field full"><label for="l-user">Usuário ou e-mail</label><input class="input" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
+        <div class="field full"><label for="l-user">Usuário, CPF ou e-mail</label><input class="input" id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
         <div class="field full"><label for="l-pass">Senha</label><input class="input" id="l-pass" type="password" autocomplete="current-password"></div>
-      </form>${erro}<button class="btn btn-primary" data-act="entrar" id="btn-entrar" style="width:100%;justify-content:center">Entrar</button><p class="small muted">Esqueceu a senha? Peça ao RH para redefinir.</p>`],
+      </form>${erro}<button class="btn btn-primary" data-act="entrar" id="btn-entrar" style="width:100%;justify-content:center">Entrar</button><button class="btn btn-ghost" data-colabprimeiro="1" style="width:100%;justify-content:center;margin-top:8px">Sou colaborador · primeiro acesso</button><p class="small muted">Esqueceu a senha? Peça ao RH para redefinir.</p>`],
     inicioRH:["Bem-vindo ao Gestão de Pessoas","O banco de dados está vazio. Para trazer os dados do portal no Claude, use o botão Importar backup do portal (.json).",
       `<div class="gate-acts"><button class="btn btn-primary" data-act="iniciarExemplo">Começar com dados de exemplo</button><button class="btn" data-act="iniciarZero">Começar do zero</button><label class="btn" style="cursor:pointer">Importar backup do portal (.json)<input type="file" id="bk-file" accept=".json,application/json" hidden></label></div>`]
   }[k];
@@ -1495,7 +1496,7 @@ function mostrarTela(k,extra){
 function erroTela(msg){const el=$("#g-err");if(el){el.hidden=false;el.textContent=msg}}
 function iniciarRH(novo){ST=normalize(novo);mostrarApp();persist();go();logEvento("Banco de dados iniciado",ST.exemplo?"Dados de exemplo":"Do zero");toast("Banco de dados criado")}
 async function entrar(){
-  const login=normLogin($("#l-user").value),senha=$("#l-pass").value;
+  const login=loginDeCPF(normLogin($("#l-user").value)),senha=$("#l-pass").value;
   if(!login||!senha){erroTela("Preencha usuário e senha.");return}
   const b=$("#btn-entrar");b.disabled=true;b.textContent="Entrando…";
   const {error}=await SB.auth.signInWithPassword({email:login.includes("@")?login:login+"@"+DOMINIO,password:senha});
@@ -1513,14 +1514,15 @@ async function iniciarSessao(novoLogin){
   mostrarTela("carregando");
   try{
     if(ROLE==="rh"){if(!(await carregarRH())){await carregarUsuarios();mostrarTela("inicioRH");return}}
+    else if(ROLE==="colaborador")await carregarColaborador();
     else await carregarGerente();
-  }catch(e){console.error(e);mostrarTela("erro");return}
-  mostrarApp();go();ligarTempoReal();
+  }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
+  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
-  SESSION=null;PERFIL=null;ROLE=null;ST=null;SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
+  SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;$(".app").classList.remove("colab");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
   location.hash="";mostrarTela("login");
 }
 async function boot(){
@@ -4879,6 +4881,113 @@ document.addEventListener("input",ev=>{
 });
 const R_CONFIG_BASE=R.config;R.config=()=>R_CONFIG_BASE()+cartasCfgCard();
 
+
+/* ============ acesso do colaborador (T&D) · só na versão internet ============
+   O colaborador cria o login com CPF + data de nascimento (função "colaborador") e entra com CPF e senha.
+   Ele não lê tabelas de pessoas: os próprios dados vêm de meus_dados(), e o menu dele é só o "Meu espaço". */
+let MEU=null;
+const PAGES_C=[{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"meusdados",t:"Meus dados"}];
+ICON.meustd='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>';
+ICON.meusdados='<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>';
+PERFIS.colaborador="Colaborador";
+// no celular o menu do colaborador ocupa uma linha inteira, com os itens divididos igualmente
+document.head.insertAdjacentHTML("beforeend",`<style>@media (max-width:860px){.app.colab{grid-template-rows:auto minmax(0,1fr)}.app.colab .side{flex-wrap:wrap;align-content:flex-start;row-gap:8px}.app.colab .nav,.app.colab .logo,.app.colab .side-foot{margin:0}.app.colab .logo{flex:1}.app.colab .nav{order:3;flex:1 0 100%;overflow:visible}.app.colab .nav a{flex:1;justify-content:center}}</style>`);
+const loginDeCPF=s=>/^[\d.\-\s]+$/.test(s)&&soDig(s).length===11?soDig(s):s;
+async function carregarColaborador(){
+  const {data,error}=await SB.rpc("meus_dados");
+  if(error)throw error;
+  if(!data){SESSION=null;await SB.auth.signOut();throw Object.assign(new Error("sem vínculo"),{semVinculo:true})}
+  MEU=data;$(".app").classList.add("colab");
+  ST=normalize({exemplo:false,stores:[{id:data.loja_id,nome:data.loja_nome||"",cidade:data.cidade||"",tipo:"",quadro:0}],emps:[],admissoes:[],escalaOverrides:{},cfg:clone(DEFAULT_CFG)});
+}
+function tempoCasa(adm){
+  const m=Math.max(0,Math.floor(diffDays(adm,TODAY)/30.44)),a=Math.floor(m/12),r=m%12;
+  const mes=n=>n+(n===1?" mês":" meses");
+  return a?a+" ano"+(a>1?"s":"")+(r?" e "+mes(r):""):mes(r);
+}
+R.meustd=()=>header("Meu espaço","Meus treinamentos")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum treinamento por aqui ainda.</b><br>Quando o RH publicar cursos para você, eles aparecem nesta página.</p></div>`;
+R.meusdados=()=>{
+  const m=MEU||{};
+  const itens=[["Nome",m.nome],["Cargo",m.cargo],["Unidade",m.loja_nome],["Cidade",m.cidade],["Admissão",m.admissao?fdate(m.admissao):""],["Tempo de casa",m.admissao?tempoCasa(m.admissao):""],["Login","CPF "+fmtCPF(SESSION?SESSION.login:"")]];
+  return header("Meu espaço","Meus dados")+`<div class="card"><div class="form-grid">${itens.map(([k,v])=>`<div class="field"><label>${k}</label><b>${esc(v||"—")}</b></div>`).join("")}</div>
+  <div class="note" style="margin-top:14px">Algum dado errado? Fale com o RH. Por segurança, salário, documentos e dados pessoais não aparecem aqui.</div></div>`;
+};
+
+/* ---- primeiro acesso ---- */
+function telaPrimeiroColab(){
+  mostrarTela("login");
+  $(".gate").innerHTML=`<div class="gate-brand">Gestão de Pessoas · Brasileiríssima</div><h1>Primeiro acesso do colaborador</h1>
+  <p class="muted">Confirme seus dados do cadastro e crie a sua senha. Depois, entre sempre com o seu CPF e essa senha.</p>
+  <form class="form-grid" id="form-colab" style="text-align:left">
+    <div class="field full"><label for="pc-cpf">CPF</label><input class="input" id="pc-cpf" inputmode="numeric" autocomplete="username" placeholder="000.000.000-00" maxlength="14"></div>
+    <div class="field full"><label for="pc-nasc">Data de nascimento</label><input class="input" id="pc-nasc" type="date" max="${TODAY}"></div>
+    <div class="field full"><label for="pc-pass">Crie uma senha (mínimo 8 caracteres)</label><input class="input" id="pc-pass" type="password" autocomplete="new-password"></div>
+    <div class="field full"><label for="pc-pass2">Repita a senha</label><input class="input" id="pc-pass2" type="password" autocomplete="new-password"></div>
+  </form><p class="small" id="g-err" style="color:var(--bad)" hidden></p>
+  <button class="btn btn-primary" data-colabcriar="1" id="btn-colab" style="width:100%;justify-content:center">Criar meu acesso</button>
+  <button class="btn btn-ghost" data-colabvoltar="1" style="width:100%;justify-content:center;margin-top:8px">Voltar para o login</button>
+  <p class="small muted">Seus dados são conferidos com o cadastro do RH e usados só para liberar o seu acesso.</p>`;
+  $("#pc-cpf").focus();
+}
+async function criarAcessoColab(){
+  const cpf=soDig($("#pc-cpf").value),nasc=$("#pc-nasc").value,s1=$("#pc-pass").value,s2=$("#pc-pass2").value;
+  if(cpf.length!==11)return erroTela("Informe o CPF com 11 números.");
+  if(!nasc)return erroTela("Informe a data de nascimento.");
+  if(s1.length<8)return erroTela("A senha precisa ter pelo menos 8 caracteres.");
+  if(s1!==s2)return erroTela("As duas senhas não são iguais.");
+  const b=$("#btn-colab");b.disabled=true;b.textContent="Conferindo…";
+  const {data,error}=await SB.functions.invoke("colaborador",{body:{acao:"primeiro_acesso",cpf,nascimento:nasc,senha:s1}});
+  let msg=null;
+  if(error){msg="Não foi possível falar com o servidor. Tente de novo.";try{const j=await error.context.json();if(j&&j.erro)msg=j.erro}catch(e){}}
+  else if(data&&data.erro)msg=data.erro;
+  if(msg){b.disabled=false;b.textContent="Criar meu acesso";return erroTela(msg)}
+  b.textContent="Entrando…";
+  const r=await SB.auth.signInWithPassword({email:cpf+"@"+DOMINIO,password:s1});
+  if(r.error){mostrarTela("login","Acesso criado. Entre com o seu CPF e a senha que você criou.");return}
+  toast("Acesso criado. Boas-vindas!");await iniciarSessao(true);
+}
+
+/* ---- RH: Usuários e acessos › Colaboradores ---- */
+function colabAcessosHTML(tabs){
+  const lib=!!(ST.cfg&&ST.cfg.acessoColab);
+  const acc=USUARIOS.filter(u=>u.perfil==="colaborador");
+  const porId=new Map(acc.map(u=>[u.colaborador_id,u]));
+  const at=ativos();
+  const nascDe=e=>(e.ficha&&e.ficha.nascimento)||e.nascimento||"";
+  const semAcesso=at.filter(e=>!porId.has(e.id)),semNasc=at.filter(e=>!porId.has(e.id)&&!nascDe(e));
+  const fil=UI.caFiltro||"com",q=(UI.caBusca||"").toLowerCase();
+  let lista=fil==="com"?acc.map(u=>({u,e:emp(u.colaborador_id)})):fil==="sem"?semAcesso.map(e=>({u:null,e})):semNasc.map(e=>({u:null,e}));
+  if(q)lista=lista.filter(({u,e})=>[e?e.nome:u.nome,e?e.cargo:"",e?store(e.lojaId).nome:""].join(" ").toLowerCase().includes(q));
+  lista.sort((a,b)=>(a.e?a.e.nome:a.u.nome).localeCompare(b.e?b.e.nome:b.u.nome));
+  const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
+  const sit=(u,e)=>!u?(nascDe(e)?`<span class="chip c-mute">Sem acesso</span>`:`<span class="chip c-warn">Sem data de nascimento</span>`):!e||e.desligado?`<span class="chip c-mute">Desligado</span>`:u.ativo?`<span class="chip c-ok">Ativo</span>`:`<span class="chip c-bad">Bloqueado</span>`;
+  const acoes=u=>u?`<div class="tabs-inline"><button class="btn btn-sm" data-caativo="${esc(u.login)}" data-v="${u.ativo?0:1}">${u.ativo?"Bloquear":"Desbloquear"}</button><button class="btn btn-sm btn-ghost" data-caremover="${esc(u.login)}" title="Apaga o login. O colaborador cria outro com CPF e data de nascimento (use quando ele esquecer a senha).">Novo 1º acesso</button></div>`:"";
+  return `<div class="card">${tabs}
+  <div class="note" style="margin:0 0 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Primeiro acesso ${lib?"liberado":"suspenso"}.</b> ${lib?"Colaboradores ativos podem criar o próprio login na tela de entrada com CPF e data de nascimento.":"Ninguém consegue criar login novo. Quem já tem acesso continua entrando normalmente."}</span><button class="btn btn-sm ${lib?"":"btn-primary"}" data-catoggle="1">${lib?"Suspender primeiro acesso":"Liberar primeiro acesso"}</button></div>
+  <div class="toolbar"><div class="seg" role="tablist">${[["com","Com acesso ("+acc.length+")"],["sem","Sem acesso ("+semAcesso.length+")"],["nasc","Sem data de nascimento ("+semNasc.length+")"]].map(([k,t])=>`<button class="${fil===k?"on":""}" data-cafiltro="${k}">${t}</button>`).join("")}</div>
+    <input class="input search" id="f-cabusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.caBusca||"")}" aria-label="Buscar colaborador"><span class="muted small">${lista.length} pessoa${lista.length===1?"":"s"}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Situação</th><th>Acesso criado</th><th>Último acesso</th><th></th></tr></thead>
+  <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td>${acoes(u)}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
+  <div class="note" style="margin-top:14px">O colaborador entra com o CPF e a senha que ele mesmo criou, e vê só o Meu espaço (treinamentos e dados básicos), sem acesso a outras pessoas. Ao ser desligado, o acesso cai sozinho. Esqueceu a senha? Use "Novo 1º acesso". Quem está sem data de nascimento na ficha não consegue criar o acesso.</div></div>`;
+}
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-colabprimeiro],[data-colabvoltar],[data-colabcriar],[data-catoggle],[data-caativo],[data-caremover],[data-cafiltro]");if(!t)return;
+  const d=t.dataset;
+  if(d.colabprimeiro){telaPrimeiroColab();return}
+  if(d.colabvoltar){mostrarTela("login");return}
+  if(d.colabcriar){criarAcessoColab();return}
+  if(ROLE!=="rh")return;
+  if(d.cafiltro){UI.caFiltro=d.cafiltro;render();return}
+  if(d.catoggle){ST.cfg.acessoColab=!ST.cfg.acessoColab;logEvento(ST.cfg.acessoColab?"Primeiro acesso de colaboradores liberado":"Primeiro acesso de colaboradores suspenso","Usuários e acessos › Colaboradores");save();render();toast(ST.cfg.acessoColab?"Primeiro acesso liberado":"Primeiro acesso suspenso");return}
+  if(d.caativo){t.disabled=true;const msg=await chamarUsuarios({acao:"atualizar",login:d.caativo,ativo:d.v==="1"});if(msg){t.disabled=false;toast(msg);return}await carregarUsuarios();render();toast(d.v==="1"?"Acesso desbloqueado":"Acesso bloqueado");return}
+  if(d.caremover){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}t.disabled=true;const msg=await chamarUsuarios({acao:"remover",login:d.caremover});if(msg){t.disabled=false;toast(msg);return}await carregarUsuarios();render();toast("Login apagado. O colaborador já pode fazer um novo primeiro acesso.");return}
+});
+document.addEventListener("input",ev=>{
+  const t=ev.target;
+  if(t.id==="pc-cpf"){const d=soDig(t.value).slice(0,11);t.value=d.replace(/^(\d{3})(\d)/,"$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d{1,2})$/,".$1-$2")}
+  if(t.id==="f-cabusca"){UI.caBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-cabusca");n.focus();n.setSelectionRange(pos,pos)}
+});
+document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.closest&&ev.target.closest("#form-colab")){ev.preventDefault();criarAcessoColab()}});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
