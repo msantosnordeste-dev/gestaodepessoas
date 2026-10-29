@@ -678,7 +678,9 @@ function renderSafe(){
 }
 document.addEventListener("focusout",()=>{if(PEND_RENDER){PEND_RENDER=false;setTimeout(renderSafe,0)}});
 const store=id=>ST.stores.find(s=>s.id===id)||{nome:"—",cidade:""};
-const emp=id=>ST.emps.find(e=>e.id===id);
+/* prestador de serviço como gestor imediato ("Reporta a"): referência "p:<id do prestador>", vista como pessoa no organograma */
+const pjComoPessoa=ref=>{const p=(ST.pjs||[]).find(x=>"p:"+x.id===ref);return p?{id:ref,pj:true,pjId:p.id,nome:p.respNome||p.razaoSocial||p.nomeFantasia||"Prestador",cargo:p.area||"Prestador de serviço",lojaId:p.lojaId||"",admissao:p.inicio||TODAY,efetivado:true,afastado:false,desligado:p.encerrado?{data:p.encerrado.data,tipo:"pj"}:null,ferias:[],avaliacoes:[]}:undefined};
+const emp=id=>ST.emps.find(e=>e.id===id)||(typeof id==="string"&&id.startsWith("p:")?pjComoPessoa(id):undefined);
 const ativos=()=>ST.emps.filter(e=>!e.desligado);
 
 /* ============ regras de negócio ============ */
@@ -897,7 +899,7 @@ const PAGES=[
   {id:"planejamento",t:"Planejamento"},
   {g:"Pessoas"},
   {id:"colaboradores",t:"Colaboradores"},
-  {id:"pjs",t:"Prestadores PJ"},
+  {id:"pjs",t:"Prestadores de serviço"},
   {id:"lojas",t:"Lojas"},
   {id:"recrutamento",t:"Recrutamento"},
   {id:"admissao",t:"Admissões"},
@@ -2504,9 +2506,9 @@ function exportarPdf(){
 
 /* ============ prestadores PJ ============ */
 const PJ_FICHA=[
-  {s:"Empresa",c:[["razaoSocial","Razão social","t",1],["nomeFantasia","Nome fantasia"],["cnpj","CNPJ"],["inscricaoMunicipal","Inscrição municipal"],["regime","Regime tributário","sel:Simples Nacional|MEI|Lucro Presumido|Lucro Real"],["email","E-mail"],["telefone","Telefone"],["endereco","Endereço","t",1],["cidade","Cidade"],["uf","UF"],["cep","CEP"]]},
-  {s:"Responsável",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"]]},
-  {s:"Contrato",c:[["numeroContrato","Nº do contrato"],["objeto","Objeto do contrato (serviço prestado)","t",1],["lojaId","Unidade","loja"],["area","Área ou função"],["gestor","Gestor do contrato"],["inicio","Início da vigência","d"],["fim","Fim da vigência","d"],["renovacao","Renovação automática","b"],["avisoDias","Aviso para rescisão (dias)","n"]]},
+  {s:"Prestador",c:[["razaoSocial","Razão social (empresa) ou nome completo (pessoa física)","t",1],["cnpj","CNPJ ou CPF"],["area","Função","cargo"],["nomeFantasia","Nome fantasia"],["inscricaoMunicipal","Inscrição municipal"],["regime","Regime tributário","sel:Simples Nacional|MEI|Lucro Presumido|Lucro Real"],["email","E-mail"],["telefone","Telefone"],["endereco","Endereço","t",1],["cidade","Cidade"],["uf","UF"],["cep","CEP"]]},
+  {s:"Responsável (quando for empresa)",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"]]},
+  {s:"Contrato",c:[["numeroContrato","Nº do contrato"],["objeto","Objeto do contrato (serviço prestado)","t",1],["lojaId","Unidade","loja"],["gestor","Gestor do contrato"],["inicio","Início da vigência","d"],["fim","Fim da vigência","d"],["renovacao","Renovação automática","b"],["avisoDias","Aviso para rescisão (dias)","n"]]},
   {s:"Valores e pagamento",c:[["modalidade","Modalidade","sel:Mensal fixo|Por hora|Por entrega/projeto"],["valorMensal","Valor mensal (R$)","n"],["valorHora","Valor por hora (R$)","n"],["horasMes","Horas previstas por mês","n"],["diaPagamento","Dia de pagamento","n"],["formaPagamento","Forma de pagamento","sel:Transferência|Pix|Boleto"],["banco","Banco"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"],["reajusteIndice","Índice de reajuste","sel:IPCA|IGP-M|INPC|Sem reajuste|Outro"],["reajusteData","Data do próximo reajuste","d"],["exigeNF","Exige nota fiscal","b"],["retencoes","Retenções (ISS, IRRF, INSS…)","t",1]]},
   {s:"Comissionamento",c:[["comTipo","Tipo de comissão","sel:Sem comissão|% sobre vendas|% sobre margem|Faixas de meta|Valor fixo por meta"],["comBase","Base de cálculo (ex.: vendas da unidade)","t",1],["comPercentual","Percentual (%)","n"],["comValorFixo","Valor fixo por meta (R$)","n"],["comTeto","Teto mensal (R$)","n"],["comPeriodicidade","Periodicidade","sel:Mensal|Trimestral|Semestral|Anual"],["comObs","Regras e observações","t",1]]}
 ];
@@ -2516,6 +2518,11 @@ function cnpjValido(c){c=soDig(c);if(c.length!==14||/^(\d)\1+$/.test(c))return f
   return dv(12)===Number(c[12])&&dv(13)===Number(c[13])}
 const fmtCNPJ=c=>{const d=soDig(c);return d.length===14?d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5"):String(c||"")};
 const pjNome=p=>p.nomeFantasia||p.razaoSocial||"—";
+/* o prestador pode ser empresa (CNPJ) ou pessoa física (CPF): o documento fica em p.cnpj e o tipo sai do número de dígitos */
+const docValido=c=>{const d=soDig(c);return d.length===11?cpfValido(d):cnpjValido(d)};
+const fmtDoc=c=>soDig(c).length===11?fmtCPF(c):fmtCNPJ(c);
+const pjTipo=p=>soDig(p&&p.cnpj).length===11?"PF":"PJ";
+const pjDocTxt=p=>(pjTipo(p)==="PF"?"CPF ":"CNPJ ")+((p&&p.cnpj)||"—");
 function pjValorBase(p){return p.modalidade==="Por hora"?r2((Number(p.valorHora)||0)*(Number(p.horasMes)||0)):Number(p.valorMensal)||0}
 const pjBeneficios=p=>(p.beneficios||[]).reduce((t,b)=>t+(Number(b.valor)||0),0);
 const pjCusto=p=>r2(pjValorBase(p)+pjBeneficios(p));
@@ -2548,7 +2555,7 @@ R.pjs=()=>{
   const todos=ST.pjs||[],at=todos.filter(p=>!p.encerrado),l=pjLista();
   const venc=at.filter(p=>["vencendo","vencido"].includes(pjSituacao(p).k)).length;
   const sit=UI.pjSit||"ativos";
-  return header("Pessoas","Prestadores PJ",`<button class="btn" data-act="pjExportar">Exportar</button><button class="btn" data-act="pjImportar">Importar planilha (CSV ou Excel)</button><button class="btn btn-primary" data-act="pjNovo">+ Novo prestador</button>`)+`
+  return header("Pessoas","Prestadores de serviço",`<button class="btn" data-act="pjExportar">Exportar</button><button class="btn" data-act="pjImportar">Importar planilha (CSV ou Excel)</button><button class="btn btn-primary" data-act="pjNovo">+ Novo prestador</button>`)+`
   <div class="grid kpis">
     <div class="card kpi hero"><span class="lbl">Contratos ativos</span><span class="val num">${at.length}</span><span class="sub">${todos.length-at.length} encerrado${todos.length-at.length===1?"":"s"}</span></div>
     <div class="card kpi"><span class="lbl">Custo mensal previsto</span><span class="val num">${brl(at.reduce((t,p)=>t+pjCusto(p),0))}</span><span class="sub">valores + benefícios, sem comissões</span></div>
@@ -2570,13 +2577,14 @@ function pjFicha(id){
   const p=(ST.pjs||[]).find(x=>x.id===id);if(!p)return;const s=pjSituacao(p);
   const val=([k,,tp])=>{const x=p[k];if(x===""||x===null||x===undefined)return "";if(tp==="d")return fdate(x);if(tp==="b")return x?"Sim":"Não";if(tp==="loja")return store(x).nome;if(tp==="n")return /valor|Teto|Fixo/i.test(k)?brl(Number(x)):String(x).replace(".",",");return x};
   modal(pjNome(p),`
-    <div class="who"><div class="avatar" style="width:48px;height:48px">${esc(initials(pjNome(p)))}</div><div><b>${esc(p.razaoSocial||"")}</b><span>CNPJ ${esc(p.cnpj||"—")}${p.lojaId?" · "+esc(store(p.lojaId).nome):""}</span></div><span class="chip ${s.c}" style="margin-left:auto">${s.t}</span></div>
+    <div class="who"><div class="avatar" style="width:48px;height:48px">${esc(initials(pjNome(p)))}</div><div><b>${esc(p.razaoSocial||"")}</b><span>${esc(pjDocTxt(p))}${p.area?" · "+esc(p.area):""}${p.lojaId?" · "+esc(store(p.lojaId).nome):""}</span></div><span class="chip ${s.c}" style="margin-left:auto">${s.t}</span></div>
     <div class="kv"><div><span>Valor base mensal</span><b class="num">${brl(pjValorBase(p))}</b></div><div><span>Benefícios</span><b class="num">${brl(pjBeneficios(p))}</b></div><div><span>Custo mensal previsto</span><b class="num">${brl(pjCusto(p))}</b></div><div><span>Comissão</span><b>${esc(pjComResumo(p))}</b></div></div>
     ${p.encerrado?`<div class="note"><b>Contrato encerrado em ${fdate(p.encerrado.data)}.</b> ${esc(p.encerrado.motivo||"")}</div>`:""}
     ${PJ_FICHA.map((sec,i)=>{const itens=sec.c.map(c=>[c[1],val(c)]).filter(x=>x[1]!=="");return itens.length?`<details class="fx-view" ${i<3?"open":""}><summary>${sec.s}</summary><div class="kv">${itens.map(([t,x])=>`<div><span>${esc(t)}</span><b style="white-space:pre-wrap">${esc(x)}</b></div>`).join("")}</div></details>`:""}).join("")}
     ${(p.beneficios||[]).length?`<details class="fx-view" open><summary>Benefícios <span class="muted small">${p.beneficios.length}</span></summary><div class="table-wrap"><table><thead><tr><th>Benefício</th><th class="r">Valor mensal</th><th>Observação</th></tr></thead><tbody>${p.beneficios.map(b=>`<tr><td>${esc(b.tipo)}</td><td class="r num">${brl(Number(b.valor)||0)}</td><td>${esc(b.obs||"")}</td></tr>`).join("")}</tbody></table></div></details>`:""}
     ${(p.faixas||[]).length?`<details class="fx-view" open><summary>Faixas de comissão</summary><div class="table-wrap"><table><thead><tr><th class="r">De</th><th class="r">Até</th><th class="r">Comissão</th></tr></thead><tbody>${p.faixas.map(f=>`<tr><td class="r num">${brl(Number(f.de)||0)}</td><td class="r num">${f.ate?brl(Number(f.ate)):"acima"}</td><td class="r num">${(Number(f.perc)||0).toLocaleString("pt-BR")}%</td></tr>`).join("")}</tbody></table></div></details>`:""}
     ${typeof rateioSecao==="function"?rateioSecao(p,"pj"):""}
+    ${(()=>{const eq=ativos().filter(x=>x.gestorId==="p:"+p.id).sort((a,b)=>a.nome.localeCompare(b.nome));return `<details class="fx-view" ${eq.length?"open":""}><summary>Equipe que reporta a ${esc(pjComoPessoa("p:"+p.id).nome.split(" ")[0])} <span class="muted small">${eq.length}</span></summary>${eq.length?`<div class="kv">${eq.map(x=>`<div><span>${esc(x.cargo)} · ${esc(store(x.lojaId).nome)}</span><b><span data-ficha="${x.id}" style="cursor:pointer;text-decoration:underline">${esc(x.nome)}</span></b></div>`).join("")}</div>`:`<p class="small muted">Ninguém ainda. Na ficha do colaborador, em "Reporta a", escolha este prestador.</p>`}</details>`})()}
     ${(p.historico||[]).length?`<details class="fx-view"><summary>Histórico do contrato <span class="muted small">${p.historico.length}</span></summary><div class="av-list">${p.historico.slice().reverse().map(h=>`<div class="alert"><span class="chip c-info">${esc(h.acao)}</span><div style="min-width:0"><b style="white-space:normal">${esc(h.detalhe||"")}</b><span>${new Date(h.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}${h.por?" · "+esc(h.por):""}</span></div><span></span></div>`).join("")}</div></details>`:""}`,
     p.encerrado?`<button class="btn btn-ghost" data-pjexcluir="${p.id}" style="color:var(--bad)">Excluir</button><button class="btn" data-pjreativar="${p.id}">Reativar contrato</button><button class="btn btn-primary" data-pjeditar="${p.id}">Editar</button>`:
     `<button class="btn btn-danger" data-pjencerrar="${p.id}">Encerrar contrato</button>${p.fim?`<button class="btn" data-pjrenovar="${p.id}">Renovar 12 meses</button>`:""}<button class="btn btn-primary" data-pjeditar="${p.id}">Editar</button>`);
@@ -2594,6 +2602,8 @@ function pjCampo([k,t,tp,full]){
   if(tp==="b")return `<label class="check ${full?"full":""}"><input type="checkbox" id="${id}" ${v?"checked":""}> ${t}</label>`;
   let inp;
   if(tp==="loja")inp=`<select class="input" id="${id}"><option value="">Sem unidade específica</option>${lojaOpts(v,false)}</select>`;
+  else if(tp==="cargo"){const cs=[...new Set(ativos().map(e=>e.cargo).concat((ST.pjs||[]).map(p=>p.area)).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    inp=`<input class="input" id="${id}" list="${id}-lista" placeholder="Escolha um cargo ou digite" value="${esc(v??"")}"><datalist id="${id}-lista">${cs.map(c=>`<option value="${esc(c)}"></option>`).join("")}</datalist>`}
   else if(String(tp).startsWith("sel:"))inp=`<select class="input" id="${id}"><option value="">Selecione…</option>${tp.slice(4).split("|").map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
   else if(full&&/objeto|retencoes|comObs|endereco/.test(k))inp=`<textarea class="input" id="${id}" rows="2">${esc(v??"")}</textarea>`;
   else inp=`<input class="input" id="${id}" ${tp==="d"?'type="date"':tp==="n"?'type="number" step="0.01" min="0"':""} value="${esc(v??"")}">`;
@@ -2619,15 +2629,15 @@ function pjLerListas(){
 }
 function pjLerCampos(){PJ_CAMPOS.forEach(([k,,tp])=>{const el=$("#pj-"+k);if(!el)return;PJX.dados[k]=tp==="b"?el.checked:tp==="n"?(el.value===""?"":Number(el.value)):el.value.trim()})}
 function pjRenderForm(){
-  modal(PJX.id?"Editar prestador PJ":"Novo prestador PJ",`<form id="form-pj">${PJ_FICHA.map(sec=>`<fieldset class="fx-sec"><legend>${sec.s}</legend><div class="form-grid">${sec.c.map(pjCampo).join("")}</div></fieldset>`).join("")}<div id="pj-listas">${pjListasHTML()}</div></form><p class="small" id="pj-err" style="color:var(--bad)" hidden></p>`,
+  modal(PJX.id?"Editar prestador de serviço":"Novo prestador de serviço",`<form id="form-pj">${PJ_FICHA.map(sec=>`<fieldset class="fx-sec"><legend>${sec.s}</legend><div class="form-grid">${sec.c.map(pjCampo).join("")}</div></fieldset>`).join("")}<div id="pj-listas">${pjListasHTML()}</div></form><p class="small" id="pj-err" style="color:var(--bad)" hidden></p>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="pjSalvar">${PJX.id?"Salvar alterações":"Cadastrar prestador"}</button>`);
 }
 function pjSalvar(){
   const err=m=>{const el=$("#pj-err");el.hidden=false;el.textContent=m;el.scrollIntoView({block:"nearest"})};
   pjLerCampos();pjLerListas();const d=PJX.dados;
-  if(!d.razaoSocial)return err("Informe a razão social.");
-  if(!cnpjValido(d.cnpj))return err("CNPJ inválido. Confira os 14 dígitos.");
-  d.cnpj=fmtCNPJ(d.cnpj);
+  if(!d.razaoSocial)return err("Informe a razão social ou o nome completo.");
+  if(!docValido(d.cnpj))return err(soDig(d.cnpj).length===11?"CPF inválido. Confira os 11 dígitos.":"Informe um CNPJ (14 dígitos) ou CPF (11 dígitos) válido.");
+  d.cnpj=fmtDoc(d.cnpj);d.tipoPessoa=pjTipo(d);
   if(d.respCpf&&!cpfValido(d.respCpf))return err("O CPF do responsável não passa na validação.");
   if(d.respCpf)d.respCpf=fmtCPF(d.respCpf);
   if(!d.inicio)return err("Informe o início da vigência.");
@@ -2646,7 +2656,7 @@ function pjSalvar(){
 }
 function pjEncerrarModal(id){
   const p=ST.pjs.find(x=>x.id===id);if(!p)return;
-  modal("Encerrar contrato",`<div class="who"><div class="avatar">${esc(initials(pjNome(p)))}</div><div><b>${esc(pjNome(p))}</b><span>CNPJ ${esc(p.cnpj)} · aviso de ${p.avisoDias||0} dias</span></div></div>
+  modal("Encerrar contrato",`<div class="who"><div class="avatar">${esc(initials(pjNome(p)))}</div><div><b>${esc(pjNome(p))}</b><span>${esc(pjDocTxt(p))} · aviso de ${p.avisoDias||0} dias</span></div></div>
     <form class="form-grid"><div class="field"><label for="pje-data">Data de encerramento</label><input class="input" id="pje-data" type="date" value="${addDays(TODAY,Number(p.avisoDias)||0)}"></div>
     <div class="field full"><label for="pje-motivo">Motivo</label><textarea class="input" id="pje-motivo" rows="2" placeholder="Ex.: fim do projeto; substituição do fornecedor"></textarea></div>
     <p class="full small" id="pje-err" style="color:var(--bad)" hidden></p></form>`,
@@ -2664,7 +2674,7 @@ function pjExcluir(id,btn){if(btn.dataset.confirm!=="1"){btn.dataset.confirm="1"
 
 /* ---- importação de prestadores por planilha ---- */
 const PJ_COLS=[...PJ_CAMPOS.map(([k,t,tp])=>({k,t,tp})),{k:"beneficiosTxt",t:"Benefícios (ex.: Plano de saúde: 450; Alimentação: 600)",tp:"t"},{k:"faixasTxt",t:"Faixas de comissão (ex.: 0-100000: 2; 100000-200000: 3)",tp:"t"}];
-const PJ_ALIAS={razaoSocial:["razao social","empresa","prestador"],cnpj:["cnpj"],objeto:["objeto","servico","servico prestado"],valorMensal:["valor mensal","valor do contrato","valor"],inicio:["inicio","inicio do contrato","data inicio"],fim:["fim","fim do contrato","data fim","vigencia"],lojaId:["unidade","loja","filial"],beneficiosTxt:["beneficios"],faixasTxt:["faixas","faixas de comissao"],comTipo:["comissao","tipo de comissao"],comPercentual:["percentual","percentual comissao","comissao %"]};
+const PJ_ALIAS={razaoSocial:["razao social","empresa","prestador","nome","nome completo","razao social ou nome completo"],area:["area","area ou funcao","cargo"],cnpj:["cnpj","cpf","cnpj ou cpf","cpf ou cnpj","cpf/cnpj","cnpj/cpf","documento"],objeto:["objeto","servico","servico prestado"],valorMensal:["valor mensal","valor do contrato","valor"],inicio:["inicio","inicio do contrato","data inicio"],fim:["fim","fim do contrato","data fim","vigencia"],lojaId:["unidade","loja","filial"],beneficiosTxt:["beneficios"],faixasTxt:["faixas","faixas de comissao"],comTipo:["comissao","tipo de comissao"],comPercentual:["percentual","percentual comissao","comissao %"]};
 function pjMapear(heads){const mapa={},usados=new Set();heads.forEach((h,i)=>{const n=semAcento(h);if(!n)return;const c=PJ_COLS.find(c=>!usados.has(c.k)&&(semAcento(c.t)===n||semAcento(c.k)===n||semAcento(c.t).startsWith(n+" ")||(PJ_ALIAS[c.k]||[]).some(a=>semAcento(a)===n)));if(c){mapa[i]=c.k;usados.add(c.k)}});return mapa}
 let PJIMP=null;
 function pjImportarModal(){
@@ -2709,7 +2719,7 @@ async function pjLerPlanilha(file){
       v.beneficios=pjParseBen(v.beneficiosTxt);v.faixas=pjParseFx(v.faixasTxt);delete v.beneficiosTxt;delete v.faixasTxt;
       v.modalidade=v.modalidade||"Mensal fixo";v.comTipo=v.comTipo||"Sem comissão";
       if(!v.razaoSocial)erros.push("Razão social em branco");
-      if(!cnpjValido(v.cnpj))erros.push("CNPJ inválido: "+(v.cnpj||"em branco"));else{v.cnpj=fmtCNPJ(v.cnpj);if(vistos.has(soDig(v.cnpj)))erros.push("CNPJ repetido na planilha");vistos.add(soDig(v.cnpj))}
+      if(!docValido(v.cnpj))erros.push("CNPJ ou CPF inválido: "+(v.cnpj||"em branco"));else{v.cnpj=fmtDoc(v.cnpj);v.tipoPessoa=pjTipo(v);if(vistos.has(soDig(v.cnpj)))erros.push("CNPJ ou CPF repetido na planilha");vistos.add(soDig(v.cnpj))}
       if(!v.inicio&&!erros.some(e=>e.includes("Início")))erros.push("Início da vigência em branco");
       if(v.modalidade==="Por hora"?!(v.valorHora>0):!(v.valorMensal>0))erros.push("Valor do contrato em branco");
       const ex=v.cnpj&&(ST.pjs||[]).find(p=>!p.encerrado&&soDig(p.cnpj)===soDig(v.cnpj));
@@ -4182,7 +4192,7 @@ function gestorAuto(e){
   for(let k=n-1;k>=1;k--){const c=mesmos.filter(x=>orgNivel(x.cargo)===k).sort((a,b)=>a.admissao.localeCompare(b.admissao));if(c.length)return c[0]}
   return null;
 }
-function reportaA(e){if(e.gestorId){const g=emp(e.gestorId);if(g&&!g.desligado)return {g,auto:false}}const a=gestorAuto(e);return a?{g:a,auto:true}:null}
+function reportaA(e){if(e.pj)return null;if(e.gestorId){const g=emp(e.gestorId);if(g&&!g.desligado)return {g,auto:false}}const a=gestorAuto(e);return a?{g:a,auto:true}:null}
 const subordinadosDiretos=id=>ativos().filter(x=>x.gestorId===id);
 function criaCiclo(eid,gid){let cur=emp(gid);const vis=new Set();while(cur&&!vis.has(cur.id)){if(cur.id===eid)return true;vis.add(cur.id);const g=reportaA(cur);cur=g?g.g:null}return false}
 function gestorSecao(e){
@@ -4196,11 +4206,12 @@ let GT_ED=null;
 function gestorModal(eid){
   const e=emp(eid);GT_ED={eid};const mesma=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id).sort((a,b)=>orgNivel(a.cargo)-orgNivel(b.cargo)||a.nome.localeCompare(b.nome));
   const outras=ativos().filter(x=>x.lojaId!==e.lojaId&&orgNivel(x.cargo)<=2).sort((a,b)=>store(a.lojaId).nome.localeCompare(store(b.lojaId).nome)||a.nome.localeCompare(b.nome));
-  const op=x=>`<option value="${x.id}" ${x.id===e.gestorId?"selected":""}>${esc(x.nome)} · ${esc(x.cargo)}${x.lojaId!==e.lojaId?" · "+esc(store(x.lojaId).nome):""}</option>`;const a=gestorAuto(e);
+  const prest=(ST.pjs||[]).filter(p=>!p.encerrado).map(p=>pjComoPessoa("p:"+p.id)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const op=x=>`<option value="${x.id}" ${x.id===e.gestorId?"selected":""}>${esc(x.nome)} · ${esc(x.cargo)}${x.pj?" · prestador"+(x.lojaId?" · "+esc(store(x.lojaId).nome):""):x.lojaId!==e.lojaId?" · "+esc(store(x.lojaId).nome):""}</option>`;const a=gestorAuto(e);
   modal("Gestor imediato · "+e.nome,`<p class="small muted">A quem ${esc(primeiro(e.nome))} reporta no dia a dia. Usado no organograma e nos relatórios de equipe.</p>
     <div class="field"><label for="gt-busca">Buscar</label><input class="input" id="gt-busca" placeholder="Digite parte do nome, cargo ou unidade" autocomplete="off"></div>
     <div class="field"><label for="gt-sel">Reporta a</label><select class="input" id="gt-sel" size="10" style="height:auto"><option value="" ${!e.gestorId?"selected":""}>Automático pelo cargo${a?" ("+esc(a.nome)+")":" (topo da unidade)"}</option>
-      ${mesma.length?`<optgroup label="${esc(store(e.lojaId).nome)}">${mesma.map(op).join("")}</optgroup>`:""}${outras.length?`<optgroup label="Lideranças de outras unidades">${outras.map(op).join("")}</optgroup>`:""}</select></div>
+      ${mesma.length?`<optgroup label="${esc(store(e.lojaId).nome)}">${mesma.map(op).join("")}</optgroup>`:""}${outras.length?`<optgroup label="Lideranças de outras unidades">${outras.map(op).join("")}</optgroup>`:""}${prest.length?`<optgroup label="Prestadores de serviço">${prest.map(op).join("")}</optgroup>`:""}</select></div>
     <p class="small" id="gt-err" style="color:var(--bad)" hidden></p>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-gtsalvar="1">Salvar</button>`);
 }
@@ -4236,7 +4247,7 @@ orgPagina=function(){
   const html=ORG_PAGINA_NIVEIS();const lojaId=orgUnidadePadrao();if(!lojaId)return html;
   const T=orgArvore(lojaId);const d=orgDados(lojaId);
   const vagas=d.vagas.flatMap(v=>Array.from({length:v.qtd},()=>`<div class="org-p vaga"><div class="avatar">+</div><div><b>Vaga aberta</b><span>${esc(v.cargo)}</span></div></div>`)).join("")+d.adm.map(a=>`<div class="org-p adm"><div class="avatar">${esc(initials(a.nome))}</div><div><b>${esc(a.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(a.cargo)} · em admissão</span></div></div>`).join("");
-  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);return `<div class="org-no"><div class="org-p externo" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)} · ${esc(store(g.lojaId).nome)}</span><span class="chip c-info" style="margin-top:3px;width:max-content">outra unidade</span></div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,false,1)).join("")}</div></div>`}).join("");
+  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);return `<div class="org-no"><div class="org-p externo" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)}${g.pj?"":" · "+esc(store(g.lojaId).nome)}</span><span class="chip c-info" style="margin-top:3px;width:max-content">${g.pj?"prestador de serviço":"outra unidade"}</span></div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,false,1)).join("")}</div></div>`}).join("");
   const arvore=`<div class="org-arvore">${T.raizes.map(e=>orgNo(e,T,false,0)).join("")}${ext}</div>${vagas?`<div class="org-nivel" style="margin-top:18px"><div class="org-rot">Vagas abertas e admissões em andamento</div><div class="org-linha">${vagas}</div></div>`:""}`;
   const legenda=`<p class="small muted" style="margin-top:14px">Linhas pelo campo "Reporta a" da ficha. Borda tracejada fina = ligação automática pelo cargo (sem gestor informado). Clique numa pessoa para abrir a ficha e definir a quem ela reporta.</p>`;
   const css=`<style>.org-arvore{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;align-items:flex-start}.org-no{display:flex;flex-direction:column;align-items:center}.org-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.org-ramo{display:flex;flex-direction:column;align-items:center}.org-p.auto{border-style:dashed;border-width:1px}.org-p.externo{border-color:var(--info,#3b82f6);background:transparent}</style>`;
@@ -4323,6 +4334,12 @@ orgPagina=function(){UI.orgLojaAtual=orgUnidadePadrao();const h=orgPaginaCruz();
 /* PDF: identifica quem tem lotação em outra loja */
 const orgPdfCruz=orgPdf;
 orgPdf=function(){UI.orgLojaAtual=orgUnidadePadrao();const pt=pdfTabela;pdfTabela=function(o){o.linhas=o.linhas.map(l=>{const nome=String(l[0]).replace(/^[\s└]+/,"");const e=ativos().find(x=>x.nome===nome);if(e&&ORG_CRUZ.has(e.id)&&e.lojaId!==UI.orgLojaAtual){l=l.slice();l[4]=(l[4]?l[4]+" · ":"")+"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)"}return l});const T=orgArvore(UI.orgLojaAtual);(T.visitantes||[]).forEach(e=>o.linhas.push([e.nome+" (lotação em outra loja)",e.cargo,ORG_NIVEIS[orgNivel(e.cargo)],(reportaA(e)||{g:{nome:"—"}}).g.nome,"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)",fdate(e.admissao)]));if(o.resumo&&(T.visitantes||[]).length)o.resumo.push(["Atuam aqui com lotação em outra loja",T.visitantes.length]);return pt(o)};try{orgPdfCruz()}finally{pdfTabela=pt}};
+/* ---- prestador de serviço no organograma: selo "Prestador", tempo de contrato e clique abre a ficha do prestador ---- */
+const orgCardPJ=orgCard;
+orgCard=function(e,peq){let h=orgCardPJ(e,peq);if(!e.pj)return h;
+  return h.replace(" de casa</span>"," de contrato</span>").replace("</div></div>",`<span class="chip" style="background:#dbeafe;color:#1e40af;margin-top:3px;width:max-content">Prestador</span></div></div>`)};
+document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest('[data-ficha^="p:"]');if(!t)return;ev.stopImmediatePropagation();closeModal();pjFicha(t.dataset.ficha.slice(2))},true);
+
 /* ============ cadastro de supervisores, gestores dos núcleos e organograma da rede ============
    Pessoa de referência: "e:<id colaborador>" ou "p:<id prestador PJ>".
    ST.supervisores = [{id, ref, regiao, lojas:[ids], obs}] · núcleos: ST.centrosCusto[i].gestorRef */
@@ -4998,7 +5015,7 @@ function orgSnapshot(lojaId){
   const T=orgArvore(lojaId),L=[],vis=new Set();
   const add=(e,pai)=>{if(vis.has(e.id))return;vis.add(e.id);L.push([e.id,e.nome,e.cargo||"",pai,"",""]);(T.filhos[e.id]||[]).forEach(x=>add(x.e,e.id))};
   T.raizes.forEach(e=>add(e,null));
-  Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,"ext",store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
+  Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,"ext",g.pj?"Prestador de serviço":store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
   (T.visitantes||[]).forEach(e=>{if(vis.has(e.id))return;vis.add(e.id);const c=ORG_CRUZ.get(e.id);
     L.push([e.id,e.nome,e.cargo||"",null,"vis","Lotação: "+store(e.lojaId).nome+(c?" · "+c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"% aqui":"")])});
   return {n:store(lojaId).nome,p:L};
