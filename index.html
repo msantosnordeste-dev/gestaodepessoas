@@ -917,7 +917,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?PAGES_G:PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G):PAGES;
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
 function pendRH(){return SOLIC.length}
@@ -934,7 +934,7 @@ function renderNav(){
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
     `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="chamados"&&ROLE==="rh"&&chPendRH()?`<span class="count">${chPendRH()}</span>`:""}${p.id==="meuschamados"&&chPendColab()?`<span class="count">${chPendColab()}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
-  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":"Gerente · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
+  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":(PERFIS_CURTO[PERFIL&&PERFIL.perfil]||"Gerente")+" · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
 function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:ROLE==="colaborador"?"meustd":"painel";render()}
 window.addEventListener("hashchange",go);
@@ -988,7 +988,7 @@ R.usuarios=()=>{
   let corpo="";
   if(tab==="usuarios"){
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead>
-    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil!=="gerente"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
+    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
       <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
@@ -1004,7 +1004,7 @@ R.usuarios=()=>{
     const cor=ev=>/recusad|desativ/i.test(ev)?"c-bad":ev==="Login"?"c-ok":ev==="Logout"?"c-mute":"c-info";
     corpo=`<div class="card">${tabs}<div class="toolbar"><input class="input search" id="f-logbusca" placeholder="Filtrar por usuário, evento ou detalhe" value="${esc(UI.logBusca||"")}" aria-label="Filtrar log"><button class="btn btn-sm" data-act="atualizarLog">Atualizar</button><span class="muted small">${LOGV===null?"Carregando…":vis.length+" registro"+(vis.length===1?"":"s")}</span></div>
     <div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Usuário</th><th>Perfil</th><th>Evento</th><th>Detalhe</th></tr></thead>
-    <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${l.perfil==="rh"?"RH":l.perfil==="gerente"?"Gerente":l.perfil==="colaborador"?"Colaborador":"—"}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
+    <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${(PERFIS_CURTO[l.perfil]||"—")}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Mostra os 1.000 registros mais recentes. Tentativas de senha incorreta ficam no painel do Supabase, em Authentication › Logs.</div></div>`;
   }
   return header("Sistema","Usuários e acessos",tab==="usuarios"?`<button class="btn btn-primary" data-act="novoUsuario">+ Novo usuário</button>`:tab==="solic"&&SOLIC.length?`<button class="btn btn-primary" data-act="aprovarTodas">Aprovar todas (${SOLIC.length})</button>`:"")+corpo;
@@ -1517,7 +1517,7 @@ async function iniciarSessao(novoLogin){
   if(!user){mostrarTela("login");return}
   const {data:p}=await SB.from("perfis").select("*").eq("user_id",user.id).maybeSingle();
   if(!p||!p.ativo){await SB.auth.signOut();mostrarTela("login","Este usuário não tem acesso ativo ao portal. Fale com o RH.");return}
-  PERFIL=p;ROLE=p.perfil;SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
+  PERFIL=p;ROLE=perfilGestor(p.perfil);$(".app").classList.toggle("consulta",p.perfil==="comercial");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
   if(novoLogin){SB.rpc("registrar_acesso").then(()=>{},()=>{});logEvento("Login","Acesso ao portal")}
   mostrarTela("carregando");
   try{
@@ -5743,7 +5743,7 @@ document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")r
    minha_equipe_dados(): nome, cargo, unidade, admissão, férias, ASO e experiência. Salário, CPF, ficha e banco de horas ficam fora. */
 let EQUIPE=[];
 const souLider=()=>ROLE==="colaborador"&&EQUIPE.length>0;
-const gestorPA=()=>ROLE==="rh"||ROLE==="gerente"||souLider();
+const gestorPA=()=>ROLE==="rh"||(ROLE==="gerente"&&!soConsulta())||souLider();
 ICON.meutime='<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M5 15.5V13h14v2.5"/>';
 PAGES_C.push({g:"Minha liderança",lid:1},{id:"meutime",t:"Meu time",lid:1});
 
@@ -5819,6 +5819,67 @@ document.addEventListener("click",ev=>{
 });
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-ltbusca")return;UI.ltBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-ltbusca");n.focus();n.setSelectionRange(pos,pos)});
 document.addEventListener("change",ev=>{if(ev.target.id==="f-ltloja"){UI.ltLoja=ev.target.value;render()}});
+
+/* ============ perfis Supervisão e Gestão Comercial · só na versão internet ============
+   Login criado pelo RH; no portal funcionam como o gerente de loja (ROLE "gerente"), vendo várias lojas sem salário.
+   Supervisão: lojas da carteira no cadastro de Supervisores (perfis.supervisor_id; o banco lê a carteira a cada acesso).
+   Gestão comercial: lojas marcadas pelo RH, só consulta (o banco recusa solicitações, anexos e planos). */
+PERFIS.supervisor="Supervisão";PERFIS.comercial="Gestão comercial";
+const PERFIS_CURTO={rh:"RH",gerente:"Gerente",supervisor:"Supervisão",comercial:"Gestão comercial",colaborador:"Colaborador"};
+const soConsulta=()=>!!PERFIL&&PERFIL.perfil==="comercial";
+const perfilGestor=p=>p==="supervisor"||p==="comercial"?"gerente":p;
+const usrCarteira=u=>{const s=supervisores().find(x=>x.id===u.supervisor_id);if(!s)return `<span class="chip c-warn">Supervisor não encontrado</span>`;
+  const r=refPessoa(s.ref);return `Carteira de ${esc(r?r.nome:"supervisor")}: ${(s.lojas||[]).map(id=>esc(store(id).nome)).join(", ")||"nenhuma loja"}`};
+// só consulta: nada é enviado ao RH, e os botões de registrar somem
+document.head.insertAdjacentHTML("beforeend",`<style>.app.consulta :is([data-avaliar],[data-aso],[data-banco],[data-assinou],[data-panovo],[data-paeditar],[data-paencerrar],[data-pacancelar],[data-pareabrir],[data-pastat],[data-paconf],[data-padev],[data-pacom],.pa-com,.anx-enviar){display:none!important}</style>`);
+const AVISO_CONSULTA="Seu perfil é de consulta. Alterações são feitas pelo RH ou pelo gerente da loja.";
+const enviarMovBase=enviarMov;
+enviarMov=async function(m,msg){if(soConsulta()){toast(AVISO_CONSULTA);montarGerente();renderSafe();return}return enviarMovBase(m,msg)};
+const anxEnviarColabBase=anxEnviarColab;
+anxEnviarColab=async function(eid,file){if(soConsulta()){toast(AVISO_CONSULTA);return}return anxEnviarColabBase(eid,file)};
+
+/* ---- RH: formulário de usuário com os quatro perfis ---- */
+usuarioForm=function(login){
+  const u=login?USUARIOS.find(x=>x.login===login):null;
+  const x=u||{login:"",nome:"",perfil:"gerente",lojas:ST.stores[0]?[ST.stores[0].id]:[],supervisor_id:"",ativo:true};
+  const sups=supervisores().map(s=>{const r=refPessoa(s.ref);return {id:s.id,nome:r?r.nome:"Supervisor sem pessoa",n:(s.lojas||[]).length,regiao:s.regiao||""}}).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const op=(v,t)=>`<option value="${v}" ${x.perfil===v?"selected":""}>${t}</option>`;
+  modal(u?"Editar usuário":"Novo usuário",`<form class="form-grid" id="form-usr">
+    <div class="field full"><label for="u-nome">Nome completo</label><input class="input" id="u-nome" value="${esc(x.nome)}"></div>
+    <div class="field"><label for="u-login">Usuário (login)</label><input class="input" id="u-login" autocapitalize="none" spellcheck="false" value="${esc(x.login)}" ${u?"disabled":""}></div>
+    <div class="field"><label for="u-perfil">Perfil</label><select class="input" id="u-perfil">${op("gerente","Gerente de loja")}${op("supervisor","Supervisão")}${op("comercial","Gestão comercial · só consulta")}${op("rh","RH · acesso total")}</select></div>
+    <div class="field full" id="u-sup-f" ${x.perfil==="supervisor"?"":"hidden"}><label for="u-sup">Supervisor (cadastro em Lojas › Supervisores)</label><select class="input" id="u-sup"><option value="">Escolha…</option>${sups.map(s=>`<option value="${esc(s.id)}" ${s.id===x.supervisor_id?"selected":""}>${esc(s.nome)}${s.regiao?" · "+esc(s.regiao):""} · ${s.n} loja${s.n===1?"":"s"}</option>`).join("")}</select>
+      <span class="small muted">${sups.length?"Vê as lojas da carteira desse supervisor. Mudou a carteira, o acesso acompanha sozinho.":"Nenhum supervisor cadastrado ainda. Cadastre em Lojas › Supervisores."}</span></div>
+    <fieldset class="field full fx-sec" id="u-loja-f" ${x.perfil==="gerente"||x.perfil==="comercial"?"":"hidden"}><legend>Lojas que acompanha</legend><div class="lojas-check">${ST.stores.map(s=>`<label class="check"><input type="checkbox" name="u-lojas" value="${esc(s.id)}" ${(x.lojas||[]).includes(s.id)?"checked":""}> ${esc(s.nome)}</label>`).join("")}</div><span class="small muted">Marque uma ou várias. Vê a equipe, a escala, as férias e as pendências das lojas marcadas, sem salários.</span></fieldset>
+    <div class="field"><label for="u-pass">${u?"Nova senha (deixe em branco para manter)":"Senha (mínimo 8 caracteres)"}</label><input class="input" id="u-pass" type="password" autocomplete="new-password"></div>
+    <div class="field"><label for="u-pass2">Repita a senha</label><input class="input" id="u-pass2" type="password" autocomplete="new-password"></div>
+    ${u?`<label class="check full"><input type="checkbox" id="u-ativo" ${x.ativo?"checked":""}> Usuário ativo</label>`:""}
+    <p class="full small" id="u-err" style="color:var(--bad)" hidden></p>
+  </form>
+  <div class="note">Gerente e Supervisão veem as lojas e enviam registros ao RH. Gestão comercial só consulta. Nenhum deles vê salários, CPF ou ficha de registro. Envie a senha por um canal seguro.</div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarUsuario" data-login="${esc(x.login)}" id="u-salvar">${u?"Salvar alterações":"Criar usuário"}</button>`);
+};
+salvarUsuario=async function(loginEdit){
+  const err=m=>{const el=$("#u-err");el.hidden=false;el.textContent=m};
+  const u=loginEdit?USUARIOS.find(x=>x.login===loginEdit):null;
+  const nome=$("#u-nome").value.trim(),login=u?u.login:normLogin($("#u-login").value),perfil=$("#u-perfil").value,sup=$("#u-sup").value,s1=$("#u-pass").value,s2=$("#u-pass2").value;
+  const comLojas=perfil==="gerente"||perfil==="comercial";
+  const lojas=comLojas?[...document.querySelectorAll('input[name="u-lojas"]:checked')].map(i=>i.value):[];
+  const ativo=u?$("#u-ativo").checked:true;
+  if(!nome)return err("Informe o nome.");
+  if(comLojas&&!lojas.length)return err("Marque pelo menos uma loja.");
+  if(perfil==="supervisor"&&!sup)return err("Escolha o supervisor.");
+  if(!u&&!loginValido(login))return err("O usuário deve ter de 3 a 30 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.");
+  if(!u||s1){if(s1.length<8)return err("A senha precisa ter pelo menos 8 caracteres.");if(s1!==s2)return err("As duas senhas não são iguais.")}
+  // a função confere o supervisor na carteira gravada: grava antes o que estiver pendente
+  if(perfil==="supervisor")persist();
+  const b=$("#u-salvar");b.disabled=true;b.textContent="Salvando…";
+  const msg=await chamarUsuarios({acao:u?"atualizar":"criar",login,nome,perfil,lojas,supervisor_id:perfil==="supervisor"?sup:undefined,senha:s1||undefined,ativo});
+  b.disabled=false;b.textContent=u?"Salvar alterações":"Criar usuário";
+  if(msg)return err(msg);
+  await carregarUsuarios();closeModal();render();toast(u?"Usuário atualizado":"Usuário criado");
+};
+document.addEventListener("change",ev=>{if(ev.target.id!=="u-perfil")return;const v=ev.target.value;setTimeout(()=>{$("#u-loja-f").hidden=!(v==="gerente"||v==="comercial");$("#u-sup-f").hidden=v!=="supervisor"},0)});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
