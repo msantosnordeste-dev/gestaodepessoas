@@ -4150,7 +4150,7 @@ function orgPagina(){
     <p class="small muted" style="margin-top:14px">Clique numa pessoa para abrir a ficha. Pontilhado = vaga aberta (Recrutamento) · tracejado = em admissão.</p></div>
   ${G()?"":orgNiveisCard(d)}`;
 }
-const orgAbas=()=>`<div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${!UI.hcTab||UI.hcTab==="quadro"?"on":""}" data-hctab="quadro">Headcount por função</button><button class="pill ${UI.hcTab==="org"?"on":""}" data-hctab="org">Organograma da unidade</button>${G()?"":`<button class="pill ${UI.hcTab==="rede"?"on":""}" data-hctab="rede">Rede de gestão</button>`}</div>`;
+const orgAbas=()=>`<div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${!UI.hcTab||UI.hcTab==="quadro"?"on":""}" data-hctab="quadro">Headcount por função</button><button class="pill ${UI.hcTab==="org"?"on":""}" data-hctab="org">Organograma da unidade</button><button class="pill ${UI.hcTab==="lider"?"on":""}" data-hctab="lider">Por liderança</button>${G()?"":`<button class="pill ${UI.hcTab==="rede"?"on":""}" data-hctab="rede">Rede de gestão</button>`}</div>`;
 function orgNiveisCard(d){
   const cargos=[...new Set(ativos().map(e=>e.cargo))].sort((a,b)=>orgNivel(a)-orgNivel(b)||a.localeCompare(b));
   return `<details class="card"><summary style="cursor:pointer"><b>Ajustar nível dos cargos no organograma</b> <span class="small muted">· vale para todas as unidades</span></summary>
@@ -4422,6 +4422,55 @@ function redePdf(){
 }
 /* ganchos */
 const R_HEADCOUNT_REDE=R.headcount;R.headcount=()=>UI.hcTab==="rede"?redePagina():R_HEADCOUNT_REDE();
+
+/* ============ organograma por liderança: lista de cada líder com quem reporta a ele ============
+   Líder = quem tem alguém reportando a ele (pelo "Reporta a" ou automático pelo cargo), colaborador ou prestador.
+   Diretos = reportam a ele; indiretos = reportam a alguém da equipe dele, em qualquer nível abaixo. */
+function liderancas(){
+  const dir={};
+  ativos().filter(e=>ccOk(e)).forEach(e=>{const r=reportaA(e);if(r&&r.g&&!criaCiclo(e.id,r.g.id))(dir[r.g.id]=dir[r.g.id]||[]).push({e,auto:r.auto})});
+  const equipe=id=>{const out=[],vis=new Set([id]);const desce=(gid,prof)=>{(dir[gid]||[]).slice().sort((a,b)=>orgNivel(a.e.cargo)-orgNivel(b.e.cargo)||a.e.nome.localeCompare(b.e.nome)).forEach(x=>{if(vis.has(x.e.id))return;vis.add(x.e.id);out.push({e:x.e,auto:x.auto,prof,pai:emp(gid)});desce(x.e.id,prof+1)})};desce(id,0);return out};
+  // ordem da hierarquia: quem está no topo (sem líder acima) primeiro
+  const altura=p=>{let n=0,cur=p;const vis=new Set();while(cur&&!vis.has(cur.id)){vis.add(cur.id);const r=reportaA(cur);if(!r)break;n++;cur=r.g}return n};
+  return Object.keys(dir).map(id=>{const l=emp(id);return l?{l,diretos:dir[id].length,todos:equipe(id),alt:altura(l)}:null}).filter(Boolean)
+    .sort((a,b)=>a.alt-b.alt||orgNivel(a.l.cargo)-orgNivel(b.l.cargo)||b.todos.length-a.todos.length||a.l.nome.localeCompare(b.l.nome));
+}
+function liderancasFiltradas(){
+  const q=semAcento(UI.ldBusca||""),lj=UI.ldLoja||"";
+  return liderancas().filter(x=>(!q||semAcento(x.l.nome+" "+x.l.cargo).includes(q)||x.todos.some(y=>semAcento(y.e.nome+" "+y.e.cargo).includes(q)))&&(!lj||x.l.lojaId===lj||x.todos.some(y=>y.e.lojaId===lj)));
+}
+const ldUnidade=p=>p.pj?(p.lojaId?store(p.lojaId).nome:""):store(p.lojaId).nome;
+function liderancasPagina(){
+  const todos=liderancas(),L=liderancasFiltradas(),so=UI.ldSo==="diretos";const comLider=new Set(todos.flatMap(x=>x.todos.filter(y=>y.prof===0).map(y=>y.e.id))).size;
+  const pessoa=(p,peq)=>`<div class="who"><div class="avatar" ${peq?'style="width:28px;height:28px;font-size:.68rem"':""}>${esc(initials(p.nome))}</div><div><b><span data-ficha="${p.id}" style="cursor:pointer">${esc(p.nome)}</span></b><span>${esc(p.cargo||"")}${ldUnidade(p)?" · "+esc(ldUnidade(p)):""}</span></div></div>`;
+  const aberto=!!(UI.ldBusca||UI.ldLoja||UI.ldAbrir);
+  const bloco=x=>{const lista=so?x.todos.filter(y=>y.prof===0):x.todos;
+    return `<details class="card ld" ${aberto?"open":""} style="padding:0;margin-bottom:12px"><summary style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 16px;cursor:pointer">${pessoa(x.l)}<span style="margin-left:auto" class="tabs-inline"><span class="chip c-info">${x.diretos} direto${x.diretos===1?"":"s"}</span><span class="chip c-mute">${x.todos.length} no total</span><span class="chip c-mute">${esc(ORG_NIVEIS[orgNivel(x.l.cargo)])}</span></span></summary>
+      <div class="table-wrap" style="padding:0 16px 14px"><table><thead><tr><th>Pessoa</th><th>Vínculo</th><th>Reporta a</th></tr></thead><tbody>${lista.map(y=>`<tr><td style="padding-left:${12+(so?0:y.prof*22)}px">${pessoa(y.e,true)}</td><td>${y.prof===0?`<span class="chip c-ok">Direto</span>`:`<span class="chip c-mute">Indireto · ${y.prof+1}º nível</span>`}${y.auto?` <span class="chip c-mute" title="Sem gestor informado na ficha: ligado pelo cargo">automático</span>`:""}</td><td>${y.pai?esc(y.pai.nome.split(" ").slice(0,2).join(" ")):"—"}</td></tr>`).join("")}</tbody></table></div></details>`};
+  return header(G()?"Minha loja":"Visão geral","Headcount",`<button class="btn" data-act="ldExcel">Baixar Excel</button><button class="btn" data-act="ldPdf">Baixar PDF</button>`)+orgAbas()+`
+  <div class="grid kpis"><div class="card kpi hero"><span class="lbl">Lideranças</span><span class="val num">${todos.length}</span><span class="sub">pessoas com equipe</span></div>
+    <div class="card kpi"><span class="lbl">Pessoas com líder</span><span class="val num">${comLider}</span><span class="sub">de ${ativos().filter(e=>ccOk(e)).length} ativas</span></div>
+    <div class="card kpi"><span class="lbl">Média de diretos</span><span class="val num">${todos.length?(todos.reduce((t,x)=>t+x.diretos,0)/todos.length).toLocaleString("pt-BR",{maximumFractionDigits:1}):"—"}</span><span class="sub">por liderança</span></div></div>
+  <div class="card" style="margin-bottom:12px"><div class="toolbar"><input class="input search" id="f-ldbusca" type="search" placeholder="Buscar líder ou pessoa da equipe" value="${esc(UI.ldBusca||"")}" aria-label="Buscar">${ST.stores.length>1?`<select class="input" id="f-ldloja" aria-label="Unidade">${lojaOpts(UI.ldLoja||"")}</select>`:""}
+    <div class="seg" role="tablist"><button class="${so?"":"on"}" data-ldso="todos">Diretos e indiretos</button><button class="${so?"on":""}" data-ldso="diretos">Só diretos</button></div>
+    <button class="btn btn-sm" data-ldabrir="1">${UI.ldAbrir?"Recolher todos":"Abrir todos"}</button><span class="muted small">${L.length} liderança${L.length===1?"":"s"}</span></div>
+    <p class="small muted" style="margin:6px 0 0">Pela ficha de cada pessoa ("Reporta a"). Quem está sem gestor informado aparece ligado pelo cargo, marcado como automático. Clique no nome para abrir a ficha.</p></div>
+  ${L.map(bloco).join("")||`<div class="card"><p class="empty">Nenhuma liderança encontrada.</p></div>`}`;
+}
+function ldLinhas(){const so=UI.ldSo==="diretos";const out=[];liderancasFiltradas().forEach(x=>{(so?x.todos.filter(y=>y.prof===0):x.todos).forEach(y=>out.push([x.l.nome,x.l.cargo||"",y.e.nome,y.e.cargo||"",ldUnidade(y.e),y.prof===0?"Direto":"Indireto ("+(y.prof+1)+"º nível)",y.pai?y.pai.nome:"",y.auto?"automático pelo cargo":"informado na ficha"]))});return out}
+function ldPdf(){const L=liderancasFiltradas();const lin=ldLinhas();
+  pdfTabela({titulo:"Organograma por liderança",filtros:[UI.ldLoja?store(UI.ldLoja).nome:"Todas as unidades",UI.ldSo==="diretos"?"só diretos":"diretos e indiretos","posição em "+fdate(TODAY)].join(" · "),
+    resumo:[["Lideranças",L.length],["Linhas",lin.length]],colunas:["Líder","Cargo do líder","Pessoa","Cargo","Unidade","Vínculo","Reporta a"],larguras:[48,36,48,36,44,26,0],
+    linhas:lin.map(l=>l.slice(0,7)),fonte:7.5,arquivo:"organograma-liderancas-"+TODAY+".pdf",log:["Organograma por liderança emitido (PDF)",L.length+" lideranças"]})}
+function ldExcel(){if(typeof XLSX==="undefined"){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet([["Organograma por liderança · "+fdate(TODAY)],[],["Líder","Cargo do líder","Pessoa","Cargo","Unidade","Vínculo","Reporta a","Origem do vínculo"],...ldLinhas()]);
+  ws["!cols"]=[{wch:34},{wch:26},{wch:34},{wch:26},{wch:34},{wch:20},{wch:30},{wch:22}];XLSX.utils.book_append_sheet(wb,ws,"Lideranças");
+  salvarXLSX(wb,"organograma-liderancas-"+TODAY+".xlsx").then(ok=>{if(ok)logEvento("Organograma por liderança emitido (Excel)",liderancasFiltradas().length+" lideranças")})}
+const R_HEADCOUNT_LD=R.headcount;R.headcount=()=>UI.hcTab==="lider"?liderancasPagina():R_HEADCOUNT_LD();
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-ldso],[data-ldabrir],[data-act='ldPdf'],[data-act='ldExcel']");if(!t)return;const d=t.dataset;
+  if(d.ldso){UI.ldSo=d.ldso;render();return}if(d.ldabrir){UI.ldAbrir=!UI.ldAbrir;render();return}if(d.act==="ldPdf"){ldPdf();return}if(d.act==="ldExcel")ldExcel()});
+document.addEventListener("change",ev=>{if(ev.target.id==="f-ldloja"){UI.ldLoja=ev.target.value;render()}});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-ldbusca")return;UI.ldBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-ldbusca");n.focus();n.setSelectionRange(pos,pos)});
 const R_LOJAS_SUP=R.lojas;R.lojas=()=>{const h=R_LOJAS_SUP();const i=h.indexOf('<div class="grid store-cards">');return i<0?h+supervisoresCard():h.slice(0,i)+supervisoresCard()+h.slice(i)};
 const R_CONFIG_NUC=R.config;R.config=()=>R_CONFIG_NUC()+gestoresNucleoCard();
 
