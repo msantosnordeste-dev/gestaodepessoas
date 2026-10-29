@@ -4336,6 +4336,67 @@ orgPagina=function(){UI.orgLojaAtual=orgUnidadePadrao();const h=orgPaginaCruz();
 /* PDF: identifica quem tem lotação em outra loja */
 const orgPdfCruz=orgPdf;
 orgPdf=function(){UI.orgLojaAtual=orgUnidadePadrao();const pt=pdfTabela;pdfTabela=function(o){o.linhas=o.linhas.map(l=>{const nome=String(l[0]).replace(/^[\s└]+/,"");const e=ativos().find(x=>x.nome===nome);if(e&&ORG_CRUZ.has(e.id)&&e.lojaId!==UI.orgLojaAtual){l=l.slice();l[4]=(l[4]?l[4]+" · ":"")+"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)"}return l});const T=orgArvore(UI.orgLojaAtual);(T.visitantes||[]).forEach(e=>o.linhas.push([e.nome+" (lotação em outra loja)",e.cargo,ORG_NIVEIS[orgNivel(e.cargo)],(reportaA(e)||{g:{nome:"—"}}).g.nome,"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)",fdate(e.admissao)]));if(o.resumo&&(T.visitantes||[]).length)o.resumo.push(["Atuam aqui com lotação em outra loja",T.visitantes.length]);return pt(o)};try{orgPdfCruz()}finally{pdfTabela=pt}};
+/* ============ organograma agrupado por centro de custo ============
+   Por unidade: a árvore da unidade vira um bloco por centro de custo (CC principal = maior % do rateio).
+   Por centro de custo: escolhe o CC e vê todas as pessoas com rateio nele, de qualquer unidade, ligadas pelo "Reporta a". */
+const ccPrincipal=e=>{const r=rateioDe(e);return r.length?r.slice().sort((a,b)=>b.pct-a.pct)[0].cc:CC_SEM};
+function orgArvoreSet(pessoas){
+  const ids=new Set(pessoas.map(e=>e.id)),filhos={},raizes=[],externos={};
+  pessoas.forEach(e=>{const r=reportaA(e);if(r&&ids.has(r.g.id)&&!criaCiclo(e.id,r.g.id))(filhos[r.g.id]=filhos[r.g.id]||[]).push({e,auto:r.auto});
+    else if(r&&!ids.has(r.g.id))(externos[r.g.id]=externos[r.g.id]||[]).push({e,auto:r.auto});else raizes.push(e)});
+  const ord=(a,b)=>orgNivel((a.e||a).cargo)-orgNivel((b.e||b).cargo)||(a.e||a).cargo.localeCompare((b.e||b).cargo)||(a.e||a).nome.localeCompare((b.e||b).nome);
+  Object.values(filhos).forEach(l=>l.sort(ord));raizes.sort(ord);return {pessoas,filhos,raizes,externos};
+}
+function orgArvoreSetHTML(T){
+  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);if(!g)return l.map(x=>orgNo(x.e,T,false,0)).join("");
+    return `<div class="org-no"><div class="org-p${g.pj?"":" externo"}" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)}${g.pj?"":" · "+esc(store(g.lojaId).nome)}</span>${g.pj?"":`<span class="chip c-info" style="margin-top:3px;width:max-content">fora deste grupo</span>`}</div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,x.auto,1)).join("")}</div></div>`}).join("");
+  return `<div class="org-arvore">${T.raizes.map(e=>orgNo(e,T,false,0)).join("")}${ext}</div>`;
+}
+const ORG_CC_CSS=`<style>.org-cc{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px;background:var(--surface)}.org-cc-h{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:12px}.org-cc-h b{font-size:1rem}.org-modo{display:inline-flex}</style>`;
+const orgModoSeg=()=>`<div class="seg org-modo" role="tablist" aria-label="Agrupar organograma"><button class="${UI.orgModo==="cc"?"":"on"}" data-orgmodo="unidade">Por unidade</button><button class="${UI.orgModo==="cc"?"on":""}" data-orgmodo="cc">Por centro de custo</button></div>`;
+// fecha a <div> que começa em i (conta aberturas e fechamentos)
+function fimDiv(h,i){let n=0,j=i;const re=/<div\b|<\/div>/g;re.lastIndex=i;let m;while((m=re.exec(h))){n+=m[0]==="</div>"?-1:1;if(n===0)return m.index+6}return -1}
+const ORG_PAGINA_UNID=orgPagina;
+orgPagina=function(){
+  if(UI.orgModo==="cc")return orgPaginaCC();
+  let h=ORG_PAGINA_UNID();
+  h=h.replace('<select class="input" id="f-orgloja"',orgModoSeg()+'<select class="input" id="f-orgloja"');
+  const lojaId=orgUnidadePadrao();if(!lojaId)return h;
+  const pessoas=ativos().filter(e=>e.lojaId===lojaId&&ccOk(e));const grupos={};pessoas.forEach(e=>{(grupos[ccPrincipal(e)]=grupos[ccPrincipal(e)]||[]).push(e)});
+  const ccs=Object.keys(grupos).sort((a,b)=>a===CC_SEM?1:b===CC_SEM?-1:a.localeCompare(b,"pt-BR",{numeric:true}));
+  const i=h.indexOf('<div class="org-arvore">');if(i<0)return h;const j=fimDiv(h,i);if(j<0)return h;
+  const blocos=ccs.map(cc=>{const T=orgArvoreSet(grupos[cc]);return `<div class="org-cc"><div class="org-cc-h"><b>${esc(cc)}</b><span class="chip c-mute">${grupos[cc].length} pessoa${grupos[cc].length===1?"":"s"}</span></div>${orgArvoreSetHTML(T)}</div>`}).join("");
+  return h.slice(0,i)+ORG_CC_CSS+(ccs.length>1?`<p class="small muted" style="text-align:center;margin:0 0 12px">Equipe dividida por centro de custo (o principal de cada pessoa, pela ficha ou pelo rateio).</p>`:"")+blocos+h.slice(j);
+};
+function orgCCLista(){return [...new Set(ccLista().concat(ativos().map(ccPrincipal)))].filter(c=>c&&c!==CC_SEM&&ativos().some(e=>ccOk(e)&&rateioDe(e).some(r=>r.cc===c))).sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}))}
+function orgCCPessoas(cc){return ativos().filter(e=>ccOk(e)).map(e=>({e,r:rateioDe(e).find(x=>x.cc===cc)})).filter(x=>x.r)}
+function orgPaginaCC(){
+  const l=orgCCLista();if(!l.length)return header(G()?"Minha loja":"Visão geral","Headcount")+orgAbas()+`<div class="card empty">Nenhum centro de custo com pessoas.</div>`;
+  const cc=l.includes(UI.orgCC)?UI.orgCC:l[0];UI.orgCC=cc;
+  const ps=orgCCPessoas(cc);const T=orgArvoreSet(ps.map(x=>x.e));
+  // pessoas com parte do custo aqui ou lotadas em outra unidade: selo lilás com lotação e %
+  ORG_CRUZ=new Map(ps.filter(x=>x.r.pct<100).map(x=>[x.e.id,{pct:x.r.pct}]));UI.orgLojaAtual="__cc__";
+  const lojas=[...new Set(ps.map(x=>x.e.lojaId))].map(store);const eq=ps.reduce((t,x)=>t+x.r.pct/100,0);
+  const css=`<style>.org{overflow-x:auto}.org-topo{text-align:center;margin-bottom:14px}.org-topo b{display:block;font-size:1.1rem}.org-topo span{color:var(--muted);font-size:.8rem}.org-con{width:2px;height:22px;background:var(--line);margin:6px auto}.org-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;cursor:pointer;text-align:left}.org-p:hover{background:var(--brand-tint)}.org-p b{display:block;font-size:.85rem}.org-p span{display:block;font-size:.72rem;color:var(--muted)}.org-p.peq{min-width:0;max-width:none;border-width:1px;padding:6px 8px;margin-top:6px}.org-p.peq .avatar{width:26px;height:26px;font-size:.65rem}.org-grupos{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:flex-start}.org-grupo{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:200px;background:var(--surface-2)}.org-gh{display:flex;justify-content:space-between;gap:8px;align-items:center}.org-arvore{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;align-items:flex-start}.org-no{display:flex;flex-direction:column;align-items:center}.org-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.org-ramo{display:flex;flex-direction:column;align-items:center}.org-p.auto{border-style:dashed;border-width:1px}.org-p.externo{border-color:var(--info,#3b82f6);background:transparent}.org-p.cruzado{border-color:#8b5cf6!important;background:color-mix(in srgb,#8b5cf6 10%,var(--surface))!important}.org-p.cruzado .avatar{background:#8b5cf6;color:#fff}.org-x{display:block;font-size:.7rem;color:#7c3aed;font-weight:600;margin-top:2px}</style>`;
+  return header(G()?"Minha loja":"Visão geral","Headcount",`<button class="btn" data-act="orgPdf">Baixar PDF</button>`)+orgAbas()+css+`
+  <div class="card" style="padding:14px 18px"><div class="toolbar" style="margin:0;flex-wrap:wrap;gap:10px">${orgModoSeg()}
+    <select class="input" id="f-orgcc" aria-label="Centro de custo" style="max-width:420px">${l.map(c=>`<option ${c===cc?"selected":""}>${esc(c)}</option>`).join("")}</select>
+    <span class="chip c-info">${ps.length} pessoa${ps.length===1?"":"s"} · ${eq.toLocaleString("pt-BR",{maximumFractionDigits:1})} equivalente${eq===1?"":"s"}</span><span class="small muted">${lojas.length} unidade${lojas.length===1?"":"s"}: ${lojas.map(s=>esc(s.nome.replace(/ · .*$/,""))).join(", ")}</span></div></div>
+  <div class="card org"><div class="org-topo"><b>${esc(cc)}</b><span>Centro de custo · todas as unidades</span></div>${ps.length?orgArvoreSetHTML(T):`<div class="empty">Ninguém neste centro de custo.</div>`}
+  <p class="small muted" style="margin-top:14px">Pessoas com rateio neste centro de custo (pela ficha ou pelo rateio), ligadas pelo "Reporta a". <b style="color:#7c3aed">Lilás</b> = só parte do custo fica aqui. Borda azul = líder fora deste centro de custo.</p></div>`;
+}
+const ORG_PDF_UNID=orgPdf;
+orgPdf=function(){
+  if(UI.orgModo!=="cc")return ORG_PDF_UNID();
+  const cc=UI.orgCC;const ps=orgCCPessoas(cc);const pct=new Map(ps.map(x=>[x.e.id,x.r.pct]));const T=orgArvoreSet(ps.map(x=>x.e));const linhas=[];const vis=new Set();
+  const add=(e,prof)=>{if(vis.has(e.id))return;vis.add(e.id);const g=reportaA(e);linhas.push([("    ".repeat(prof))+(prof?"└ ":"")+e.nome,e.cargo||"",store(e.lojaId).nome,(pct.get(e.id)||0).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%",g?g.g.nome+(g.auto?" (automático)":""):"—"]);(T.filhos[e.id]||[]).forEach(x=>add(x.e,prof+1))};
+  T.raizes.forEach(e=>add(e,0));Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(g)linhas.push([g.nome+(g.pj?"":" (fora do CC)"),g.cargo||"",g.pj?"":store(g.lojaId).nome,"",""]);l.forEach(x=>add(x.e,g?1:0))});
+  pdfTabela({titulo:"Organograma · "+cc,filtros:"Centro de custo · todas as unidades · posição em "+fdate(TODAY),resumo:[["Pessoas",ps.length],["Equivalente",ps.reduce((t,x)=>t+x.r.pct/100,0).toLocaleString("pt-BR",{maximumFractionDigits:1})]],
+    colunas:["Nome (hierarquia)","Cargo","Unidade de lotação","% no CC","Reporta a"],larguras:[80,50,70,20,0],linhas,fonte:8,arquivo:"organograma-cc-"+slugCC(cc)+"-"+TODAY+".pdf",log:["Organograma por centro de custo emitido",cc]});
+};
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-orgmodo]");if(!t)return;UI.orgModo=t.dataset.orgmodo;render()});
+document.addEventListener("change",ev=>{if(ev.target.id==="f-orgcc"){UI.orgCC=ev.target.value;render()}});
+
 /* ---- prestador de serviço no organograma: aparece como as demais pessoas (nome e função); o clique abre a ficha do prestador ---- */
 document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest('[data-ficha^="p:"]');if(!t)return;ev.stopImmediatePropagation();closeModal();pjFicha(t.dataset.ficha.slice(2))},true);
 
