@@ -2518,6 +2518,8 @@ function cnpjValido(c){c=soDig(c);if(c.length!==14||/^(\d)\1+$/.test(c))return f
   return dv(12)===Number(c[12])&&dv(13)===Number(c[13])}
 const fmtCNPJ=c=>{const d=soDig(c);return d.length===14?d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5"):String(c||"")};
 const pjNome=p=>p.nomeFantasia||p.razaoSocial||"—";
+// funções sempre oferecidas no cadastro do prestador, além dos cargos já usados no portal
+const FUNCOES_PRESTADOR=["Gerente de RH","Gerente Adm/Financeiro"];
 /* o prestador pode ser empresa (CNPJ) ou pessoa física (CPF): o documento fica em p.cnpj e o tipo sai do número de dígitos */
 const docValido=c=>{const d=soDig(c);return d.length===11?cpfValido(d):cnpjValido(d)};
 const fmtDoc=c=>soDig(c).length===11?fmtCPF(c):fmtCNPJ(c);
@@ -2602,7 +2604,7 @@ function pjCampo([k,t,tp,full]){
   if(tp==="b")return `<label class="check ${full?"full":""}"><input type="checkbox" id="${id}" ${v?"checked":""}> ${t}</label>`;
   let inp;
   if(tp==="loja")inp=`<select class="input" id="${id}"><option value="">Sem unidade específica</option>${lojaOpts(v,false)}</select>`;
-  else if(tp==="cargo"){const cs=[...new Set(ativos().map(e=>e.cargo).concat((ST.pjs||[]).map(p=>p.area)).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  else if(tp==="cargo"){const cs=[...new Set(ativos().map(e=>e.cargo).concat((ST.pjs||[]).map(p=>p.area),FUNCOES_PRESTADOR).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
     inp=`<input class="input" id="${id}" list="${id}-lista" placeholder="Escolha um cargo ou digite" value="${esc(v??"")}"><datalist id="${id}-lista">${cs.map(c=>`<option value="${esc(c)}"></option>`).join("")}</datalist>`}
   else if(String(tp).startsWith("sel:"))inp=`<select class="input" id="${id}"><option value="">Selecione…</option>${tp.slice(4).split("|").map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
   else if(full&&/objeto|retencoes|comObs|endereco/.test(k))inp=`<textarea class="input" id="${id}" rows="2">${esc(v??"")}</textarea>`;
