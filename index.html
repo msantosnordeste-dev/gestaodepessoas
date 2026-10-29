@@ -679,7 +679,7 @@ function renderSafe(){
 document.addEventListener("focusout",()=>{if(PEND_RENDER){PEND_RENDER=false;setTimeout(renderSafe,0)}});
 const store=id=>ST.stores.find(s=>s.id===id)||{nome:"—",cidade:""};
 /* prestador de serviço como gestor imediato ("Reporta a"): referência "p:<id do prestador>", vista como pessoa no organograma */
-const pjComoPessoa=ref=>{const p=(ST.pjs||[]).find(x=>"p:"+x.id===ref);return p?{id:ref,pj:true,pjId:p.id,nome:p.respNome||p.razaoSocial||p.nomeFantasia||"Prestador",cargo:p.area||"Prestador de serviço",lojaId:p.lojaId||"",admissao:p.inicio||TODAY,efetivado:true,afastado:false,desligado:p.encerrado?{data:p.encerrado.data,tipo:"pj"}:null,ferias:[],avaliacoes:[]}:undefined};
+const pjComoPessoa=ref=>{const p=(ST.pjs||[]).find(x=>"p:"+x.id===ref);return p?{id:ref,pj:true,pjId:p.id,nome:p.respNome||p.razaoSocial||p.nomeFantasia||"Prestador",cargo:p.area||"",lojaId:p.lojaId||"",admissao:p.inicio||TODAY,efetivado:true,afastado:false,desligado:p.encerrado?{data:p.encerrado.data,tipo:"pj"}:null,ferias:[],avaliacoes:[]}:undefined};
 const emp=id=>ST.emps.find(e=>e.id===id)||(typeof id==="string"&&id.startsWith("p:")?pjComoPessoa(id):undefined);
 const ativos=()=>ST.emps.filter(e=>!e.desligado);
 
@@ -4247,7 +4247,7 @@ orgPagina=function(){
   const html=ORG_PAGINA_NIVEIS();const lojaId=orgUnidadePadrao();if(!lojaId)return html;
   const T=orgArvore(lojaId);const d=orgDados(lojaId);
   const vagas=d.vagas.flatMap(v=>Array.from({length:v.qtd},()=>`<div class="org-p vaga"><div class="avatar">+</div><div><b>Vaga aberta</b><span>${esc(v.cargo)}</span></div></div>`)).join("")+d.adm.map(a=>`<div class="org-p adm"><div class="avatar">${esc(initials(a.nome))}</div><div><b>${esc(a.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(a.cargo)} · em admissão</span></div></div>`).join("");
-  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);return `<div class="org-no"><div class="org-p externo" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)}${g.pj?"":" · "+esc(store(g.lojaId).nome)}</span><span class="chip c-info" style="margin-top:3px;width:max-content">${g.pj?"prestador de serviço":"outra unidade"}</span></div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,false,1)).join("")}</div></div>`}).join("");
+  const ext=Object.entries(T.externos).map(([gid,l])=>{const g=emp(gid);return `<div class="org-no"><div class="org-p${g.pj?"":" externo"}" data-ficha="${gid}"><div class="avatar">${esc(initials(g.nome))}</div><div><b>${esc(g.nome.split(" ").slice(0,2).join(" "))}</b><span>${esc(g.cargo)}${g.pj?"":" · "+esc(store(g.lojaId).nome)}</span>${g.pj?"":`<span class="chip c-info" style="margin-top:3px;width:max-content">outra unidade</span>`}</div></div><div class="org-con"></div><div class="org-grupos">${l.map(x=>orgNo(x.e,T,false,1)).join("")}</div></div>`}).join("");
   const arvore=`<div class="org-arvore">${T.raizes.map(e=>orgNo(e,T,false,0)).join("")}${ext}</div>${vagas?`<div class="org-nivel" style="margin-top:18px"><div class="org-rot">Vagas abertas e admissões em andamento</div><div class="org-linha">${vagas}</div></div>`:""}`;
   const legenda=`<p class="small muted" style="margin-top:14px">Linhas pelo campo "Reporta a" da ficha. Borda tracejada fina = ligação automática pelo cargo (sem gestor informado). Clique numa pessoa para abrir a ficha e definir a quem ela reporta.</p>`;
   const css=`<style>.org-arvore{display:flex;flex-wrap:wrap;justify-content:center;gap:26px;align-items:flex-start}.org-no{display:flex;flex-direction:column;align-items:center}.org-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.org-ramo{display:flex;flex-direction:column;align-items:center}.org-p.auto{border-style:dashed;border-width:1px}.org-p.externo{border-color:var(--info,#3b82f6);background:transparent}</style>`;
@@ -4259,7 +4259,7 @@ orgPdf=function(){
   const vis=new Set();const add=(e,prof,auto)=>{if(vis.has(e.id))return;vis.add(e.id);const st=status(e);const g=reportaA(e);
     linhas.push([("    ".repeat(prof))+(prof?"└ ":"")+e.nome,e.cargo,ORG_NIVEIS[orgNivel(e.cargo)],g?g.g.nome+(g.auto?" (automático)":""):"—",st.k==="ativo"?"":st.t,fdate(e.admissao)]);
     (T.filhos[e.id]||[]).forEach(x=>add(x.e,prof+1,x.auto))};
-  T.raizes.forEach(e=>add(e,0));Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);linhas.push([g.nome+" (outra unidade)",g.cargo,"",store(g.lojaId).nome,"",""]);l.forEach(x=>add(x.e,1,false))});
+  T.raizes.forEach(e=>add(e,0));Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);linhas.push(g.pj?[g.nome,g.cargo,ORG_NIVEIS[orgNivel(g.cargo)],"","",""]:[g.nome+" (outra unidade)",g.cargo,"",store(g.lojaId).nome,"",""]);l.forEach(x=>add(x.e,1,false))});
   pdfTabela({titulo:"Organograma · "+s.nome,filtros:[s.cidade,s.cnpj?"CNPJ "+s.cnpj:"",s.centroCusto?"CC "+s.centroCusto:"","posição em "+fdate(TODAY)].filter(Boolean).join(" · "),
     resumo:[["Pessoas",T.pessoas.length],["Quadro ideal",s.quadro||"—"],["Com gestor informado",T.pessoas.filter(e=>e.gestorId).length]],
     colunas:["Nome (hierarquia)","Cargo","Nível","Reporta a","Situação","Admissão"],larguras:[78,48,40,62,24,0],linhas,fonte:8,
@@ -4334,10 +4334,7 @@ orgPagina=function(){UI.orgLojaAtual=orgUnidadePadrao();const h=orgPaginaCruz();
 /* PDF: identifica quem tem lotação em outra loja */
 const orgPdfCruz=orgPdf;
 orgPdf=function(){UI.orgLojaAtual=orgUnidadePadrao();const pt=pdfTabela;pdfTabela=function(o){o.linhas=o.linhas.map(l=>{const nome=String(l[0]).replace(/^[\s└]+/,"");const e=ativos().find(x=>x.nome===nome);if(e&&ORG_CRUZ.has(e.id)&&e.lojaId!==UI.orgLojaAtual){l=l.slice();l[4]=(l[4]?l[4]+" · ":"")+"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)"}return l});const T=orgArvore(UI.orgLojaAtual);(T.visitantes||[]).forEach(e=>o.linhas.push([e.nome+" (lotação em outra loja)",e.cargo,ORG_NIVEIS[orgNivel(e.cargo)],(reportaA(e)||{g:{nome:"—"}}).g.nome,"lotação: "+store(e.lojaId).nome+" ("+ORG_CRUZ.get(e.id).pct+"% aqui)",fdate(e.admissao)]));if(o.resumo&&(T.visitantes||[]).length)o.resumo.push(["Atuam aqui com lotação em outra loja",T.visitantes.length]);return pt(o)};try{orgPdfCruz()}finally{pdfTabela=pt}};
-/* ---- prestador de serviço no organograma: selo "Prestador", tempo de contrato e clique abre a ficha do prestador ---- */
-const orgCardPJ=orgCard;
-orgCard=function(e,peq){let h=orgCardPJ(e,peq);if(!e.pj)return h;
-  return h.replace(" de casa</span>"," de contrato</span>").replace("</div></div>",`<span class="chip" style="background:#dbeafe;color:#1e40af;margin-top:3px;width:max-content">Prestador</span></div></div>`)};
+/* ---- prestador de serviço no organograma: aparece como as demais pessoas (nome e função); o clique abre a ficha do prestador ---- */
 document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest('[data-ficha^="p:"]');if(!t)return;ev.stopImmediatePropagation();closeModal();pjFicha(t.dataset.ficha.slice(2))},true);
 
 /* ============ cadastro de supervisores, gestores dos núcleos e organograma da rede ============
@@ -5015,7 +5012,7 @@ function orgSnapshot(lojaId){
   const T=orgArvore(lojaId),L=[],vis=new Set();
   const add=(e,pai)=>{if(vis.has(e.id))return;vis.add(e.id);L.push([e.id,e.nome,e.cargo||"",pai,"",""]);(T.filhos[e.id]||[]).forEach(x=>add(x.e,e.id))};
   T.raizes.forEach(e=>add(e,null));
-  Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,"ext",g.pj?"Prestador de serviço":store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
+  Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,g.pj?"":"ext",g.pj?"":store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
   (T.visitantes||[]).forEach(e=>{if(vis.has(e.id))return;vis.add(e.id);const c=ORG_CRUZ.get(e.id);
     L.push([e.id,e.nome,e.cargo||"",null,"vis","Lotação: "+store(e.lojaId).nome+(c?" · "+c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"% aqui":"")])});
   return {n:store(lojaId).nome,p:L};
