@@ -4890,7 +4890,7 @@ const R_CONFIG_BASE=R.config;R.config=()=>R_CONFIG_BASE()+cartasCfgCard();
 /* ============ acesso do colaborador (T&D) · só na versão internet ============
    O colaborador cria o login com CPF + data de nascimento (função "colaborador") e entra com CPF e senha.
    Ele não lê tabelas de pessoas: os próprios dados vêm de meus_dados(), e o menu dele é só o "Meu espaço". */
-let MEU=null,MEU_ORG=null;
+let MEU=null,MEU_ORG=null,TDP=[];
 const PAGES_C=[{g:"Meu espaço"},{id:"meustd",t:"Treinamentos"},{id:"minhaequipe",t:"Minha equipe"},{id:"meusdados",t:"Meus dados"}];
 ICON.meustd='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>';
 ICON.minhaequipe='<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>';
@@ -4906,6 +4906,8 @@ async function carregarColaborador(){
   MEU=data;$(".app").classList.add("colab");
   const org=await SB.from("org_unidades").select("dados").eq("loja_id",data.loja_id).maybeSingle();
   MEU_ORG=org.error||!org.data?null:org.data.dados;
+  const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);
+  TDP=td.error?[]:td.data;
   ST=normalize({exemplo:false,stores:[{id:data.loja_id,nome:data.loja_nome||"",cidade:data.cidade||"",tipo:"",quadro:0}],emps:[],admissoes:[],escalaOverrides:{},cfg:clone(DEFAULT_CFG)});
 }
 function tempoCasa(adm){
@@ -4913,7 +4915,19 @@ function tempoCasa(adm){
   const mes=n=>n+(n===1?" mês":" meses");
   return a?a+" ano"+(a>1?"s":"")+(r?" e "+mes(r):""):mes(r);
 }
-R.meustd=()=>header("Meu espaço","Meus treinamentos")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum treinamento por aqui ainda.</b><br>Quando o RH publicar cursos para você, eles aparecem nesta página.</p></div>`;
+R.meustd=()=>{
+  const ig=(TDP||[]).find(x=>x.curso==="integracao"&&x.colaborador_id===(MEU&&MEU.id));
+  const novo=MEU&&MEU.admissao&&diffDays(MEU.admissao,TODAY)<=90;
+  const total=9,par=ig?ig.paradas:0;
+  const card=ig||novo?`<div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <img src="integracao/assets/bia-rosto.webp" alt="" width="72" height="72" style="border-radius:50%;background:var(--brand-tint);flex:0 0 auto">
+    <div style="flex:1;min-width:220px"><div class="tabs-inline" style="margin-bottom:6px">${ig&&ig.aprovado_em?`<span class="chip c-ok">Aprovado(a) em ${fdate(ig.aprovado_em)}${ig.nota?" · nota "+ig.nota:""}</span>`:ig&&par?`<span class="chip c-info">Em andamento</span>`:`<span class="chip c-warn">Para fazer</span>`}<span class="chip c-mute">~40 min</span></div>
+      <h3 style="margin:0 0 4px">Integração Brasileirissima</h3><p class="small muted" style="margin:0 0 10px">Trilha com a Bia e o Caio Brasil: nossa história, valores, lojas, direitos, regras e benefícios. Junte pontos, carimbe o passaporte e conquiste o seu certificado.</p>
+      <div class="bar" style="height:8px;border-radius:8px;background:var(--surface-2);overflow:hidden"><span style="display:block;height:100%;width:${Math.round(par/total*100)}%;background:var(--brand)"></span></div>
+      <p class="small muted" style="margin:6px 0 0">${par} de ${total} paradas${ig&&ig.pontos?" · "+ig.pontos+" pontos":""}</p></div>
+    <a class="btn btn-primary" style="text-decoration:none" href="integracao/#${ig&&ig.aprovado_em?"passaporte":"inicio"}">${ig&&ig.aprovado_em?"Ver passaporte e certificado":par?"Continuar":"Começar"}</a></div>`:"";
+  return header("Meu espaço","Meus treinamentos")+(card||`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum treinamento por aqui ainda.</b><br>Quando o RH publicar cursos para você, eles aparecem nesta página.</p></div>`);
+};
 R.meusdados=()=>{
   const m=MEU||{};
   const itens=[["Nome",m.nome],["Cargo",m.cargo],["Unidade",m.loja_nome],["Cidade",m.cidade],["Admissão",m.admissao?fdate(m.admissao):""],["Tempo de casa",m.admissao?tempoCasa(m.admissao):""],["Login","CPF "+fmtCPF(SESSION?SESSION.login:"")]];
@@ -5064,8 +5078,8 @@ PAGES_C.splice(2,0,{id:"meuplano",t:"Plano de ação"});
 const planoDe=r=>({id:r.id,eid:r.colaborador_id,lojaId:r.loja_id,origem:r.origem,origemRef:r.origem_ref,objetivo:r.objetivo,acoes:Array.isArray(r.acoes)?r.acoes:[],status:r.status,criadoPorNome:r.criado_por_nome||"",criadoEm:r.criado_em,atualizadoEm:r.atualizado_em});
 async function carregarPlanos(){
   if(!SB||!SESSION)return;
-  const [p,e]=await Promise.all([SB.from("planos_acao").select("*").order("criado_em",{ascending:false}).limit(2000),SB.from("planos_acao_eventos").select("*").order("em").limit(10000)]);
-  PLANOS=p.error?[]:p.data.map(planoDe);PEV=e.error?[]:e.data;
+  const [p,e,t]=await Promise.all([SB.from("planos_acao").select("*").order("criado_em",{ascending:false}).limit(2000),SB.from("planos_acao_eventos").select("*").order("em").limit(10000),SB.from("td_progresso").select("colaborador_id,curso,pontos,paradas,nota,aprovado_em,iniciado_em,atualizado_em").limit(5000)]);
+  PLANOS=p.error?[]:p.data.map(planoDe);PEV=e.error?[]:e.data;if(!t.error)TDP=t.data;
 }
 const paPlano=id=>PLANOS.find(p=>p.id===id);
 const paEventos=(pid,aid)=>PEV.filter(x=>x.plano_id===pid&&(aid===undefined||(x.acao_id||null)===(aid||null)));
@@ -5120,10 +5134,32 @@ function paLista(){
   });
 }
 R.td=()=>{
+  const tab=UI.tdTab||"planos";
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["planos","Planos de ação"],["integracao","Integração"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-tdtab="${k}">${t}</button>`).join("")}</div></div>`;
+  return tab==="integracao"?tdIntegracaoHTML(tabs):tdPlanosHTML(tabs);
+};
+function tdIntegracaoHTML(tabs){
+  const prog=new Map(TDP.filter(x=>x.curso==="integracao").map(x=>[x.colaborador_id,x]));
+  const temAcesso=new Set((ROLE==="rh"?USUARIOS:[]).filter(u=>u.perfil==="colaborador"&&u.ativo).map(u=>u.colaborador_id));
+  const q=semAcento(UI.igBusca||""),f=UI.igSit||"todos",lj=UI.igLoja||"";
+  const sit=e=>{const p=prog.get(e.id);return p&&p.aprovado_em?"aprovado":p&&p.paradas?"andamento":"naoiniciou"};
+  let L=ativos().filter(e=>prog.has(e.id)||(e.admissao&&diffDays(e.admissao,TODAY)<=90));
+  const cont={aprovado:0,andamento:0,naoiniciou:0};L.forEach(e=>cont[sit(e)]++);
+  L=L.filter(e=>(!lj||e.lojaId===lj)&&(f==="todos"||sit(e)===f)&&(!q||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(q))).sort((a,b)=>String(b.admissao).localeCompare(String(a.admissao)));
+  const chip=e=>{const p=prog.get(e.id),s=sit(e);return s==="aprovado"?`<span class="chip c-ok">Aprovado(a)${p.nota?" · nota "+p.nota:""}</span>`:s==="andamento"?`<span class="chip c-info">Em andamento</span>`:ROLE==="rh"&&!temAcesso.has(e.id)?`<span class="chip c-warn">Sem acesso ao portal</span>`:`<span class="chip c-mute">Não iniciou</span>`};
+  const fora=ativos().filter(e=>!prog.has(e.id)&&!(e.admissao&&diffDays(e.admissao,TODAY)<=90));
+  return header("Pessoas","T&D",ROLE==="rh"?`<button class="btn" data-igliberar="1">Liberar para outra pessoa</button>`:"")+`<div class="card">${tabs}
+  <div class="note" style="margin:0 0 14px">A trilha <b>Integração Brasileirissima</b> aparece sozinha em Treinamentos para quem tem até 90 dias de casa${ROLE==="rh"?". Para outra pessoa, use Liberar para outra pessoa":""}. O colaborador precisa ter criado o acesso ao portal.</div>
+  <div class="toolbar"><div class="seg" role="tablist">${[["todos","Todos ("+(cont.aprovado+cont.andamento+cont.naoiniciou)+")"],["naoiniciou","Não iniciaram ("+cont.naoiniciou+")"],["andamento","Em andamento ("+cont.andamento+")"],["aprovado","Aprovados ("+cont.aprovado+")"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-igsit="${k}">${t}</button>`).join("")}</div>
+    <input class="input search" id="f-igbusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.igBusca||"")}" aria-label="Buscar colaborador">${ST.stores.length>1?`<select class="input" id="f-igloja" aria-label="Unidade">${lojaOpts(lj)}</select>`:""}<span class="muted small">${L.length} pessoa${L.length===1?"":"s"}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Admissão</th><th>Situação</th><th class="r">Paradas</th><th class="r">Pontos</th><th>Aprovação</th><th>Última atividade</th></tr></thead>
+  <tbody>${L.map(e=>{const p=prog.get(e.id);return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(e.admissao)}</td><td>${chip(e)}</td><td class="num r">${p?p.paradas:0}/9</td><td class="num r">${p?p.pontos:0}</td><td class="num">${p&&p.aprovado_em?fdate(p.aprovado_em):"—"}</td><td class="num">${p&&p.paradas?quandoPA(p.atualizado_em):"—"}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">Ninguém nesta lista.</td></tr>`}</tbody></table></div>
+  ${ROLE==="rh"?`<datalist id="ig-fora">${fora.map(e=>`<option value="${esc(e.nome)}"></option>`).join("")}</datalist>`:""}</div>`;
+}
+function tdPlanosHTML(tabs){
   const L=paLista();
   const sitP=p=>p.status==="cancelado"?`<span class="chip c-mute">Cancelado</span>`:p.status==="encerrado"?`<span class="chip c-ok">Encerrado</span>`:p.acoes.some(a=>paSit(p,a)==="atrasada")?paChip("atrasada"):p.acoes.some(a=>paSit(p,a)==="aguardando")?paChip("aguardando"):`<span class="chip c-info">Em andamento</span>`;
-  return header("Pessoas","T&D",`<button class="btn btn-primary" data-panovo="1">+ Novo plano de ação</button>`)+`<div class="card">
-  <div class="toolbar"><div class="seg" role="tablist"><button class="on">Planos de ação</button></div></div>
+  return header("Pessoas","T&D",`<button class="btn btn-primary" data-panovo="1">+ Novo plano de ação</button>`)+`<div class="card">${tabs}
   <div class="toolbar"><div class="seg" role="tablist">${[["abertos","Abertos"],["atencao","Precisam de atenção"],["encerrados","Encerrados"],["todos","Todos"]].map(([k,t])=>`<button class="${(UI.paSit||"abertos")===k?"on":""}" data-pasit="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-pabusca" type="search" placeholder="Buscar por colaborador, cargo, unidade ou objetivo" value="${esc(UI.paBusca||"")}" aria-label="Buscar plano">${ST.stores.length>1?`<select class="input" id="f-paloja" aria-label="Unidade">${lojaOpts(UI.paLoja||"")}</select>`:""}<span class="muted small">${L.length} plano${L.length===1?"":"s"}</span></div>
   <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Origem</th><th>Objetivo</th><th>Ações</th><th>Prazo final</th><th>Ciência</th><th>Situação</th><th></th></tr></thead>
@@ -5244,6 +5280,21 @@ document.addEventListener("change",ev=>{
 });
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-pabusca")return;UI.paBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-pabusca");n.focus();n.setSelectionRange(pos,pos)});
 document.addEventListener("keydown",ev=>{if(ev.key!=="Enter"||!ev.target.id||!ev.target.id.startsWith("pa-c-"))return;ev.preventDefault();const b=ev.target.parentElement.querySelector("[data-pacom]");if(b)b.click()});
+/* ---- T&D: abas e Integração ---- */
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-tdtab],[data-igsit],[data-igliberar],[data-igliberarok]");if(!t||(ROLE!=="rh"&&ROLE!=="gerente"))return;
+  const d=t.dataset;
+  if(d.tdtab){UI.tdTab=d.tdtab;render();return}
+  if(d.igsit){UI.igSit=d.igsit;render();return}
+  if(d.igliberar&&ROLE==="rh"){modal("Liberar a integração",`<div class="field"><label for="ig-pessoa">Colaborador</label><input class="input" id="ig-pessoa" list="ig-fora" placeholder="Digite o nome"></div><p class="small muted">Para quem tem mais de 90 dias de casa. A trilha passa a aparecer em Treinamentos para essa pessoa.</p><p class="small" id="ig-err" style="color:var(--bad)" hidden></p>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-igliberarok="1">Liberar</button>`);$("#ig-pessoa").focus();return}
+  if(d.igliberarok&&ROLE==="rh"){const n=semAcento($("#ig-pessoa").value.trim());const e=ativos().find(x=>semAcento(x.nome)===n);const err=m=>{const el=$("#ig-err");el.hidden=false;el.textContent=m};
+    if(!e)return err("Escolha um nome da lista.");if(TDP.some(x=>x.colaborador_id===e.id&&x.curso==="integracao"))return err("Essa pessoa já tem a integração liberada.");
+    t.disabled=true;const {error}=await SB.from("td_progresso").insert({colaborador_id:e.id,curso:"integracao"});t.disabled=false;
+    if(error)return err("Não foi possível liberar: "+error.message);
+    logEvento("Integração liberada",e.nome);await carregarPlanos();closeModal();render();toast("Integração liberada para "+e.nome.split(" ")[0]);return}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-igbusca")return;UI.igBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-igbusca");n.focus();n.setSelectionRange(pos,pos)});
+document.addEventListener("change",ev=>{if(ev.target.id==="f-igloja"){UI.igLoja=ev.target.value;render()}});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
