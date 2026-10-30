@@ -5766,7 +5766,7 @@ document.addEventListener("change",async ev=>{
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")return;UI.chBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-chbusca");n.focus();n.setSelectionRange(pos,pos)});
 
 /* ============ média liderança no acesso do colaborador · só na versão internet ============
-   Quem tem equipe no "Reporta a" informado na ficha (direta ou indireta, sem a ligação automática pelo cargo) ganha sozinho o menu "Meu time".
+   Quem tem equipe no "Reporta a" informado na ficha (só os diretos: quem está com outro gestor abaixo dele não aparece; sem a ligação automática pelo cargo) ganha sozinho o menu "Meu time".
    O portal do RH grava em org_lideres a lista de cada líder (mesma regra do organograma); o líder lê só
    minha_equipe_dados(): nome, cargo, unidade, admissão, férias, ASO e experiência. Salário, CPF, ficha e banco de horas ficam fora. */
 let EQUIPE=[];
@@ -5784,8 +5784,8 @@ function liderCalc(){
   const M=new Map(),colab=new Set(ativos().map(e=>e.id));
   ativos().forEach(e=>{
     const p=paiExplicito(e);if(!p)return;
-    const pai=p.id,vis=new Set([e.id]);let g=p;
-    while(g&&!vis.has(g.id)){vis.add(g.id);if(colab.has(g.id)){if(!M.has(g.id))M.set(g.id,[]);M.get(g.id).push([e.id,pai])}g=paiExplicito(g)}
+    if(p.id===e.id||!colab.has(p.id))return;
+    if(!M.has(p.id))M.set(p.id,[]);M.get(p.id).push([e.id,p.id]);
   });
   return [...M].map(([id,m])=>[id,{lider_id:id,dados:{m}}]);
 }
