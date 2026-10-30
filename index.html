@@ -241,7 +241,7 @@ tfoot td{font-weight:700;border-bottom:none}
 /* tela de entrada: fundo branco com as formas da marca (verde, laranja, amarelo) e ondas finas nos cantos */
 .gate-wrap{--bb-green:#004B2B;--bb-orange:#DF4100;--bb-yellow:#FEA202;--gate-bg:#FEFEFE;--wave:#E9E6DE;--gate-btn:var(--bb-green);--arc-h:clamp(104px,11vw,156px);
   position:relative;isolation:isolate;overflow:hidden;min-height:100vh;min-height:100dvh;background:var(--gate-bg);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:clamp(72px,10vh,120px) 16px calc(var(--arc-h) + 28px)}
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:clamp(40px,7vh,96px) 16px calc(var(--arc-h) + 20px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .gate-wrap{--gate-bg:var(--bg);--wave:rgba(255,255,255,.07);--gate-btn:var(--brand)}}
 :root[data-theme="dark"] .gate-wrap{--gate-bg:var(--bg);--wave:rgba(255,255,255,.07);--gate-btn:var(--brand)}
 .gd{position:absolute;z-index:-1;pointer-events:none;display:block}
@@ -270,6 +270,12 @@ tfoot td{font-weight:700;border-bottom:none}
 .gate-masc{width:clamp(130px,16vw,250px);height:auto;display:block;filter:drop-shadow(0 18px 18px rgba(0,40,20,.16));pointer-events:none;user-select:none}
 .gate-masc.bia{grid-column:1;grid-row:1}
 .gate-masc.caio{grid-column:3;grid-row:1}
+.gate-pilares{position:relative;z-index:1;list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:1180px}
+.gate-pilares li{display:block;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-size:.78rem;color:var(--muted)}
+.gate-pilares li::before{content:"";display:inline-block;vertical-align:1px;margin-right:8px;width:8px;height:8px;border-radius:50%;background:var(--bb-green)}
+.gate-pilares li:nth-child(2)::before{background:var(--bb-orange)}
+.gate-pilares li:nth-child(3)::before{background:var(--bb-yellow)}
+.gate-pilares b{color:var(--ink);font-weight:600}
 .gate-foot{position:relative;z-index:1;font-size:.78rem;color:var(--muted);text-align:center}
 @media (prefers-reduced-motion:no-preference){
   .gate{animation:gate-in .5s cubic-bezier(.2,.8,.2,1) both}
@@ -293,6 +299,8 @@ tfoot td{font-weight:700;border-bottom:none}
   .gate-masc.bia{grid-column:1;justify-self:end}
   .gate-masc.caio{grid-column:2;justify-self:start}
   .gate::before{display:none}
+  .gate-pilares{flex-direction:column;align-items:stretch;width:100%}
+  .gate-pilares li{border-radius:var(--r-md)}
 }
 .sync{display:block;font-size:.72rem;margin-top:2px}
 .sync.ok{color:var(--ok)}
@@ -1531,6 +1539,7 @@ function mostrarTela(k,extra){
     <div class="gate-stage">${masc("bia",571,1140)}
       <div class="gate"><div class="gate-brand">Gestão de Pessoas · Brasileiríssima</div><h1>${T[0]}</h1><p class="muted">${T[1]}</p>${T[2]}</div>
     ${masc("caio",638,1174)}</div>
+    <ul class="gate-pilares"><li><b>Integração</b> · cada novo talento começa do jeito Brasileiríssima</li><li><b>Gestão</b> · escalas, férias e avaliações na palma da mão do líder</li><li><b>Pessoas</b> · gente feita de Brasil é o que move as nossas lojas</li></ul>
     <p class="gate-foot">Acesso restrito a colaboradores autorizados pelo RH.</p>
   </div>`;
   const f=$("#main input");if(f)f.focus();
