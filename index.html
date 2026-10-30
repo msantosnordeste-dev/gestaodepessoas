@@ -2510,7 +2510,7 @@ function exportarPdf(){
 /* ============ prestadores PJ ============ */
 const PJ_FICHA=[
   {s:"Prestador",c:[["razaoSocial","Razão social (empresa) ou nome completo (pessoa física)","t",1],["cnpj","CNPJ ou CPF"],["area","Função","cargo"],["nomeFantasia","Nome fantasia"],["inscricaoMunicipal","Inscrição municipal"],["regime","Regime tributário","sel:Simples Nacional|MEI|Lucro Presumido|Lucro Real"],["email","E-mail"],["telefone","Telefone"],["endereco","Endereço","t",1],["cidade","Cidade"],["uf","UF"],["cep","CEP"]]},
-  {s:"Responsável (quando for empresa)",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"]]},
+  {s:"Responsável (quando for empresa)",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["nascimento","Data de nascimento (do prestador ou do responsável) · usada no primeiro acesso ao portal","d"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"]]},
   {s:"Contrato",c:[["numeroContrato","Nº do contrato"],["objeto","Objeto do contrato (serviço prestado)","t",1],["lojaId","Unidade","loja"],["gestor","Gestor do contrato"],["inicio","Início da vigência","d"],["fim","Fim da vigência","d"],["renovacao","Renovação automática","b"],["avisoDias","Aviso para rescisão (dias)","n"]]},
   {s:"Valores e pagamento",c:[["modalidade","Modalidade","sel:Mensal fixo|Por hora|Por entrega/projeto"],["valorMensal","Valor mensal (R$)","n"],["valorHora","Valor por hora (R$)","n"],["horasMes","Horas previstas por mês","n"],["diaPagamento","Dia de pagamento","n"],["formaPagamento","Forma de pagamento","sel:Transferência|Pix|Boleto"],["banco","Banco"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"],["reajusteIndice","Índice de reajuste","sel:IPCA|IGP-M|INPC|Sem reajuste|Outro"],["reajusteData","Data do próximo reajuste","d"],["exigeNF","Exige nota fiscal","b"],["retencoes","Retenções (ISS, IRRF, INSS…)","t",1]]},
   {s:"Comissionamento",c:[["comTipo","Tipo de comissão","sel:Sem comissão|% sobre vendas|% sobre margem|Faixas de meta|Valor fixo por meta"],["comBase","Base de cálculo (ex.: vendas da unidade)","t",1],["comPercentual","Percentual (%)","n"],["comValorFixo","Valor fixo por meta (R$)","n"],["comTeto","Teto mensal (R$)","n"],["comPeriodicidade","Periodicidade","sel:Mensal|Trimestral|Semestral|Anual"],["comObs","Regras e observações","t",1]]}
@@ -5272,17 +5272,20 @@ async function criarAcessoColab(){
 /* ---- RH: Usuários e acessos › Colaboradores ---- */
 function colabAcessosHTML(tabs){
   const lib=!!(ST.cfg&&ST.cfg.acessoColab);
-  const acc=USUARIOS.filter(u=>u.perfil==="colaborador");
+  // prestador PJ com função entra pelas mesmas regras: login = CPF, ligado por colaborador_id "p:<id>"
+  const pjAt=(ST.pjs||[]).filter(p=>!p.encerrado&&String(p.area||"").trim()).map(p=>Object.assign(pjComoPessoa("p:"+p.id),{nascimento:p.nascimento||"",cargo:"PJ · "+p.area}));
+  const acc=USUARIOS.filter(u=>u.perfil==="colaborador"||String(u.colaborador_id||"").startsWith("p:"));
   const porId=new Map(acc.map(u=>[u.colaborador_id,u]));
-  const at=ativos();
+  const at=ativos().concat(pjAt);
+  const pessoa=id=>String(id||"").startsWith("p:")?pjAt.find(x=>x.id===id):emp(id);
   const nascDe=e=>(e.ficha&&e.ficha.nascimento)||e.nascimento||"";
   const semAcesso=at.filter(e=>!porId.has(e.id)),semNasc=at.filter(e=>!porId.has(e.id)&&!nascDe(e));
   const fil=UI.caFiltro||"com",q=(UI.caBusca||"").toLowerCase();
-  let lista=fil==="com"?acc.map(u=>({u,e:emp(u.colaborador_id)})):fil==="sem"?semAcesso.map(e=>({u:null,e})):semNasc.map(e=>({u:null,e}));
+  let lista=fil==="com"?acc.map(u=>({u,e:pessoa(u.colaborador_id)})):fil==="sem"?semAcesso.map(e=>({u:null,e})):semNasc.map(e=>({u:null,e}));
   if(q)lista=lista.filter(({u,e})=>[e?e.nome:u.nome,e?e.cargo:"",e?store(e.lojaId).nome:""].join(" ").toLowerCase().includes(q));
   lista.sort((a,b)=>(a.e?a.e.nome:a.u.nome).localeCompare(b.e?b.e.nome:b.u.nome));
   const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
-  const sit=(u,e)=>!u?(nascDe(e)?`<span class="chip c-mute">Sem acesso</span>`:`<span class="chip c-warn">Sem data de nascimento</span>`):!e||e.desligado?`<span class="chip c-mute">Desligado</span>`:u.ativo?`<span class="chip c-ok">Ativo</span>`:`<span class="chip c-bad">Bloqueado</span>`;
+  const sit=(u,e)=>!u?(nascDe(e)?`<span class="chip c-mute">Sem acesso</span>`:`<span class="chip c-warn">Sem data de nascimento</span>`):!e||e.desligado?`<span class="chip c-mute">Desligado</span>`:u.ativo?`<span class="chip c-ok">Ativo${u.perfil!=="colaborador"?" · "+esc(PERFIS[u.perfil]||u.perfil):""}</span>`:`<span class="chip c-bad">Bloqueado</span>`;
   const acoes=u=>u?`<div class="tabs-inline"><button class="btn btn-sm" data-caativo="${esc(u.login)}" data-v="${u.ativo?0:1}">${u.ativo?"Bloquear":"Desbloquear"}</button><button class="btn btn-sm btn-ghost" data-caremover="${esc(u.login)}" title="Apaga o login. O colaborador cria outro com CPF e data de nascimento (use quando ele esquecer a senha).">Novo 1º acesso</button></div>`:"";
   return `<div class="card">${tabs}
   <div class="note" style="margin:0 0 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Primeiro acesso ${lib?"liberado":"suspenso"}.</b> ${lib?"Colaboradores ativos podem criar o próprio login na tela de entrada com CPF e data de nascimento.":"Ninguém consegue criar login novo. Quem já tem acesso continua entrando normalmente."}</span><button class="btn btn-sm ${lib?"":"btn-primary"}" data-catoggle="1">${lib?"Suspender primeiro acesso":"Liberar primeiro acesso"}</button></div>
@@ -5290,7 +5293,7 @@ function colabAcessosHTML(tabs){
     <input class="input search" id="f-cabusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.caBusca||"")}" aria-label="Buscar colaborador"><span class="muted small">${lista.length} pessoa${lista.length===1?"":"s"}</span></div>
   <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Situação</th><th>Acesso criado</th><th>Último acesso</th><th></th></tr></thead>
   <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td>${acoes(u)}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
-  <div class="note" style="margin-top:14px">O colaborador entra com o CPF e a senha que ele mesmo criou, e vê só o Meu espaço (treinamentos e dados básicos), sem acesso a outras pessoas. Ao ser desligado, o acesso cai sozinho. Esqueceu a senha? Use "Novo 1º acesso". Quem está sem data de nascimento na ficha não consegue criar o acesso.</div></div>`;
+  <div class="note" style="margin-top:14px">O colaborador entra com o CPF e a senha que ele mesmo criou, e vê só o Meu espaço (treinamentos e dados básicos), sem acesso a outras pessoas. Ao ser desligado, o acesso cai sozinho. Esqueceu a senha? Use "Novo 1º acesso". Quem está sem data de nascimento na ficha não consegue criar o acesso. Prestadores PJ com função seguem as mesmas regras (CPF do prestador ou do responsável e a data de nascimento da ficha do prestador); quem é gestor (supervisor, gestor da unidade ou com equipe no "Reporta a") entra como gerente das lojas dele.</div></div>`;
 }
 document.addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-colabprimeiro],[data-colabvoltar],[data-colabcriar],[data-catoggle],[data-caativo],[data-caremover],[data-cafiltro]");if(!t)return;
@@ -5398,8 +5401,8 @@ function tdIntegracaoHTML(tabs){
   <div class="note" style="margin:0 0 14px">A trilha <b>Integração Brasileirissima</b> aparece sozinha em Treinamentos para quem tem até 90 dias de casa${ROLE==="rh"?". Para outra pessoa, use Liberar para outra pessoa":""}. O colaborador precisa ter criado o acesso ao portal.</div>
   <div class="toolbar"><div class="seg" role="tablist">${[["todos","Todos ("+(cont.aprovado+cont.andamento+cont.naoiniciou)+")"],["naoiniciou","Não iniciaram ("+cont.naoiniciou+")"],["andamento","Em andamento ("+cont.andamento+")"],["aprovado","Aprovados ("+cont.aprovado+")"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-igsit="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-igbusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.igBusca||"")}" aria-label="Buscar colaborador">${ST.stores.length>1?`<select class="input" id="f-igloja" aria-label="Unidade">${lojaOpts(lj)}</select>`:""}<span class="muted small">${L.length} pessoa${L.length===1?"":"s"}</span></div>
-  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Admissão</th><th>Situação</th><th class="r">Paradas</th><th class="r">Pontos</th><th>Aprovação</th><th>Última atividade</th></tr></thead>
-  <tbody>${L.map(e=>{const p=prog.get(e.id);return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(e.admissao)}</td><td>${chip(e)}</td><td class="num r">${p?p.paradas:0}/9</td><td class="num r">${p?p.pontos:0}</td><td class="num">${p&&p.aprovado_em?fdate(p.aprovado_em):"—"}</td><td class="num">${p&&p.paradas?quandoPA(p.atualizado_em):"—"}</td></tr>`}).join("")||`<tr><td colspan="8" class="empty">Ninguém nesta lista.</td></tr>`}</tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Admissão</th><th>Situação</th><th class="r">Paradas</th><th class="r">Pontos</th><th>Aprovação</th><th>Última atividade</th>${ROLE==="rh"?"<th></th>":""}</tr></thead>
+  <tbody>${L.map(e=>{const p=prog.get(e.id);return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td class="num">${fdate(e.admissao)}</td><td>${chip(e)}</td><td class="num r">${p?p.paradas:0}/9</td><td class="num r">${p?p.pontos:0}</td><td class="num">${p&&p.aprovado_em?fdate(p.aprovado_em):"—"}</td><td class="num">${p&&p.paradas?quandoPA(p.atualizado_em):"—"}</td>${ROLE==="rh"?`<td>${p&&(p.paradas||p.pontos||p.aprovado_em)?`<button class="btn btn-sm btn-ghost" data-igreiniciar="${esc(e.id)}" title="Apaga o progresso e a pessoa refaz a trilha desde o início">Reiniciar trilha</button>`:""}</td>`:""}</tr>`}).join("")||`<tr><td colspan="${ROLE==="rh"?9:8}" class="empty">Ninguém nesta lista.</td></tr>`}</tbody></table></div>
   ${ROLE==="rh"?`<datalist id="ig-fora">${fora.map(e=>`<option value="${esc(e.nome)}"></option>`).join("")}</datalist>`:""}</div>`;
 }
 function tdPlanosHTML(tabs){
@@ -5529,11 +5532,16 @@ document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-pabusca")r
 document.addEventListener("keydown",ev=>{if(ev.key!=="Enter"||!ev.target.id||!ev.target.id.startsWith("pa-c-"))return;ev.preventDefault();const b=ev.target.parentElement.querySelector("[data-pacom]");if(b)b.click()});
 /* ---- T&D: abas e Integração ---- */
 document.addEventListener("click",async ev=>{
-  const t=ev.target.closest("[data-tdtab],[data-igsit],[data-igliberar],[data-igliberarok]");if(!t||!gestorPA())return;
+  const t=ev.target.closest("[data-tdtab],[data-igsit],[data-igliberar],[data-igliberarok],[data-igreiniciar],[data-igreiniciarok]");if(!t||!gestorPA())return;
   const d=t.dataset;
   if(d.tdtab){UI.tdTab=d.tdtab;render();return}
   if(d.igsit){UI.igSit=d.igsit;render();return}
   if(d.igliberar&&ROLE==="rh"){modal("Liberar a integração",`<div class="field"><label for="ig-pessoa">Colaborador</label><input class="input" id="ig-pessoa" list="ig-fora" placeholder="Digite o nome"></div><p class="small muted">Para quem tem mais de 90 dias de casa. A trilha passa a aparecer em Treinamentos para essa pessoa.</p><p class="small" id="ig-err" style="color:var(--bad)" hidden></p>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-igliberarok="1">Liberar</button>`);$("#ig-pessoa").focus();return}
+  if(d.igreiniciar&&ROLE==="rh"){const e=emp(d.igreiniciar);if(!e)return;modal("Reiniciar a trilha de integração",`<p>O progresso de <b>${esc(e.nome)}</b> será apagado: paradas, pontos, medalhas, respostas e aprovação. A integração continua liberada e a pessoa recomeça do início.</p><p class="small muted">Não dá para desfazer.</p><p class="small" id="ig-err" style="color:var(--bad)" hidden></p>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-igreiniciarok="${esc(e.id)}">Reiniciar trilha</button>`);return}
+  if(d.igreiniciarok&&ROLE==="rh"){const e=emp(d.igreiniciarok);if(!e)return;const agora=new Date().toISOString();
+    t.disabled=true;const {error}=await SB.from("td_progresso").update({estado:{},pontos:0,paradas:0,nota:null,aprovado_em:null,iniciado_em:agora,atualizado_em:agora}).eq("colaborador_id",e.id).eq("curso","integracao");t.disabled=false;
+    if(error){const el=$("#ig-err");el.hidden=false;el.textContent="Não foi possível reiniciar: "+error.message;return}
+    logEvento("Integração reiniciada",e.nome);await carregarPlanos();closeModal();render();toast("Trilha reiniciada para "+e.nome.split(" ")[0]);return}
   if(d.igliberarok&&ROLE==="rh"){const n=semAcento($("#ig-pessoa").value.trim());const e=ativos().find(x=>semAcento(x.nome)===n);const err=m=>{const el=$("#ig-err");el.hidden=false;el.textContent=m};
     if(!e)return err("Escolha um nome da lista.");if(TDP.some(x=>x.colaborador_id===e.id&&x.curso==="integracao"))return err("Essa pessoa já tem a integração liberada.");
     t.disabled=true;const {error}=await SB.from("td_progresso").insert({colaborador_id:e.id,curso:"integracao"});t.disabled=false;
@@ -5912,6 +5920,23 @@ salvarUsuario=async function(loginEdit){
   await carregarUsuarios();closeModal();render();toast(u?"Usuário atualizado":"Usuário criado");
 };
 document.addEventListener("change",ev=>{if(ev.target.id!=="u-perfil")return;const v=ev.target.value;setTimeout(()=>{$("#u-loja-f").hidden=!(v==="gerente"||v==="comercial");$("#u-sup-f").hidden=v!=="supervisor"},0)});
+
+/* ---- Prestador PJ com função: acesso ao portal pelas mesmas regras do colaborador ----
+   Ele mesmo cria a senha no Primeiro acesso (CPF do prestador ou do responsável + data de nascimento da ficha).
+   O servidor decide o perfil: gestor (supervisor, gestor da unidade ou com equipe no "Reporta a") entra como gerente. */
+const pjCpf=p=>{const d=soDig(p.cnpj);return d.length===11?d:soDig(p.respCpf)};
+const pjUsuario=p=>USUARIOS.find(u=>u.colaborador_id==="p:"+p.id)||null;
+function pjAcessoHTML(p){
+  if(ROLE!=="rh"||p.encerrado)return "";const u=pjUsuario(p),cpf=pjCpf(p);
+  const falta=[!String(p.area||"").trim()&&"Função",cpf.length!==11&&"CPF (do prestador ou do responsável)",!p.nascimento&&"Data de nascimento"].filter(Boolean);
+  const corpo=u?`<div class="kv"><div><span>Login</span><b class="num">CPF ${esc(fmtCPF(u.login))}</b></div><div><span>Perfil</span><b>${esc(PERFIS[u.perfil]||u.perfil)}</b></div>${u.perfil==="gerente"?`<div><span>Lojas</span><b style="white-space:normal">${esc((u.lojas||[]).map(id=>store(id).nome).join(", ")||"—")}</b></div>`:""}<div><span>Situação</span><b>${u.ativo?"Ativo":"Bloqueado"}</b></div></div>
+    <div class="tabs-inline">${u.perfil==="gerente"?`<button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar lojas</button>`:""}<button class="btn btn-sm" data-caativo="${esc(u.login)}" data-v="${u.ativo?0:1}">${u.ativo?"Bloquear":"Desbloquear"}</button><button class="btn btn-sm btn-ghost" data-caremover="${esc(u.login)}">Novo 1º acesso</button></div>`
+    :falta.length?`<p class="small" style="color:var(--warn)">Para criar o acesso falta preencher: <b>${falta.join(", ")}</b>. Use Editar.</p>`
+    :`<p class="small muted">Sem acesso ainda. O prestador cria a própria senha em <b>Primeiro acesso</b>, na tela de entrada, com o CPF ${esc(fmtCPF(cpf))} e a data de nascimento da ficha${ST.cfg&&ST.cfg.acessoColab?"":" (o primeiro acesso está suspenso em Usuários e acessos › Colaboradores)"}. Se for gestor, entra como gerente das lojas dele.</p>`;
+  return `<details class="fx-view" open><summary>Acesso ao portal</summary>${corpo}</details>`;
+}
+const pjFichaBase=pjFicha;
+pjFicha=function(id){pjFichaBase(id);const p=(ST.pjs||[]).find(x=>x.id===id);const b=document.querySelector(".modal-b");if(p&&b)b.insertAdjacentHTML("beforeend",pjAcessoHTML(p))};
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
