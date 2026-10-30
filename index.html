@@ -5766,7 +5766,7 @@ document.addEventListener("change",async ev=>{
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")return;UI.chBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-chbusca");n.focus();n.setSelectionRange(pos,pos)});
 
 /* ============ média liderança no acesso do colaborador · só na versão internet ============
-   Quem tem equipe no "Reporta a" (direta ou indireta) ganha sozinho o menu "Meu time".
+   Quem tem equipe no "Reporta a" informado na ficha (direta ou indireta, sem a ligação automática pelo cargo) ganha sozinho o menu "Meu time".
    O portal do RH grava em org_lideres a lista de cada líder (mesma regra do organograma); o líder lê só
    minha_equipe_dados(): nome, cargo, unidade, admissão, férias, ASO e experiência. Salário, CPF, ficha e banco de horas ficam fora. */
 let EQUIPE=[];
@@ -5778,12 +5778,14 @@ PAGES_C.push({g:"Minha liderança",lid:1},{id:"meutime",t:"Meu time",lid:1});
 /* ---- RH: para cada colaborador que lidera alguém, todos abaixo dele, cada um com o id de quem ele reporta ---- */
 // sem os sócios fora da operação (ORG_FORA), como no organograma
 function liderSnapshots(){const o=ORG_FORA;ORG_FORA=true;try{return liderCalc()}finally{ORG_FORA=o}}
+// só vale o "Reporta a" informado na ficha (gestorId): a ligação automática pelo cargo não entra no time do líder
+const paiExplicito=e=>{if(!e||!e.gestorId)return null;const g=emp(e.gestorId);return g&&!g.desligado?g:null};
 function liderCalc(){
   const M=new Map(),colab=new Set(ativos().map(e=>e.id));
   ativos().forEach(e=>{
-    const r=reportaA(e);if(!r)return;
-    const pai=r.g.id,vis=new Set([e.id]);let g=r.g;
-    while(g&&!vis.has(g.id)){vis.add(g.id);if(colab.has(g.id)&&!g.desligado){if(!M.has(g.id))M.set(g.id,[]);M.get(g.id).push([e.id,pai])}const n=reportaA(g);g=n?n.g:null}
+    const p=paiExplicito(e);if(!p)return;
+    const pai=p.id,vis=new Set([e.id]);let g=p;
+    while(g&&!vis.has(g.id)){vis.add(g.id);if(colab.has(g.id)){if(!M.has(g.id))M.set(g.id,[]);M.get(g.id).push([e.id,pai])}g=paiExplicito(g)}
   });
   return [...M].map(([id,m])=>[id,{lider_id:id,dados:{m}}]);
 }
