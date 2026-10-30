@@ -5168,7 +5168,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* ---- organograma da unidade: o RH publica uma cópia por unidade só com nome, cargo e a quem reporta ----
-   dados = {n: nome da unidade, p: [[id, nome, cargo, id de quem reporta, tipo ("" | "ext" outra unidade | "vis" atua pelo CC), detalhe]]}
+   dados = {e: 1 se for escritório, n: nome da unidade, p: [[id, nome, cargo, id de quem reporta, tipo ("" | "ext" outra unidade | "vis" atua pelo CC), detalhe]]}
    (chaves de uma letra: o jsonb devolve na mesma ordem e a comparação com o que já está gravado não muda à toa) */
 function orgSnapshot(lojaId){
   const T=orgArvore(lojaId),L=[],vis=new Set();
@@ -5177,7 +5177,7 @@ function orgSnapshot(lojaId){
   Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);if(!g)return;if(!vis.has(g.id)){vis.add(g.id);L.push([g.id,g.nome,g.cargo||"",null,g.pj?"":"ext",g.pj?"":store(g.lojaId).nome])}l.forEach(x=>add(x.e,g.id))});
   (T.visitantes||[]).forEach(e=>{if(vis.has(e.id))return;vis.add(e.id);const c=ORG_CRUZ.get(e.id);
     L.push([e.id,e.nome,e.cargo||"",null,"vis","Lotação: "+store(e.lojaId).nome+(c?" · "+c.pct.toLocaleString("pt-BR",{maximumFractionDigits:2})+"% aqui":"")])});
-  return {n:store(lojaId).nome,p:L};
+  return /escrit/i.test(store(lojaId).tipo||"")?{e:1,n:store(lojaId).nome,p:L}:{n:store(lojaId).nome,p:L};
 }
 // sem o filtro de centro de custo da tela do RH e sem os sócios fora da operação
 function orgCalcular(){const f=UI.ccF,o=ORG_FORA;UI.ccF=[];ORG_FORA=true;try{return ST.stores.map(s=>[s.id,{loja_id:s.id,dados:orgSnapshot(s.id)}])}finally{UI.ccF=f;ORG_FORA=o}}
@@ -5198,8 +5198,19 @@ async function orgPublicadaSync(){
   LAST.org_unidades=new Map(o.data.map(r=>[r.loja_id,JSON.stringify({loja_id:r.loja_id,dados:r.dados})]));
   setTimeout(persist,0);
 }
+// no escritório cada área tem o seu time: a pessoa vê só o ramo dela (gestores acima, colegas do mesmo gestor e quem reporta a ela)
+function orgRamo(P){
+  const eu=MEU&&MEU.id,ix=new Map(P.map(x=>[x.id,x])),me=ix.get(eu);if(!me)return [];
+  const ok=new Set([eu]),desc=new Set();
+  for(let g=ix.get(me.pai);g&&!ok.has(g.id);g=ix.get(g.pai))ok.add(g.id);
+  if(me.pai)P.forEach(x=>{if(x.pai===me.pai)ok.add(x.id)});
+  let n;do{n=ok.size;P.forEach(x=>{if(x.pai&&!ok.has(x.id)&&(x.pai===eu||desc.has(x.pai))){ok.add(x.id);desc.add(x.id)}})}while(ok.size>n);
+  return P.filter(x=>ok.has(x.id)).map(x=>({...x,pai:ok.has(x.pai)?x.pai:null}));
+}
 function orgColabHTML(o){
-  const P=o.p.map(([id,nome,cargo,pai,tipo,extra])=>({id,nome,cargo,pai,tipo,extra}));
+  let P=o.p.map(([id,nome,cargo,pai,tipo,extra])=>({id,nome,cargo,pai,tipo,extra}));
+  if(o.e)P=orgRamo(P);
+  if(!P.length)return `<p class="empty">Você ainda não aparece no organograma da unidade. Peça ao RH para conferir o seu "Reporta a".</p>`;
   const filhos={};P.forEach(x=>{if(x.pai)(filhos[x.pai]=filhos[x.pai]||[]).push(x)});
   const eu=MEU&&MEU.id;
   const card=(x,peq)=>`<div class="org-p${peq?" peq":""}${x.tipo==="ext"?" externo":""}${x.tipo==="vis"?" cruzado":""}${x.id===eu?" voce":""}"><div class="avatar">${esc(initials(x.nome))}</div><div style="min-width:0"><b>${esc(x.nome.split(" ").slice(0,2).join(" "))}</b>${peq?"":`<span>${esc(x.cargo)}</span>`}${x.tipo==="ext"?`<span class="chip c-info" style="margin-top:3px;width:max-content">${esc(x.extra)}</span>`:""}${x.tipo==="vis"?`<span class="org-x">${esc(x.extra)}</span>`:""}${x.id===eu?`<span class="chip c-ok" style="margin-top:3px;width:max-content">Você</span>`:""}</div></div>`;
@@ -5221,7 +5232,7 @@ R.minhaequipe=()=>{
   const o=MEU_ORG;
   return header("Meu espaço","Minha equipe")+css+`<div class="card org"><div class="org-topo"><b>${esc((o&&o.n)||(MEU&&MEU.loja_nome)||"")}</b><span>${esc((MEU&&MEU.cidade)||"")}</span></div>
   ${o&&o.p.length?orgColabHTML(o):`<p class="empty">O organograma da sua unidade ainda não foi publicado pelo RH.</p>`}
-  <p class="small muted" style="margin-top:14px">Quem lidera e quem faz parte da sua unidade. Borda azul = gestor de outra unidade. Caixas lilás = pessoas de outra loja que também atuam aqui.</p></div>`;
+  <p class="small muted" style="margin-top:14px">${o&&o.e?"No escritório aparece só a sua área: quem está acima de você, os colegas com o mesmo gestor e quem reporta a você.":"Quem lidera e quem faz parte da sua unidade."} Borda azul = gestor de outra unidade. Caixas lilás = pessoas de outra loja que também atuam aqui.</p></div>`;
 };
 
 /* ---- primeiro acesso ---- */
