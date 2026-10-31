@@ -4599,7 +4599,6 @@ document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.datase
    Automáticos: gerente/responsável da unidade, supervisor da carteira e, no Núcleo, o gestor de cada subcentro. */
 const mcRefDe=e=>!e?"":String(e.id).startsWith("p:")?e.id:"e:"+e.id;
 const mcCorp=ref=>(ST.contatosCorp||{})[ref]||{};
-const mcEnd=v=>!v?"":typeof v==="string"?v:Object.values(v).filter(Boolean).join(", ");
 function mcReps(s){
   const L=[],vistos=new Set();
   const add=(papel,ref,nome,auto)=>{if(!ref&&!nome)return;const k=papel+"|"+(ref||nome);if(vistos.has(k))return;vistos.add(k);
@@ -4613,7 +4612,7 @@ function mcReps(s){
 // tudo já resolvido (nomes, telefones): é o que o RH publica para gerentes e gestores
 function mcDados(){
   return ST.stores.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true})).map(s=>{const c=s.contato||{};
-    return {id:s.id,n:s.nome,cid:s.cidade||"",tp:s.tipo||"",rs:s.razaoSocial||"",cnpj:s.cnpj||"",end:mcEnd(s.endereco),cc:s.centroCusto||"",
+    return {id:s.id,n:s.nome,cid:s.cidade||"",tp:s.tipo||"",rs:s.razaoSocial||"",cnpj:s.cnpj||"",cc:s.centroCusto||"",
       tel:c.telefone||"",em:c.email||"",wpp:c.whatsapp||"",hor:c.horario||"",r:mcReps(s).map(r=>({p:r.papel,n:r.nome,t:r.telefone,e:r.email}))}});
 }
 // WhatsApp: número com DDD (celular com 9 na frente, ou o campo WhatsApp da unidade), sempre com o 55 do Brasil
@@ -4621,23 +4620,24 @@ const mcZap=(t,forcar)=>{let d=soDig(t);if(d.length===10||d.length===11)d="55"+d
   return ` <a class="mc-zap" href="https://wa.me/${d}" target="_blank" rel="noopener" title="Conversar pelo WhatsApp" aria-label="Conversar pelo WhatsApp"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/><path fill="#fff" d="M17.3 14.4c-.3-.1-1.7-.8-2-.9s-.5-.1-.7.1-.8.9-.9 1.1-.3.2-.6.1a8.2 8.2 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.8.4 3.5 3.5 0 0 0-1.1 2.6 6 6 0 0 0 1.3 3.2 13.8 13.8 0 0 0 5.3 4.7c2 .8 2.4.7 2.9.6a2.4 2.4 0 0 0 1.6-1.1 2 2 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3z"/></svg></a>`};
 const mcTel=(t,zap)=>t?`<a href="tel:${esc(soDig(t))}">${esc(t)}</a>${zap===false?"":mcZap(t,zap)}`:`<span class="muted">—</span>`;
 const mcMail=m=>m?`<a href="mailto:${esc(m)}">${esc(m)}</a>`:`<span class="muted">—</span>`;
-const mcFiltrar=U=>{const q=semAcento(UI.mcBusca||"");return !q?U:U.filter(u=>semAcento([u.n,u.cid,u.rs,u.cnpj,u.end,u.cc,u.tel,u.em,...u.r.flatMap(r=>[r.p,r.n,r.t,r.e])].join(" ")).includes(q))};
+// unidade escolhida no menu suspenso; sem escolha, PDF e Excel saem com todas
+const mcFiltrar=U=>{const u=UI.mcUnid&&U.find(x=>x.id===UI.mcUnid);return u?[u]:U};
 function mcPaginaHTML(U,podeEditar){
-  const L=mcFiltrar(U||[]);
-  const css=`<style>.mc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}.mc-u h3{margin:0;font-size:1rem}.mc-u .mc-sub{color:var(--muted);font-size:.78rem;margin:2px 0 8px}.mc-cont{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.85rem;margin:8px 0}.mc-cont span{color:var(--muted)}.mc-u table{font-size:.82rem}.mc-u td,.mc-u th{padding:5px 6px}.mc-u a{color:var(--brand);text-decoration:none}.mc-zap{display:inline-flex;vertical-align:middle;margin-left:4px}.mc-zap:hover{transform:scale(1.12)}</style>`;
-  return css+`<div class="toolbar"><input class="input search" id="f-mcbusca" type="search" placeholder="Buscar unidade, pessoa, telefone ou e-mail" value="${esc(UI.mcBusca||"")}" aria-label="Buscar nos contatos"><span class="muted small">${L.length} unidade${L.length===1?"":"s"}</span><span style="flex:1"></span><button class="btn" data-mcpdf="1">Baixar PDF</button><button class="btn" data-mcxls="1">Baixar Excel</button></div>
-  <div class="mc-grid">${L.map(u=>`<div class="card mc-u"><h3>${esc(u.n)}</h3><div class="mc-sub">${esc([u.tp,u.cid].filter(Boolean).join(" · "))}${u.cc?" · CC "+esc(u.cc):""}</div>
-    ${u.rs||u.cnpj?`<div class="small">${esc(u.rs)}${u.cnpj?" · CNPJ "+esc(u.cnpj):""}</div>`:""}${u.end?`<div class="small muted">${esc(u.end)}</div>`:""}
+  U=U||[];const u=UI.mcUnid&&U.find(x=>x.id===UI.mcUnid);
+  const css=`<style>.mc-grid{display:grid;grid-template-columns:minmax(0,760px);gap:14px}.mc-u h3{margin:0;font-size:1rem}.mc-u .mc-sub{color:var(--muted);font-size:.78rem;margin:2px 0 8px}.mc-cont{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.85rem;margin:8px 0}.mc-cont span{color:var(--muted)}.mc-u table{font-size:.82rem}.mc-u td,.mc-u th{padding:5px 6px}.mc-u a{color:var(--brand);text-decoration:none}.mc-zap{display:inline-flex;vertical-align:middle;margin-left:4px}.mc-zap:hover{transform:scale(1.12)}</style>`;
+  return css+`<div class="toolbar"><select class="input" id="f-mcunid" aria-label="Unidade" style="min-width:min(100%,380px)"><option value="">Escolha a unidade…</option>${U.map(x=>`<option value="${esc(x.id)}" ${u&&u.id===x.id?"selected":""}>${esc(x.n)}</option>`).join("")}</select><span style="flex:1"></span><button class="btn" data-mcpdf="1" title="${u?"Só esta unidade":"Todas as unidades"}">Baixar PDF</button><button class="btn" data-mcxls="1" title="${u?"Só esta unidade":"Todas as unidades"}">Baixar Excel</button></div>
+  <div class="mc-grid">${!u?`<div class="card"><p class="empty" style="padding:24px 12px">Escolha uma unidade no menu acima para ver os contatos.<br><span class="small">Sem unidade escolhida, o PDF e o Excel saem com toda a rede.</span></p></div>`:[u].map(u=>`<div class="card mc-u"><h3>${esc(u.n)}</h3><div class="mc-sub">${esc([u.tp,u.cid].filter(Boolean).join(" · "))}${u.cc?" · CC "+esc(u.cc):""}</div>
+    ${u.rs||u.cnpj?`<div class="small">${esc(u.rs)}${u.cnpj?" · CNPJ "+esc(u.cnpj):""}</div>`:""}
     <div class="mc-cont"><span>Telefone</span>${mcTel(u.tel)}<span>E-mail</span>${mcMail(u.em)}${u.wpp?`<span>WhatsApp</span>${mcTel(u.wpp,true)}`:""}${u.hor?`<span>Horário</span><b style="font-weight:500">${esc(u.hor)}</b>`:""}</div>
     <div class="table-wrap"><table><thead><tr><th>Representante</th><th>Telefone corporativo</th><th>E-mail corporativo</th></tr></thead><tbody>${u.r.map(r=>`<tr><td><b>${esc(r.n||"—")}</b><br><span class="small muted">${esc(r.p)}</span></td><td>${mcTel(r.t)}</td><td style="word-break:break-all">${mcMail(r.e)}</td></tr>`).join("")||`<tr><td colspan="3" class="empty">Sem representante cadastrado.</td></tr>`}</tbody></table></div>
-    ${podeEditar?`<div class="tabs-inline" style="margin-top:10px"><button class="btn btn-sm" data-mceditar="${esc(u.id)}">Editar contatos</button></div>`:""}</div>`).join("")||`<p class="empty">Nenhuma unidade com essa busca.</p>`}</div>
+    ${podeEditar?`<div class="tabs-inline" style="margin-top:10px"><button class="btn btn-sm" data-mceditar="${esc(u.id)}">Editar contatos</button></div>`:""}</div>`).join("")}</div>
   <p class="small muted" style="margin-top:14px">Gerente, responsável, supervisor e gestores dos subcentros do Núcleo entram sozinhos pelo cadastro${podeEditar?" (Lojas, Supervisores e Configurações › Gestores dos subcentros)":""}. Só contatos corporativos: telefone e e-mail pessoais não aparecem aqui.</p>`;
 }
-function mcLinhasExport(U){return mcFiltrar(U||[]).flatMap(u=>(u.r.length?u.r:[{p:"",n:"",t:"",e:""}]).map(r=>[u.n,u.cid,u.rs,u.cnpj,u.end,u.tel,u.em,u.wpp,u.hor,r.p,r.n,r.t,r.e]))}
-const MC_COLS=["Unidade","Cidade","Razão social","CNPJ","Endereço","Telefone da unidade","E-mail da unidade","WhatsApp","Horário","Papel","Representante","Telefone corporativo","E-mail corporativo"];
+function mcLinhasExport(U){return mcFiltrar(U||[]).flatMap(u=>(u.r.length?u.r:[{p:"",n:"",t:"",e:""}]).map(r=>[u.n,u.cid,u.rs,u.cnpj,u.tel,u.em,u.wpp,u.hor,r.p,r.n,r.t,r.e]))}
+const MC_COLS=["Unidade","Cidade","Razão social","CNPJ","Telefone da unidade","E-mail da unidade","WhatsApp","Horário","Papel","Representante","Telefone corporativo","E-mail corporativo"];
 function mcPdf(U){
   const L=mcFiltrar(U||[]).flatMap(u=>(u.r.length?u.r:[{p:"",n:"—",t:"",e:""}]).map((r,i)=>[i?"":u.n,i?"":[u.tel,u.em].filter(Boolean).join(" · "),r.p,r.n,r.t,r.e]));
-  pdfTabela({titulo:"Contatos da Rede",filtros:"Unidades, representantes e contatos corporativos · posição em "+fdate(TODAY)+(UI.mcBusca?" · busca: "+UI.mcBusca:""),resumo:[["Unidades",mcFiltrar(U||[]).length]],
+  pdfTabela({titulo:"Contatos da Rede",filtros:"Unidades, representantes e contatos corporativos · posição em "+fdate(TODAY)+(UI.mcUnid&&mcFiltrar(U||[]).length===1?" · "+mcFiltrar(U||[])[0].n:" · todas as unidades"),resumo:[["Unidades",mcFiltrar(U||[]).length]],
     colunas:["Unidade","Contato da unidade","Papel","Representante","Telefone","E-mail"],larguras:[62,58,40,52,30,0],linhas:L,fonte:8,arquivo:"contatos-da-rede-"+TODAY+".pdf",log:["Contatos da Rede emitido",L.length+" linhas"]});
 }
 function mcXls(U){
@@ -4715,7 +4715,7 @@ document.addEventListener("click",ev=>{
   if(d.mcxadd){mcLerExtras();MC_EDIT.extras.push({id:uid(),papel:"",ref:"",nome:""});$("#mc-extras").innerHTML=mcExtrasHTML();return}
   if(d.mcxdel){mcLerExtras();MC_EDIT.extras.splice(Number(d.mcxdel),1);$("#mc-extras").innerHTML=mcExtrasHTML();return}
 });
-document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-mcbusca")return;UI.mcBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-mcbusca");if(n){n.focus();n.setSelectionRange(pos,pos)}});
+document.addEventListener("change",ev=>{if(ev.target.id==="f-mcunid"){UI.mcUnid=ev.target.value;render()}});
 document.addEventListener("input",ev=>{if(ev.target.id!=="sp-busca")return;const n=semAcento(ev.target.value);document.querySelectorAll("[data-spitem]").forEach(l=>{l.style.display=!n||l.dataset.spitem.includes(n)?"":"none"})});
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
