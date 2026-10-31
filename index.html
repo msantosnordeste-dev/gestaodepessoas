@@ -5867,10 +5867,10 @@ function ltFeriasHTML(tabs){
 R.meutime=()=>{
   if(!souLider())return header("Minha liderança","Meu time")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Ninguém reporta a você no organograma.</b><br>Se você lidera uma equipe, peça ao RH para ajustar o "Reporta a".</p></div>`;
   const tab=UI.ltTab||"pessoas";
-  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["org","Organograma"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
   if(tab==="integracao")return tdIntegracaoHTML(tabs);
   if(tab==="planos")return tdPlanosHTML(tabs);
-  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):tab==="org"?ltOrgHTML(tabs):ltPessoasHTML(tabs));
+  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):ltPessoasHTML(tabs));
 };
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-lttab],[data-ltquem]");if(!t||!souLider())return;
@@ -5880,7 +5880,7 @@ document.addEventListener("click",ev=>{
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-ltbusca")return;UI.ltBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-ltbusca");n.focus();n.setSelectionRange(pos,pos)});
 document.addEventListener("change",ev=>{if(ev.target.id==="f-ltloja"){UI.ltLoja=ev.target.value;render()}});
 
-/* ---- organograma do time: no Núcleo de Apoio ao Negócio, agrupado pelo subcentro (ex.: 88.1 - NAN - RH) com o líder no topo ---- */
+/* ---- organograma do líder no menu "Minha equipe": no Núcleo de Apoio ao Negócio, agrupado pelo subcentro (ex.: 88.1 - NAN - RH) com o líder no topo ---- */
 const LT_ORG_CSS=`<style>.lto{overflow-x:auto;padding:4px 0 8px}.lto-arv{display:flex;flex-direction:column;align-items:center}.lto-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;text-align:left}.lto-p b{display:block;font-size:.85rem}.lto-p span{display:block;font-size:.72rem;color:var(--muted)}.lto-p.voce{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent)}.lto-con{width:2px;height:20px;background:var(--line);margin:0 auto}.lto-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.lto-no{display:flex;flex-direction:column;align-items:center}.lto-sub{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center}.lto-subh{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;text-align:center}.lto-subh b{display:block;font-size:.9rem;letter-spacing:0;text-transform:none;color:var(--text)}</style>`;
 function ltOrgHTML(tabs){
   const L=ativos(),eu=MEU&&MEU.id,filhos={};
@@ -5894,6 +5894,9 @@ function ltOrgHTML(tabs){
   return `<div class="card">${tabs}${LT_ORG_CSS}<div class="lto"><div class="lto-ramos" style="border:0;padding:0;gap:20px">${blocos.join("")}</div></div>
   <div class="note" style="margin-top:14px">${subs.length?"No Núcleo de Apoio ao Negócio você vê só o subcentro que coordena. O núcleo completo fica com o RH.":"Quem reporta a você no organograma e quem reporta a eles."} Algo errado? Abra um chamado para o RH.</div></div>`;
 }
+// gestor de subcentro do núcleo (ou líder sem organograma de unidade publicado) vê em "Minha equipe" o organograma do time dele
+const R_MINHAEQUIPE_LT=R.minhaequipe;
+R.minhaequipe=()=>souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
 
 /* ============ perfis Supervisão e Gestão Comercial · só na versão internet ============
    Login criado pelo RH; no portal funcionam como o gerente de loja (ROLE "gerente"), vendo várias lojas sem salário.
