@@ -4593,6 +4593,129 @@ document.addEventListener("click",ev=>{const t=ev.target.closest("[data-supnovo]
   if(d.redeorg){UI.orgLoja=d.redeorg;UI.hcTab="org";render();return}
   if(d.act==="redePdf"){redePdf();return}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.dataset.ccgestor){const c=ccCadastro().find(x=>x.id===t.dataset.ccgestor);if(!c)return;if(t.value)c.gestorRef=t.value;else delete c.gestorRef;logEvento("Gestor de núcleo definido",c.nome+" → "+((refPessoa(t.value)||{}).nome||"sem gestor"));commit("Gestor do núcleo salvo")}});
+/* ============ Contatos da Rede · matriz de comunicação (aba de Lojas): dados da unidade, representantes, telefones e e-mails corporativos ============
+   ST.stores[i].contato = {telefone, email, whatsapp, horario} · ST.stores[i].reps = [{id, papel, ref, nome}] (representantes além dos automáticos)
+   ST.contatosCorp = {ref: {telefone, email}}: contato corporativo de cada pessoa, digitado uma vez e usado em todas as unidades.
+   Automáticos: gerente/responsável da unidade, supervisor da carteira e, no Núcleo, o gestor de cada subcentro. */
+const mcRefDe=e=>!e?"":String(e.id).startsWith("p:")?e.id:"e:"+e.id;
+const mcCorp=ref=>(ST.contatosCorp||{})[ref]||{};
+const mcEnd=v=>!v?"":typeof v==="string"?v:Object.values(v).filter(Boolean).join(", ");
+function mcReps(s){
+  const L=[],vistos=new Set();
+  const add=(papel,ref,nome,auto)=>{if(!ref&&!nome)return;const k=papel+"|"+(ref||nome);if(vistos.has(k))return;vistos.add(k);
+    const r=ref?refPessoa(ref):null;const c=ref?mcCorp(ref):{};L.push({papel,ref:ref||"",nome:(r&&r.nome)||nome||"",telefone:c.telefone||"",email:c.email||"",auto})};
+  if(/n[uú]cleo/i.test(s.nome||"")&&typeof nucleosCC==="function")nucleosCC().filter(c=>c.pai&&c.gestorRef).forEach(c=>add("Gestor · "+c.nome.replace(/^[\d.]+\s*-\s*(NAN - )?/,""),c.gestorRef,"",true));
+  else{const g=typeof gerenteDaLoja==="function"?gerenteDaLoja(s):null;if(g)add(g.lojaId===s.id?"Gerente / responsável":"Responsável (outra unidade)",mcRefDe(g),"",true)}
+  const sup=typeof supDaLoja==="function"?supDaLoja(s.id):null;if(sup&&sup.ref)add("Supervisor(a)",sup.ref,"",true);
+  (s.reps||[]).forEach(r=>add(r.papel||"Contato",r.ref,r.nome,false));
+  return L;
+}
+// tudo já resolvido (nomes, telefones): é o que o RH publica para gerentes e gestores
+function mcDados(){
+  return ST.stores.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true})).map(s=>{const c=s.contato||{};
+    return {id:s.id,n:s.nome,cid:s.cidade||"",tp:s.tipo||"",rs:s.razaoSocial||"",cnpj:s.cnpj||"",end:mcEnd(s.endereco),cc:s.centroCusto||"",
+      tel:c.telefone||"",em:c.email||"",wpp:c.whatsapp||"",hor:c.horario||"",r:mcReps(s).map(r=>({p:r.papel,n:r.nome,t:r.telefone,e:r.email}))}});
+}
+// WhatsApp: número com DDD (celular com 9 na frente, ou o campo WhatsApp da unidade), sempre com o 55 do Brasil
+const mcZap=(t,forcar)=>{let d=soDig(t);if(d.length===10||d.length===11)d="55"+d;const cel=d.length===13&&d[4]==="9";if(!(cel||forcar&&d.length>=12))return "";
+  return ` <a class="mc-zap" href="https://wa.me/${d}" target="_blank" rel="noopener" title="Conversar pelo WhatsApp" aria-label="Conversar pelo WhatsApp"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#25D366" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/><path fill="#fff" d="M17.3 14.4c-.3-.1-1.7-.8-2-.9s-.5-.1-.7.1-.8.9-.9 1.1-.3.2-.6.1a8.2 8.2 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.8.4 3.5 3.5 0 0 0-1.1 2.6 6 6 0 0 0 1.3 3.2 13.8 13.8 0 0 0 5.3 4.7c2 .8 2.4.7 2.9.6a2.4 2.4 0 0 0 1.6-1.1 2 2 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3z"/></svg></a>`};
+const mcTel=(t,zap)=>t?`<a href="tel:${esc(soDig(t))}">${esc(t)}</a>${zap===false?"":mcZap(t,zap)}`:`<span class="muted">—</span>`;
+const mcMail=m=>m?`<a href="mailto:${esc(m)}">${esc(m)}</a>`:`<span class="muted">—</span>`;
+const mcFiltrar=U=>{const q=semAcento(UI.mcBusca||"");return !q?U:U.filter(u=>semAcento([u.n,u.cid,u.rs,u.cnpj,u.end,u.cc,u.tel,u.em,...u.r.flatMap(r=>[r.p,r.n,r.t,r.e])].join(" ")).includes(q))};
+function mcPaginaHTML(U,podeEditar){
+  const L=mcFiltrar(U||[]);
+  const css=`<style>.mc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}.mc-u h3{margin:0;font-size:1rem}.mc-u .mc-sub{color:var(--muted);font-size:.78rem;margin:2px 0 8px}.mc-cont{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.85rem;margin:8px 0}.mc-cont span{color:var(--muted)}.mc-u table{font-size:.82rem}.mc-u td,.mc-u th{padding:5px 6px}.mc-u a{color:var(--brand);text-decoration:none}.mc-zap{display:inline-flex;vertical-align:middle;margin-left:4px}.mc-zap:hover{transform:scale(1.12)}</style>`;
+  return css+`<div class="toolbar"><input class="input search" id="f-mcbusca" type="search" placeholder="Buscar unidade, pessoa, telefone ou e-mail" value="${esc(UI.mcBusca||"")}" aria-label="Buscar nos contatos"><span class="muted small">${L.length} unidade${L.length===1?"":"s"}</span><span style="flex:1"></span><button class="btn" data-mcpdf="1">Baixar PDF</button><button class="btn" data-mcxls="1">Baixar Excel</button></div>
+  <div class="mc-grid">${L.map(u=>`<div class="card mc-u"><h3>${esc(u.n)}</h3><div class="mc-sub">${esc([u.tp,u.cid].filter(Boolean).join(" · "))}${u.cc?" · CC "+esc(u.cc):""}</div>
+    ${u.rs||u.cnpj?`<div class="small">${esc(u.rs)}${u.cnpj?" · CNPJ "+esc(u.cnpj):""}</div>`:""}${u.end?`<div class="small muted">${esc(u.end)}</div>`:""}
+    <div class="mc-cont"><span>Telefone</span>${mcTel(u.tel)}<span>E-mail</span>${mcMail(u.em)}${u.wpp?`<span>WhatsApp</span>${mcTel(u.wpp,true)}`:""}${u.hor?`<span>Horário</span><b style="font-weight:500">${esc(u.hor)}</b>`:""}</div>
+    <div class="table-wrap"><table><thead><tr><th>Representante</th><th>Telefone corporativo</th><th>E-mail corporativo</th></tr></thead><tbody>${u.r.map(r=>`<tr><td><b>${esc(r.n||"—")}</b><br><span class="small muted">${esc(r.p)}</span></td><td>${mcTel(r.t)}</td><td style="word-break:break-all">${mcMail(r.e)}</td></tr>`).join("")||`<tr><td colspan="3" class="empty">Sem representante cadastrado.</td></tr>`}</tbody></table></div>
+    ${podeEditar?`<div class="tabs-inline" style="margin-top:10px"><button class="btn btn-sm" data-mceditar="${esc(u.id)}">Editar contatos</button></div>`:""}</div>`).join("")||`<p class="empty">Nenhuma unidade com essa busca.</p>`}</div>
+  <p class="small muted" style="margin-top:14px">Gerente, responsável, supervisor e gestores dos subcentros do Núcleo entram sozinhos pelo cadastro${podeEditar?" (Lojas, Supervisores e Configurações › Gestores dos subcentros)":""}. Só contatos corporativos: telefone e e-mail pessoais não aparecem aqui.</p>`;
+}
+function mcLinhasExport(U){return mcFiltrar(U||[]).flatMap(u=>(u.r.length?u.r:[{p:"",n:"",t:"",e:""}]).map(r=>[u.n,u.cid,u.rs,u.cnpj,u.end,u.tel,u.em,u.wpp,u.hor,r.p,r.n,r.t,r.e]))}
+const MC_COLS=["Unidade","Cidade","Razão social","CNPJ","Endereço","Telefone da unidade","E-mail da unidade","WhatsApp","Horário","Papel","Representante","Telefone corporativo","E-mail corporativo"];
+function mcPdf(U){
+  const L=mcFiltrar(U||[]).flatMap(u=>(u.r.length?u.r:[{p:"",n:"—",t:"",e:""}]).map((r,i)=>[i?"":u.n,i?"":[u.tel,u.em].filter(Boolean).join(" · "),r.p,r.n,r.t,r.e]));
+  pdfTabela({titulo:"Contatos da Rede",filtros:"Unidades, representantes e contatos corporativos · posição em "+fdate(TODAY)+(UI.mcBusca?" · busca: "+UI.mcBusca:""),resumo:[["Unidades",mcFiltrar(U||[]).length]],
+    colunas:["Unidade","Contato da unidade","Papel","Representante","Telefone","E-mail"],larguras:[62,58,40,52,30,0],linhas:L,fonte:8,arquivo:"contatos-da-rede-"+TODAY+".pdf",log:["Contatos da Rede emitido",L.length+" linhas"]});
+}
+function mcXls(U){
+  const L=mcLinhasExport(U);
+  if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([MC_COLS,...L]);ws["!cols"]=MC_COLS.map(h=>({wch:Math.max(14,h.length+2)}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Matriz");XLSX.writeFile(wb,"contatos-da-rede-"+TODAY+".xlsx");return}
+  const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';const csv="﻿"+[MC_COLS,...L].map(l=>l.map(q).join(";")).join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="contatos-da-rede-"+TODAY+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+/* ---- edição (RH) ---- */
+let MC_EDIT=null;
+function mcEditar(id){
+  const s=ST.stores.find(x=>x.id===id);if(!s)return;const c=s.contato||{};
+  MC_EDIT={id,extras:JSON.parse(JSON.stringify(s.reps||[]))};
+  const auto=mcReps(s).filter(r=>r.auto&&r.ref);
+  modal("Contatos · "+s.nome,`<form class="form-grid" id="mc-form">
+    <div class="field"><label for="mc-tel">Telefone corporativo da unidade</label><input class="input" id="mc-tel" value="${esc(c.telefone||"")}" placeholder="(71) 3333-0000"></div>
+    <div class="field"><label for="mc-em">E-mail da unidade</label><input class="input" id="mc-em" type="email" value="${esc(c.email||"")}" placeholder="loja21@..."></div>
+    <div class="field"><label for="mc-wpp">WhatsApp corporativo</label><input class="input" id="mc-wpp" value="${esc(c.whatsapp||"")}"></div>
+    <div class="field"><label for="mc-hor">Horário de funcionamento</label><input class="input" id="mc-hor" value="${esc(c.horario||"")}" placeholder="Seg a dom, 6h às 22h"></div>
+    ${auto.length?`<p class="full small muted" style="margin:6px 0 0"><b>Representantes do cadastro</b> · o telefone e o e-mail valem para a pessoa em todas as unidades</p>${auto.map(r=>`<div class="field"><label>${esc(r.nome)} · ${esc(r.papel)}</label><input class="input" data-mctel="${esc(r.ref)}" value="${esc(r.telefone)}" placeholder="Telefone corporativo"></div><div class="field"><label class="sr-only">E-mail de ${esc(r.nome)}</label><input class="input" type="email" data-mcem="${esc(r.ref)}" value="${esc(r.email)}" placeholder="E-mail corporativo" style="margin-top:22px"></div>`).join("")}`:""}
+    <div class="full" id="mc-extras">${mcExtrasHTML()}</div>
+    <p class="full small" id="mc-err" style="color:var(--bad)" hidden></p></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-mcsalvar="1">Salvar</button>`);
+}
+function mcExtrasHTML(){
+  return `<p class="small muted" style="margin:6px 0"><b>Outros representantes</b> · ex.: subgerente, líder de turno, contato do shopping</p>
+  ${MC_EDIT.extras.map((r,i)=>{const c=r.ref?mcCorp(r.ref):{telefone:r.telefone,email:r.email};return `<div class="form-grid" style="border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px">
+    <div class="field"><label>Papel</label><input class="input" data-mcxp="${i}" value="${esc(r.papel||"")}" placeholder="Subgerente"></div>
+    <div class="field"><label>Pessoa do cadastro</label><select class="input" data-mcxr="${i}">${refOpcoes(r.ref||"",false)}</select></div>
+    <div class="field"><label>Ou nome (sem cadastro)</label><input class="input" data-mcxn="${i}" value="${esc(r.ref?"":r.nome||"")}"></div>
+    <div class="field"><label>Telefone corporativo</label><input class="input" data-mcxt="${i}" value="${esc(c.telefone||"")}"></div>
+    <div class="field"><label>E-mail corporativo</label><input class="input" type="email" data-mcxe="${i}" value="${esc(c.email||"")}"></div>
+    <div class="field" style="align-self:end"><button type="button" class="btn btn-sm btn-ghost" data-mcxdel="${i}" style="color:var(--bad)">Remover</button></div></div>`}).join("")}
+  <button type="button" class="btn btn-sm" data-mcxadd="1">+ Representante</button>`;
+}
+function mcLerExtras(){
+  MC_EDIT.extras=MC_EDIT.extras.map((r,i)=>{const v=k=>{const el=document.querySelector(`[data-${k}="${i}"]`);return el?el.value.trim():""};
+    return {id:r.id||uid(),papel:v("mcxp"),ref:v("mcxr"),nome:v("mcxn"),telefone:v("mcxt"),email:v("mcxe")}});
+}
+function mcSalvar(){
+  const s=ST.stores.find(x=>x.id===MC_EDIT.id);if(!s)return;mcLerExtras();
+  const err=m=>{const el=$("#mc-err");el.hidden=false;el.textContent=m};
+  const okMail=m=>!m||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m);
+  const em=$("#mc-em").value.trim();if(!okMail(em))return err("E-mail da unidade inválido.");
+  const corp={};document.querySelectorAll("[data-mctel]").forEach(el=>{(corp[el.dataset.mctel]=corp[el.dataset.mctel]||{}).telefone=el.value.trim()});
+  document.querySelectorAll("[data-mcem]").forEach(el=>{(corp[el.dataset.mcem]=corp[el.dataset.mcem]||{}).email=el.value.trim()});
+  for(const r of MC_EDIT.extras){if(!r.ref&&!r.nome)return err("Escolha a pessoa ou escreva o nome de cada representante.");if(!okMail(r.email))return err("E-mail inválido: "+r.email);if(r.ref)corp[r.ref]={telefone:r.telefone,email:r.email}}
+  for(const [ref,c] of Object.entries(corp))if(!okMail(c.email))return err("E-mail inválido: "+c.email);
+  s.contato={telefone:$("#mc-tel").value.trim(),email:em,whatsapp:$("#mc-wpp").value.trim(),horario:$("#mc-hor").value.trim()};
+  ST.contatosCorp=ST.contatosCorp||{};Object.entries(corp).forEach(([ref,c])=>{if(c.telefone||c.email)ST.contatosCorp[ref]={telefone:c.telefone||"",email:c.email||""};else delete ST.contatosCorp[ref]});
+  s.reps=MC_EDIT.extras.map(r=>r.ref?{id:r.id,papel:r.papel,ref:r.ref}:{id:r.id,papel:r.papel,nome:r.nome,telefone:r.telefone,email:r.email});
+  logEvento("Contatos da Rede atualizado",s.nome);MC_EDIT=null;closeModal();commit("Contatos salvos");
+}
+// representante sem cadastro guarda telefone e e-mail na própria linha
+const mcRepsBase=mcReps;
+mcReps=function(s){const L=mcRepsBase(s);(s.reps||[]).filter(r=>!r.ref).forEach(r=>{const x=L.find(y=>!y.ref&&y.nome===r.nome&&y.papel===(r.papel||"Contato"));if(x){x.telefone=r.telefone||"";x.email=r.email||""}});return L};
+/* ---- aba dentro de Lojas (RH) ---- */
+const R_LOJAS_MC=R.lojas;
+R.lojas=()=>{
+  if(G())return R_LOJAS_MC();
+  const mc=UI.ljTab==="matriz";
+  const abas=`<div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${mc?"":"on"}" data-ljtab="unidades">Unidades</button><button class="pill ${mc?"on":""}" data-ljtab="matriz">Contatos da Rede</button></div>`;
+  if(mc)return header("Pessoas","Lojas e unidades")+abas+mcPaginaHTML(mcDados(),true);
+  const h=R_LOJAS_MC(),a=h.indexOf('class="top-actions"'),f=a<0?-1:h.indexOf("</div></div>",a);
+  return f<0?abas+h:h.slice(0,f+12)+abas+h.slice(f+12);
+};
+const mcFonte=()=>typeof MC_PUB!=="undefined"&&ROLE!=="rh"?MC_PUB:mcDados();
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-ljtab],[data-mcpdf],[data-mcxls],[data-mceditar],[data-mcsalvar],[data-mcxadd],[data-mcxdel]");if(!t)return;const d=t.dataset;
+  if(d.ljtab){UI.ljTab=d.ljtab;render();return}
+  if(d.mcpdf){mcPdf(mcFonte());return}
+  if(d.mcxls){mcXls(mcFonte());return}
+  if(d.mceditar&&!G()){mcEditar(d.mceditar);return}
+  if(d.mcsalvar){mcSalvar();return}
+  if(d.mcxadd){mcLerExtras();MC_EDIT.extras.push({id:uid(),papel:"",ref:"",nome:""});$("#mc-extras").innerHTML=mcExtrasHTML();return}
+  if(d.mcxdel){mcLerExtras();MC_EDIT.extras.splice(Number(d.mcxdel),1);$("#mc-extras").innerHTML=mcExtrasHTML();return}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-mcbusca")return;UI.mcBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-mcbusca");if(n){n.focus();n.setSelectionRange(pos,pos)}});
 document.addEventListener("input",ev=>{if(ev.target.id!=="sp-busca")return;const n=semAcento(ev.target.value);document.querySelectorAll("[data-spitem]").forEach(l=>{l.style.display=!n||l.dataset.spitem.includes(n)?"":"none"})});
 /* ============ anexos (versão internet) ============
    O arquivo fica no Storage privado até o RH baixar. 24 horas depois do download ele é excluído e fica só o registro. */
@@ -6002,6 +6125,31 @@ function pjAcessoHTML(p){
 }
 const pjFichaBase=pjFicha;
 pjFicha=function(id){pjFichaBase(id);const p=(ST.pjs||[]).find(x=>x.id===id);const b=document.querySelector(".modal-b");if(p&&b)b.insertAdjacentHTML("beforeend",pjAcessoHTML(p))};
+
+/* ---- Contatos da Rede (matriz de comunicação) na internet: o RH publica em matriz_comunicacao (dados da unidade e contatos corporativos já resolvidos);
+   gerentes, supervisores, gestão comercial e líderes com time consultam no menu "Contatos da Rede", sem editar ---- */
+let MC_PUB=[];
+ICON.matriz='<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h4M7 13h10M7 17h6"/><circle cx="16" cy="9" r="1.5"/>';
+PK.matriz_comunicacao="id";ORDEM.push("matriz_comunicacao");
+const linhasSemMatriz=linhas;
+linhas=function(){const L=linhasSemMatriz();L.matriz_comunicacao=[["1",{id:1,dados:{u:mcDados()}}]];return L};
+// ao abrir o portal do RH: compara com o que está publicado e envia se mudou
+const orgSyncSemMatriz=orgPublicadaSync;
+orgPublicadaSync=async function(){
+  await orgSyncSemMatriz();
+  const {data,error}=await SB.from("matriz_comunicacao").select("id,dados");
+  if(error){const i=ORDEM.indexOf("matriz_comunicacao");if(i>=0)ORDEM.splice(i,1);return}
+  LAST.matriz_comunicacao=new Map(data.map(r=>[String(r.id),JSON.stringify({id:r.id,dados:r.dados})]));
+  setTimeout(persist,0);
+};
+async function carregarMatrizPub(){const {data,error}=await SB.from("matriz_comunicacao").select("dados").eq("id",1).maybeSingle();MC_PUB=!error&&data&&Array.isArray(data.dados.u)?data.dados.u:[]}
+PAGES_G.push({id:"matriz",t:"Contatos da Rede"});
+PAGES_C.push({id:"matriz",t:"Contatos da Rede",lid:1});
+const carregarGerenteSemMatriz=carregarGerente;
+carregarGerente=async function(){await carregarMatrizPub();return carregarGerenteSemMatriz()};
+const carregarColaboradorSemMatriz=carregarColaborador;
+carregarColaborador=async function(){const r=await carregarColaboradorSemMatriz();if(souLider())await carregarMatrizPub();return r};
+R.matriz=()=>header(ROLE==="colaborador"?"Minha liderança":"Contatos","Contatos da Rede")+(MC_PUB.length?mcPaginaHTML(MC_PUB,false):`<div class="card"><p class="empty">Os contatos ainda não foram publicados pelo RH.</p></div>`);
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
