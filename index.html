@@ -5488,7 +5488,7 @@ function colabAcessosHTML(tabs){
   <div class="toolbar"><div class="seg" role="tablist">${[["com","Com acesso ("+acc.length+")"],["sem","Sem acesso ("+semAcesso.length+")"],["nasc","Sem data de nascimento ("+semNasc.length+")"]].map(([k,t])=>`<button class="${fil===k?"on":""}" data-cafiltro="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-cabusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.caBusca||"")}" aria-label="Buscar colaborador"><span class="muted small">${lista.length} pessoa${lista.length===1?"":"s"}</span></div>
   <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Situação</th><th>Acesso criado</th><th>Último acesso</th><th></th></tr></thead>
-  <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td>${acoes(u)}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
+  <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${e?`<button class="btn btn-sm" data-vercomo="${esc(e.id)}" title="Ver o portal como esta pessoa vê (só leitura)">Ver como</button>`:""}${acoes(u)}</div></td></tr>`).join("")||`<tr><td colspan="6" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
   <div class="note" style="margin-top:14px">O colaborador entra com o CPF e a senha que ele mesmo criou, e vê só o Meu espaço (treinamentos e dados básicos), sem acesso a outras pessoas. Ao ser desligado, o acesso cai sozinho. Esqueceu a senha? Use "Novo 1º acesso". Quem está sem data de nascimento na ficha não consegue criar o acesso. Prestadores PJ com função seguem as mesmas regras (CPF do prestador ou do responsável e a data de nascimento da ficha do prestador); quem é gestor (supervisor, gestor da unidade ou com equipe no "Reporta a") entra como gerente das lojas dele.</div></div>`;
 }
 document.addEventListener("click",async ev=>{
@@ -6218,6 +6218,145 @@ carregarGerente=async function(){await carregarMatrizPub();return carregarGerent
 const carregarColaboradorSemMatriz=carregarColaborador;
 carregarColaborador=async function(){const r=await carregarColaboradorSemMatriz();if(souLider())await carregarMatrizPub();return r};
 R.matriz=()=>header(ROLE==="colaborador"?"Minha liderança":"Contatos","Contatos da Rede")+(MC_PUB.length?mcPaginaHTML(MC_PUB,false):`<div class="card"><p class="empty">Os contatos ainda não foram publicados pelo RH.</p></div>`);
+
+/* ============ "Ver como": o RH vê o portal exatamente como um colaborador, líder ou gestor vê · só na versão internet ============
+   Monta, com os dados que o RH já tem, o mesmo recorte que o banco entregaria para a pessoa (meus_dados, organograma da unidade,
+   time do líder, Contatos da Rede, trilha, planos e chamados) e troca o cliente do banco (SB) por uma cópia só de leitura:
+   qualquer gravação é recusada com aviso. Para sair, a página recarrega e volta ao RH (a sessão do RH continua a mesma). */
+let VC=null,VC_AVISO=0;
+const vcAviso=()=>{if(Date.now()-VC_AVISO<3000)return;VC_AVISO=Date.now();toast("Modo Ver como: nada é gravado.")};
+const VC_ERRO={message:"Modo Ver como: nada é gravado."};
+function vcQuery(tab){
+  const st={tab,f:[],escrita:false,unico:null,cont:null,lim:null,ord:null,rng:null};
+  const filtro=fn=>{st.f.push(fn);return b};
+  const b={
+    select(c,o){if(o&&o.count)st.cont=o;return b},
+    eq:(k,v)=>filtro(r=>String(r[k])===String(v)),neq:(k,v)=>filtro(r=>String(r[k])!==String(v)),
+    in:(k,l)=>{const s=new Set((l||[]).map(String));return filtro(r=>s.has(String(r[k])))},
+    gte:(k,v)=>filtro(r=>r[k]>=v),lte:(k,v)=>filtro(r=>r[k]<=v),gt:(k,v)=>filtro(r=>r[k]>v),lt:(k,v)=>filtro(r=>r[k]<v),
+    is:(k,v)=>filtro(r=>(r[k]??null)===v),match(o){Object.entries(o||{}).forEach(([k,v])=>b.eq(k,v));return b},
+    not(){return b},or(){return b},ilike(){return b},like(){return b},contains(){return b},filter(){return b},
+    order(k,o){st.ord=[k,!o||o.ascending!==false];return b},limit(n){st.lim=n;return b},range(a,z){st.rng=[a,z];return b},
+    maybeSingle(){st.unico="talvez";return b},single(){st.unico="um";return b},
+    insert(){st.escrita=true;return b},update(){st.escrita=true;return b},upsert(){st.escrita=true;return b},delete(){st.escrita=true;return b},
+    then(ok,falha){return Promise.resolve(vcResultado(st)).then(ok,falha)}
+  };
+  return b;
+}
+function vcResultado(st){
+  if(st.escrita){vcAviso();return {data:null,error:VC_ERRO,count:null}}
+  let L=(VC.dados[st.tab]||[]).filter(r=>st.f.every(f=>f(r)));
+  if(st.ord){const [k,asc]=st.ord;L=L.slice().sort((a,b)=>(a[k]>b[k]?1:a[k]<b[k]?-1:0)*(asc?1:-1))}
+  if(st.rng)L=L.slice(st.rng[0],st.rng[1]+1);if(st.lim!=null)L=L.slice(0,st.lim);
+  if(st.cont&&st.cont.head)return {data:null,error:null,count:L.length};
+  if(st.unico)return L.length?{data:JSON.parse(JSON.stringify(L[0])),error:null}:{data:null,error:st.unico==="um"?{message:"Não encontrado."}:null};
+  return {data:JSON.parse(JSON.stringify(L)),error:null,count:L.length};
+}
+function vcCliente(real){
+  return {
+    from:t=>vcQuery(t),
+    rpc:(n,args)=>n in VC.rpc?Promise.resolve({data:JSON.parse(JSON.stringify(VC.rpc[n])),error:null}):n==="chamado_categorias"?real.rpc(n,args):(vcAviso(),Promise.resolve({data:null,error:VC_ERRO})),
+    auth:{getUser:()=>real.auth.getUser(),getSession:()=>real.auth.getSession(),signOut:async()=>{vcSair();return {error:null}},onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
+    storage:{from:()=>({createSignedUrl:async()=>(vcAviso(),{data:null,error:VC_ERRO}),download:async()=>(vcAviso(),{data:null,error:VC_ERRO}),upload:async()=>(vcAviso(),{data:null,error:VC_ERRO}),remove:async()=>({data:null,error:VC_ERRO})})},
+    functions:{invoke:async()=>(vcAviso(),{data:null,error:VC_ERRO})},
+    channel:()=>{const c={on:()=>c,subscribe:()=>c};return c},removeChannel(){}
+  };
+}
+/* ---- recorte dos dados, igual às regras do banco ---- */
+const vcPick=(o,ks)=>{const r={};ks.forEach(k=>{if(o&&o[k]!==undefined)r[k]=o[k]});return r};
+function vcPerfil(id){
+  const u=(USUARIOS||[]).find(x=>x.colaborador_id===id);
+  if(u)return {...u};
+  const lid=liderSnapshots().some(([l])=>l===id);
+  const p=String(id).startsWith("p:");
+  // sem login ainda: é o que o primeiro acesso criaria (PJ com time entra como gerente; os demais, como colaborador)
+  return {login:"",nome:(emp(id)||{}).nome||"",perfil:p&&lid?"gerente":"colaborador",lojas:[],colaborador_id:id,supervisor_id:null,ativo:true,simulado:true};
+}
+async function vcMontar(id){
+  const e=emp(id);if(!e)throw new Error("Pessoa não encontrada.");
+  const P=vcPerfil(id),gestor=P.perfil!=="colaborador";
+  const nuc=new Set(ST.stores.filter(s=>/n[uú]cleo/i.test(s.nome||"")).map(s=>s.id));
+  const lideres=new Map(liderSnapshots());
+  const membros=((lideres.get(id)||{}).dados||{m:[]}).m.filter(x=>{const c=emp(x[0]);return c&&!c.desligado&&!c.pj});
+  const equipeIds=new Set(membros.map(x=>x[0]));
+  const equipe=membros.map(([cid,pai,sub])=>{const c=emp(cid);return {id:c.id,nome:c.nome,cargo:c.cargo,loja_id:c.lojaId,loja_nome:store(c.lojaId).nome,admissao:c.admissao,
+    efetivado:!!c.efetivado,afastado:!!c.afastado,aso:c.aso||null,ferias:(c.ferias||[]).map(f=>vcPick(f,["inicio","dias","aquisitivo","abono","perda"])),
+    avaliacoes:(c.avaliacoes||[]).map(a=>vcPick(a,["id","marco","data","parecer","pendente"])),pai:pai||null,sub:sub||null}}).sort((a,b)=>String(a.nome).localeCompare(String(b.nome)));
+  const loja=store(e.lojaId);
+  const meus=e.pj?{id,nome:e.nome,cargo:e.cargo,admissao:e.admissao,loja_id:e.lojaId||null,loja_nome:e.lojaId?loja.nome:null,cidade:e.lojaId?loja.cidade:null,pj:true}
+    :{id,nome:e.nome,cargo:e.cargo,admissao:e.admissao,loja_id:e.lojaId,loja_nome:loja.nome,cidade:loja.cidade};
+  // lojas inteiras do gestor: as do login (sem o Núcleo) ou a carteira do supervisor
+  let minhas=[];
+  if(gestor){minhas=P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):(P.lojas||[]);minhas=minhas.filter(l=>!nuc.has(l))}
+  const lojasVis=new Set([...minhas,...(gestor?membros.map(x=>(emp(x[0])||{}).lojaId):[])].filter(Boolean));
+  const visiveis=gestor?new Set([...ativos().filter(c=>minhas.includes(c.lojaId)).map(c=>c.id),...equipeIds]):new Set([id,...equipeIds]);
+  const D={};
+  D.org_unidades=orgSnapshots().map(([,r])=>r);
+  D.matriz_comunicacao=gestor||equipeIds.size?[{id:1,dados:{u:mcDados()}}]:[];
+  if(gestor){
+    D.lojas=ST.stores.filter(s=>lojasVis.has(s.id)).map(s=>{const {id,nome,cidade,tipo,quadro,...extra}=s;return {id,nome,cidade:cidade||"",tipo:tipo||"",quadro:Number(quadro)||0,dados:extra}});
+    D.colaboradores=ST.emps.filter(c=>minhas.includes(c.lojaId)||equipeIds.has(c.id)).map(c=>({id:c.id,loja_id:c.lojaId,dados:vcPick(c,PUB)}));
+    D.escalas=Object.entries(ST.escalaOverrides||{}).filter(([k])=>minhas.includes(k.split("|")[0])).map(([k,d])=>({chave:k,loja_id:k.split("|")[0],dias:d}));
+    D.admissoes=(ST.admissoes||[]).filter(a=>minhas.includes(a.lojaId)).map(a=>({id:a.id,loja_id:a.lojaId,dados:a}));
+  }
+  // o que só existe no banco vem de lá (o RH lê tudo), já filtrado para a pessoa
+  const ids=[...visiveis],ler=async q=>{const {data,error}=await q;return error?[]:data||[]};
+  const [td,pl,sol,ms]=await Promise.all([
+    ids.length?ler(SB.from("td_progresso").select("*").in("colaborador_id",ids)):[],
+    ler(gestor&&minhas.length?SB.from("planos_acao").select("*").or(`loja_id.in.(${minhas.map(l=>'"'+l+'"').join(",")}),colaborador_id.in.(${ids.map(i=>'"'+i+'"').join(",")})`):SB.from("planos_acao").select("*").in("colaborador_id",ids.length?ids:["-"])),
+    gestor?ler(SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(2000)):[],
+    gestor&&minhas.length?ler(SB.from("mensagens").select("*").in("loja_id",minhas)):[]
+  ]);
+  D.td_progresso=td;
+  D.planos_acao=pl.filter(p=>gestor?(minhas.includes(p.loja_id)||equipeIds.has(p.colaborador_id)):(equipeIds.has(p.colaborador_id)||(p.colaborador_id===id&&p.status!=="cancelado")));
+  D.planos_acao_eventos=D.planos_acao.length?await ler(SB.from("planos_acao_eventos").select("*").in("plano_id",D.planos_acao.map(p=>p.id))):[];
+  D.solicitacoes=sol.filter(s=>minhas.includes(s.loja_id)||equipeIds.has(s.colaborador_id));
+  D.mensagens=ms;
+  if(!gestor){
+    D.chamados=await ler(SB.from("chamados").select("*").eq("colaborador_id",id));
+    D.chamados_msgs=D.chamados.length?(await ler(SB.from("chamados_msgs").select("*").in("chamado_id",D.chamados.map(c=>c.id)))).filter(m=>m.tipo!=="interna"):[];
+  }
+  return {id,nome:e.nome,P,dados:D,rpc:{meus_dados:meus,minha_equipe_dados:equipe}};
+}
+/* ---- entrar e sair ---- */
+async function vcEntrar(id){
+  if(ROLE!=="rh"||VC)return;
+  const e=emp(id);if(!e){toast("Pessoa não encontrada.");return}
+  toast("Abrindo o portal como "+e.nome.split(" ")[0]+"…");
+  try{
+    if(typeof FILA!=="undefined")await FILA;
+    const v=await vcMontar(id);
+    logEvento("Ver como",v.nome+" · "+(PERFIS[v.P.perfil]||v.P.perfil));
+    VC={...v,real:SB};SB=vcCliente(SB);
+    PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
+    $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial");
+    ST=null;mostrarTela("carregando");
+    if(ROLE==="colaborador")await carregarColaborador();else await carregarGerente();
+    await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
+    vcFaixa();mostrarApp();location.hash="";go();
+  }catch(err){console.error(err);toast("Não foi possível abrir a visualização: "+(err&&err.message||err));if(VC)vcSair()}
+}
+function vcSair(){location.hash="#usuarios";location.reload()}
+function vcFaixa(){
+  document.getElementById("vc-faixa")?.remove();
+  const p=PERFIL||{},tipo=p.perfil==="colaborador"?(EQUIPE&&EQUIPE.length?"Colaborador com time (líder)":"Colaborador"):(PERFIS[p.perfil]||p.perfil);
+  document.body.insertAdjacentHTML("afterbegin",`<div id="vc-faixa" role="status"><span>Você está vendo o portal como <b>${esc(VC.nome)}</b> · ${esc(tipo)}${p.simulado?" (ainda sem login: é como ficará no primeiro acesso)":""}. Nada do que fizer aqui é gravado.</span><button class="btn btn-sm" data-vcsair="1">Sair da visualização</button></div>`);
+}
+document.head.insertAdjacentHTML("beforeend",`<style>#vc-faixa{position:sticky;top:0;z-index:60;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px 16px;background:#FFF4D6;border-bottom:1px solid #F2C230;color:#5C4400;font-size:.85rem;text-align:center}#vc-faixa .btn{background:#fff}</style>`);
+/* ---- onde o RH escolhe: Usuários e acessos › Colaboradores ---- */
+function vcEscolhaHTML(){
+  return `<div class="note" style="margin:0 0 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Ver como</b> · abra o portal exatamente como a pessoa vê (colaborador, líder ou gestor PJ). Só para olhar: nada é gravado.</span>
+  <select class="input" id="vc-pessoa" aria-label="Pessoa" style="min-width:min(100%,320px);flex:1">${refOpcoes("",false).replace('<option value="">Selecione…</option>','<option value="">Escolha a pessoa…</option>')}</select><button class="btn btn-primary" data-vcver="1">Ver como</button></div>`;
+}
+const colabAcessosSemVC=colabAcessosHTML;
+colabAcessosHTML=function(...a){const h=colabAcessosSemVC(...a);const i=h.indexOf('<div class="note"');return i<0?vcEscolhaHTML()+h:h.slice(0,i)+vcEscolhaHTML()+h.slice(i)};
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-vercomo],[data-vcver],[data-vcsair]");if(!t)return;
+  if(t.dataset.vcsair){vcSair();return}
+  if(t.dataset.vercomo){vcEntrar(t.dataset.vercomo);return}
+  const v=($("#vc-pessoa")||{}).value||"";if(!v){toast("Escolha a pessoa.");return}
+  vcEntrar(v.startsWith("e:")?v.slice(2):v);
+});
 
 /* ============ usuários ============ */
 async function chamarUsuarios(body){
