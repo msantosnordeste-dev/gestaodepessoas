@@ -5882,21 +5882,41 @@ document.addEventListener("change",ev=>{if(ev.target.id==="f-ltloja"){UI.ltLoja=
 
 /* ---- organograma do líder no menu "Minha equipe": no Núcleo de Apoio ao Negócio, agrupado pelo subcentro (ex.: 88.1 - NAN - RH) com o líder no topo ---- */
 const LT_ORG_CSS=`<style>.lto{overflow-x:auto;padding:4px 0 8px}.lto-arv{display:flex;flex-direction:column;align-items:center}.lto-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;text-align:left}.lto-p b{display:block;font-size:.85rem}.lto-p span{display:block;font-size:.72rem;color:var(--muted)}.lto-p.voce{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent)}.lto-con{width:2px;height:20px;background:var(--line);margin:0 auto}.lto-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.lto-no{display:flex;flex-direction:column;align-items:center}.lto-sub{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center}.lto-subh{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;text-align:center}.lto-subh b{display:block;font-size:.9rem;letter-spacing:0;text-transform:none;color:var(--text)}</style>`;
-function ltOrgHTML(tabs){
-  const L=ativos(),eu=MEU&&MEU.id,filhos={};
+function ltOrgHTML(tabs,lider,lista){
+  const me=lider||MEU,L=lista||ativos(),eu=me&&me.id,filhos={};
   L.forEach(e=>{const p=L.some(x=>x.id===e.pai)?e.pai:eu;(filhos[p]=filhos[p]||[]).push(e)});
   const caixa=(e,voce)=>`<div class="lto-p${voce?" voce":""}"><div class="avatar">${initials(e.nome||"?")}</div><div><b>${esc(e.nome||"")}</b><span>${esc(e.cargo||"")}${voce?" · você":""}</span></div></div>`;
   const no=(e,filtro)=>{const f=(filhos[e.id]||[]).filter(filtro).sort((a,b)=>a.nome.localeCompare(b.nome));return `<div class="lto-no">${caixa(e)}${f.length?`<div class="lto-con"></div><div class="lto-ramos">${f.map(x=>no(x,filtro)).join("")}</div>`:""}</div>`};
   const raiz=(filtro)=>{const f=(filhos[eu]||[]).filter(filtro).sort((a,b)=>a.nome.localeCompare(b.nome));return f.length?`<div class="lto-con"></div><div class="lto-ramos">${f.map(x=>no(x,filtro)).join("")}</div>`:""};
   const subs=[...new Set(L.map(e=>e.sub).filter(Boolean))].sort((a,b)=>ccOrdem(a.split(" - ")[0],b.split(" - ")[0]));
-  const blocos=subs.map(s=>{const[cod,...r]=s.split(" - ");return `<div class="lto-sub"><div class="lto-subh">Núcleo de Apoio ao Negócio · ${esc(cod)}<b>${esc(r.join(" - ").replace(/^NAN - /,""))}</b></div>${caixa(MEU,true)}${raiz(e=>e.sub===s)}</div>`});
-  if(L.some(e=>!e.sub))blocos.push(`<div class="lto-sub"><div class="lto-subh">Reportam a você<b>${subs.length?"Outras unidades":"Sua equipe"}</b></div>${caixa(MEU,true)}${raiz(e=>!e.sub)}</div>`);
+  const blocos=subs.map(s=>{const[cod,...r]=s.split(" - ");return `<div class="lto-sub"><div class="lto-subh">Núcleo de Apoio ao Negócio · ${esc(cod)}<b>${esc(r.join(" - ").replace(/^NAN - /,""))}</b></div>${caixa(me,true)}${raiz(e=>e.sub===s)}</div>`});
+  if(L.some(e=>!e.sub))blocos.push(`<div class="lto-sub"><div class="lto-subh">Reportam a você<b>${subs.length?"Outras unidades":"Sua equipe"}</b></div>${caixa(me,true)}${raiz(e=>!e.sub)}</div>`);
   return `<div class="card">${tabs}${LT_ORG_CSS}<div class="lto"><div class="lto-ramos" style="border:0;padding:0;gap:20px">${blocos.join("")}</div></div>
   <div class="note" style="margin-top:14px">${subs.length?"No Núcleo de Apoio ao Negócio você vê só o subcentro que coordena. O núcleo completo fica com o RH.":"Quem reporta a você no organograma e quem reporta a eles."} Algo errado? Abra um chamado para o RH.</div></div>`;
 }
-// gestor de subcentro do núcleo (ou líder sem organograma de unidade publicado) vê em "Minha equipe" o organograma do time dele
+// "Minha equipe" mostra o organograma do time do líder: gestor PJ (formato gerente) e gestor de subcentro do núcleo
 const R_MINHAEQUIPE_LT=R.minhaequipe;
-R.minhaequipe=()=>souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
+R.minhaequipe=()=>ROLE==="gerente"?header("Minha loja","Minha equipe")+ltOrgHTML("",{id:PERFIL.colaborador_id,nome:PERFIL.nome,cargo:""},ativos().filter(e=>EQUIPE_G_IDS.has(e.id))):
+  souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
+
+/* ---- gestor PJ no formato de gerente de loja: o banco entrega só o time dele (subcentro do núcleo ou "Reporta a");
+   aqui o portal guarda a quem cada um reporta e o subcentro, e mostra o menu "Minha equipe" com o organograma ---- */
+let EQUIPE_G=[],EQUIPE_G_IDS=new Set();
+const carregarGerenteSemTime=carregarGerente;
+carregarGerente=async function(){
+  const {data,error}=PERFIL&&PERFIL.colaborador_id?await SB.rpc("minha_equipe_dados"):{data:[]};
+  EQUIPE_G=error||!Array.isArray(data)?[]:data;EQUIPE_G_IDS=new Set(EQUIPE_G.map(x=>x.id));
+  const i=PAGES_G.findIndex(p=>p.id==="minhaequipe");
+  if(EQUIPE_G.length&&i<0)PAGES_G.splice(PAGES_G.findIndex(p=>p.id==="colaboradores")+1,0,{id:"minhaequipe",t:"Minha equipe"});
+  if(!EQUIPE_G.length&&i>=0)PAGES_G.splice(i,1);
+  return carregarGerenteSemTime();
+};
+const montarGerenteSemTime=montarGerente;
+montarGerente=function(){
+  montarGerenteSemTime();
+  const m=new Map(EQUIPE_G.map(x=>[x.id,x]));
+  ST.emps.forEach(e=>{const x=m.get(e.id);if(x){e.pai=x.pai;e.sub=x.sub||""}});
+};
 
 /* ============ perfis Supervisão e Gestão Comercial · só na versão internet ============
    Login criado pelo RH; no portal funcionam como o gerente de loja (ROLE "gerente"), vendo várias lojas sem salário.
