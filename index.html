@@ -5894,23 +5894,30 @@ function ltOrgHTML(tabs,lider,lista){
   return `<div class="card">${tabs}${LT_ORG_CSS}<div class="lto"><div class="lto-ramos" style="border:0;padding:0;gap:20px">${blocos.join("")}</div></div>
   <div class="note" style="margin-top:14px">${subs.length?"No Núcleo de Apoio ao Negócio você vê só o subcentro que coordena. O núcleo completo fica com o RH.":"Quem reporta a você no organograma e quem reporta a eles."} Algo errado? Abra um chamado para o RH.</div></div>`;
 }
-// "Minha equipe" mostra o organograma do time do líder: gestor PJ (formato gerente) e gestor de subcentro do núcleo
+// "Minha equipe" do colaborador líder mostra o organograma do time dele (ex.: gestor de subcentro do núcleo)
 const R_MINHAEQUIPE_LT=R.minhaequipe;
-R.minhaequipe=()=>ROLE==="gerente"?header("Minha loja","Minha equipe")+ltOrgHTML("",{id:PERFIL.colaborador_id,nome:PERFIL.nome,cargo:""},ativos().filter(e=>EQUIPE_G_IDS.has(e.id))):
-  souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
+R.minhaequipe=()=>souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
 
 /* ---- gestor PJ no formato de gerente de loja: o banco entrega só o time dele (subcentro do núcleo ou "Reporta a");
-   aqui o portal guarda a quem cada um reporta e o subcentro, e mostra o menu "Minha equipe" com o organograma ---- */
+   aqui o portal guarda a quem cada um reporta e o subcentro, e mostra o organograma dentro do menu "Equipe" ---- */
 let EQUIPE_G=[],EQUIPE_G_IDS=new Set();
 const carregarGerenteSemTime=carregarGerente;
 carregarGerente=async function(){
   const {data,error}=PERFIL&&PERFIL.colaborador_id?await SB.rpc("minha_equipe_dados"):{data:[]};
   EQUIPE_G=error||!Array.isArray(data)?[]:data;EQUIPE_G_IDS=new Set(EQUIPE_G.map(x=>x.id));
-  const i=PAGES_G.findIndex(p=>p.id==="minhaequipe");
-  if(EQUIPE_G.length&&i<0)PAGES_G.splice(PAGES_G.findIndex(p=>p.id==="colaboradores")+1,0,{id:"minhaequipe",t:"Minha equipe"});
-  if(!EQUIPE_G.length&&i>=0)PAGES_G.splice(i,1);
   return carregarGerenteSemTime();
 };
+// no gerente, o organograma do time fica dentro do menu "Equipe" (abas Lista · Organograma)
+const R_COLAB_EQG=R.colaboradores;
+R.colaboradores=()=>{
+  if(ROLE!=="gerente"||!EQUIPE_G.length)return R_COLAB_EQG();
+  const org=UI.eqgTab==="org";
+  const abas=`<div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${org?"":"on"}" data-eqgtab="lista">Lista</button><button class="pill ${org?"on":""}" data-eqgtab="org">Organograma</button></div>`;
+  if(org)return header("Minha loja","Equipe")+abas+ltOrgHTML("",{id:PERFIL.colaborador_id,nome:PERFIL.nome,cargo:""},ativos().filter(e=>EQUIPE_G_IDS.has(e.id)));
+  const h=R_COLAB_EQG(),j=h.indexOf('<div class="card"',Math.max(0,h.indexOf('class="topbar"')));
+  return j<0?abas+h:h.slice(0,j)+abas+h.slice(j);
+};
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-eqgtab]");if(t){UI.eqgTab=t.dataset.eqgtab;render()}});
 const montarGerenteSemTime=montarGerente;
 montarGerente=function(){
   montarGerenteSemTime();
