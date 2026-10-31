@@ -4660,14 +4660,18 @@ function mcGestoresDaUnidade(s){
 }
 function mcReps(s){
   const L=[],vistos=new Set();
-  const add=(papel,ref,nome,auto)=>{if(!ref&&!nome)return;const k=papel+"|"+(ref||nome);if(vistos.has(k))return;vistos.add(k);
-    const r=ref?refPessoa(ref):null;const c=ref?mcCorp(ref):{};L.push({papel,ref:ref||"",nome:(r&&r.nome)||nome||"",telefone:c.telefone||"",email:c.email||"",auto})};
-  if(/n[uú]cleo/i.test(s.nome||"")&&typeof nucleosCC==="function")nucleosCC().filter(c=>c.pai&&c.gestorRef).forEach(c=>add("Gestor · "+c.nome.replace(/^[\d.]+\s*-\s*(NAN - )?/,""),c.gestorRef,"",true));
+  // quem está no cadastro aparece com o cargo da ficha (PJ: a função); o papel só fica para quem foi digitado sem cadastro
+  // ctx completa quando ajuda: subcentro do Núcleo, "outra unidade" ou o papel digitado pelo RH
+  const add=(papel,ref,nome,auto,ctx)=>{if(!ref&&!nome)return;const k=(ref||nome)+"|"+papel;if(vistos.has(k))return;vistos.add(k);
+    const r=ref?refPessoa(ref):null;const c=ref?mcCorp(ref):{};const p=ref?emp(String(ref).replace(/^e:/,"")):null;
+    const cargo=p&&p.cargo?p.cargo+(ctx&&ctx!==p.cargo?" · "+ctx:""):papel;
+    L.push({papel:cargo,ref:ref||"",nome:(r&&r.nome)||nome||"",telefone:c.telefone||"",email:c.email||"",auto})};
+  if(/n[uú]cleo/i.test(s.nome||"")&&typeof nucleosCC==="function")nucleosCC().filter(c=>c.pai&&c.gestorRef).forEach(c=>{const sub=c.nome.replace(/^[\d.]+\s*-\s*(NAN - )?/,"");add("Gestor · "+sub,c.gestorRef,"",true,sub)});
   else{const {g,sub}=mcGestoresDaUnidade(s);
-    if(g)add(g.lojaId===s.id?"Gerente / responsável":"Responsável (outra unidade)",mcRefDe(g),"",true);
+    if(g)add(g.lojaId===s.id?"Gerente / responsável":"Responsável (outra unidade)",mcRefDe(g),"",true,g.lojaId===s.id?"":"outra unidade");
     if(sub)add("Subgerente / encarregado(a)",mcRefDe(sub),"",true)}
   const sup=typeof supDaLoja==="function"?supDaLoja(s.id):null;if(sup&&sup.ref)add("Supervisor(a)",sup.ref,"",true);
-  (s.reps||[]).forEach(r=>add(r.papel||"Contato",r.ref,r.nome,false));
+  (s.reps||[]).forEach(r=>add(r.papel||"Contato",r.ref,r.nome,false,r.ref?r.papel:""));
   return L;
 }
 // tudo já resolvido (nomes, telefones): é o que o RH publica para gerentes e gestores
