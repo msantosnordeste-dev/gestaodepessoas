@@ -4599,12 +4599,32 @@ document.addEventListener("change",ev=>{const t=ev.target;if(t.dataset&&t.datase
    Automáticos: gerente/responsável da unidade, supervisor da carteira e, no Núcleo, o gestor de cada subcentro. */
 const mcRefDe=e=>!e?"":String(e.id).startsWith("p:")?e.id:"e:"+e.id;
 const mcCorp=ref=>(ST.contatosCorp||{})[ref]||{};
+// Gestor da unidade, automático: o "Gestor responsável" do cadastro da loja só vale se o RH escolheu (opção manual);
+// senão é o topo do organograma da unidade ("Reporta a" + ligação pelo cargo), com desempate pela função
+// (gerente antes de subgerente/encarregado), quem é da unidade antes de quem lidera de outra, e admissão mais antiga.
+// O segundo contato é o subgerente/encarregado (nível 2) logo abaixo dele.
+function mcGestoresDaUnidade(s){
+  const ant=ORG_FORA;ORG_FORA=true;
+  try{
+    const manual=s.gestorId&&emp(s.gestorId);
+    const pessoas=ativos().filter(e=>e.lojaId===s.id),ids=new Set(pessoas.map(e=>e.id));
+    const chefe=e=>{const r=reportaA(e);return r&&r.g&&!r.g.desligado?r.g:null};
+    const topo=[];pessoas.forEach(e=>{const c=chefe(e);if(!c)topo.push(e);else if(!ids.has(c.id)&&!topo.includes(c))topo.push(c)});
+    const ord=(a,b)=>orgNivel(a.cargo)-orgNivel(b.cargo)||(a.lojaId===s.id?0:1)-(b.lojaId===s.id?0:1)||String(a.admissao||"").localeCompare(String(b.admissao||""));
+    const g=manual&&!manual.desligado?manual:topo.sort(ord)[0]||null;
+    const abaixo=pessoas.filter(e=>e!==g&&orgNivel(e.cargo)===2);
+    const sub=g?(abaixo.filter(e=>{const c=chefe(e);return c&&c.id===g.id}).sort(ord)[0]||(orgNivel(g.cargo)<2?abaixo.sort(ord)[0]:null)):null;
+    return {g,sub:sub||null,manual:!!(manual&&!manual.desligado)};
+  }finally{ORG_FORA=ant}
+}
 function mcReps(s){
   const L=[],vistos=new Set();
   const add=(papel,ref,nome,auto)=>{if(!ref&&!nome)return;const k=papel+"|"+(ref||nome);if(vistos.has(k))return;vistos.add(k);
     const r=ref?refPessoa(ref):null;const c=ref?mcCorp(ref):{};L.push({papel,ref:ref||"",nome:(r&&r.nome)||nome||"",telefone:c.telefone||"",email:c.email||"",auto})};
   if(/n[uú]cleo/i.test(s.nome||"")&&typeof nucleosCC==="function")nucleosCC().filter(c=>c.pai&&c.gestorRef).forEach(c=>add("Gestor · "+c.nome.replace(/^[\d.]+\s*-\s*(NAN - )?/,""),c.gestorRef,"",true));
-  else{const g=typeof gerenteDaLoja==="function"?gerenteDaLoja(s):null;if(g)add(g.lojaId===s.id?"Gerente / responsável":"Responsável (outra unidade)",mcRefDe(g),"",true)}
+  else{const {g,sub}=mcGestoresDaUnidade(s);
+    if(g)add(g.lojaId===s.id?"Gerente / responsável":"Responsável (outra unidade)",mcRefDe(g),"",true);
+    if(sub)add("Subgerente / encarregado(a)",mcRefDe(sub),"",true)}
   const sup=typeof supDaLoja==="function"?supDaLoja(s.id):null;if(sup&&sup.ref)add("Supervisor(a)",sup.ref,"",true);
   (s.reps||[]).forEach(r=>add(r.papel||"Contato",r.ref,r.nome,false));
   return L;
@@ -4657,6 +4677,8 @@ function mcEditar(id){
     <div class="field"><label for="mc-em">E-mail da unidade</label><input class="input" id="mc-em" type="email" value="${esc(c.email||"")}" placeholder="loja21@..."></div>
     <div class="field"><label for="mc-wpp">WhatsApp corporativo</label><input class="input" id="mc-wpp" value="${esc(c.whatsapp||"")}"></div>
     <div class="field"><label for="mc-hor">Horário de funcionamento</label><input class="input" id="mc-hor" value="${esc(c.horario||"")}" placeholder="Seg a dom, 6h às 22h"></div>
+    ${/n[uú]cleo/i.test(s.nome||"")?"":(()=>{const gs=mcGestoresDaUnidade({...s,gestorId:""});const sel=s.gestorId?(String(s.gestorId).startsWith("p:")?s.gestorId:"e:"+s.gestorId):"";
+      return `<div class="field full"><label for="mc-gestor">Gerente / responsável da unidade</label><select class="input" id="mc-gestor">${refOpcoes(sel,false).replace('<option value="">Selecione…</option>',`<option value="">Automático pelo organograma${gs.g?" · hoje: "+esc(gs.g.nome):" · ninguém encontrado"}</option>`)}</select><span class="small muted">Deixe no automático: muda sozinho com a função e o "Reporta a". Escolha uma pessoa só para exceções.</span></div>`})()}
     ${auto.length?`<p class="full small muted" style="margin:6px 0 0"><b>Representantes do cadastro</b> · o telefone e o e-mail valem para a pessoa em todas as unidades</p>${auto.map(r=>`<div class="field"><label>${esc(r.nome)} · ${esc(r.papel)}</label><input class="input" data-mctel="${esc(r.ref)}" value="${esc(r.telefone)}" placeholder="Telefone corporativo"></div><div class="field"><label class="sr-only">E-mail de ${esc(r.nome)}</label><input class="input" type="email" data-mcem="${esc(r.ref)}" value="${esc(r.email)}" placeholder="E-mail corporativo" style="margin-top:22px"></div>`).join("")}`:""}
     <div class="full" id="mc-extras">${mcExtrasHTML()}</div>
     <p class="full small" id="mc-err" style="color:var(--bad)" hidden></p></form>`,
@@ -4687,6 +4709,7 @@ function mcSalvar(){
   for(const r of MC_EDIT.extras){if(!r.ref&&!r.nome)return err("Escolha a pessoa ou escreva o nome de cada representante.");if(!okMail(r.email))return err("E-mail inválido: "+r.email);if(r.ref)corp[r.ref]={telefone:r.telefone,email:r.email}}
   for(const [ref,c] of Object.entries(corp))if(!okMail(c.email))return err("E-mail inválido: "+c.email);
   s.contato={telefone:$("#mc-tel").value.trim(),email:em,whatsapp:$("#mc-wpp").value.trim(),horario:$("#mc-hor").value.trim()};
+  const gsel=$("#mc-gestor");if(gsel){const v=gsel.value;if(v)s.gestorId=v.startsWith("e:")?v.slice(2):v;else delete s.gestorId}
   ST.contatosCorp=ST.contatosCorp||{};Object.entries(corp).forEach(([ref,c])=>{if(c.telefone||c.email)ST.contatosCorp[ref]={telefone:c.telefone||"",email:c.email||""};else delete ST.contatosCorp[ref]});
   s.reps=MC_EDIT.extras.map(r=>r.ref?{id:r.id,papel:r.papel,ref:r.ref}:{id:r.id,papel:r.papel,nome:r.nome,telefone:r.telefone,email:r.email});
   logEvento("Contatos da Rede atualizado",s.nome);MC_EDIT=null;closeModal();commit("Contatos salvos");
