@@ -5790,9 +5790,23 @@ function liderSnapshots(){const o=ORG_FORA;ORG_FORA=true;try{return liderCalc()}
 // só vale o "Reporta a" informado na ficha (gestorId): a ligação automática pelo cargo não entra no time do líder
 // PJ ativo com gente reportando a ele também é líder (ex.: gestores do Núcleo de Apoio ao Negócio)
 const paiExplicito=e=>{if(!e||!e.gestorId)return null;const g=emp(e.gestorId);return g&&!g.desligado?g:null};
+// Núcleo de Apoio ao Negócio: quem está lotado no núcleo entra só no time do gestor do subcentro dele (Configurações › Gestores dos núcleos),
+// pelo centro de custo principal (maior % do rateio); quem não tem subcentro com gestor fica só com o RH
+const ltRefId=r=>!r?"":String(r).startsWith("e:")?String(r).slice(2):String(r);
+const ltCcPrincipal=e=>{const r=rateioDe(e);return r.length?r.reduce((a,b)=>b.pct>a.pct?b:a).cc:""};
 function liderCalc(){
   const M=new Map(),colab=new Set(ativos().map(e=>e.id));
+  const nucLojas=new Set(ST.stores.filter(s=>/n[uú]cleo/i.test(s.nome||"")).map(s=>s.id));
+  const subs=new Map((typeof nucleosCC==="function"?nucleosCC():[]).filter(c=>c.pai&&c.ativo!==false&&c.gestorRef).map(c=>[c.nome,c]));
+  const subDe=new Map();ativos().forEach(e=>{if(nucLojas.has(e.lojaId)){const c=subs.get(ltCcPrincipal(e));if(c)subDe.set(e.id,c)}});
   ativos().forEach(e=>{
+    if(nucLojas.has(e.lojaId)){
+      const c=subDe.get(e.id);if(!c)return;
+      const lid=ltRefId(c.gestorRef),l=emp(lid);if(!l||l.desligado||lid===e.id||!(colab.has(lid)||l.pj))return;
+      // dentro do subcentro vale o "Reporta a" entre os colegas; quem reporta a alguém de fora fica ligado ao gestor do subcentro
+      const g=e.gestorId,pai=g===lid||(subDe.get(g)===c&&g!==e.id)?g:lid;
+      if(!M.has(lid))M.set(lid,[]);M.get(lid).push([e.id,pai,c.nome]);return;
+    }
     const p=paiExplicito(e);if(!p)return;
     if(p.id===e.id||!(colab.has(p.id)||p.pj))return;
     if(!M.has(p.id))M.set(p.id,[]);M.get(p.id).push([e.id,p.id]);
@@ -5808,7 +5822,7 @@ async function carregarEquipe(){
   EQUIPE.forEach(x=>{if(!lojas.has(x.loja_id))lojas.set(x.loja_id,{id:x.loja_id,nome:x.loja_nome||"",cidade:"",tipo:"",quadro:0})});
   ST.stores=[...lojas.values()];
   ST.emps=EQUIPE.map(x=>({id:x.id,nome:x.nome||"",cargo:x.cargo||"",lojaId:x.loja_id,admissao:x.admissao||"",aso:x.aso||"",efetivado:!!x.efetivado,afastado:!!x.afastado,desligado:null,
-    ferias:(x.ferias||[]).filter(f=>f&&f.inicio),avaliacoes:x.avaliacoes||[],banco:0,he:0,vendas:0,pai:x.pai}));
+    ferias:(x.ferias||[]).filter(f=>f&&f.inicio),avaliacoes:x.avaliacoes||[],banco:0,he:0,vendas:0,pai:x.pai,sub:x.sub||""}));
 }
 // o líder não recebe os alertas do RH (eles dependem de dados que ele não vê)
 const alertasBaseLid=alertas;
@@ -5836,7 +5850,7 @@ function ltPessoasHTML(tabs){
   <div class="card">${tabs}${ltFerramentas(L.length)}
   <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Reporta a</th><th>Admissão</th><th>Tempo de casa</th><th>Situação</th><th>Experiência</th></tr></thead>
   <tbody>${L.map(e=>{const s=status(e);return `<tr><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td>${esc(ltPai(e))}${ltDireto(e)?` <span class="chip c-info">direto</span>`:""}</td><td class="num">${fdate(e.admissao)}</td><td>${e.admissao?tempoCasa(e.admissao):"—"}</td><td><span class="chip ${s.c}">${s.t}</span></td><td style="white-space:normal">${exp(e)}</td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Ninguém com esses filtros.</td></tr>`}</tbody></table></div>
-  <div class="note" style="margin-top:14px">O time segue o "Reporta a" do organograma, com quem reporta a você e quem reporta a eles. Salário, documentos e dados pessoais não aparecem aqui. Algo errado na equipe? Abra um chamado para o RH.</div></div>`;
+  <div class="note" style="margin-top:14px">O time segue o "Reporta a" do organograma${ativos().some(e=>e.sub)?"; no Núcleo de Apoio ao Negócio, aparece só o subcentro que você coordena":""}. Salário, documentos e dados pessoais não aparecem aqui. Algo errado na equipe? Abra um chamado para o RH.</div></div>`;
 }
 function ltFeriasHTML(tabs){
   const L=ltFiltrados().map(e=>({e,sf:situacaoFerias(e)})).sort((a,b)=>a.sf.st.ord-b.sf.st.ord||a.e.nome.localeCompare(b.e.nome));
@@ -5849,10 +5863,10 @@ function ltFeriasHTML(tabs){
 R.meutime=()=>{
   if(!souLider())return header("Minha liderança","Meu time")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Ninguém reporta a você no organograma.</b><br>Se você lidera uma equipe, peça ao RH para ajustar o "Reporta a".</p></div>`;
   const tab=UI.ltTab||"pessoas";
-  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["org","Organograma"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
   if(tab==="integracao")return tdIntegracaoHTML(tabs);
   if(tab==="planos")return tdPlanosHTML(tabs);
-  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):ltPessoasHTML(tabs));
+  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):tab==="org"?ltOrgHTML(tabs):ltPessoasHTML(tabs));
 };
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-lttab],[data-ltquem]");if(!t||!souLider())return;
@@ -5861,6 +5875,21 @@ document.addEventListener("click",ev=>{
 });
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-ltbusca")return;UI.ltBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-ltbusca");n.focus();n.setSelectionRange(pos,pos)});
 document.addEventListener("change",ev=>{if(ev.target.id==="f-ltloja"){UI.ltLoja=ev.target.value;render()}});
+
+/* ---- organograma do time: no Núcleo de Apoio ao Negócio, agrupado pelo subcentro (ex.: 88.1 - NAN - RH) com o líder no topo ---- */
+const LT_ORG_CSS=`<style>.lto{overflow-x:auto;padding:4px 0 8px}.lto-arv{display:flex;flex-direction:column;align-items:center}.lto-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;text-align:left}.lto-p b{display:block;font-size:.85rem}.lto-p span{display:block;font-size:.72rem;color:var(--muted)}.lto-p.voce{box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 30%,transparent)}.lto-con{width:2px;height:20px;background:var(--line);margin:0 auto}.lto-ramos{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;align-items:flex-start;border-top:2px solid var(--line);padding-top:10px}.lto-no{display:flex;flex-direction:column;align-items:center}.lto-sub{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center}.lto-subh{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;text-align:center}.lto-subh b{display:block;font-size:.9rem;letter-spacing:0;text-transform:none;color:var(--text)}</style>`;
+function ltOrgHTML(tabs){
+  const L=ativos(),eu=MEU&&MEU.id,filhos={};
+  L.forEach(e=>{const p=L.some(x=>x.id===e.pai)?e.pai:eu;(filhos[p]=filhos[p]||[]).push(e)});
+  const caixa=(e,voce)=>`<div class="lto-p${voce?" voce":""}"><div class="avatar">${initials(e.nome||"?")}</div><div><b>${esc(e.nome||"")}</b><span>${esc(e.cargo||"")}${voce?" · você":""}</span></div></div>`;
+  const no=(e,filtro)=>{const f=(filhos[e.id]||[]).filter(filtro).sort((a,b)=>a.nome.localeCompare(b.nome));return `<div class="lto-no">${caixa(e)}${f.length?`<div class="lto-con"></div><div class="lto-ramos">${f.map(x=>no(x,filtro)).join("")}</div>`:""}</div>`};
+  const raiz=(filtro)=>{const f=(filhos[eu]||[]).filter(filtro).sort((a,b)=>a.nome.localeCompare(b.nome));return f.length?`<div class="lto-con"></div><div class="lto-ramos">${f.map(x=>no(x,filtro)).join("")}</div>`:""};
+  const subs=[...new Set(L.map(e=>e.sub).filter(Boolean))].sort((a,b)=>ccOrdem(a.split(" - ")[0],b.split(" - ")[0]));
+  const blocos=subs.map(s=>{const[cod,...r]=s.split(" - ");return `<div class="lto-sub"><div class="lto-subh">Núcleo de Apoio ao Negócio · ${esc(cod)}<b>${esc(r.join(" - ").replace(/^NAN - /,""))}</b></div>${caixa(MEU,true)}${raiz(e=>e.sub===s)}</div>`});
+  if(L.some(e=>!e.sub))blocos.push(`<div class="lto-sub"><div class="lto-subh">Reportam a você<b>${subs.length?"Outras unidades":"Sua equipe"}</b></div>${caixa(MEU,true)}${raiz(e=>!e.sub)}</div>`);
+  return `<div class="card">${tabs}${LT_ORG_CSS}<div class="lto"><div class="lto-ramos" style="border:0;padding:0;gap:20px">${blocos.join("")}</div></div>
+  <div class="note" style="margin-top:14px">${subs.length?"No Núcleo de Apoio ao Negócio você vê só o subcentro que coordena. O núcleo completo fica com o RH.":"Quem reporta a você no organograma e quem reporta a eles."} Algo errado? Abra um chamado para o RH.</div></div>`;
+}
 
 /* ============ perfis Supervisão e Gestão Comercial · só na versão internet ============
    Login criado pelo RH; no portal funcionam como o gerente de loja (ROLE "gerente"), vendo várias lojas sem salário.
