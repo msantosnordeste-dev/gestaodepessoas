@@ -5519,7 +5519,7 @@ const PA_SIT={afazer:["A fazer","c-mute"],andamento:["Em andamento","c-info"],ag
 ICON.td='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M22 8v6"/>';
 ICON.meuplano='<path d="M9 11l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/>';
 PAGES_C.splice(PAGES_C.findIndex(p=>p.id==="minhaequipe"),0,{id:"meuplano",t:"Plano de ação"});
-const tdTitulo=()=>ROLE==="colaborador"?["Minha liderança","Meu time"]:["Pessoas","T&D"];
+const tdTitulo=()=>ROLE==="colaborador"?["Meu espaço","Minha equipe"]:["Pessoas","T&D"];
 const planoDe=r=>({id:r.id,eid:r.colaborador_id,lojaId:r.loja_id,origem:r.origem,origemRef:r.origem_ref,objetivo:r.objetivo,acoes:Array.isArray(r.acoes)?r.acoes:[],status:r.status,criadoPorNome:r.criado_por_nome||"",criadoEm:r.criado_em,atualizadoEm:r.atualizado_em});
 async function carregarPlanos(){
   if(!SB||!SESSION)return;
@@ -5970,14 +5970,14 @@ document.addEventListener("change",async ev=>{
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id!=="f-chbusca")return;UI.chBusca=t.value;const pos=t.selectionStart;render();const n=$("#f-chbusca");n.focus();n.setSelectionRange(pos,pos)});
 
 /* ============ média liderança no acesso do colaborador · só na versão internet ============
-   Quem tem equipe no "Reporta a" informado na ficha (só os diretos: quem está com outro gestor abaixo dele não aparece; sem a ligação automática pelo cargo) ganha sozinho o menu "Meu time".
+   Quem tem equipe no "Reporta a" informado na ficha (só os diretos: quem está com outro gestor abaixo dele não aparece; sem a ligação automática pelo cargo) ganha no menu "Minha equipe" as abas do time (antes era o menu "Meu time".
    O portal do RH grava em org_lideres a lista de cada líder (mesma regra do organograma); o líder lê só
    minha_equipe_dados(): nome, cargo, unidade, admissão, férias, ASO e experiência. Salário, CPF, ficha e banco de horas ficam fora. */
 let EQUIPE=[];
 const souLider=()=>ROLE==="colaborador"&&EQUIPE.length>0;
 const gestorPA=()=>ROLE==="rh"||(ROLE==="gerente"&&!soConsulta())||souLider();
 ICON.meutime='<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M5 15.5V13h14v2.5"/>';
-PAGES_C.push({g:"Minha liderança",lid:1},{id:"meutime",t:"Meu time",lid:1});
+// o líder (ex.: coordenadores) tem um menu só: "Minha equipe", com o organograma e as abas do time
 
 /* ---- RH: para cada colaborador que lidera alguém, todos abaixo dele, cada um com o id de quem ele reporta ---- */
 // sem os sócios fora da operação (ORG_FORA), como no organograma
@@ -6056,12 +6056,18 @@ function ltFeriasHTML(tabs){
   <div class="note" style="margin-top:14px">A programação de férias e o agendamento do ASO são feitos pelo RH. Para pedir, abra um chamado.</div></div>`;
 }
 R.meutime=()=>{
-  if(!souLider())return header("Minha liderança","Meu time")+`<div class="card"><p class="empty" style="padding:28px 12px"><b>Ninguém reporta a você no organograma.</b><br>Se você lidera uma equipe, peça ao RH para ajustar o "Reporta a".</p></div>`;
-  const tab=UI.ltTab||"pessoas";
-  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["pessoas","Pessoas"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
+  if(!souLider())return R_MINHAEQUIPE_LT();
+  const tab=UI.ltTab||"org";
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["org","Organograma"],["pessoas","Pessoas"],["ferias","Férias e ASO"],["integracao","Integração"],["planos","Planos de ação"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-lttab="${k}">${t}</button>`).join("")}</div></div>`;
   if(tab==="integracao")return tdIntegracaoHTML(tabs);
   if(tab==="planos")return tdPlanosHTML(tabs);
-  return header("Minha liderança","Meu time")+(tab==="ferias"?ltFeriasHTML(tabs):ltPessoasHTML(tabs));
+  if(tab==="org"){
+    // gestor de subcentro do Núcleo (ou sem organograma de unidade publicado): o organograma do time; senão, o da unidade
+    if(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))return header("Meu espaço","Minha equipe")+ltOrgHTML(tabs);
+    const h=R_MINHAEQUIPE_LT(),a=h.indexOf('class="top-actions"'),f=a<0?-1:h.indexOf("</div></div>",a);
+    return f<0?tabs+h:h.slice(0,f+12)+tabs+h.slice(f+12);
+  }
+  return header("Meu espaço","Minha equipe")+(tab==="ferias"?ltFeriasHTML(tabs):ltPessoasHTML(tabs));
 };
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-lttab],[data-ltquem]");if(!t||!souLider())return;
@@ -6087,7 +6093,7 @@ function ltOrgHTML(tabs,lider,lista){
 }
 // "Minha equipe" do colaborador líder mostra o organograma do time dele (ex.: gestor de subcentro do núcleo)
 const R_MINHAEQUIPE_LT=R.minhaequipe;
-R.minhaequipe=()=>souLider()&&(ativos().some(e=>e.sub)||!(MEU_ORG&&MEU_ORG.p&&MEU_ORG.p.length))?header("Meu espaço","Minha equipe")+ltOrgHTML(""):R_MINHAEQUIPE_LT();
+R.minhaequipe=()=>souLider()?R.meutime():R_MINHAEQUIPE_LT();
 
 /* ---- gestor PJ no formato de gerente de loja: o banco entrega só o time dele (subcentro do núcleo ou "Reporta a");
    aqui o portal guarda a quem cada um reporta e o subcentro, e mostra o organograma dentro do menu "Equipe" ---- */
@@ -6217,7 +6223,7 @@ const carregarGerenteSemMatriz=carregarGerente;
 carregarGerente=async function(){await carregarMatrizPub();return carregarGerenteSemMatriz()};
 const carregarColaboradorSemMatriz=carregarColaborador;
 carregarColaborador=async function(){const r=await carregarColaboradorSemMatriz();if(souLider())await carregarMatrizPub();return r};
-R.matriz=()=>header(ROLE==="colaborador"?"Minha liderança":"Contatos","Contatos da Rede")+(MC_PUB.length?mcPaginaHTML(MC_PUB,false):`<div class="card"><p class="empty">Os contatos ainda não foram publicados pelo RH.</p></div>`);
+R.matriz=()=>header(ROLE==="colaborador"?"Meu espaço":"Contatos","Contatos da Rede")+(MC_PUB.length?mcPaginaHTML(MC_PUB,false):`<div class="card"><p class="empty">Os contatos ainda não foram publicados pelo RH.</p></div>`);
 
 /* ============ "Ver como": o RH vê o portal exatamente como um colaborador, líder ou gestor vê · só na versão internet ============
    Monta, com os dados que o RH já tem, o mesmo recorte que o banco entregaria para a pessoa (meus_dados, organograma da unidade,
