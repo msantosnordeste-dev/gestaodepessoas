@@ -7175,11 +7175,7 @@ function kpis(){
 function tAcoes(){
   const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
   const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma)":"");
-  const outras=[
-    {n:"Black Friday 2026",t:"Meta de vendas",ic:IC.vendas,c:["Agendada","c-info"],bg:"var(--brand-soft)",fg:"var(--brand)",d:"Maior % da meta individual de vendas de 20 a 30/11, por loja.",pr:"1º R$ 400 · 2º R$ 250 · 3º R$ 150 por loja",f:"20/11 a 30/11 · 5 lojas"},
-    {n:"Zero Falta · 4º trimestre",t:"Assiduidade",ic:IC.cal,c:["Em andamento","c-ok"],bg:"var(--info-soft)",fg:"var(--info)",d:"Sem faltas e com até 2 atrasos no trimestre.",pr:"1 folga extra em janeiro",f:"01/10 a 31/12 · todas as unidades"},
-    {n:"Indique um talento",t:"Indicação premiada",ic:IC.user,c:["Em andamento","c-ok"],bg:"var(--ok-soft)",fg:"var(--ok)",d:"Indicado contratado e efetivado após os 90 dias de experiência.",pr:"R$ 200 por indicação efetivada",f:"01/09 a 31/12 · todas as unidades"}
-  ];
+  const outras=[];
   return `<div class="grid camps">
   <article class="card camp feat">
     <div class="camp-top"><div style="display:flex;gap:12px;min-width:0"><div class="ico" style="background:var(--accent-soft);color:var(--accent-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC.star}</svg></div>
