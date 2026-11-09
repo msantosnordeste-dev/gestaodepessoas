@@ -338,6 +338,87 @@ tfoot td{font-weight:700;border-bottom:none}
   .crit{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:no-preference){.card,.k-card{transition:transform .15s ease}.k-card:hover{transform:translateY(-2px)}}
+/* ===== módulo Premiações e Incentivos (mesmos tokens do ConectaGP) ===== */
+:root{--accent-soft:color-mix(in srgb,var(--accent) 22%,var(--surface));--accent-ink:#7A5A00}
+.subnav{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 20px;padding-left:10px;border-left:2px solid var(--brand-soft)}
+.sub-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:8px 12px 2px}
+.nav .subnav a{padding:7px 12px;font-size:.88rem;color:var(--muted)}
+.nav .subnav a.on{background:var(--brand-tint);color:var(--brand-ink);font-weight:600}
+.nav .cnt{margin-left:auto;font-size:.72rem;background:var(--brand);color:var(--on-brand);border-radius:99px;padding:1px 7px;font-weight:700}
+.nav .new{margin-left:auto;font-size:.64rem;background:var(--accent);color:#3A2A00;border-radius:99px;padding:2px 7px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.side-foot span small{display:block;color:var(--muted)}
+.c-gold{background:color-mix(in srgb,var(--accent) 22%,var(--surface));color:#7A5A00}
+td.c,th.c{text-align:center}
+.prem-pg .mbar{margin:0 8px 0 0}
+.mbar i.under{background:var(--warn)}
+.mbar i.top{background:var(--accent)}
+/* ações de incentivo */
+.camps{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.camp{display:flex;flex-direction:column;gap:12px}
+.camp-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.camp-top .ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;flex:none}
+.camp-top .ico svg{width:20px;height:20px}
+.camp .per{font-size:.78rem;color:var(--muted);font-weight:500}
+.camp .desc{font-size:.88rem;color:var(--muted)}
+.prize{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--r-md);background:color-mix(in srgb,var(--accent) 18%,var(--surface));color:#6B4F00;font-size:.88rem;font-weight:600}
+.prize svg{width:16px;height:16px;flex:none}
+.camp-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:12px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+.camp.feat{grid-column:1/-1;background:var(--surface);background-image:linear-gradient(135deg,transparent 78%,color-mix(in srgb,var(--accent) 22%,transparent))}
+.feat-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.feat-rules div{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;font-size:.88rem}
+.feat-rules b{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px}
+/* célula de período */
+.pc{display:flex;flex-direction:column;align-items:center;line-height:1.3}
+.pc b{font-size:.8rem;padding:1px 9px;border-radius:99px;font-variant-numeric:tabular-nums}
+.pc small{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.pc.t0 b{background:var(--surface-2);color:var(--muted)}
+.pc.t1 b{background:var(--brand-soft);color:var(--brand-ink)}
+.pc.t2 b{background:var(--brand);color:var(--on-brand)}
+.pc.t1 small,.pc.t2 small{color:var(--ink);font-weight:600}
+/* cabeçalho da loja */
+.loja-head{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(4,minmax(0,1fr));gap:16px;align-items:center}
+.loja-head>div+div{border-left:1px solid var(--line);padding-left:16px}
+.loja-head .big{font-family:var(--f-display);font-size:1.5rem;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.loja-head .lbl{font-size:.82rem;color:var(--muted);font-weight:500}
+.track{position:relative;height:14px;background:var(--surface-2);border-radius:99px;margin-top:20px}
+.track .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:var(--brand)}
+.track .fill.under{background:var(--warn)}
+.track .mk{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:2px}
+.track .mk span{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:.7rem;color:var(--muted);white-space:nowrap}
+/* aprovações */
+.steps{display:flex;align-items:center;gap:4px}
+.steps i{width:20px;height:6px;border-radius:99px;background:var(--line)}
+.steps i.on{background:var(--brand)}
+.steps i.bad{background:var(--bad)}
+.timeline{display:flex;flex-direction:column;border-left:2px solid var(--line);margin-left:6px}
+.tl{position:relative;padding:0 0 12px 18px;font-size:.88rem}
+.tl::before{content:"";position:absolute;left:-7px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--brand)}
+.tl b{display:block;font-weight:600}
+.tl span{color:var(--muted);font-size:.78rem}
+/* configurações */
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px}
+.cfg .card{display:flex;flex-direction:column;gap:14px}
+.cfg .card-head{margin:0}
+.faixas{display:flex;flex-direction:column;gap:8px}
+.faixa{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.88rem}
+.faixa .input{padding:7px 10px;width:76px;flex:none}
+.faixa select.input{width:auto;flex:1 1 170px}
+.faixa .x{margin-left:auto}
+.tog{display:flex;align-items:center;gap:10px;font-size:.9rem;line-height:1.4}
+.tog input{accent-color:var(--brand);width:18px;height:18px;flex:none}
+.ex{background:var(--surface-2);border-radius:var(--r-md);padding:12px 14px;font-size:.85rem;display:grid;gap:4px}
+.ex-row{display:flex;justify-content:space-between;gap:8px}
+.ex-row b{font-variant-numeric:tabular-nums}
+.warnbox{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md);background:var(--warn-soft);color:var(--warn);font-size:.85rem;font-weight:500}
+.perm td{text-align:center}
+.perm td:first-child{text-align:left}
+.perm input{accent-color:var(--brand);width:18px;height:18px}
+hr.sep{border:none;border-top:1px solid var(--line);margin:0}
+.prem-modal .modal-b .table-wrap{margin:0;padding:0}
+.prem-pg .legend{font-size:.78rem}
+@media (max-width:1100px){.loja-head{grid-template-columns:repeat(2,minmax(0,1fr))}.loja-head>div:first-child{grid-column:1/-1}.loja-head>div+div{border-left:0;padding-left:0}}
+@media (max-width:860px){.nav .sub-label{display:none}.nav .subnav{flex-direction:row;margin:0;padding:0;border:0}}
+.prem-pg{display:flex;flex-direction:column;gap:24px;min-width:0}
 </style>
 </head>
 <body>
@@ -937,6 +1018,7 @@ const PAGES=[
   {id:"admissao",t:"Admissões"},
   {id:"experiencia",t:"Experiência"},
   {id:"td",t:"T&D"},
+  {id:"premiacoes",t:"Premiações e Incentivos"},
   {g:"Departamento Pessoal"},
   {id:"ponto",t:"Ponto e escalas"},
   {id:"ferias",t:"Férias"},
@@ -963,7 +1045,7 @@ function renderNav(){
   const nS=G()?MOVS.filter(m=>m.status==="pendente").length:0;
   const nC=correioNaoLidas().length;correioAvisar(nC);
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
-    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="chamados"&&ROLE==="rh"&&chPendRH()?`<span class="count">${chPendRH()}</span>`:""}${p.id==="meuschamados"&&chPendColab()?`<span class="count">${chPendColab()}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>`).join("");
+    `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="chamados"&&ROLE==="rh"&&chPendRH()?`<span class="count">${chPendRH()}</span>`:""}${p.id==="meuschamados"&&chPendColab()?`<span class="count">${chPendColab()}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>${p.id==="premiacoes"&&page==="premiacoes"?PREM.subnav():""}`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
   $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":(PERFIS_CURTO[PERFIL&&PERFIL.perfil]||"Gerente")+" · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
@@ -6908,6 +6990,457 @@ function vagaForm(){
     <div class="field"><label for="v-tipo">Contrato</label><select class="input" id="v-tipo"><option>Efetivo</option><option>Temporário</option><option>Aprendiz</option><option>Intermitente</option></select></div>
   </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-act="salvarVaga">Abrir vaga</button>`);
 }
+
+/* ============ Premiações e Incentivos · Outubro/2026 (metas Indeva + vendas Totvs) ============
+   Módulo isolado: regras, aprovações e histórico ficam em memória (ainda não gravam no banco). */
+const PREM=(()=>{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const brl=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const brl0=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const pct=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0})+"%";
+const pct2=v=>(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
+const initials=n=>n.split(" ").filter(Boolean).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+const clone=o=>JSON.parse(JSON.stringify(o));
+const uid=()=>Math.random().toString(36).slice(2,9);
+function toast(t){const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
+
+/* ================= dados reais · Outubro/2026 (metas Indeva + vendas Totvs) ================= */
+const COMP="Outubro/2026",DIAS=31;
+const DATA={"LOJAS":[{"id":"l10","num":10,"nome":"Loja 10 · CGH Saguão","curto":"Loja 10","fmt":"quinzenal"},{"id":"l12","num":12,"nome":"Loja 12 · SDU Embarque","curto":"Loja 12","fmt":"quinzenal"},{"id":"l13","num":13,"nome":"Loja 13 · CGH Embarque","curto":"Loja 13","fmt":"quinzenal"},{"id":"l16","num":16,"nome":"Loja 16 · CGH Embarque Casa","curto":"Loja 16","fmt":"quinzenal"},{"id":"l17","num":17,"nome":"Loja 17 · CWB","curto":"Loja 17","fmt":"quinzenal"},{"id":"l18","num":18,"nome":"Loja 18 · Foz (IGU)","curto":"Loja 18","fmt":"quinzenal"},{"id":"l19","num":19,"nome":"Loja 19 · SDU Saguão","curto":"Loja 19","fmt":"quinzenal"},{"id":"l20","num":20,"nome":"Loja 20 · SSA Embarque Casa","curto":"Loja 20","fmt":"quinzenal"},{"id":"l21","num":21,"nome":"Loja 21 · SSA Saguão","curto":"Loja 21","fmt":"quinzenal"},{"id":"l24","num":24,"nome":"Loja 24 · Pelourinho Térreo","curto":"Loja 24","fmt":"quinzenal"},{"id":"l25","num":25,"nome":"Loja 25 · Vitória","curto":"Loja 25","fmt":"quinzenal"},{"id":"l26","num":26,"nome":"Loja 26 · Recife","curto":"Loja 26","fmt":"quinzenal"},{"id":"l31","num":31,"nome":"Loja 31 · GRU","curto":"Loja 31","fmt":"quinzenal"},{"id":"l33","num":33,"nome":"Loja 33 · Praia do Forte","curto":"Loja 33","fmt":"quinzenal"},{"id":"l34","num":34,"nome":"Loja 34 · GIG Doméstico","curto":"Loja 34","fmt":"semanal"},{"id":"l35","num":35,"nome":"Loja 35 · GIG Internacional","curto":"Loja 35","fmt":"semanal"},{"id":"l36","num":36,"nome":"Loja 36 · GIG Quiosque Int.","curto":"Loja 36","fmt":"semanal"},{"id":"l37","num":37,"nome":"Loja 37 · GIG Embarque Público","curto":"Loja 37","fmt":"semanal"},{"id":"l39","num":39,"nome":"Loja 39 · Casa Conceito","curto":"Loja 39","fmt":"quinzenal"},{"id":"l40","num":40,"nome":"Loja 40 · MAO Quiosque","curto":"Loja 40","fmt":"quinzenal"},{"id":"l41","num":41,"nome":"Loja 41 · MAO Loja","curto":"Loja 41","fmt":"quinzenal"}],"VEND":[{"id":"v0","nome":"Bruna dos Santos de Moura","lojaId":"l35","per":{"S1":{"meta":20618.25,"vl":27396.1,"vo":0.0,"vi":27396.1,"od":""},"S2":{"meta":17478.87,"vl":13653.5,"vo":0.0,"vi":13653.5,"od":""},"S3":{"meta":17478.87,"vl":19704.6,"vo":0.0,"vi":19704.6,"od":""},"S4":{"meta":16080.56,"vl":19456.7,"vo":0.0,"vi":19456.7,"od":""}}},{"id":"v1","nome":"Michael Douglas da Silva Braga","lojaId":"l37","per":{"S1":{"meta":10565.48,"vl":5129.8,"vo":0.0,"vi":5129.8,"od":""},"S2":{"meta":10095.68,"vl":7054.95,"vo":0.0,"vi":7054.95,"od":""},"S3":{"meta":11972.02,"vl":7114.8,"vo":0.0,"vi":7114.8,"od":""},"S4":{"meta":11014.27,"vl":4846.7,"vo":0.0,"vi":4846.7,"od":""}}},{"id":"v2","nome":"Bianca dos Santos Guimaraes","lojaId":"l37","per":{"S1":{"meta":10565.48,"vl":17290.7,"vo":0.0,"vi":17290.7,"od":""},"S2":{"meta":10095.68,"vl":7248.7,"vo":0.0,"vi":7248.7,"od":""},"S3":{"meta":11972.02,"vl":7847.0,"vo":0.0,"vi":7847.0,"od":""},"S4":{"meta":11014.27,"vl":8942.7,"vo":0.0,"vi":8942.7,"od":""}}},{"id":"v3","nome":"Bruno Ribeiro dos Santos Silverio","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":13286.8,"vo":287.0,"vi":13286.8,"od":"Loja 37: R$ 287.00"},"S2":{"meta":7305.81,"vl":4041.7,"vo":0.0,"vi":4041.7,"od":""}}},{"id":"v4","nome":"Mayara Pires Lopes de Souza","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":6061.0,"vo":0.0,"vi":6061.0,"od":""},"S2":{"meta":16330.61,"vl":9708.0,"vo":0.0,"vi":9708.0,"od":""},"S3":{"meta":19367.99,"vl":10836.9,"vo":0.0,"vi":10836.9,"od":""},"S4":{"meta":17818.56,"vl":3757.0,"vo":0.0,"vi":3757.0,"od":""}}},{"id":"v5","nome":"Vinicius Araujo Barros Conde Doll","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":20215.9,"vo":0.0,"vi":20215.9,"od":""},"S2":{"meta":16330.61,"vl":7413.6,"vo":0.0,"vi":7413.6,"od":""},"S3":{"meta":19367.99,"vl":6109.7,"vo":0.0,"vi":6109.7,"od":""},"S4":{"meta":17818.56,"vl":8002.0,"vo":0.0,"vi":8002.0,"od":""}}},{"id":"v6","nome":"Lorena Vitoria de Souza Ferreira de Oliveira","lojaId":"l34","per":{"S1":{"meta":9217.55,"vl":11758.9,"vo":0.0,"vi":11758.9,"od":""},"S2":{"meta":8534.75,"vl":6918.5,"vo":0.0,"vi":6918.5,"od":""},"S3":{"meta":10774.27,"vl":6444.75,"vo":0.0,"vi":6444.75,"od":""},"S4":{"meta":9912.3,"vl":4598.9,"vo":0.0,"vi":4598.9,"od":""}}},{"id":"v7","nome":"Alexandre Martinho Ferreira Queiroz","lojaId":"l35","per":{"S1":{"meta":14995.12,"vl":10225.4,"vo":0.0,"vi":10225.4,"od":""},"S2":{"meta":12711.91,"vl":15286.53,"vo":0.0,"vi":15286.53,"od":""},"S3":{"meta":12711.91,"vl":5928.9,"vo":0.0,"vi":5928.9,"od":""},"S4":{"meta":11694.97,"vl":3977.9,"vo":0.0,"vi":3977.9,"od":""}}},{"id":"v8","nome":"Annielle Sant Anna de Almeida","lojaId":"l37","per":{"S1":{"meta":10565.48,"vl":11947.31,"vo":0.0,"vi":11947.31,"od":""},"S2":{"meta":8384.88,"vl":5133.0,"vo":0.0,"vi":5133.0,"od":""}}},{"id":"v9","nome":"Andre Soares Azevedo","lojaId":"l36","per":{"S1":{"meta":4577.85,"vl":7574.9,"vo":0.0,"vi":7574.9,"od":""},"S2":{"meta":4925.36,"vl":7482.5,"vo":0.0,"vi":7482.5,"od":""},"S3":{"meta":4925.36,"vl":6389.61,"vo":0.0,"vi":6389.61,"od":""},"S4":{"meta":4531.36,"vl":6075.0,"vo":0.0,"vi":6075.0,"od":""}}},{"id":"v10","nome":"Fernando Ferreira Pereira","lojaId":"l36","per":{"S1":{"meta":8774.21,"vl":13074.0,"vo":0.0,"vi":13074.0,"od":""},"S2":{"meta":9440.3,"vl":13313.6,"vo":0.0,"vi":13313.6,"od":""},"S3":{"meta":9440.3,"vl":12373.25,"vo":0.0,"vi":12373.25,"od":""},"S4":{"meta":8685.06,"vl":11069.55,"vo":0.0,"vi":11069.55,"od":""}}},{"id":"v11","nome":"Jessica Farias de Mendonca","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":10935.55,"vo":0.0,"vi":10935.55,"od":""},"S2":{"meta":16330.61,"vl":16395.2,"vo":0.0,"vi":16395.2,"od":""},"S3":{"meta":19367.99,"vl":11944.6,"vo":0.0,"vi":11944.6,"od":""},"S4":{"meta":17818.56,"vl":11670.6,"vo":0.0,"vi":11670.6,"od":""}}},{"id":"v12","nome":"Ana Paula Pereira de Lima","lojaId":"l35","per":{"S1":{"meta":20618.25,"vl":28233.18,"vo":0.0,"vi":28233.18,"od":""},"S2":{"meta":17478.87,"vl":11194.4,"vo":0.0,"vi":11194.4,"od":""},"S3":{"meta":17478.87,"vl":9348.6,"vo":0.0,"vi":9348.6,"od":""},"S4":{"meta":16080.56,"vl":16109.41,"vo":0.0,"vi":16109.41,"od":""}}},{"id":"v13","nome":"Thayane Gomes Mantovani Teixeira","lojaId":"l35","per":{"S1":{"meta":20618.25,"vl":26388.73,"vo":0.0,"vi":26388.73,"od":""},"S2":{"meta":17478.87,"vl":18627.4,"vo":0.0,"vi":18627.4,"od":""},"S3":{"meta":17478.87,"vl":10838.8,"vo":0.0,"vi":10838.8,"od":""},"S4":{"meta":16080.56,"vl":16105.68,"vo":0.0,"vi":16105.68,"od":""}}},{"id":"v14","nome":"Jaqueline dos Santos Pereira","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":9555.5,"vo":0.0,"vi":9555.5,"od":""},"S2":{"meta":16330.61,"vl":9303.9,"vo":0.0,"vi":9303.9,"od":""},"S3":{"meta":19367.99,"vl":11572.9,"vo":0.0,"vi":11572.9,"od":""},"S4":{"meta":17818.56,"vl":8488.8,"vo":0.0,"vi":8488.8,"od":""}}},{"id":"v15","nome":"Danyella de Barros Moreira","lojaId":"l36","per":{"S1":{"meta":4140.35,"vl":2100.0,"vo":0.0,"vi":2100.0,"od":""}}},{"id":"v16","nome":"Fabiane Magalhaes da Silva","lojaId":"l35","per":{"S1":{"meta":20618.25,"vl":24743.55,"vo":0.0,"vi":24743.55,"od":""},"S2":{"meta":17478.87,"vl":15445.17,"vo":0.0,"vi":15445.17,"od":""},"S3":{"meta":17478.87,"vl":14503.9,"vo":0.0,"vi":14503.9,"od":""},"S4":{"meta":16080.56,"vl":4514.8,"vo":0.0,"vi":4514.8,"od":""}}},{"id":"v17","nome":"Nicole Martins de Oliveira","lojaId":"l36","per":{"S1":{"meta":8774.21,"vl":6237.0,"vo":0.0,"vi":6237.0,"od":""},"S2":{"meta":9440.3,"vl":0.0,"vo":0.0,"vi":0.0,"od":""},"S3":{"meta":9440.3,"vl":0.0,"vo":0.0,"vi":0.0,"od":""},"S4":{"meta":8685.06,"vl":0.0,"vo":0.0,"vi":0.0,"od":""}}},{"id":"v18","nome":"Ednalva Lourenco de Carvalho","lojaId":"l35","per":{"S1":{"meta":20618.25,"vl":25433.92,"vo":0.0,"vi":25433.92,"od":""},"S2":{"meta":17478.87,"vl":7961.7,"vo":0.0,"vi":7961.7,"od":""},"S3":{"meta":17478.87,"vl":14110.3,"vo":0.0,"vi":14110.3,"od":""},"S4":{"meta":16080.56,"vl":8816.9,"vo":0.0,"vi":8816.9,"od":""}}},{"id":"v19","nome":"Amanda Fuster Bernardis de Matos","lojaId":"l37","per":{"S1":{"meta":4952.6,"vl":9031.7,"vo":0.0,"vi":9031.7,"od":""},"S2":{"meta":4732.39,"vl":12844.0,"vo":0.0,"vi":12844.0,"od":""},"S3":{"meta":5611.93,"vl":7956.22,"vo":0.0,"vi":7956.22,"od":""},"S4":{"meta":5162.93,"vl":6439.0,"vo":0.0,"vi":6439.0,"od":""}}},{"id":"v20","nome":"Bruna Gamarra da Silva Pires","lojaId":"l37","per":{"S1":{"meta":10565.48,"vl":16220.44,"vo":0.0,"vi":16220.44,"od":""},"S2":{"meta":10095.68,"vl":12967.05,"vo":0.0,"vi":12967.05,"od":""},"S3":{"meta":11972.02,"vl":6678.6,"vo":0.0,"vi":6678.6,"od":""},"S4":{"meta":11014.27,"vl":8392.9,"vo":0.0,"vi":8177.9,"od":""}}},{"id":"v21","nome":"Pedro Henrique Lepletier Martins","lojaId":"l35","per":{"S1":{"meta":11246.33,"vl":13702.92,"vo":0.0,"vi":13702.92,"od":""},"S2":{"meta":9533.95,"vl":11441.8,"vo":0.0,"vi":11441.8,"od":""},"S3":{"meta":9533.95,"vl":6272.8,"vo":0.0,"vi":6272.8,"od":""},"S4":{"meta":8771.22,"vl":9978.43,"vo":0.0,"vi":9978.43,"od":""}}},{"id":"v22","nome":"Jefferson de Souza Lugao","lojaId":"l36","per":{"S1":{"meta":3433.39,"vl":6872.9,"vo":0.0,"vi":6872.9,"od":""},"S2":{"meta":3694.03,"vl":8287.7,"vo":0.0,"vi":8287.7,"od":""},"S3":{"meta":3694.03,"vl":4441.65,"vo":0.0,"vi":4441.65,"od":""},"S4":{"meta":3398.51,"vl":4790.59,"vo":0.0,"vi":4790.59,"od":""}}},{"id":"v23","nome":"Jaqueline Felix da Silva Rodrigues","lojaId":"l34","per":{"S1":{"meta":13058.18,"vl":16853.3,"vo":0.0,"vi":16853.3,"od":""},"S2":{"meta":12090.92,"vl":9353.7,"vo":0.0,"vi":9353.7,"od":""},"S3":{"meta":15263.51,"vl":8045.15,"vo":0.0,"vi":8045.15,"od":""},"S4":{"meta":14042.44,"vl":6957.95,"vo":0.0,"vi":6957.95,"od":""}}},{"id":"v24","nome":"Maria Eduarda Rodrigues de Souza","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":11513.9,"vo":0.0,"vi":11513.9,"od":""},"S2":{"meta":16330.61,"vl":8966.35,"vo":0.0,"vi":8966.35,"od":""},"S3":{"meta":19367.99,"vl":10001.8,"vo":0.0,"vi":10001.8,"od":""},"S4":{"meta":17818.56,"vl":6987.9,"vo":0.0,"vi":6987.9,"od":""}}},{"id":"v25","nome":"Bruna Ribeiro da Silva","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":12060.85,"vo":0.0,"vi":12060.85,"od":""},"S2":{"meta":16330.61,"vl":7737.8,"vo":0.0,"vi":7737.8,"od":""},"S3":{"meta":19367.99,"vl":20923.9,"vo":0.0,"vi":20923.9,"od":""},"S4":{"meta":17818.56,"vl":7743.0,"vo":0.0,"vi":7743.0,"od":""}}},{"id":"v26","nome":"Joao Victor Dantas dos Santos","lojaId":"l34","per":{"S1":{"meta":16418.71,"vl":6062.91,"vo":0.0,"vi":6062.91,"od":""},"S2":{"meta":16330.61,"vl":50.0,"vo":0.0,"vi":50.0,"od":""}}},{"id":"v27","nome":"Cintia Regina Matias dos Santos","lojaId":"l37","per":{"S1":{"meta":10565.48,"vl":11561.5,"vo":0.0,"vi":11561.5,"od":""},"S2":{"meta":10095.68,"vl":3554.8,"vo":0.0,"vi":3554.8,"od":""},"S3":{"meta":11972.02,"vl":11565.5,"vo":0.0,"vi":11565.5,"od":""},"S4":{"meta":11014.27,"vl":4831.0,"vo":0.0,"vi":4628.79,"od":""}}},{"id":"v28","nome":"Pedro Henrique dos Santos Chermont","lojaId":"l35","per":{"S1":{"meta":6239.77,"vl":3125.0,"vo":0.0,"vi":3125.0,"od":""},"S2":{"meta":15889.88,"vl":11293.3,"vo":0.0,"vi":11293.3,"od":""},"S3":{"meta":15889.88,"vl":15979.3,"vo":0.0,"vi":15979.3,"od":""},"S4":{"meta":14618.69,"vl":14622.51,"vo":0.0,"vi":14622.51,"od":""}}},{"id":"v29","nome":"Girlene Vieira Batista","lojaId":"l33","per":{"Q1":{"meta":18556.88,"vl":11860.92,"vo":0.0,"vi":11860.92,"od":""},"Q2":{"meta":18556.88,"vl":14197.3,"vo":0.0,"vi":14197.3,"od":""}}},{"id":"v30","nome":"Aramis das Neves Ribeiro","lojaId":"l26","per":{"Q1":{"meta":30197.43,"vl":21254.96,"vo":0.0,"vi":21254.96,"od":""},"Q2":{"meta":30014.76,"vl":27169.3,"vo":0.0,"vi":27169.3,"od":""}}},{"id":"v31","nome":"Tatiane Barbosa Vieira do Nascimento","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":55124.91,"vo":0.0,"vi":55124.91,"od":""},"Q2":{"meta":44794.65,"vl":53791.55,"vo":0.0,"vi":53791.55,"od":""}}},{"id":"v32","nome":"Eleni do Carmo Gois","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":35814.1,"vo":0.0,"vi":35814.1,"od":""},"Q2":{"meta":44794.65,"vl":54217.1,"vo":0.0,"vi":54217.1,"od":""}}},{"id":"v33","nome":"Andreia Lima Santana","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":45550.2,"vo":0.0,"vi":45550.2,"od":""},"Q2":{"meta":44794.65,"vl":45784.1,"vo":0.0,"vi":45784.1,"od":""}}},{"id":"v34","nome":"Jaqueline Castro dos Santos","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":21464.5,"vo":0.0,"vi":21464.5,"od":""},"Q2":{"meta":44794.65,"vl":53847.94,"vo":0.0,"vi":53847.94,"od":""}}},{"id":"v35","nome":"Rayla Batista da Silva","lojaId":"l10","per":{"Q1":{"meta":13483.15,"vl":13868.0,"vo":0.0,"vi":13868.0,"od":""},"Q2":{"meta":14982.11,"vl":7673.9,"vo":0.0,"vi":7673.9,"od":""}}},{"id":"v36","nome":"Douglas Cesar Soares","lojaId":"l19","per":{"Q1":{"meta":22569.87,"vl":14086.0,"vo":0.0,"vi":14086.0,"od":""},"Q2":{"meta":22569.87,"vl":18712.0,"vo":0.0,"vi":18712.0,"od":""}}},{"id":"v37","nome":"Kelly de Souza Santos","lojaId":"l33","per":{"Q1":{"meta":18556.88,"vl":11408.47,"vo":0.0,"vi":11408.47,"od":""},"Q2":{"meta":18556.88,"vl":9580.4,"vo":0.0,"vi":9580.4,"od":""}}},{"id":"v38","nome":"Diego Goncalves da Hora","lojaId":"l39","per":{"Q1":{"meta":39857.14,"vl":18858.2,"vo":0.0,"vi":18479.2,"od":""},"Q2":{"meta":24912.62,"vl":6988.6,"vo":0.0,"vi":6988.6,"od":""}}},{"id":"v39","nome":"Karolina Kelle da Silva","lojaId":"l26","per":{"Q1":{"meta":30197.43,"vl":19642.2,"vo":0.0,"vi":19642.2,"od":""},"Q2":{"meta":30014.76,"vl":32234.7,"vo":0.0,"vi":32234.7,"od":""}}},{"id":"v40","nome":"Elen Carla Lima dos Santos","lojaId":"l31","per":{"Q1":{"meta":6908.35,"vl":16172.4,"vo":0.0,"vi":16172.4,"od":""},"Q2":{"meta":6908.36,"vl":17794.15,"vo":0.0,"vi":17794.15,"od":""}}},{"id":"v41","nome":"Kauanny Oliveira Dias","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":13288.2,"vo":0.0,"vi":13229.2,"od":""},"Q2":{"meta":14968.15,"vl":17192.7,"vo":0.0,"vi":17192.7,"od":""}}},{"id":"v42","nome":"Stefanie Aline Batista da Silva","lojaId":"l17","per":{"Q1":{"meta":13260.13,"vl":12806.0,"vo":0.0,"vi":12806.0,"od":""},"Q2":{"meta":13260.13,"vl":11248.0,"vo":0.0,"vi":11248.0,"od":""}}},{"id":"v43","nome":"Ana Paula da Silva Fernandes","lojaId":"l21","per":{"Q1":{"meta":21213.09,"vl":19094.06,"vo":0.0,"vi":19094.06,"od":""},"Q2":{"meta":20217.4,"vl":23751.3,"vo":0.0,"vi":23751.3,"od":""}}},{"id":"v44","nome":"Cleidson Sobreira Alcantara","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":27825.4,"vo":0.0,"vi":27825.4,"od":""},"Q2":{"meta":44794.65,"vl":48958.82,"vo":0.0,"vi":48958.82,"od":""}}},{"id":"v45","nome":"Gustavo Vitor Moreira Carvalho","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":18358.9,"vo":0.0,"vi":18358.9,"od":""},"Q2":{"meta":14968.15,"vl":19941.45,"vo":0.0,"vi":19941.45,"od":""}}},{"id":"v46","nome":"Shirley Maria Santos Almeida de Souza","lojaId":"l17","per":{"Q1":{"meta":13260.13,"vl":9272.8,"vo":0.0,"vi":9272.8,"od":""},"Q2":{"meta":13260.13,"vl":9864.2,"vo":0.0,"vi":9864.2,"od":""}}},{"id":"v47","nome":"Jaqueline Pereira da Silva","lojaId":"l26","per":{"Q1":{"meta":9765.86,"vl":4361.9,"vo":0.0,"vi":4361.9,"od":""}}},{"id":"v48","nome":"Ketlyn Fernandes da Silva","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":8361.15,"vo":0.0,"vi":8361.15,"od":""},"Q2":{"meta":14968.15,"vl":11112.7,"vo":0.0,"vi":11112.7,"od":""}}},{"id":"v49","nome":"Thais Nascimento Macario Bulhoes","lojaId":"l16","per":{"Q1":{"meta":10085.94,"vl":10791.0,"vo":0.0,"vi":10791.0,"od":""},"Q2":{"meta":10085.94,"vl":0.0,"vo":0.0,"vi":0.0,"od":""}}},{"id":"v50","nome":"Cesar Barbosa Barros","lojaId":"l10","per":{"Q1":{"meta":13483.15,"vl":9386.47,"vo":2131.0,"vi":9866.47,"od":"Loja 13: R$ 2,131.00"},"Q2":{"meta":14982.11,"vl":11066.0,"vo":3528.0,"vi":11066.0,"od":"Loja 13: R$ 3,528.00"}}},{"id":"v51","nome":"Gisele dos Santos Marques","lojaId":"l18","per":{"Q1":{"meta":14256.57,"vl":16042.0,"vo":0.0,"vi":16042.0,"od":""},"Q2":{"meta":14256.57,"vl":14630.0,"vo":0.0,"vi":14630.0,"od":""}}},{"id":"v52","nome":"Bruna Araujo Dias","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":18971.5,"vo":0.0,"vi":18971.5,"od":""},"Q2":{"meta":14968.15,"vl":22120.35,"vo":0.0,"vi":22120.35,"od":""}}},{"id":"v53","nome":"Nathalia de Menezes Siqueira","lojaId":"l13","per":{"Q1":{"meta":4932.59,"vl":0.0,"vo":0.0,"vi":0.0,"od":""}}},{"id":"v54","nome":"Taina Gonzaga Gomes dos Santos","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":25498.4,"vo":0.0,"vi":25498.4,"od":""},"Q2":{"meta":44794.65,"vl":26278.0,"vo":0.0,"vi":26278.0,"od":""}}},{"id":"v55","nome":"Dhenifer Cardoso de Oliveira","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":10040.0,"vo":0.0,"vi":10040.0,"od":""},"Q2":{"meta":14968.15,"vl":20060.2,"vo":0.0,"vi":20060.2,"od":""}}},{"id":"v56","nome":"Manoel da Conceicao de Andrade Junior","lojaId":"l20","per":{"Q1":{"meta":24433.42,"vl":19904.57,"vo":0.0,"vi":19904.57,"od":""},"Q2":{"meta":24433.42,"vl":16055.6,"vo":0.0,"vi":16055.6,"od":""}}},{"id":"v57","nome":"Thais dos Santos Souza","lojaId":"l21","per":{"Q1":{"meta":21213.09,"vl":9648.0,"vo":0.0,"vi":9648.0,"od":""},"Q2":{"meta":20217.4,"vl":13085.8,"vo":0.0,"vi":13085.8,"od":""}}},{"id":"v58","nome":"Camila Ramalho Pinheiro","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":25381.9,"vo":0.0,"vi":25381.9,"od":""},"Q2":{"meta":14968.15,"vl":28895.15,"vo":0.0,"vi":28895.15,"od":""}}},{"id":"v59","nome":"Geovana Assis Loiola","lojaId":"l25","per":{"Q1":{"meta":15479.76,"vl":11565.9,"vo":0.0,"vi":11565.9,"od":""},"Q2":{"meta":19349.71,"vl":14312.7,"vo":0.0,"vi":14312.7,"od":""}}},{"id":"v60","nome":"Marcia Junia da Silva Almeida","lojaId":"l10","per":{"Q1":{"meta":13483.15,"vl":9350.47,"vo":0.0,"vi":9350.47,"od":""},"Q2":{"meta":14982.11,"vl":12870.0,"vo":0.0,"vi":12870.0,"od":""}}},{"id":"v61","nome":"Samara Conceicao Paixao","lojaId":"l16","per":{"Q1":{"meta":10085.94,"vl":4866.5,"vo":0.0,"vi":4866.5,"od":""},"Q2":{"meta":10085.94,"vl":12281.1,"vo":1363.0,"vi":12281.1,"od":"Loja 13: R$ 1,363.00"}}},{"id":"v62","nome":"Ana Carolina Nunes dos Santos","lojaId":"l25","per":{"Q1":{"meta":15479.76,"vl":8401.9,"vo":0.0,"vi":8401.9,"od":""},"Q2":{"meta":19349.71,"vl":10751.0,"vo":0.0,"vi":10751.0,"od":""}}},{"id":"v63","nome":"Gabriella Cristina Ramos Leite","lojaId":"l13","per":{"Q1":{"meta":22640.92,"vl":18205.95,"vo":0.0,"vi":18205.95,"od":""},"Q2":{"meta":18522.71,"vl":14934.31,"vo":0.0,"vi":14934.31,"od":""}}},{"id":"v64","nome":"Marinaldo Pereira da Silva","lojaId":"l26","per":{"Q1":{"meta":22565.11,"vl":7338.44,"vo":0.0,"vi":7338.44,"od":""},"Q2":{"meta":22428.61,"vl":14256.5,"vo":0.0,"vi":14256.5,"od":""}}},{"id":"v65","nome":"Ana Julia Santos de Jesus Britto","lojaId":"l13","per":{"Q1":{"meta":22640.92,"vl":15186.0,"vo":0.0,"vi":15186.0,"od":""},"Q2":{"meta":18522.71,"vl":18586.49,"vo":0.0,"vi":18586.49,"od":""}}},{"id":"v66","nome":"Pedro Lucas Lucena de Franca","lojaId":"l10","per":{"Q1":{"meta":13483.15,"vl":2695.55,"vo":0.0,"vi":2695.55,"od":""}}},{"id":"v67","nome":"Nycollas Ferreira Oliveira da Silva","lojaId":"l13","per":{"Q1":{"meta":22640.92,"vl":13633.8,"vo":0.0,"vi":13633.8,"od":""},"Q2":{"meta":18522.71,"vl":6237.9,"vo":0.0,"vi":6237.9,"od":""}}},{"id":"v68","nome":"Aghata Martins de Souza","lojaId":"l17","per":{"Q1":{"meta":13260.13,"vl":4483.0,"vo":0.0,"vi":4483.0,"od":""},"Q2":{"meta":13260.13,"vl":4944.1,"vo":0.0,"vi":4944.1,"od":""}}},{"id":"v69","nome":"Paulo Dias Junior","lojaId":"l26","per":{"Q1":{"meta":15928.32,"vl":4950.51,"vo":0.0,"vi":4950.51,"od":""},"Q2":{"meta":15831.98,"vl":5868.1,"vo":0.0,"vi":5868.1,"od":""}}},{"id":"v70","nome":"Caroline Batista da Silva","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":44923.81,"vo":0.0,"vi":44923.81,"od":""},"Q2":{"meta":44794.65,"vl":45304.59,"vo":0.0,"vi":45304.59,"od":""}}},{"id":"v71","nome":"Vanessa Vitoria Barbosa da Silva","lojaId":"l20","per":{"Q1":{"meta":24433.42,"vl":10418.4,"vo":0.0,"vi":10418.4,"od":""},"Q2":{"meta":24433.42,"vl":30602.0,"vo":0.0,"vi":30602.0,"od":""}}},{"id":"v72","nome":"Fernando Jose Miranda Acioli","lojaId":"l40","per":{"Q1":{"meta":14560.0,"vl":7758.0,"vo":0.0,"vi":7758.0,"od":""},"Q2":{"meta":12133.36,"vl":8808.0,"vo":0.0,"vi":8808.0,"od":""}}},{"id":"v73","nome":"Tatiane Vieira Gomes","lojaId":"l41","per":{"Q1":{"meta":18666.67,"vl":16519.0,"vo":0.0,"vi":15975.0,"od":""},"Q2":{"meta":19600.0,"vl":25021.0,"vo":0.0,"vi":25021.0,"od":""}}},{"id":"v74","nome":"Leonara Nunes Alves","lojaId":"l40","per":{"Q1":{"meta":19110.0,"vl":23695.88,"vo":0.0,"vi":23695.88,"od":""},"Q2":{"meta":19716.66,"vl":30006.87,"vo":0.0,"vi":30006.87,"od":""}}},{"id":"v75","nome":"Maria Cleide Oliveira de Jesus","lojaId":"l33","per":{"Q1":{"meta":18556.88,"vl":13725.7,"vo":0.0,"vi":13725.7,"od":""},"Q2":{"meta":18556.88,"vl":9533.45,"vo":0.0,"vi":9533.45,"od":""}}},{"id":"v76","nome":"Ruth Rodrigues da Silva","lojaId":"l12","per":{"Q1":{"meta":13949.13,"vl":13166.0,"vo":0.0,"vi":13166.0,"od":""},"Q2":{"meta":16938.13,"vl":11056.1,"vo":0.0,"vi":11056.1,"od":""}}},{"id":"v77","nome":"Mixeroly Alves Ferreira","lojaId":"l41","per":{"Q1":{"meta":18666.67,"vl":15179.0,"vo":0.0,"vi":15179.0,"od":""},"Q2":{"meta":19600.0,"vl":16283.0,"vo":0.0,"vi":16283.0,"od":""}}},{"id":"v78","nome":"Ananda Fernandes Pereira","lojaId":"l40","per":{"Q1":{"meta":19110.0,"vl":23886.0,"vo":0.0,"vi":23886.0,"od":""},"Q2":{"meta":19716.66,"vl":21045.83,"vo":0.0,"vi":21045.83,"od":""}}},{"id":"v79","nome":"Gabriele da Silva de Andrade","lojaId":"l19","per":{"Q1":{"meta":22569.87,"vl":8037.0,"vo":1020.0,"vi":8037.0,"od":"Loja 12: R$ 1,020.00"},"Q2":{"meta":22569.87,"vl":10086.0,"vo":445.0,"vi":10086.0,"od":"Loja 12: R$ 445.00"}}},{"id":"v80","nome":"Jeane Alexandre","lojaId":"l24","per":{"Q1":{"meta":4691.07,"vl":4433.5,"vo":0.0,"vi":4433.5,"od":""}}},{"id":"v81","nome":"Jeane Alexandre","lojaId":"l39","per":{"Q1":{"meta":12270.8,"vl":9164.7,"vo":0.0,"vi":5682.7,"od":""},"Q2":{"meta":24912.62,"vl":9515.4,"vo":0.0,"vi":9515.4,"od":""}}},{"id":"v82","nome":"Filippe Braga Barbosa","lojaId":"l40","per":{"Q1":{"meta":19110.0,"vl":19900.0,"vo":0.0,"vi":19900.0,"od":""},"Q2":{"meta":19716.66,"vl":18049.9,"vo":0.0,"vi":18049.9,"od":""}}},{"id":"v83","nome":"Daniele Souza dos Santos","lojaId":"l24","per":{"Q1":{"meta":15425.07,"vl":14619.2,"vo":0.0,"vi":14619.2,"od":""},"Q2":{"meta":20116.14,"vl":11799.1,"vo":0.0,"vi":11799.1,"od":""}}},{"id":"v84","nome":"Antonio Zacarias Cardoso da Silva","lojaId":"l16","per":{"Q1":{"meta":10085.94,"vl":8140.0,"vo":0.0,"vi":8140.0,"od":""},"Q2":{"meta":10085.94,"vl":11991.0,"vo":0.0,"vi":11991.0,"od":""}}},{"id":"v85","nome":"Rafaela Maria da Silva Sousa","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":12458.95,"vo":0.0,"vi":12458.95,"od":""},"Q2":{"meta":14968.15,"vl":12715.9,"vo":0.0,"vi":12467.9,"od":""}}},{"id":"v86","nome":"Bianca Santos de Jesus","lojaId":"l39","per":{"Q1":{"meta":39857.14,"vl":18667.7,"vo":0.0,"vi":18667.7,"od":""},"Q2":{"meta":24912.62,"vl":15390.3,"vo":0.0,"vi":15390.3,"od":""}}},{"id":"v87","nome":"Philip Martins Greiner","lojaId":"l12","per":{"Q1":{"meta":13949.13,"vl":14494.0,"vo":0.0,"vi":14524.0,"od":""},"Q2":{"meta":16938.13,"vl":12761.15,"vo":0.0,"vi":12761.15,"od":""}}},{"id":"v88","nome":"Camila Ribeiro Pereira","lojaId":"l12","per":{"Q1":{"meta":13949.13,"vl":6148.2,"vo":0.0,"vi":6148.2,"od":""},"Q2":{"meta":857.64,"vl":0.0,"vo":0.0,"vi":0.0,"od":""}}},{"id":"v89","nome":"Ana Gabriela Blanco da Conceicao","lojaId":"l21","per":{"Q1":{"meta":5734.1,"vl":3354.0,"vo":0.0,"vi":3354.0,"od":""}}},{"id":"v90","nome":"Walquiria Ribeiro","lojaId":"l18","per":{"Q1":{"meta":14256.57,"vl":11728.0,"vo":0.0,"vi":11728.0,"od":""},"Q2":{"meta":14256.57,"vl":13744.5,"vo":0.0,"vi":13744.5,"od":""}}},{"id":"v91","nome":"Solange de Brito","lojaId":"l31","per":{"Q1":{"meta":14968.15,"vl":15000.55,"vo":0.0,"vi":15000.55,"od":""},"Q2":{"meta":14968.15,"vl":19577.5,"vo":0.0,"vi":19577.5,"od":""}}},{"id":"v92","nome":"Dyandrio Souza Brito","lojaId":"l21","per":{"Q1":{"meta":21213.09,"vl":17964.36,"vo":0.0,"vi":17964.36,"od":""},"Q2":{"meta":20217.4,"vl":16124.6,"vo":0.0,"vi":16124.6,"od":""}}},{"id":"v93","nome":"Martha Geovyanny das Chagas","lojaId":"l18","per":{"Q1":{"meta":14256.57,"vl":6083.0,"vo":0.0,"vi":6083.0,"od":""},"Q2":{"meta":14256.57,"vl":15130.0,"vo":0.0,"vi":15130.0,"od":""}}},{"id":"v94","nome":"Leticia Alessandra Santos de Souza","lojaId":"l41","per":{"Q1":{"meta":18666.67,"vl":14476.42,"vo":0.0,"vi":14476.42,"od":""},"Q2":{"meta":19600.0,"vl":11243.0,"vo":0.0,"vi":11243.0,"od":""}}},{"id":"v95","nome":"Ronald Reilan de Jesus Freire","lojaId":"l20","per":{"Q1":{"meta":44794.65,"vl":53909.28,"vo":0.0,"vi":53909.28,"od":""},"Q2":{"meta":44794.65,"vl":55139.3,"vo":0.0,"vi":55139.3,"od":""}}},{"id":"v96","nome":"Mariana Pereira Souza","lojaId":"l16","per":{"Q1":{"meta":10085.94,"vl":6083.0,"vo":0.0,"vi":6083.0,"od":""},"Q2":{"meta":10085.94,"vl":13127.0,"vo":0.0,"vi":13127.0,"od":""}}},{"id":"v97","nome":"Adriana Amaral dos Santos","lojaId":"l25","per":{"Q1":{"meta":15479.76,"vl":16511.9,"vo":0.0,"vi":16511.9,"od":""},"Q2":{"meta":19349.71,"vl":16152.7,"vo":0.0,"vi":16152.7,"od":""}}},{"id":"v98","nome":"Maria Eduarda Sousa Melo","lojaId":"l21","per":{"Q1":{"meta":8282.92,"vl":949.0,"vo":0.0,"vi":949.0,"od":""}}},{"id":"v99","nome":"Juan Mello Ferreira","lojaId":"l12","per":{"Q1":{"meta":13949.13,"vl":9720.6,"vo":0.0,"vi":9720.6,"od":""},"Q2":{"meta":16938.13,"vl":10007.0,"vo":0.0,"vi":10007.0,"od":""}}},{"id":"v100","nome":"Maria Rita dos Santos Chaves","lojaId":"l10","per":{"Q1":{"meta":13483.15,"vl":8746.18,"vo":0.0,"vi":8746.18,"od":""},"Q2":{"meta":14982.11,"vl":11456.8,"vo":0.0,"vi":11456.8,"od":""}}},{"id":"v101","nome":"Patricia Coelho Rodrigues","lojaId":"l19","per":{"Q1":{"meta":22569.87,"vl":12924.65,"vo":0.0,"vi":12924.65,"od":""},"Q2":{"meta":22569.87,"vl":10086.0,"vo":0.0,"vi":10086.0,"od":""}}},{"id":"v102","nome":"Simara Ramalhete Goncalves","lojaId":"l25","per":{"Q1":{"meta":15479.76,"vl":14245.9,"vo":0.0,"vi":14245.9,"od":""},"Q2":{"meta":19349.71,"vl":17236.1,"vo":0.0,"vi":17236.1,"od":""}}},{"id":"v103","nome":"Michelly Karoline Gomes Marialva","lojaId":"l41","per":{"Q1":{"meta":13999.99,"vl":9481.03,"vo":0.0,"vi":9481.03,"od":""},"Q2":{"meta":11200.0,"vl":15910.0,"vo":0.0,"vi":15831.0,"od":""}}},{"id":"v104","nome":"Rayane Victoria Prata Guedes","lojaId":"l40","per":{"Q1":{"meta":19110.0,"vl":10964.12,"vo":0.0,"vi":10964.12,"od":""},"Q2":{"meta":19716.66,"vl":22165.71,"vo":0.0,"vi":22165.71,"od":""}}},{"id":"v105","nome":"Ana Carina Martins de Mattos","lojaId":"l25","per":{"Q1":{"meta":15479.76,"vl":10948.9,"vo":0.0,"vi":10780.9,"od":""}}},{"id":"v106","nome":"Bianca Muniz Cardoso","lojaId":"l16","per":{"Q1":{"meta":10085.94,"vl":4636.0,"vo":0.0,"vi":4636.0,"od":""},"Q2":{"meta":10085.94,"vl":6564.0,"vo":0.0,"vi":6564.0,"od":""}}},{"id":"v107","nome":"Lucas Vinicius Henrique Proenca","lojaId":"l17","per":{"Q1":{"meta":13260.13,"vl":10025.1,"vo":0.0,"vi":10025.1,"od":""},"Q2":{"meta":13260.13,"vl":9466.6,"vo":0.0,"vi":9466.6,"od":""}}},{"id":"v108","nome":"Karina da Silva Rodrigues","lojaId":"l19","per":{"Q1":{"meta":22569.87,"vl":17379.0,"vo":0.0,"vi":17379.0,"od":""},"Q2":{"meta":22569.87,"vl":16594.0,"vo":0.0,"vi":16594.0,"od":""}}},{"id":"v109","nome":"Jonatas Alessandro Bento da Silva","lojaId":"l26","per":{"Q1":{"meta":30197.43,"vl":15909.2,"vo":0.0,"vi":15909.2,"od":""},"Q2":{"meta":30014.76,"vl":24141.3,"vo":0.0,"vi":24141.3,"od":""}}},{"id":"v110","nome":"Brenda Siqueira de Alcantara Figueiredo","lojaId":"l12","per":{"Q1":{"meta":12813.64,"vl":12900.1,"vo":0.0,"vi":12900.1,"od":""},"Q2":{"meta":16938.13,"vl":9985.85,"vo":0.0,"vi":9985.85,"od":""}}},{"id":"v111","nome":"Luiza Carias Silva dos Santos","lojaId":"l21","per":{"Q1":{"meta":3500.02,"vl":3630.48,"vo":0.0,"vi":3630.48,"od":""},"Q2":{"meta":11231.92,"vl":7089.8,"vo":0.0,"vi":7089.8,"od":""}}},{"id":"v112","nome":"Francisca Elinalda Alves de Oliveira","lojaId":"l10","per":{"Q1":{"meta":7494.8,"vl":3984.1,"vo":0.0,"vi":3984.1,"od":""},"Q2":{"meta":14982.11,"vl":11380.6,"vo":0.0,"vi":11380.6,"od":""}}},{"id":"v113","nome":"Vivianne Cristina Alves Amorim","lojaId":"l26","per":{"Q1":{"meta":15839.88,"vl":11808.3,"vo":0.0,"vi":11808.3,"od":""},"Q2":{"meta":26386.6,"vl":23462.4,"vo":0.0,"vi":23462.4,"od":""}}},{"id":"v114","nome":"Mariana Mota Santos","lojaId":"l21","per":{"Q1":{"meta":10945.2,"vl":6662.49,"vo":0.0,"vi":6662.49,"od":""},"Q2":{"meta":20217.4,"vl":19965.9,"vo":0.0,"vi":19965.9,"od":""}}},{"id":"v115","nome":"Michelly Mota Silva (nome social · registro Kaique Mota Silva)","lojaId":"l13","per":{"Q1":{"meta":1235.47,"vl":0.0,"vo":0.0,"vi":0.0,"od":""},"Q2":{"meta":18522.71,"vl":15438.65,"vo":0.0,"vi":15438.65,"od":""}}},{"id":"v116","nome":"Cleiton Cerqueira Santos","lojaId":"l39","per":{"Q2":{"meta":17247.21,"vl":9274.5,"vo":0.0,"vi":9274.5,"od":""}}}],"EXTRA":[{"lojaId":"l34","P":"S1","nome":"GERENTE (usuário da loja)","venda":192.79,"tipo":"gerente","origem":null},{"lojaId":"l35","P":"S1","nome":"GERENTE (usuário da loja)","venda":23.88,"tipo":"gerente","origem":null},{"lojaId":"l37","P":"S1","nome":"Bruno Ribeiro Dos Santos Silverio","venda":287.0,"tipo":"sem meta","origem":"l34"},{"lojaId":"l37","P":"S1","nome":"GERENTE (usuário da loja)","venda":199.0,"tipo":"gerente","origem":null},{"lojaId":"l34","P":"S2","nome":"GERENTE (usuário da loja)","venda":0.0,"tipo":"gerente","origem":null},{"lojaId":"l37","P":"S2","nome":"GERENTE (usuário da loja)","venda":679.2,"tipo":"gerente","origem":null},{"lojaId":"l34","P":"S3","nome":"GERENTE (usuário da loja)","venda":100.0,"tipo":"gerente","origem":null},{"lojaId":"l35","P":"S4","nome":"GERENTE (usuário da loja)","venda":118.51,"tipo":"gerente","origem":null},{"lojaId":"l37","P":"S4","nome":"GERENTE (usuário da loja)","venda":2141.0,"tipo":"gerente","origem":null},{"lojaId":"l10","P":"Q1","nome":"GERENTE (usuário da loja)","venda":480.0,"tipo":"gerente","origem":null},{"lojaId":"l12","P":"Q1","nome":"Gabriele Da Silva De Andrade","venda":1020.0,"tipo":"sem meta","origem":"l19"},{"lojaId":"l12","P":"Q1","nome":"GERENTE (usuário da loja)","venda":-40.0,"tipo":"gerente","origem":null},{"lojaId":"l13","P":"Q1","nome":"Cesar Barbosa Barros","venda":2131.0,"tipo":"sem meta","origem":"l10"},{"lojaId":"l13","P":"Q1","nome":"GERENTE (usuário da loja)","venda":614.0,"tipo":"gerente","origem":null},{"lojaId":"l17","P":"Q1","nome":"GERENTE (usuário da loja)","venda":154.8,"tipo":"gerente","origem":null},{"lojaId":"l18","P":"Q1","nome":"GERENTE (usuário da loja)","venda":59.4,"tipo":"gerente","origem":null},{"lojaId":"l19","P":"Q1","nome":"GERENTE (usuário da loja)","venda":203.0,"tipo":"gerente","origem":null},{"lojaId":"l20","P":"Q1","nome":"GERENTE (usuário da loja)","venda":338.6,"tipo":"gerente","origem":null},{"lojaId":"l21","P":"Q1","nome":"GERENTE (usuário da loja)","venda":35.4,"tipo":"gerente","origem":null},{"lojaId":"l25","P":"Q1","nome":"GERENTE (usuário da loja)","venda":1019.4,"tipo":"gerente","origem":null},{"lojaId":"l33","P":"Q1","nome":"GERENTE (usuário da loja)","venda":462.2,"tipo":"gerente","origem":null},{"lojaId":"l10","P":"Q2","nome":"GERENTE (usuário da loja)","venda":-956.0,"tipo":"gerente","origem":null},{"lojaId":"l12","P":"Q2","nome":"Gabriele Da Silva De Andrade","venda":445.0,"tipo":"sem meta","origem":"l19"},{"lojaId":"l12","P":"Q2","nome":"GERENTE (usuário da loja)","venda":84.0,"tipo":"gerente","origem":null},{"lojaId":"l13","P":"Q2","nome":"Cesar Barbosa Barros","venda":3528.0,"tipo":"sem meta","origem":"l10"},{"lojaId":"l13","P":"Q2","nome":"Samara Conceicao Paixao","venda":1363.0,"tipo":"sem meta","origem":"l16"},{"lojaId":"l13","P":"Q2","nome":"GERENTE (usuário da loja)","venda":351.9,"tipo":"gerente","origem":null},{"lojaId":"l16","P":"Q2","nome":"GERENTE (usuário da loja)","venda":-417.0,"tipo":"gerente","origem":null},{"lojaId":"l17","P":"Q2","nome":"GERENTE (usuário da loja)","venda":189.0,"tipo":"gerente","origem":null},{"lojaId":"l18","P":"Q2","nome":"GERENTE (usuário da loja)","venda":268.8,"tipo":"gerente","origem":null},{"lojaId":"l19","P":"Q2","nome":"GERENTE (usuário da loja)","venda":59.0,"tipo":"gerente","origem":null},{"lojaId":"l20","P":"Q2","nome":"GERENTE (usuário da loja)","venda":113.4,"tipo":"gerente","origem":null},{"lojaId":"l25","P":"Q2","nome":"GERENTE (usuário da loja)","venda":452.6,"tipo":"gerente","origem":null},{"lojaId":"l33","P":"Q2","nome":"GERENTE (usuário da loja)","venda":165.0,"tipo":"gerente","origem":null}],"GER":{"l10":{"nome":"Maria Josilene Rodrigues Melo","cargo":"Gerente de loja"},"l12":{"nome":"Jaqueline dos Santos Garcia","cargo":"Responsável pela loja"},"l13":{"nome":"Maria Josilene Rodrigues Melo","cargo":"Gerente de loja"},"l16":{"nome":"Maria Josilene Rodrigues Melo","cargo":"Gerente de loja"},"l17":{"nome":"Ana Carolina Neves de Souza","cargo":"Gerente de loja"},"l18":{"nome":"Elis Natanna Peixoto dos Santos da Silva","cargo":"Gerente de loja"},"l19":{"nome":"Jaqueline dos Santos Garcia","cargo":"Responsável pela loja"},"l20":{"nome":"Lucidalva Pereira dos Santos","cargo":"Gerente de loja"},"l21":{"nome":"Andre de Souza Soares","cargo":"Gerente de loja"},"l24":{"nome":"Tamara Vieira de Assuncao","cargo":"Responsável pela loja"},"l25":{"nome":"Juliana Morais Ramos do Nascimento","cargo":"Gerente de loja"},"l26":{"nome":"Barbara Cleonice Brasileiro Oliveira Bezerra","cargo":"Gerente de loja"},"l31":{"nome":"Elenice Aparecida Wagner","cargo":"Gerente de loja"},"l33":{"nome":"Tamara Vieira de Assuncao","cargo":"Responsável pela loja"},"l34":{"nome":"Monique Fernandes Aguiar","cargo":"Gerente de loja"},"l35":{"nome":"Lucas Marinho da Rocha","cargo":"Gerente de loja"},"l36":{"nome":"Lucas Marinho da Rocha","cargo":"Gerente de loja"},"l37":{"nome":"Monique Fernandes Aguiar","cargo":"Gerente de loja"},"l39":{"nome":"Tamara Vieira de Assuncao","cargo":"Responsável pela loja"},"l40":{"nome":"Aluizio Almeida de Souza","cargo":"Gerente de loja"},"l41":{"nome":"Aluizio Almeida de Souza","cargo":"Gerente de loja"}},"SUP":[{"id":"u0","nome":"Luana Cléia Soares Santos","cargo":"Operador de Caixa","lojas":["l20"]},{"id":"u1","nome":"Gabriela Bitencourt Almeida Silva","cargo":"Operador de Caixa","lojas":["l20"]},{"id":"u2","nome":"Ana Luiza Dias Dourado Sacramento","cargo":"Operador de Caixa","lojas":["l24"]},{"id":"u3","nome":"Clarisse Vieira Pereira","cargo":"Operador de Caixa","lojas":["l33"]},{"id":"u4","nome":"Gabriel dos Santos","cargo":"Estoquista","lojas":["l35"]},{"id":"u5","nome":"Pedro Henrique da Silva Martins","cargo":"Estoquista","lojas":["l37"]},{"id":"u6","nome":"Luandara Souza dos Santos","cargo":"Operador de Caixa","lojas":["l39"]},{"id":"u7","nome":"Wesly Pietro de Pinho dos Santos","cargo":"Estoquista","lojas":["l41"]}]};
+const LOJAS=DATA.LOJAS,VEND=DATA.VEND,EXTRA=DATA.EXTRA,GER=DATA.GER,SUP=DATA.SUP;
+const loja=id=>LOJAS.find(l=>l.id===id);
+const CARGOS_SUP=["Operador de Caixa","Estoquista","Fiscal de prevenção","Visual merchandiser"];
+const PK={semanal:["S1","S2","S3","S4"],quinzenal:["Q1","Q2"]};
+
+/* ================= regras (Configurações › Regras de Apuração) ================= */
+const CFG_PADRAO={
+  metaMin:100,
+  formato:Object.fromEntries(LOJAS.map(l=>[l.id,l.fmt])),
+  periodos:{semanal:[[1,11],[12,18],[19,25],[26,31]],quinzenal:[[1,15],[16,31]]},
+  vend:{
+    semanal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}},
+    quinzenal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}}
+  },
+  sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice()},
+  ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false}
+};
+let CFG=clone(CFG_PADRAO);
+const FMT_T={semanal:"Semanal",quinzenal:"Quinzenal"};
+function periodos(fmt){
+  const r=CFG.periodos[fmt];
+  return r.map((p,i)=>({k:PK[fmt][i],lbl:fmt==="semanal"?"Sem "+(i+1):(i+1)+"ª quinz.",ini:p[0],fim:p[1],dias:p[1]-p[0]+1}));
+}
+/* aplica as faixas: acumulando todas as atingidas ou só a maior */
+function faixasPag(p,faixas,acumula,base){
+  const hit=faixas.filter(f=>p>=f.min).sort((a,b)=>a.min-b.min);
+  if(!hit.length)return {v:0,n:0,usadas:[]};
+  const usadas=acumula?hit:[hit[hit.length-1]];
+  return {v:usadas.reduce((s,f)=>s+f.pct/100*base(f),0),n:hit.length,usadas};
+}
+const CACHE=new Map();
+function apurarLoja(id){
+  const key=id+JSON.stringify(CFG);if(CACHE.has(key))return CACHE.get(key);
+  const fmt=CFG.formato[id],R=CFG.vend[fmt],ps=periodos(fmt);
+  const vs=VEND.filter(v=>v.lojaId===id),ex=EXTRA.filter(x=>x.lojaId===id);
+  const metaMes=vs.reduce((s,v)=>s+Object.values(v.per).reduce((t,x)=>t+x.meta,0),0);
+  const vendaMes=vs.reduce((s,v)=>s+Object.values(v.per).reduce((t,x)=>t+x.vl,0),0)+ex.reduce((s,x)=>s+x.venda,0);
+  const pMes=metaMes?vendaMes/metaMes*100:0,bateu=pMes>=CFG.metaMin;
+  const vend=vs.map(v=>{
+    const per=ps.map(p=>{const x=v.per[p.k];if(!x)return null;const venda=x.vl+x.vo,pp=x.meta?venda/x.meta*100:0,f=faixasPag(pp,R.faixas,R.acumula,()=>venda);return {...x,venda,p:pp,valor:f.v,n:f.n}});
+    const ok=per.filter(Boolean),vMes=ok.reduce((s,x)=>s+x.venda,0),mMes=ok.reduce((s,x)=>s+x.meta,0),pV=mMes?vMes/mMes*100:0;
+    const indOk=!R.mes.indiv||pV>=CFG.metaMin;
+    const mes=bateu&&R.mes.ativo&&indOk?R.mes.pct/100*(R.mes.base==="loja"?vendaMes:vMes):0;
+    return {...v,per,vMes,metaV:mMes,pMes:pV,indOk,mes,fora:ok.reduce((s,x)=>s+x.vo,0),total:ok.reduce((s,x)=>s+x.valor,0)+mes};
+  });
+  const sup=SUP.filter(s=>s.lojas.includes(id)&&CFG.sup.cargos.includes(s.cargo)).map(s=>{
+    let valor=bateu?CFG.sup.valor:0;
+    if(valor&&!CFG.sup.multi&&s.lojas.length>1){const primeira=s.lojas.find(x=>lojaBateu(x));if(primeira!==id)valor=0}
+    return {...s,valor};
+  });
+  const gf=faixasPag(pMes,CFG.ger.faixas,CFG.ger.acumula,f=>f.base==="meta"?metaMes:vendaMes);
+  const ger={...GER[id],valor:gf.v,usadas:gf.usadas};
+  const tv=vend.reduce((s,v)=>s+v.total,0),ts=sup.reduce((s,x)=>s+x.valor,0);
+  const r={id,fmt,ps,metaMes,vendaMes,pMes,bateu,vend,ex,sup,ger,tv,ts,tg:ger.valor,total:tv+ts+ger.valor,pessoas:vend.filter(v=>v.total>0).length+sup.filter(s=>s.valor>0).length+(ger.valor>0?1:0)};
+  CACHE.set(key,r);return r;
+}
+function lojaBateu(id){return apurarLoja(id).bateu}
+
+/* ================= perfis e acessos ================= */
+const PERFIS={
+  rh:{t:"RH",quem:"Marcos Almeida",cargo:"RH · acesso total",escopo:"Todas as lojas"},
+  supervisora:{t:"Supervisora",quem:"Tamara Vieira de Assuncao",cargo:"Supervisora de vendas · aprova gerentes",escopo:"Todas as lojas"},
+  gestora:{t:"Gestora comercial",quem:"Patricia dos Santos Araujo",cargo:"Gestora comercial · visualização",escopo:"Todas as lojas"},
+  gerente:{t:"Gerente",quem:"Lucas Marinho da Rocha",cargo:"Gerente · Loja 35",escopo:"Própria loja · histórico só dele"}
+};
+const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["regras","Editar regras"]];
+const PERM={
+  rh:{verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
+  supervisora:{verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
+  gestora:{verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
+  gerente:{verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
+};
+const MINHA="l35";
+
+/* ================= lotes de aprovação e histórico ================= */
+const ST_L={aguardando:["Aguardando aprovação","c-warn",1],devolvido:["Devolvido para revisão","c-bad",1],aprovado:["Aprovado","c-info",2],folha:["Lançado na folha","c-brand",3],pago:["Pago","c-ok",4]};
+const ev=(em,quem,acao)=>({em,quem,acao});
+const LOTES=LOJAS.map(l=>({id:"L"+l.id,comp:COMP,lojaId:l.id,status:"aguardando",eq:false,gr:false,eventos:[ev("09/11 13:00","Sistema","Apuração de Outubro/2026 importada: metas Indeva + vendas Totvs"),ev("09/11 13:01","Sistema","Enviada para aprovação")],congelado:null}));
+function sync(L){if(["folha","pago","devolvido"].includes(L.status))return;if(!L.gr&&apurarLoja(L.lojaId).tg===0)L.gr=true;L.status=L.eq&&L.gr?"aprovado":"aguardando";if(L.status==="aprovado"&&!L.congelado){const a=apurarLoja(L.lojaId);L.congelado={total:a.total,pessoas:a.pessoas,eqv:a.tv+a.ts,gv:a.tg}}}
+LOTES.forEach(sync);
+const HIST=[];
+const lotal=L=>L.congelado||(()=>{const a=apurarLoja(L.lojaId);return {total:a.total,pessoas:a.pessoas,eqv:a.tv+a.ts,gv:a.tg}})();
+const HIST_GER=[];
+/* ---- gravação no banco do ConectaGP: rh/premiacoes (só a conta do RH grava) ---- */
+let CFG_SALVO=clone(CFG_PADRAO),CARREGADO=false,CARREGANDO=false,ERRO_DB="";
+const podeGravar=()=>typeof ROLE!=="undefined"&&ROLE==="rh"&&!!SB&&!!ST;
+const regrasPendentes=()=>JSON.stringify(CFG)!==JSON.stringify(CFG_SALVO);
+function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,
+  lotes:LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,eventos:L.eventos,congelado:L.congelado||null}))}}
+function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
+function aplicarDB(d){
+  if(!d||d.comp!==COMP)return;
+  if(d.cfg){CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
+  if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
+  (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
+}
+function carregar(){
+  if(CARREGADO)return;CARREGADO=true;
+  if(typeof ST!=="undefined"&&ST&&ST.premiacoes)aplicarDB(JSON.parse(JSON.stringify(ST.premiacoes)));
+}
+function quem(){const n=(typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH";return UI.view==="rh"?n+" · RH":n+" · RH, pela "+PERFIS[UI.view].t.toLowerCase()}
+function registrar(L,acao){L.eventos.push(ev(agora(),quem(),acao));if(typeof logEvento==="function")logEvento("Premiações · "+acao,loja(L.lojaId).nome+" · "+COMP)}
+function bloqueadoPorRegras(){if(!regrasPendentes())return false;toast("Há regras alteradas e não salvas. Salve ou restaure as regras antes de aprovar.");return true}
+
+/* ================= estado da tela ================= */
+const UI={view:"rh",tab:"acoes",loja:"",histLoja:""};
+const P=()=>PERM[UI.view];
+const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"]];
+const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
+
+const IC={
+  premios:'<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 6h3v1.5A3.5 3.5 0 0 1 16.6 11M7 6H4v1.5A3.5 3.5 0 0 0 7.4 11"/>',
+  dot:'<rect x="4" y="4" width="16" height="16" rx="5"/>',
+  vendas:'<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>',
+  star:'<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',
+  user:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/>',
+  warn:'<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/>'
+};
+/* ================= render ================= */
+function permitido(tab){const all=[...SUB_AP,...SUB_CF].find(x=>x[0]===tab);return all&&all[2](P())}
+function subnav(){
+  if(!permitido(UI.tab))UI.tab="acoes";
+  const p=P();
+  const pend=LOTES.filter(L=>L.status==="aguardando"&&escopo().includes(L.lojaId)&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr)||(!p.aprovar&&!p.aprovarGer))).length;
+  const sub=(lbl,items)=>{const vis=items.filter(x=>x[2](p));return vis.length?`<div class="sub-label">${lbl}</div>`+vis.map(([k,t])=>`<a href="#${k}" data-prtab="${k}" class="${UI.tab===k?"on":""}" ${UI.tab===k?'aria-current="page"':""}>${t}${k==="aprovacoes"&&pend?`<span class="cnt">${pend}</span>`:""}</a>`).join(""):""};
+  return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Configurações",SUB_CF)}</div>`;
+}
+function pagina(){
+  carregar();
+  if(!CARREGADO)return `<div class="prem-pg"><div class="card empty">Carregando premiações salvas…</div></div>`;
+  if(!permitido(UI.tab))UI.tab="acoes";
+  const p=P(),apTab=SUB_AP.some(x=>x[0]===UI.tab);
+  const grupo=apTab?"Apuração":"Configurações";
+  const acts=[];
+  if(UI.tab==="acoes"&&p.regras)acts.push(`<button class="btn btn-primary" data-pract="nova">+ Nova campanha</button>`);
+  if(UI.tab==="regras")acts.push(`<button class="btn" data-pract="padrao">Restaurar padrão</button><button class="btn btn-primary" data-pract="salvar">Salvar regras</button>`);
+  if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
+  if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
+  return `<div class="prem-pg">
+  <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div></div>
+  <div class="topbar">
+    <div><div class="eyebrow">Premiações e Incentivos · ${grupo}</div><h1>${TITULO[UI.tab]}</h1></div>
+    <div class="top-actions">${acts.join("")}</div>
+  </div>
+  ${apTab?kpis():""}
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,resultados:tResultados,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+}
+function kpis(){
+  const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
+  const tot=aps.reduce((s,a)=>s+a.total,0),bat=aps.filter(a=>a.bateu).length;
+  const ag=LOTES.filter(L=>ids.includes(L.lojaId)&&L.status==="aguardando");
+  const pago=UI.view==="gerente"?HIST_GER.reduce((s,h)=>s+h.valor,0):HIST.filter(h=>ids.includes(h.lojaId)).reduce((s,h)=>s+h.total,0)+LOTES.filter(L=>ids.includes(L.lojaId)&&L.status==="pago").reduce((s,L)=>s+lotal(L).total,0);
+  const c=[`<div class="card kpi hero"><span class="lbl">Apurado em ${COMP}</span><span class="val num">${brl0(tot)}</span><span class="sub">${aps.reduce((s,a)=>s+a.pessoas,0)} pessoas premiadas</span></div>`,
+    `<div class="card kpi"><span class="lbl">${ids.length>1?"Lojas que bateram a meta do mês":"Meta do mês da loja"}</span><span class="val num">${ids.length>1?bat+" de "+ids.length:pct(aps[0].pMes)}</span><span class="sub">${ids.length>1?(bat?aps.filter(a=>a.bateu).map(a=>loja(a.id).curto).join(", ")+" na meta":"nenhuma na meta")+" · "+(ids.length-bat)+" abaixo":aps[0].bateu?"bateu a meta":"abaixo da meta"}</span></div>`];
+  if(p.verAprov)c.push(`<div class="card kpi"><span class="lbl">Aguardando aprovação</span><span class="val num">${brl0(ag.reduce((s,L)=>s+lotal(L).total,0))}</span><span class="sub">${ag.length} loja(s)</span></div>`);
+  if(p.verHist)c.push(`<div class="card kpi"><span class="lbl">${UI.view==="gerente"?"Seus prêmios pagos em 2026":"Pago em premiações em 2026"}</span><span class="val num">${brl0(pago)}</span><span class="sub">${pago?"desde Agosto/2026":"nenhum pagamento lançado ainda"}</span></div>`);
+  return `<div class="grid kpis">${c.join("")}</div>`;
+}
+
+/* ---------- Ações de Incentivo ---------- */
+function tAcoes(){
+  const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
+  const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma)":"");
+  const outras=[
+    {n:"Black Friday 2026",t:"Meta de vendas",ic:IC.vendas,c:["Agendada","c-info"],bg:"var(--brand-soft)",fg:"var(--brand)",d:"Maior % da meta individual de vendas de 20 a 30/11, por loja.",pr:"1º R$ 400 · 2º R$ 250 · 3º R$ 150 por loja",f:"20/11 a 30/11 · 5 lojas"},
+    {n:"Zero Falta · 4º trimestre",t:"Assiduidade",ic:IC.cal,c:["Em andamento","c-ok"],bg:"var(--info-soft)",fg:"var(--info)",d:"Sem faltas e com até 2 atrasos no trimestre.",pr:"1 folga extra em janeiro",f:"01/10 a 31/12 · todas as unidades"},
+    {n:"Indique um talento",t:"Indicação premiada",ic:IC.user,c:["Em andamento","c-ok"],bg:"var(--ok-soft)",fg:"var(--ok)",d:"Indicado contratado e efetivado após os 90 dias de experiência.",pr:"R$ 200 por indicação efetivada",f:"01/09 a 31/12 · todas as unidades"}
+  ];
+  return `<div class="grid camps">
+  <article class="card camp feat">
+    <div class="camp-top"><div style="display:flex;gap:12px;min-width:0"><div class="ico" style="background:var(--accent-soft);color:var(--accent-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC.star}</svg></div>
+      <div style="min-width:0"><span class="per">Recorrente · apuração mensal</span><h2>Campanha de Incentivo de Vendas</h2></div></div><span class="chip c-ok">Em andamento</span></div>
+    <div class="feat-rules">
+      <div><b>Vendedor · loja semanal</b>${fx(v)}${v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</div>
+      <div><b>Vendedor · loja quinzenal</b>${fx(q)}${q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</div>
+      <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; lotado em 2 lojas recebe por cada uma":""}</div>
+      <div><b>Gerente</b>${CFG.ger.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês`).join(" · ")}</div>
+    </div>
+    <div class="camp-foot"><span>${COMP} fechada · ${LOJAS.filter(l=>escopo().includes(l.id)).length} loja(s)</span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">${P().regras?`<button class="btn btn-sm" data-prtab="regras">Editar regras</button>`:""}${P().verRes?`<button class="btn btn-sm btn-primary" data-prtab="resultados">Ver apuração</button>`:""}</span></div>
+  </article>
+  ${outras.map(o=>`<article class="card camp">
+    <div class="camp-top"><div style="display:flex;gap:12px;min-width:0"><div class="ico" style="background:${o.bg};color:${o.fg}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${o.ic}</svg></div>
+      <div style="min-width:0"><span class="per">${o.t}</span><h3>${o.n}</h3></div></div><span class="chip ${o.c[1]}">${o.c[0]}</span></div>
+    <p class="desc">${o.d}</p>
+    <div class="prize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${IC.premios}</svg><span>${o.pr}</span></div>
+    <div class="camp-foot"><span>${o.f}</span></div></article>`).join("")}
+  </div>`;
+}
+
+/* ---------- Resultados (apuração calculada) ---------- */
+const tier=(p,faixas)=>faixas.filter(f=>p>=f.min).length;
+function cel(x,faixas){if(!x)return `<div class="pc t0" title="Sem meta no Indeva neste período"><b>—</b><small>sem meta</small></div>`;const t=Math.min(tier(x.p,faixas),2);const tip=`Meta ${brl(x.meta)} · venda ${brl(x.venda)}`+(x.vo?` (inclui ${brl(x.vo)} em outra loja: ${x.od})`:"")+(Math.abs(x.vl-x.vi)>0.01?` · Indeva mostra ${brl(x.vi)}`:"");return `<div class="pc t${t}" title="${esc(tip)}"><b>${pct(x.p)}${x.vo?'<sup style="color:var(--info)"> +</sup>':""}${Math.abs(x.vl-x.vi)>0.01?'<sup style="color:var(--warn,#b7791f)"> !</sup>':""}</b><small>${x.valor?brl(x.valor):"—"}</small></div>`}
+function tResultados(){
+  const ids=escopo();
+  const sel=UI.view==="gerente"?MINHA:UI.loja;
+  const filtro=`<div class="toolbar"><select class="input" aria-label="Competência" id="pr-f-comp"><option>${COMP} · fechada</option><option disabled>Novembro/2026 · em andamento</option></select>
+    ${UI.view==="gerente"?`<span class="chip c-brand">${loja(MINHA).nome}</span>`:`<select class="input" id="pr-f-loja" aria-label="Loja"><option value="">Todas as lojas</option>${LOJAS.map(l=>`<option value="${l.id}" ${l.id===UI.loja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
+    <span class="small muted" style="margin-left:auto">Calculado com as regras de Configurações › Regras de Apuração</span></div>`;
+  if(!sel){
+    const aps=ids.map(apurarLoja);
+    return `<div class="card">${filtro}<div class="table-wrap"><table>
+      <thead><tr><th>Loja</th><th>Formato</th><th>Meta do mês</th><th class="r">Vendedores</th><th class="r">Suporte</th><th class="r">Gerente</th><th class="r">Total</th>${P().verAprov?"<th>Aprovação</th>":""}</tr></thead>
+      <tbody>${aps.map(a=>{const L=LOTES.find(x=>x.lojaId===a.id),S=ST_L[L.status];return `<tr class="click" data-prloja="${a.id}">
+        <td><b>${loja(a.id).curto}</b></td><td><span class="chip ${a.fmt==="semanal"?"c-brand":"c-info"}">${FMT_T[a.fmt]}</span></td>
+        <td class="num"><span class="mbar"><i class="${!a.bateu?"under":a.pMes>=120?"top":""}" style="width:${Math.min(a.pMes,140)/1.4}%"></i></span>${pct(a.pMes)}</td>
+        <td class="r num">${brl(a.tv)}</td><td class="r num">${brl(a.ts)}</td><td class="r num">${brl(a.tg)}</td><td class="r num"><b>${brl(a.total)}</b></td>
+        ${P().verAprov?`<td><span class="chip ${S[1]}">${S[0]}</span></td>`:""}</tr>`}).join("")}</tbody>
+      <tfoot><tr><td colspan="3">Total da rede</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tv,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.ts,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tg,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.total,0))}</td>${P().verAprov?"<td></td>":""}</tr></tfoot>
+    </table></div><p class="note" style="margin-top:14px">Clique numa loja para ver a apuração por pessoa e por semana ou quinzena. Loja 04 · Pelourinho tem venda no Totvs, mas não tem meta no Indeva, e ficou fora.</p></div>`;
+  }
+  const a=apurarLoja(sel),R=CFG.vend[a.fmt];
+  const pos=v=>Math.min(v,150)/150*100;
+  return `<div class="card">${filtro}
+    <div class="loja-head">
+      <div><span class="lbl">Meta do mês da loja · ${FMT_T[a.fmt].toLowerCase()}</span><div class="big num">${pct(a.pMes)} <span class="chip ${a.bateu?"c-ok":"c-bad"}" style="vertical-align:middle">${a.bateu?"Bateu a meta":"Não bateu"}</span></div>
+        <div class="track"><div class="fill ${a.bateu?"":"under"}" style="width:${pos(a.pMes)}%"></div><div class="mk" style="left:${pos(100)}%"><span>100%</span></div><div class="mk" style="left:${pos(120)}%"><span>120%</span></div></div>
+        <p class="small muted" style="margin-top:6px">${brl0(a.vendaMes)} vendidos de ${brl0(a.metaMes)}</p></div>
+      <div><span class="lbl">Vendedores</span><div class="big num">${brl0(a.tv)}</div></div>
+      <div><span class="lbl">Suporte</span><div class="big num">${brl0(a.ts)}</div></div>
+      <div><span class="lbl">Gerente</span><div class="big num">${brl0(a.tg)}</div></div>
+      <div><span class="lbl">Total da loja</span><div class="big num" style="color:var(--brand)">${brl0(a.total)}</div></div>
+    </div></div>
+
+  <div class="card" style="margin-top:16px"><div class="card-head"><div><h2>Vendedores</h2><p>Meta de cada período vem do Indeva; venda do Totvs. Vendas do vendedor em outra loja contam aqui (<b style="color:var(--info)">+</b>). <b style="color:var(--warn,#b7791f)">!</b> = venda diferente entre Indeva e Totvs (passe o mouse).</p></div>
+    <div class="legend"><span><i style="background:var(--surface-2)"></i>abaixo de ${pct(R.faixas[0]?.min||100)}</span><span><i style="background:var(--brand-soft)"></i>1ª faixa</span><span><i style="background:var(--brand)"></i>${R.faixas.length>1?pct(R.faixas[1].min)+" ou mais":"2ª faixa"}</span></div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Vendedor</th>${a.ps.map(p=>`<th class="c">${p.lbl}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${String(p.ini).padStart(2,"0")}–${p.fim}/10</span></th>`).join("")}<th class="c">Meta mês<br><span style="text-transform:none;letter-spacing:0;font-weight:500">individual</span></th><th class="r">Bônus do mês<br>(loja + individual)</th><th class="r">Total</th></tr></thead>
+      <tbody>${a.vend.map(v=>`<tr><td><div class="who"><div class="avatar">${initials(v.nome)}</div><div><b>${esc(v.nome)}</b><span>vendeu ${brl0(v.vMes)}${v.fora?` · ${brl0(v.fora)} em outra loja`:""}</span></div></div></td>
+        ${v.per.map(x=>`<td class="c">${cel(x,R.faixas)}</td>`).join("")}
+        <td class="c num">${pct(v.pMes)}${CFG.vend[a.fmt].mes.indiv&&a.bateu&&!v.indOk?'<br><span class="small muted">abaixo da meta</span>':""}</td><td class="r num">${v.mes?brl(v.mes):"<span class='muted'>—</span>"}</td><td class="r num"><b>${brl(v.total)}</b></td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Total</td>${a.ps.map((p,i)=>`<td class="c num">${brl0(a.vend.reduce((s,v)=>s+(v.per[i]?.valor||0),0))}</td>`).join("")}<td></td><td class="r num">${brl(a.vend.reduce((s,v)=>s+v.mes,0))}</td><td class="r num">${brl(a.tv)}</td></tr></tfoot>
+    </table></div></div>
+
+  ${a.ex.length?`<div class="card" style="margin-top:16px"><div class="card-head"><div><h2>Outras vendas da loja</h2><p>Entram na venda da loja, mas não na apuração individual daqui.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Período</th><th>Quem vendeu</th><th>Tratamento</th><th class="r">Venda</th></tr></thead>
+    <tbody>${a.ex.map(x=>`<tr><td>${a.ps.find(p=>p.k===x.P)?.lbl||x.P}</td><td><b>${esc(x.nome)}</b></td><td class="small">${x.tipo==="gerente"?"Usuário genérico do caixa":"Conta na apuração individual em "+loja(x.origem).curto}</td><td class="r num">${brl(x.venda)}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));margin-top:16px">
+    <div class="card"><div class="card-head"><div><h2>Funções de suporte</h2><p>${brl(CFG.sup.valor)} quando a loja bate a meta do mês.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th class="r">Nesta loja</th></tr></thead>
+      <tbody>${a.sup.length?"":`<tr><td colspan="2" class="muted small">Nenhum caixa ou estoquista cadastrado nesta loja no ConectaGP.</td></tr>`}${a.sup.map(s=>{const outras=s.lojas.filter(x=>x!==sel);const tot=outras.length?outras.reduce((t,o)=>t+(apurarLoja(o).sup.find(z=>z.id===s.id)?.valor||0),s.valor):0;return `<tr><td><div class="who"><div class="avatar">${initials(s.nome)}</div><div><b>${esc(s.nome)}</b><span>${s.cargo}${outras.length?` · também em ${loja(outras[0]).curto} · ${brl(tot)} no mês`:""}</span></div></div></td><td class="r num">${s.valor?brl(s.valor):"<span class='muted'>—</span>"}</td></tr>`}).join("")}</tbody></table></div></div>
+    <div class="card"><div class="card-head"><div><h2>Gerente</h2><p>Faixas sobre a meta do mês da loja.</p></div></div>
+      <div class="who" style="margin-bottom:14px"><div class="avatar">${initials(a.ger.nome)}</div><div><b>${esc(a.ger.nome)}</b><span>${esc(a.ger.cargo||"Gerente de loja")} · ${pct(a.pMes)} da meta</span></div></div>
+      <div class="ex">${CFG.ger.faixas.map(f=>{const usada=a.ger.usadas.includes(f);return `<div class="ex-row"><span>${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês ${usada?'<span class="chip c-ok">aplicada</span>':a.pMes>=f.min?'<span class="chip c-mute">substituída</span>':""}</span><b>${usada?brl(f.pct/100*(f.base==="meta"?a.metaMes:a.vendaMes)):"—"}</b></div>`}).join("")}
+        <hr class="sep"><div class="ex-row"><span><b>Prêmio do gerente</b></span><b>${brl(a.ger.valor)}</b></div></div></div>
+  </div>`;
+}
+
+/* ---------- Aprovações ---------- */
+function steps(st){const n=ST_L[st][2];return `<span class="steps" title="Apurado → RH → Folha → Pago">${[1,2,3,4].map(i=>`<i class="${st==="devolvido"&&i===1?"bad":i<=n?"on":""}"></i>`).join("")}</span>`}
+const ok=(v,txt,falta)=>v?`<span class="chip c-ok">${txt}</span>`:`<span class="chip c-warn">${falta}</span>`;
+function tAprov(){
+  const p=P(),ids=escopo();
+  const ls=LOTES.filter(L=>ids.includes(L.lojaId)&&["aguardando","devolvido","aprovado"].includes(L.status));
+  const aprov=ls.filter(L=>L.status==="aprovado");
+  const papel=p.aprovar&&p.aprovarGer?"Você aprova a equipe e o prêmio do gerente.":p.aprovar?"Você aprova vendedores e funções de suporte. O prêmio do gerente é aprovado pela supervisora.":p.aprovarGer?"Você aprova o prêmio do gerente de cada loja. Vendedores e suporte são aprovados pelo RH.":"Visualização das apurações e do andamento das aprovações.";
+  const podeDev=L=>L.status==="aguardando"&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr));
+  return `<div class="card">
+    <div class="card-head"><div><h2>${COMP}</h2><p>${papel}</p></div>
+      ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) na folha</button>`:""}</div>
+    ${ls.length?`<div class="table-wrap"><table>
+      <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação supervisora</th><th class="r">Total</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
+      <tbody>${ls.map(L=>{const S=ST_L[L.status],t=lotal(L);return `<tr>
+        <td><b>${loja(L.lojaId).curto}</b><br><span class="small muted">${FMT_T[CFG.formato[L.lojaId]]} · ${t.pessoas} ${t.pessoas===1?"pessoa":"pessoas"}</span></td>
+        <td class="r num">${brl(t.eqv)}</td><td>${ok(L.eq,"Aprovada","Falta RH")}</td>
+        <td class="r num">${brl(t.gv)}</td><td>${t.gv?ok(L.gr,"Aprovado","Falta supervisora"):'<span class="chip c-mute">Sem prêmio</span>'}</td>
+        <td class="r num"><b>${brl(t.total)}</b></td><td><span class="chip ${S[1]}">${S[0]}</span></td>
+        ${p.acompanhar?`<td>${steps(L.status)}</td>`:""}
+        <td class="r"><button class="btn btn-sm" data-prlote="${L.id}">Detalhar</button>${podeDev(L)?` <button class="btn btn-sm btn-ghost" data-prdevolver="${L.id}">Devolver</button>`:""}${p.aprovar&&!L.eq&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${p.aprovarGer&&!L.gr&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}</td></tr>`}).join("")}</tbody>
+      <tfoot><tr><td>Total</td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).eqv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).gv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).total,0))}</td><td colspan="${p.acompanhar?3:2}"></td></tr></tfoot>
+    </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas lançadas na folha estão em Histórico de Premiações.</div>`}
+    <p class="note" style="margin-top:14px">A loja só vai para a folha quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
+  </div>`;
+}
+function detalheLote(id){
+  const L=LOTES.find(x=>x.id===id),a=apurarLoja(L.lojaId),p=P();
+  const linhas=[...a.vend.map(v=>{const n=v.per.filter(x=>x&&x.valor>0).length,m=v.per.filter(Boolean).length;return [v.nome,"Vendedor(a)",`${n} de ${m} ${a.fmt==="semanal"?"semanas":"quinzenas"} na meta${v.mes?" · bônus do mês":""}`,v.total]}),
+    ...a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · lotado em 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor])];
+  const g=[a.ger.nome,"Gerente de loja",a.ger.usadas.length?a.ger.usadas.map(f=>pct(f.min)+" → "+pct2(f.pct)+" da "+(f.base==="meta"?"meta":"venda")).join(" + "):"Loja abaixo da meta",a.ger.valor];
+  const tab=rows=>`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th>Regra aplicada</th><th class="r">Valor</th></tr></thead>
+    <tbody>${rows.map(([n,c,r,v])=>`<tr><td><div class="who"><div><b>${esc(n)}</b><span>${c}</span></div></div></td><td class="small">${r}</td><td class="r num">${v?brl(v):"<span class='muted'>—</span>"}</td></tr>`).join("")}</tbody></table></div>`;
+  const pend=L.status==="aguardando";
+  modal(`${loja(L.lojaId).nome} · ${COMP}`,`
+    <div class="ex"><div class="ex-row"><span>Meta do mês da loja</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div class="ex-row"><span>Total da apuração</span><b>${brl(lotal(L).total)}</b></div></div>
+    <div class="card-head" style="margin:0"><h3>Equipe · aprovação do RH</h3>${ok(L.eq,"Aprovada","Falta RH")}</div>${tab(linhas)}
+    <div class="card-head" style="margin:0"><h3>Gerente · aprovação da supervisora</h3>${ok(L.gr,"Aprovado","Falta supervisora")}</div>${tab([g])}
+    ${p.acompanhar?`<h3>Andamento</h3><div class="timeline">${L.eventos.map(e=>`<div class="tl"><b>${esc(e.acao)}</b><span>${e.em} · ${esc(e.quem)}</span></div>`).join("")}</div>`:""}`,
+    `${pend&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr))?`<button class="btn btn-danger" data-prdevolver="${L.id}">Devolver</button>`:""}${L.status==="devolvido"&&p.aprovar?`<button class="btn btn-primary" data-prreabrir="${L.id}">Reabrir para aprovação</button>`:""}${pend&&p.aprovar&&!L.eq?`<button class="btn btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${pend&&p.aprovarGer&&!L.gr?`<button class="btn btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}<button class="btn" data-close>Fechar</button>`);
+}
+
+/* ---------- Histórico ---------- */
+function tHistGer(){
+  const L=LOTES.find(x=>x.lojaId===MINHA),a=apurarLoja(MINHA);
+  const sit=L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pela supervisora","c-info"]:["Aguardando supervisora","c-warn"]):ST_L[L.status];
+  const rows=[{comp:COMP,p:a.pMes,faixa:a.ger.usadas.map(x=>pct(x.min)+" → "+pct2(x.pct)+" da "+(x.base==="meta"?"meta":"venda")).join(" + ")||"Abaixo da meta",valor:L.congelado?L.congelado.gv:a.tg,st:sit},...HIST_GER.slice().reverse().map(h=>({...h,st:ST_L.pago}))];
+  return `<div class="card"><div class="card-head"><div><h2>Meus prêmios</h2><p>${esc(GER[MINHA].nome)} · Gerente da ${loja(MINHA).nome}. Seu prêmio é aprovado pela supervisora.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Competência</th><th>Meta da loja</th><th>Faixa aplicada</th><th class="r">Valor</th><th>Situação</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.comp}</td><td class="num"><span class="mbar"><i class="${r.p<100?"under":r.p>=120?"top":""}" style="width:${Math.min(r.p,140)/1.4}%"></i></span>${pct(r.p)}</td><td class="small">${r.faixa}</td><td class="r num"><b>${brl(r.valor)}</b></td><td><span class="chip ${r.st[1]}">${r.st[0]}</span></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td colspan="3">Total em 2026</td><td class="r num">${brl(rows.reduce((s,r)=>s+r.valor,0))}</td><td></td></tr></tfoot></table></div></div>`;
+}
+function tHist(){
+  if(UI.view==="gerente")return tHistGer();
+  const ids=escopo().filter(x=>!UI.histLoja||x===UI.histLoja);
+  const atuais=LOTES.filter(L=>ids.includes(L.lojaId)&&["folha","pago"].includes(L.status)).map(L=>({comp:L.comp,lojaId:L.lojaId,total:lotal(L).total,pessoas:lotal(L).pessoas,status:L.status,aprovado:L.eventos.find(e=>e.acao==="Equipe aprovada")?.em+" · RH e supervisora",lote:L.id}));
+  const rows=[...atuais,...HIST.filter(h=>ids.includes(h.lojaId)).reverse()];
+  return `<div class="card">
+    <div class="toolbar">${UI.view==="gerente"?"":`<select class="input" id="pr-f-hloja" aria-label="Loja"><option value="">Todas as lojas</option>${LOJAS.map(l=>`<option value="${l.id}" ${l.id===UI.histLoja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
+      <span class="small muted" style="margin-left:auto">${rows.length} apurações</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Competência</th><th>Loja</th><th class="r">Pessoas</th><th class="r">Valor</th><th>Situação</th><th>Aprovado em</th><th></th></tr></thead>
+      <tbody>${rows.map(h=>{const S=ST_L[h.status];return `<tr><td>${h.comp}</td><td>${loja(h.lojaId).curto}</td><td class="r num">${h.pessoas}</td><td class="r num">${brl(h.total)}</td><td><span class="chip ${S[1]}">${S[0]}</span></td><td class="small">${esc(h.aprovado)}</td>
+        <td class="r">${h.lote?`<button class="btn btn-sm" data-prlote="${h.lote}">Detalhar</button>`:""}${h.lote&&h.status==="folha"&&P().lancar?` <button class="btn btn-sm btn-ghost" data-prpago="${h.lote}">Confirmar pagamento</button>`:""}</td></tr>`}).join("")}</tbody>
+      <tfoot><tr><td colspan="3">Total</td><td class="r num">${brl(rows.reduce((s,h)=>s+h.total,0))}</td><td colspan="3"></td></tr></tfoot>
+    </table></div></div>`;
+}
+
+/* ---------- Configurações › Regras de Apuração ---------- */
+function blocoVend(fmt){
+  const R=CFG.vend[fmt],b="vend."+fmt;
+  const ex=[95,105,125].map(p=>[p,faixasPag(p,R.faixas,R.acumula,()=>20000*p/100).v]);
+  return `<div class="card">
+    <div class="card-head" style="margin:0"><div><h2>Vendedor · loja ${fmt}</h2><p>Apuração por ${fmt==="semanal"?"semana":"quinzena"}. Meta de cada período vem do Indeva. Prêmio sobre o que o vendedor vendeu na ${fmt==="semanal"?"semana":"quinzena"}, somando vendas em outras lojas.</p></div><span class="chip ${fmt==="semanal"?"c-brand":"c-info"}">${LOJAS.filter(l=>CFG.formato[l.id]===fmt).length} loja(s)</span></div>
+    <div class="field"><label>Períodos de ${COMP}</label><div class="faixas">${CFG.periodos[fmt].map((p,i,a)=>`<div class="faixa"><span style="min-width:74px">${fmt==="semanal"?"Semana "+(i+1):(i+1)+"ª quinzena"}</span><span class="num">${String(p[0]).padStart(2,"0")}/10/2026 a</span><b class="num">${String(p[1]).padStart(2,"0")}</b><span>/10/2026</span><span class="small muted">${p[1]-p[0]+1} dias</span></div>`).join("")}</div></div>
+    <hr class="sep">
+    <div class="faixas">${R.faixas.map((f,i)=>`<div class="faixa"><span>Atingiu</span><input class="input num" type="number" step="1" min="0" id="${b}-${i}-min" data-prcfg="${b}.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo"><span>% → ganha</span><input class="input num" type="number" step="0.1" min="0" id="${b}-${i}-pct" data-prcfg="${b}.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual do prêmio"><span>% da venda</span><button class="btn btn-sm btn-ghost x" data-prdel="${b}.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}
+      <button class="btn btn-sm" style="align-self:flex-start" data-pradd="${b}.faixas">+ Faixa</button></div>
+    <label class="tog"><input type="checkbox" id="${b}-acum" data-prcfg="${b}.acumula" ${R.acumula?"checked":""}> Faixas somam (quem bate 120% recebe a de 100% + a de 120%)</label>
+    <hr class="sep">
+    <label class="tog"><input type="checkbox" id="${b}-mes" data-prcfg="${b}.mes.ativo" ${R.mes.ativo?"checked":""}> Bônus quando a loja bate a meta do mês</label>
+    <label class="tog"><input type="checkbox" id="${b}-indiv" data-prcfg="${b}.mes.indiv" ${R.mes.indiv?"checked":""}> Vendedor também precisa bater a própria meta do mês</label>
+    <div class="faixa"><span>Ganha</span><input class="input num" type="number" step="0.1" min="0" id="${b}-mpct" data-prcfg="${b}.mes.pct" value="${R.mes.pct}" aria-label="Percentual do bônus do mês"><span>% sobre</span><select class="input" id="${b}-mbase" data-prcfg="${b}.mes.base"><option value="vendedor" ${R.mes.base==="vendedor"?"selected":""}>o que o vendedor vendeu no mês</option><option value="loja" ${R.mes.base==="loja"?"selected":""}>o total vendido pela loja no mês</option></select></div>
+    <div class="ex"><span class="small muted">Exemplo: meta da ${fmt==="semanal"?"semana":"quinzena"} de R$ 20.000</span>${ex.map(([p,v])=>`<div class="ex-row"><span>Atingiu ${p}% (vendeu ${brl0(200*p)})</span><b>${brl(v)}</b></div>`).join("")}</div>
+  </div>`;
+}
+function tRegras(){
+  const g=CFG.ger;
+  const exG=p=>faixasPag(p,g.faixas,g.acumula,f=>f.base==="meta"?400000:4000*p).v;
+  const so1=p=>g.faixas.length?faixasPag(p,[g.faixas.slice().sort((a,b)=>a.min-b.min)[0]],false,f=>f.base==="meta"?400000:4000*p).v:0;
+  const aviso=exG(130)<so1(130);
+  return `<div class="cfg">
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-head" style="margin:0"><div><h2>Formato de apuração por loja</h2><p>Lojas 34, 35, 36 e 37 semanais; as demais quinzenais, conforme os relatórios do Indeva de Outubro/2026. A meta do mês é a soma das metas dos vendedores em cada período.</p></div>
+        <div class="faixa"><span>Loja bate a meta com</span><input class="input num" type="number" min="0" step="1" id="pr-metamin" data-prcfg="metaMin" value="${CFG.metaMin}" aria-label="Atingimento mínimo da loja"><span>%</span></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Loja</th><th>Formato</th><th class="r">Meta de ${COMP}</th></tr></thead>
+      <tbody>${LOJAS.map(l=>`<tr><td><b>${l.nome}</b></td><td><span class="chip ${CFG.formato[l.id]==="semanal"?"c-brand":"c-info"}">${FMT_T[CFG.formato[l.id]]}</span></td><td class="r num">${brl0(apurarLoja(l.id).metaMes)}</td></tr>`).join("")}</tbody></table></div>
+    </div>
+    ${blocoVend("semanal")}
+    ${blocoVend("quinzenal")}
+    <div class="card">
+      <div class="card-head" style="margin:0"><div><h2>Funções de suporte</h2><p>Valor fixo quando a loja bate a meta do mês.</p></div></div>
+      <div class="faixa"><span>Ganha R$</span><input class="input num" type="number" step="10" min="0" id="pr-sup-valor" data-prcfg="sup.valor" value="${CFG.sup.valor}" aria-label="Valor do prêmio"><span>por loja na meta</span></div>
+      <label class="tog"><input type="checkbox" id="pr-sup-multi" data-prcfg="sup.multi" ${CFG.sup.multi?"checked":""}> Lotado em duas lojas: recebe por cada loja que bater (as duas na meta = dobro)</label>
+      <div class="field"><label>Funções que participam</label><div style="display:grid;gap:6px">${CARGOS_SUP.map((c,i)=>`<label class="tog"><input type="checkbox" id="cargo-${i}" data-prcargo="${c}" ${CFG.sup.cargos.includes(c)?"checked":""}> ${c}</label>`).join("")}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="margin:0"><div><h2>Gerente</h2><p>Faixas sobre o atingimento da meta do mês da loja.</p></div></div>
+      <div class="faixas">${g.faixas.map((f,i)=>`<div class="faixa g"><span>Atingiu</span><input class="input num" type="number" step="1" min="0" id="ger-${i}-min" data-prcfg="ger.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo"><span>% → ganha</span><input class="input num" type="number" step="0.1" min="0" id="ger-${i}-pct" data-prcfg="ger.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual"><span>% da</span><select class="input" id="ger-${i}-base" data-prcfg="ger.faixas.${i}.base"><option value="venda" ${f.base==="venda"?"selected":""}>venda total do mês</option><option value="meta" ${f.base==="meta"?"selected":""}>meta do mês</option></select><button class="btn btn-sm btn-ghost x" data-prdel="ger.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}
+        <button class="btn btn-sm" style="align-self:flex-start" data-pradd="ger.faixas">+ Faixa</button></div>
+      <label class="tog"><input type="checkbox" id="pr-ger-acum" data-prcfg="ger.acumula" ${g.acumula?"checked":""}> Faixas somam (desmarcado: vale só a maior faixa atingida)</label>
+      <div class="ex"><span class="small muted">Exemplo: loja com meta de R$ 400.000</span>${[95,105,120,130].map(p=>`<div class="ex-row"><span>Atingiu ${p}% (vendeu ${brl0(4000*p)})</span><b>${brl(exG(p))}</b></div>`).join("")}</div>
+      ${aviso?`<div class="warnbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${IC.warn}</svg><span>Acima de 120% o gerente recebe menos do que receberia só pela faixa de 100%: com 130%, ${brl(exG(130))} contra ${brl(so1(130))}. Confira se a faixa de 120% deve ser sobre a venda ou se as faixas devem somar.</span></div>`:""}
+    </div>
+  </div>`;
+}
+
+/* ---------- Configurações › Perfis e Acessos ---------- */
+function tAcessos(){
+  return `<div class="card"><div class="card-head"><div><h2>Quem vê e quem faz o quê</h2><p>Marque as ações de cada perfil. Troque o “Ver como” no topo para conferir como cada um enxerga o módulo.</p></div></div>
+    <div class="table-wrap"><table class="perm"><thead><tr><th>Perfil</th><th>Lojas</th>${ACOES.map(a=>`<th class="c">${a[1]}</th>`).join("")}</tr></thead>
+    <tbody>${Object.entries(PERFIS).map(([k,pf])=>`<tr><td><b>${pf.t}</b></td><td class="small" style="text-align:left">${pf.escopo}</td>${ACOES.map(([a,t])=>`<td><input type="checkbox" id="perm-${k}-${a}" data-prperm="${k}.${a}" aria-label="${pf.t}: ${t}" ${PERM[k][a]?"checked":""} ${k==="rh"&&a==="regras"?"disabled":""}></td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="note" style="margin-top:14px">O RH aprova vendedores e funções de suporte e não perde o acesso às regras. A supervisora vê as aprovações e aprova o prêmio dos gerentes. A gestora comercial visualiza tudo, sem ações. O gerente vê os resultados da loja e o próprio histórico de premiações.</p></div>`;
+}
+
+/* ---------- modais ---------- */
+function modal(title,body,foot){$("#modal-root").innerHTML=`<div class="overlay prem-modal" data-close><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="btn btn-ghost btn-sm" data-close>Fechar</button></div><div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`}
+function closeModal(){$("#modal-root").innerHTML=""}
+function novaCampanha(){
+  modal("Nova campanha",`<form id="pr-f-nova" class="form-grid">
+    <div class="field full"><label for="pr-n-nome">Nome da campanha</label><input class="input" id="pr-n-nome" required placeholder="Ex.: Natal 2026 · venda adicional"></div>
+    <div class="field"><label for="pr-n-ini">Início</label><input class="input" type="date" id="pr-n-ini" value="2026-12-01"></div>
+    <div class="field"><label for="pr-n-fim">Fim</label><input class="input" type="date" id="pr-n-fim" value="2026-12-24"></div>
+    <div class="field full"><label for="pr-n-crit">Critério para ganhar</label><textarea class="input" id="pr-n-crit" rows="2" placeholder="Ex.: maior % da meta individual, mínimo de 100%"></textarea></div>
+    <div class="field full"><label for="pr-n-premio">Prêmio</label><input class="input" id="pr-n-premio" placeholder="Ex.: R$ 300 por loja"></div>
+  </form>`,`<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" form="pr-f-nova" type="submit">Criar campanha</button>`);
+}
+
+/* ---------- eventos ---------- */
+const agora=()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
+function path(o,p){const k=p.split(".");const last=k.pop();k.forEach(x=>o=o[x]);return [o,last]}
+document.addEventListener("click",e=>{
+  if(page!=="premiacoes")return;
+  const t=e.target.closest("button,[data-close],a,tr.click");if(!t)return;
+  const d=t.dataset;
+  if(d.prtab){e.preventDefault();closeModal();UI.tab=d.prtab;render();window.scrollTo(0,0);return}
+  if(t.hasAttribute("data-close")&&(e.target===t||t.matches("button"))){closeModal();return}
+  if(d.prview){UI.view=d.prview;UI.loja="";render();return}
+  if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
+  if(d.prlote){detalheLote(d.prlote);return}
+  if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
+  if(d.praprovarger){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovarger);L.gr=true;registrar(L,"Prêmio do gerente aprovado");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": prêmio do gerente aprovado"+(L.eq?"":" · falta o RH aprovar a equipe"));return}
+  if(d.prdevolver){const L=LOTES.find(x=>x.id===d.prdevolver);L.status="devolvido";registrar(L,"Devolvida para revisão");gravar();closeModal();render();toast(loja(L.lojaId).curto+": devolvida para revisão");return}
+  if(d.prreabrir){const L=LOTES.find(x=>x.id===d.prreabrir);L.status="aguardando";L.eq=false;L.gr=false;delete L.congelado;registrar(L,"Reaberta para aprovação");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": reaberta para aprovação");return}
+  if(d.prpago){const L=LOTES.find(x=>x.id===d.prpago);L.status="pago";registrar(L,"Pagamento confirmado");gravar();render();toast("Pagamento confirmado");return}
+  if(d.pradd){const [o,k]=path(CFG,d.pradd);const arr=o[k];const last=arr[arr.length-1]||{min:80,pct:1};arr.push(d.pradd.startsWith("ger")?{min:last.min+20,pct:last.pct,base:last.base||"venda"}:{min:last.min+20,pct:1});render();return}
+  if(d.prdel){const [o,k]=path(CFG,d.prdel);o.splice(+k,1);render();return}
+  const act=d.pract;
+  
+  if(act==="lancar"){let n=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026");return}
+  if(act==="nova"){novaCampanha();return}
+  if(act==="padrao"){CFG=clone(CFG_PADRAO);render();toast("Regras padrão carregadas. Clique em Salvar regras para gravar.");return}
+  if(act==="salvar"){if(!podeGravar()){toast("Somente a conta do RH grava regras");return}CFG_SALVO=clone(CFG);LOTES.forEach(sync);if(typeof logEvento==="function")logEvento("Premiações · Regras de apuração salvas",COMP);gravar();render();toast("Regras salvas. As apurações aguardando aprovação foram recalculadas.");return}
+  if(act==="exportar"){toast("No projeto, gera a planilha da apuração para a folha");return}
+});
+document.addEventListener("change",e=>{
+  if(page!=="premiacoes")return;
+  const t=e.target,d=t.dataset;
+  if(t.id==="pr-f-loja"){UI.loja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
+  if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
+  if(d.prcargo){const c=CFG.sup.cargos;if(t.checked&&!c.includes(d.prcargo))c.push(d.prcargo);if(!t.checked)c.splice(c.indexOf(d.prcargo),1);setTimeout(render);return}
+  if(d.prper){const [fm,ix]=d.prper.split(".");const a=CFG.periodos[fm],i=+ix;let v=Math.round(parseFloat(t.value)||a[i][1]);v=Math.max(a[i][0],Math.min(v,a[i+1][1]-1));a[i][1]=v;a[i+1][0]=v+1;setTimeout(render);return}
+  if(d.prperm){const [k,a]=d.prperm.split(".");PERM[k][a]=t.checked;gravar();setTimeout(render);return}
+});
+document.addEventListener("submit",e=>{if(page!=="premiacoes"||e.target.id!=="pr-f-nova")return;e.preventDefault();{closeModal();toast("Campanha criada como rascunho")}});
+
+return {pagina,subnav};
+})();
+ICON.premiacoes='<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 6h3v1.5A3.5 3.5 0 0 1 16.6 11M7 6H4v1.5A3.5 3.5 0 0 0 7.4 11"/>';
+R.premiacoes=()=>PREM.pagina();
 
 boot();
 </script>
