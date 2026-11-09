@@ -7022,7 +7022,7 @@ const CFG_PADRAO={
     semanal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}},
     quinzenal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}}
   },
-  sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice()},
+  sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.lojas.slice()}))},
   ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false}
 };
 let CFG=clone(CFG_PADRAO);
@@ -7053,7 +7053,7 @@ function apurarLoja(id){
     const mes=bateu&&R.mes.ativo&&indOk?R.mes.pct/100*(R.mes.base==="loja"?vendaMes:vMes):0;
     return {...v,per,vMes,metaV:mMes,pMes:pV,indOk,mes,fora:ok.reduce((s,x)=>s+x.vo,0),total:ok.reduce((s,x)=>s+x.valor,0)+mes};
   });
-  const sup=SUP.filter(s=>s.lojas.includes(id)&&CFG.sup.cargos.includes(s.cargo)).map(s=>{
+  const sup=CFG.sup.pessoas.filter(s=>s.lojas.includes(id)&&CFG.sup.cargos.includes(s.cargo)).map(s=>{
     let valor=bateu?CFG.sup.valor:0;
     if(valor&&!CFG.sup.multi&&s.lojas.length>1){const primeira=s.lojas.find(x=>lojaBateu(x));if(primeira!==id)valor=0}
     return {...s,valor};
@@ -7100,7 +7100,7 @@ function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cf
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
-  if(d.cfg){CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
+  if(d.cfg){if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
   (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
@@ -7187,7 +7187,7 @@ function tAcoes(){
     <div class="feat-rules">
       <div><b>Vendedor · loja semanal</b>${fx(v)}${v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</div>
       <div><b>Vendedor · loja quinzenal</b>${fx(q)}${q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</div>
-      <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; lotado em 2 lojas recebe por cada uma":""}</div>
+      <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; rateado em 2 lojas recebe por cada loja que bater":""}</div>
       <div><b>Gerente</b>${CFG.ger.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês`).join(" · ")}</div>
     </div>
     <div class="camp-foot"><span>${COMP} fechada · ${LOJAS.filter(l=>escopo().includes(l.id)).length} loja(s)</span>
@@ -7289,7 +7289,7 @@ function tAprov(){
 function detalheLote(id){
   const L=LOTES.find(x=>x.id===id),a=apurarLoja(L.lojaId),p=P();
   const linhas=[...a.vend.map(v=>{const n=v.per.filter(x=>x&&x.valor>0).length,m=v.per.filter(Boolean).length;return [v.nome,"Vendedor(a)",`${n} de ${m} ${a.fmt==="semanal"?"semanas":"quinzenas"} na meta${v.mes?" · bônus do mês":""}`,v.total]}),
-    ...a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · lotado em 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor])];
+    ...a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · rateado em 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor])];
   const g=[a.ger.nome,"Gerente de loja",a.ger.usadas.length?a.ger.usadas.map(f=>pct(f.min)+" → "+pct2(f.pct)+" da "+(f.base==="meta"?"meta":"venda")).join(" + "):"Loja abaixo da meta",a.ger.valor];
   const tab=rows=>`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th>Regra aplicada</th><th class="r">Valor</th></tr></thead>
     <tbody>${rows.map(([n,c,r,v])=>`<tr><td><div class="who"><div><b>${esc(n)}</b><span>${c}</span></div></div></td><td class="small">${r}</td><td class="r num">${v?brl(v):"<span class='muted'>—</span>"}</td></tr>`).join("")}</tbody></table></div>`;
@@ -7363,8 +7363,12 @@ function tRegras(){
     <div class="card">
       <div class="card-head" style="margin:0"><div><h2>Funções de suporte</h2><p>Valor fixo quando a loja bate a meta do mês.</p></div></div>
       <div class="faixa"><span>Ganha R$</span><input class="input num" type="number" step="10" min="0" id="pr-sup-valor" data-prcfg="sup.valor" value="${CFG.sup.valor}" aria-label="Valor do prêmio"><span>por loja na meta</span></div>
-      <label class="tog"><input type="checkbox" id="pr-sup-multi" data-prcfg="sup.multi" ${CFG.sup.multi?"checked":""}> Lotado em duas lojas: recebe por cada loja que bater (as duas na meta = dobro)</label>
+      <label class="tog"><input type="checkbox" id="pr-sup-multi" data-prcfg="sup.multi" ${CFG.sup.multi?"checked":""}> Rateado em duas lojas (centro de custo): recebe por cada loja que bater a meta (as duas na meta = dobro). Vale só para funções de suporte.</label>
       <div class="field"><label>Funções que participam</label><div style="display:grid;gap:6px">${CARGOS_SUP.map((c,i)=>`<label class="tog"><input type="checkbox" id="cargo-${i}" data-prcargo="${c}" ${CFG.sup.cargos.includes(c)?"checked":""}> ${c}</label>`).join("")}</div></div>
+      <div class="field"><label>Colaboradores de suporte e lojas (rateio)</label>
+        <div class="faixas">${CFG.sup.pessoas.map((s,i)=>{const op=(sel,vazio)=>(vazio?`<option value="">${vazio}</option>`:"")+LOJAS.map(l=>`<option value="${l.id}" ${l.id===sel?"selected":""}>${esc(l.curto)}</option>`).join("");return `<div class="faixa"><span style="flex:1 1 180px;min-width:0"><b>${esc(s.nome)}</b><br><span class="small muted">${esc(s.cargo)}${CFG.sup.cargos.includes(s.cargo)?"":" · função fora da campanha"}</span></span><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.0" aria-label="Loja principal de ${esc(s.nome)}">${op(s.lojas[0])}</select><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.1" aria-label="Segunda loja (rateio) de ${esc(s.nome)}">${op(s.lojas[1]||"","Sem rateio")}</select>${String(s.id).startsWith("n")?`<button class="btn btn-sm btn-ghost x" data-prsupdel="${i}" aria-label="Remover">✕</button>`:""}</div>`}).join("")}</div>
+        <div class="faixa" style="margin-top:6px"><input class="input" style="width:auto;flex:1 1 180px" id="pr-sup-nome" placeholder="Nome do colaborador"><select class="input" id="pr-sup-cargo">${CARGOS_SUP.map(c=>`<option>${c}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l1">${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l2"><option value="">Sem rateio</option>${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><button class="btn btn-sm" data-pract="supadd">+ Incluir</button></div>
+        <p class="small muted">Só funções de suporte entram no rateio. Vendedor e gerente recebem pela loja onde estão na apuração.</p></div>
     </div>
     <div class="card">
       <div class="card-head" style="margin:0"><div><h2>Gerente</h2><p>Faixas sobre o atingimento da meta do mês da loja.</p></div></div>
@@ -7417,7 +7421,9 @@ document.addEventListener("click",e=>{
   if(d.prpago){const L=LOTES.find(x=>x.id===d.prpago);L.status="pago";registrar(L,"Pagamento confirmado");gravar();render();toast("Pagamento confirmado");return}
   if(d.pradd){const [o,k]=path(CFG,d.pradd);const arr=o[k];const last=arr[arr.length-1]||{min:80,pct:1};arr.push(d.pradd.startsWith("ger")?{min:last.min+20,pct:last.pct,base:last.base||"venda"}:{min:last.min+20,pct:1});render();return}
   if(d.prdel){const [o,k]=path(CFG,d.prdel);o.splice(+k,1);render();return}
+  if(d.prsupdel!==undefined){CFG.sup.pessoas.splice(+d.prsupdel,1);render();return}
   const act=d.pract;
+  if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
   if(act==="lancar"){let n=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026");return}
   if(act==="nova"){novaCampanha();return}
@@ -7428,6 +7434,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{
   if(page!=="premiacoes")return;
   const t=e.target,d=t.dataset;
+  if(d.prsuploja){const [i,j]=d.prsuploja.split(".").map(Number);const s=CFG.sup.pessoas[i];const l=[s.lojas[0]||"",s.lojas[1]||""];l[j]=t.value;if(!l[0]){l[0]=l[1];l[1]=""}s.lojas=[...new Set(l.filter(Boolean))];setTimeout(render);return}
   if(t.id==="pr-f-loja"){UI.loja=t.value;setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
   if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
