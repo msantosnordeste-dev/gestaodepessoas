@@ -6997,8 +6997,8 @@ const PREM=(()=>{
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const brl=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const brl0=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
-const pct=v=>(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0})+"%";
+const brl0=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>(Math.floor(((v||0)+1e-9)*100)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"%"; /* trunca: 99,996% aparece 99,99%, nunca 100% */
 const pct2=v=>(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
 const initials=n=>n.split(" ").filter(Boolean).slice(0,2).map(p=>p[0]).join("").toUpperCase();
 const clone=o=>JSON.parse(JSON.stringify(o));
