@@ -7024,6 +7024,7 @@ const CFG_PADRAO={
   },
   sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.id==="u7"&&s.lojas.length===1&&s.lojas[0]==="l41"?["l41","l40"]:s.lojas.slice()}))},
   ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false},
+  regional:{l10:"SP",l13:"SP",l16:"SP",l31:"SP",l12:"RJ",l19:"RJ",l34:"RJ",l35:"RJ",l36:"RJ",l37:"RJ",l20:"BA",l21:"BA",l24:"BA",l33:"BA",l39:"BA",l17:"PR",l18:"PR",l25:"ES",l26:"PE",l40:"AM",l41:"AM"},
   gerLoja:{l20:{faixas:[{min:100,pct:0.3,base:"meta"},{min:120,pct:0.6,base:"venda"}],acumula:false}}
 };
 let CFG=clone(CFG_PADRAO);
@@ -7101,7 +7102,7 @@ function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cf
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
-  if(d.cfg){if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
+  if(d.cfg){if(!d.cfg.regional)d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
   (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
@@ -7114,7 +7115,9 @@ function registrar(L,acao){L.eventos.push(ev(agora(),quem(),acao));if(typeof log
 function bloqueadoPorRegras(){if(!regrasPendentes())return false;toast("Há regras alteradas e não salvas. Salve ou restaure as regras antes de aprovar.");return true}
 
 /* ================= estado da tela ================= */
-const UI={view:"rh",tab:"acoes",loja:"",histLoja:""};
+const UI={view:"rh",tab:"acoes",loja:"",histLoja:"",reg:""};
+const regDe=id=>((CFG.regional||{})[id]||"").trim()||"Sem regional";
+const regionais=()=>[...new Set(LOJAS.map(l=>regDe(l.id)))].sort((a,b)=>a.localeCompare(b));
 const P=()=>PERM[UI.view];
 const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
 const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["historico","Histórico de Premiações",p=>p.verHist]];
@@ -7206,20 +7209,24 @@ function tResultados(){
   const ids=escopo();
   const sel=UI.view==="gerente"?MINHA:UI.loja;
   const filtro=`<div class="toolbar"><select class="input" aria-label="Competência" id="pr-f-comp"><option>${COMP} · fechada</option><option disabled>Novembro/2026 · em andamento</option></select>
-    ${UI.view==="gerente"?`<span class="chip c-brand">${loja(MINHA).nome}</span>`:`<select class="input" id="pr-f-loja" aria-label="Loja"><option value="">Todas as lojas</option>${LOJAS.map(l=>`<option value="${l.id}" ${l.id===UI.loja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
+    ${UI.view==="gerente"?`<span class="chip c-brand">${loja(MINHA).nome}</span>`:`<select class="input" id="pr-f-reg" aria-label="Regional"><option value="">Todas as regionais</option>${regionais().map(r=>`<option ${r===UI.reg?"selected":""}>${esc(r)}</option>`).join("")}</select><select class="input" id="pr-f-loja" aria-label="Unidade"><option value="">Todas as unidades${UI.reg?" da regional":""}</option>${LOJAS.filter(l=>!UI.reg||regDe(l.id)===UI.reg).map(l=>`<option value="${l.id}" ${l.id===UI.loja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
     <span class="small muted" style="margin-left:auto">Calculado com as regras de Configurações › Regras de Apuração</span></div>`;
   if(!sel){
-    const aps=ids.map(apurarLoja);
+    const aps=ids.filter(id=>!UI.reg||regDe(id)===UI.reg).map(apurarLoja);
     return `<div class="card">${filtro}<div class="table-wrap"><table>
-      <thead><tr><th>Loja</th><th>Formato</th><th class="r">Meta mês</th><th class="r">Venda mês</th><th>% da meta</th><th class="r">Vendedores</th><th class="r">Suporte</th><th class="r">Gerente</th><th class="r">Total</th>${P().verAprov?"<th>Aprovação</th>":""}</tr></thead>
+      <thead><tr><th>Loja</th><th>Regional</th><th>Formato</th><th class="r">Meta mês</th><th class="r">Venda mês</th><th>% da meta</th><th class="r">Vendedores</th><th class="r">Suporte</th><th class="r">Gerente</th><th class="r">Total</th>${P().verAprov?"<th>Aprovação</th>":""}</tr></thead>
       <tbody>${aps.map(a=>{const L=LOTES.find(x=>x.lojaId===a.id),S=ST_L[L.status];return `<tr class="click" data-prloja="${a.id}">
-        <td><b>${loja(a.id).curto}</b></td><td><span class="chip ${a.fmt==="semanal"?"c-brand":"c-info"}">${FMT_T[a.fmt]}</span></td>
+        <td><b>${loja(a.id).curto}</b></td><td class="small">${esc(regDe(a.id))}</td><td><span class="chip ${a.fmt==="semanal"?"c-brand":"c-info"}">${FMT_T[a.fmt]}</span></td>
         <td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td>
         <td class="num"><span class="mbar"><i class="${!a.bateu?"under":a.pMes>=120?"top":""}" style="width:${Math.min(a.pMes,140)/1.4}%"></i></span>${pct(a.pMes)}</td>
         <td class="r num">${brl(a.tv)}</td><td class="r num">${brl(a.ts)}</td><td class="r num">${brl(a.tg)}</td><td class="r num"><b>${brl(a.total)}</b><br><span class="small muted">${pct(a.vendaMes?a.total/a.vendaMes*100:0)} da venda</span></td>
         ${P().verAprov?`<td><span class="chip ${S[1]}">${S[0]}</span></td>`:""}</tr>`}).join("")}</tbody>
-      <tfoot><tr><td colspan="2">Total da rede</td>${(()=>{const M=aps.reduce((s,a)=>s+a.metaMes,0),V=aps.reduce((s,a)=>s+a.vendaMes,0);return `<td class="r num">${brl(M)}</td><td class="r num">${brl(V)}</td><td class="num">${pct(M?V/M*100:0)}</td>`})()}<td class="r num">${brl(aps.reduce((s,a)=>s+a.tv,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.ts,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tg,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.total,0))}<br><span class="small muted" style="font-weight:500">${(()=>{const V=aps.reduce((s,a)=>s+a.vendaMes,0);return pct(V?aps.reduce((s,a)=>s+a.total,0)/V*100:0)})()} da venda</span></td>${P().verAprov?"<td></td>":""}</tr></tfoot>
-    </table></div><p class="note" style="margin-top:14px">Clique numa loja para ver a apuração por pessoa e por semana ou quinzena. Loja 04 · Pelourinho tem venda no Totvs, mas não tem meta no Indeva, e ficou fora.</p></div>`;
+      <tfoot><tr><td colspan="3">${UI.reg?"Total da regional "+esc(UI.reg):"Total da rede"}</td>${(()=>{const M=aps.reduce((s,a)=>s+a.metaMes,0),V=aps.reduce((s,a)=>s+a.vendaMes,0);return `<td class="r num">${brl(M)}</td><td class="r num">${brl(V)}</td><td class="num">${pct(M?V/M*100:0)}</td>`})()}<td class="r num">${brl(aps.reduce((s,a)=>s+a.tv,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.ts,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tg,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.total,0))}<br><span class="small muted" style="font-weight:500">${(()=>{const V=aps.reduce((s,a)=>s+a.vendaMes,0);return pct(V?aps.reduce((s,a)=>s+a.total,0)/V*100:0)})()} da venda</span></td>${P().verAprov?"<td></td>":""}</tr></tfoot>
+    </table></div>${(()=>{const regs=[...new Set(aps.map(a=>regDe(a.id)))].sort((x,y)=>x.localeCompare(y));const lin=regs.map(r=>{const as=aps.filter(a=>regDe(a.id)===r);const M=as.reduce((s,a)=>s+a.metaMes,0),V=as.reduce((s,a)=>s+a.vendaMes,0),T=as.reduce((s,a)=>s+a.total,0);return {r,n:as.length,bat:as.filter(a=>a.bateu).length,M,V,T}});
+      const tot=lin.reduce((s,x)=>({n:s.n+x.n,bat:s.bat+x.bat,M:s.M+x.M,V:s.V+x.V,T:s.T+x.T}),{n:0,bat:0,M:0,V:0,T:0});
+      const row=(x,nome,b)=>`<tr><td>${b?`<b>${nome}</b>`:nome}</td><td class="c num">${x.n}</td><td class="c num">${x.bat}</td><td class="r num">${brl(x.M)}</td><td class="r num">${brl(x.V)}</td><td class="num"><span class="mbar"><i class="${x.M&&x.V/x.M*100>=CFG.metaMin?"":"under"}" style="width:${Math.min(x.M?x.V/x.M*100:0,140)/1.4}%"></i></span>${pct(x.M?x.V/x.M*100:0)}</td><td class="r num">${brl(x.T)}</td><td class="r num">${pct(x.V?x.T/x.V*100:0)}</td></tr>`;
+      return `<h2 style="margin:22px 0 10px">Totais por regional</h2><div class="table-wrap"><table><thead><tr><th>Regional</th><th class="c">Lojas</th><th class="c">Na meta</th><th class="r">Meta mês</th><th class="r">Venda mês</th><th>% da meta</th><th class="r">Prêmios</th><th class="r">% da venda</th></tr></thead>
+        <tbody>${lin.map(x=>row(x,esc(x.r))).join("")}</tbody>${lin.length>1?`<tfoot>${row(tot,"Total",true)}</tfoot>`:""}</table></div>`})()}<p class="note" style="margin-top:14px">Regional de cada loja em Configurações › Regras de Apuração. Clique numa loja para ver a apuração por pessoa e por semana ou quinzena. Loja 04 · Pelourinho tem venda no Totvs, mas não tem meta no Indeva, e ficou fora.</p></div>`;
   }
   const a=apurarLoja(sel),R=CFG.vend[a.fmt];
   const pos=v=>Math.min(v,150)/150*100;
@@ -7357,8 +7364,8 @@ function tRegras(){
     <div class="card" style="grid-column:1/-1">
       <div class="card-head" style="margin:0"><div><h2>Formato de apuração por loja</h2><p>Lojas 34, 35, 36 e 37 semanais; as demais quinzenais, conforme os relatórios do Indeva de Outubro/2026. A meta do mês é a soma das metas dos vendedores em cada período.</p></div>
         <div class="faixa"><span>Loja bate a meta com</span><input class="input num" type="number" min="0" step="1" id="pr-metamin" data-prcfg="metaMin" value="${CFG.metaMin}" aria-label="Atingimento mínimo da loja"><span>%</span></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Loja</th><th>Formato</th><th class="r">Meta de ${COMP}</th></tr></thead>
-      <tbody>${LOJAS.map(l=>`<tr><td><b>${l.nome}</b></td><td><span class="chip ${CFG.formato[l.id]==="semanal"?"c-brand":"c-info"}">${FMT_T[CFG.formato[l.id]]}</span></td><td class="r num">${brl0(apurarLoja(l.id).metaMes)}</td></tr>`).join("")}</tbody></table></div>
+      <datalist id="pr-regs">${regionais().filter(r=>r!=="Sem regional").map(r=>`<option value="${esc(r)}">`).join("")}</datalist><div class="table-wrap"><table><thead><tr><th>Loja</th><th>Regional</th><th>Formato</th><th class="r">Meta de ${COMP}</th></tr></thead>
+      <tbody>${LOJAS.map(l=>`<tr><td><b>${l.nome}</b></td><td><input class="input" style="width:150px;padding:6px 10px" list="pr-regs" id="pr-reg-${l.id}" data-prcfg="regional.${l.id}" value="${esc((CFG.regional||{})[l.id]||"")}" aria-label="Regional da ${esc(l.curto)}"></td><td><span class="chip ${CFG.formato[l.id]==="semanal"?"c-brand":"c-info"}">${FMT_T[CFG.formato[l.id]]}</span></td><td class="r num">${brl0(apurarLoja(l.id).metaMes)}</td></tr>`).join("")}</tbody></table></div>
     </div>
     ${blocoVend("semanal")}
     ${blocoVend("quinzenal")}
@@ -7448,6 +7455,7 @@ document.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
   if(d.prsuploja){const [i,j]=d.prsuploja.split(".").map(Number);const s=CFG.sup.pessoas[i];const l=[s.lojas[0]||"",s.lojas[1]||""];l[j]=t.value;if(!l[0]){l[0]=l[1];l[1]=""}s.lojas=[...new Set(l.filter(Boolean))];setTimeout(render);return}
   if(t.id==="pr-f-loja"){UI.loja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-reg"){UI.reg=t.value;UI.loja="";setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
   if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
   if(d.prcargo){const c=CFG.sup.cargos;if(t.checked&&!c.includes(d.prcargo))c.push(d.prcargo);if(!t.checked)c.splice(c.indexOf(d.prcargo),1);setTimeout(render);return}
