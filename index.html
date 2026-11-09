@@ -7211,13 +7211,14 @@ function tResultados(){
   if(!sel){
     const aps=ids.map(apurarLoja);
     return `<div class="card">${filtro}<div class="table-wrap"><table>
-      <thead><tr><th>Loja</th><th>Formato</th><th>Meta do mês</th><th class="r">Vendedores</th><th class="r">Suporte</th><th class="r">Gerente</th><th class="r">Total</th>${P().verAprov?"<th>Aprovação</th>":""}</tr></thead>
+      <thead><tr><th>Loja</th><th>Formato</th><th class="r">Meta mês</th><th class="r">Venda mês</th><th>% da meta</th><th class="r">Vendedores</th><th class="r">Suporte</th><th class="r">Gerente</th><th class="r">Total</th>${P().verAprov?"<th>Aprovação</th>":""}</tr></thead>
       <tbody>${aps.map(a=>{const L=LOTES.find(x=>x.lojaId===a.id),S=ST_L[L.status];return `<tr class="click" data-prloja="${a.id}">
         <td><b>${loja(a.id).curto}</b></td><td><span class="chip ${a.fmt==="semanal"?"c-brand":"c-info"}">${FMT_T[a.fmt]}</span></td>
+        <td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td>
         <td class="num"><span class="mbar"><i class="${!a.bateu?"under":a.pMes>=120?"top":""}" style="width:${Math.min(a.pMes,140)/1.4}%"></i></span>${pct(a.pMes)}</td>
-        <td class="r num">${brl(a.tv)}</td><td class="r num">${brl(a.ts)}</td><td class="r num">${brl(a.tg)}</td><td class="r num"><b>${brl(a.total)}</b></td>
+        <td class="r num">${brl(a.tv)}</td><td class="r num">${brl(a.ts)}</td><td class="r num">${brl(a.tg)}</td><td class="r num"><b>${brl(a.total)}</b><br><span class="small muted">${pct(a.vendaMes?a.total/a.vendaMes*100:0)} da venda</span></td>
         ${P().verAprov?`<td><span class="chip ${S[1]}">${S[0]}</span></td>`:""}</tr>`}).join("")}</tbody>
-      <tfoot><tr><td colspan="3">Total da rede</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tv,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.ts,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tg,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.total,0))}</td>${P().verAprov?"<td></td>":""}</tr></tfoot>
+      <tfoot><tr><td colspan="2">Total da rede</td>${(()=>{const M=aps.reduce((s,a)=>s+a.metaMes,0),V=aps.reduce((s,a)=>s+a.vendaMes,0);return `<td class="r num">${brl(M)}</td><td class="r num">${brl(V)}</td><td class="num">${pct(M?V/M*100:0)}</td>`})()}<td class="r num">${brl(aps.reduce((s,a)=>s+a.tv,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.ts,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.tg,0))}</td><td class="r num">${brl(aps.reduce((s,a)=>s+a.total,0))}<br><span class="small muted" style="font-weight:500">${(()=>{const V=aps.reduce((s,a)=>s+a.vendaMes,0);return pct(V?aps.reduce((s,a)=>s+a.total,0)/V*100:0)})()} da venda</span></td>${P().verAprov?"<td></td>":""}</tr></tfoot>
     </table></div><p class="note" style="margin-top:14px">Clique numa loja para ver a apuração por pessoa e por semana ou quinzena. Loja 04 · Pelourinho tem venda no Totvs, mas não tem meta no Indeva, e ficou fora.</p></div>`;
   }
   const a=apurarLoja(sel),R=CFG.vend[a.fmt];
@@ -7230,7 +7231,7 @@ function tResultados(){
       <div><span class="lbl">Vendedores</span><div class="big num">${brl0(a.tv)}</div></div>
       <div><span class="lbl">Suporte</span><div class="big num">${brl0(a.ts)}</div></div>
       <div><span class="lbl">Gerente</span><div class="big num">${brl0(a.tg)}</div></div>
-      <div><span class="lbl">Total da loja</span><div class="big num" style="color:var(--brand)">${brl0(a.total)}</div></div>
+      <div><span class="lbl">Total da loja</span><div class="big num" style="color:var(--brand)">${brl0(a.total)}</div><span class="small muted">${pct(a.vendaMes?a.total/a.vendaMes*100:0)} da venda do mês</span></div>
     </div></div>
 
   <div class="card" style="margin-top:16px"><div class="card-head"><div><h2>Vendedores</h2><p>Meta de cada período vem do Indeva; venda do Totvs. Vendas do vendedor em outra loja contam aqui (<b style="color:var(--info)">+</b>). <b style="color:var(--warn,#b7791f)">!</b> = venda diferente entre Indeva e Totvs (passe o mouse).</p></div>
