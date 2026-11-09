@@ -7022,7 +7022,7 @@ const CFG_PADRAO={
     semanal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}},
     quinzenal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}}
   },
-  sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.lojas.slice()}))},
+  sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.id==="u7"&&s.lojas.length===1&&s.lojas[0]==="l41"?["l41","l40"]:s.lojas.slice()}))},
   ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false}
 };
 let CFG=clone(CFG_PADRAO);
@@ -7183,7 +7183,7 @@ function tAcoes(){
     <div class="feat-rules">
       <div><b>Vendedor · loja semanal</b>${fx(v)}${v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</div>
       <div><b>Vendedor · loja quinzenal</b>${fx(q)}${q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</div>
-      <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; rateado em 2 lojas recebe por cada loja que bater":""}</div>
+      <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; quem atende 2 lojas recebe por cada loja que bater, mesmo fora da lotação":""}</div>
       <div><b>Gerente</b>${CFG.ger.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês`).join(" · ")}</div>
     </div>
     <div class="camp-foot"><span>${COMP} fechada · ${LOJAS.filter(l=>escopo().includes(l.id)).length} loja(s)</span>
@@ -7285,7 +7285,7 @@ function tAprov(){
 function detalheLote(id){
   const L=LOTES.find(x=>x.id===id),a=apurarLoja(L.lojaId),p=P();
   const linhas=[...a.vend.map(v=>{const n=v.per.filter(x=>x&&x.valor>0).length,m=v.per.filter(Boolean).length;return [v.nome,"Vendedor(a)",`${n} de ${m} ${a.fmt==="semanal"?"semanas":"quinzenas"} na meta${v.mes?" · bônus do mês":""}`,v.total]}),
-    ...a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · rateado em 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor])];
+    ...a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · atende 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor])];
   const g=[a.ger.nome,"Gerente de loja",a.ger.usadas.length?a.ger.usadas.map(f=>pct(f.min)+" → "+pct2(f.pct)+" da "+(f.base==="meta"?"meta":"venda")).join(" + "):"Loja abaixo da meta",a.ger.valor];
   const tab=rows=>`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th>Regra aplicada</th><th class="r">Valor</th></tr></thead>
     <tbody>${rows.map(([n,c,r,v])=>`<tr><td><div class="who"><div><b>${esc(n)}</b><span>${c}</span></div></div></td><td class="small">${r}</td><td class="r num">${v?brl(v):"<span class='muted'>—</span>"}</td></tr>`).join("")}</tbody></table></div>`;
@@ -7359,12 +7359,12 @@ function tRegras(){
     <div class="card">
       <div class="card-head" style="margin:0"><div><h2>Funções de suporte</h2><p>Valor fixo quando a loja bate a meta do mês.</p></div></div>
       <div class="faixa"><span>Ganha R$</span><input class="input num" type="number" step="10" min="0" id="pr-sup-valor" data-prcfg="sup.valor" value="${CFG.sup.valor}" aria-label="Valor do prêmio"><span>por loja na meta</span></div>
-      <label class="tog"><input type="checkbox" id="pr-sup-multi" data-prcfg="sup.multi" ${CFG.sup.multi?"checked":""}> Rateado em duas lojas (centro de custo): recebe por cada loja que bater a meta (as duas na meta = dobro). Vale só para caixa, estoquista e auxiliar de loja.</label>
+      <label class="tog"><input type="checkbox" id="pr-sup-multi" data-prcfg="sup.multi" ${CFG.sup.multi?"checked":""}> Atende duas lojas (rateio ou apoio): recebe por cada loja que bater a meta, mesmo que não seja a loja de lotação (as duas na meta = dobro). Vale só para caixa, estoquista e auxiliar de loja.</label>
       <div class="field"><label>Funções que participam</label><div style="display:grid;gap:6px">${CARGOS_SUP.map((c,i)=>`<label class="tog"><input type="checkbox" id="cargo-${i}" data-prcargo="${c}" ${CFG.sup.cargos.includes(c)?"checked":""}> ${c}</label>`).join("")}</div></div>
-      <div class="field"><label>Colaboradores de suporte e lojas (rateio)</label>
-        <div class="faixas">${CFG.sup.pessoas.map((s,i)=>{const op=(sel,vazio)=>(vazio?`<option value="">${vazio}</option>`:"")+LOJAS.map(l=>`<option value="${l.id}" ${l.id===sel?"selected":""}>${esc(l.curto)}</option>`).join("");return `<div class="faixa"><span style="flex:1 1 180px;min-width:0"><b>${esc(s.nome)}</b><br><span class="small muted">${esc(s.cargo)}${CFG.sup.cargos.includes(s.cargo)?"":" · função fora da campanha"}</span></span><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.0" aria-label="Loja principal de ${esc(s.nome)}">${op(s.lojas[0])}</select><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.1" aria-label="Segunda loja (rateio) de ${esc(s.nome)}">${op(s.lojas[1]||"","Sem rateio")}</select>${String(s.id).startsWith("n")?`<button class="btn btn-sm btn-ghost x" data-prsupdel="${i}" aria-label="Remover">✕</button>`:""}</div>`}).join("")}</div>
-        <div class="faixa" style="margin-top:6px"><input class="input" style="width:auto;flex:1 1 180px" id="pr-sup-nome" placeholder="Nome do colaborador"><select class="input" id="pr-sup-cargo">${CARGOS_SUP.map(c=>`<option>${c}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l1">${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l2"><option value="">Sem rateio</option>${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><button class="btn btn-sm" data-pract="supadd">+ Incluir</button></div>
-        <p class="small muted">Só caixa, estoquista e auxiliar de loja entram no rateio. Vendedor e gerente recebem pela loja onde estão na apuração.</p></div>
+      <div class="field"><label>Colaboradores de suporte · loja de lotação e loja que também atende</label>
+        <div class="faixas">${CFG.sup.pessoas.map((s,i)=>{const op=(sel,vazio)=>(vazio?`<option value="">${vazio}</option>`:"")+LOJAS.map(l=>`<option value="${l.id}" ${l.id===sel?"selected":""}>${esc(l.curto)}</option>`).join("");return `<div class="faixa"><span style="flex:1 1 180px;min-width:0"><b>${esc(s.nome)}</b><br><span class="small muted">${esc(s.cargo)}${CFG.sup.cargos.includes(s.cargo)?"":" · função fora da campanha"}</span></span><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.0" aria-label="Loja de lotação de ${esc(s.nome)}">${op(s.lojas[0])}</select><select class="input" style="flex:0 1 130px" data-prsuploja="${i}.1" aria-label="Loja que ${esc(s.nome)} também atende">${op(s.lojas[1]||"","Não atende outra")}</select>${String(s.id).startsWith("n")?`<button class="btn btn-sm btn-ghost x" data-prsupdel="${i}" aria-label="Remover">✕</button>`:""}</div>`}).join("")}</div>
+        <div class="faixa" style="margin-top:6px"><input class="input" style="width:auto;flex:1 1 180px" id="pr-sup-nome" placeholder="Nome do colaborador"><select class="input" id="pr-sup-cargo">${CARGOS_SUP.map(c=>`<option>${c}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l1">${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><select class="input" style="flex:0 1 130px" id="pr-sup-l2"><option value="">Não atende outra</option>${LOJAS.map(l=>`<option value="${l.id}">${esc(l.curto)}</option>`).join("")}</select><button class="btn btn-sm" data-pract="supadd">+ Incluir</button></div>
+        <p class="small muted">Só caixa, estoquista e auxiliar de loja. Recebem por cada loja marcada que bater a meta do mês, mesmo que não seja a de lotação. Vendedor e gerente recebem pela loja onde estão na apuração.</p></div>
     </div>
     <div class="card">
       <div class="card-head" style="margin:0"><div><h2>Gerente</h2><p>Faixas sobre o atingimento da meta do mês da loja.</p></div></div>
