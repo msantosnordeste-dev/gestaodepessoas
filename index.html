@@ -7023,7 +7023,8 @@ const CFG_PADRAO={
     quinzenal:{faixas:[{min:100,pct:1},{min:120,pct:1}],acumula:true,mes:{ativo:true,pct:1,base:"vendedor",indiv:true}}
   },
   sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.id==="u7"&&s.lojas.length===1&&s.lojas[0]==="l41"?["l41","l40"]:s.lojas.slice()}))},
-  ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false}
+  ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false},
+  gerLoja:{l20:{faixas:[{min:100,pct:0.3,base:"meta"},{min:120,pct:0.6,base:"venda"}],acumula:false}}
 };
 let CFG=clone(CFG_PADRAO);
 const FMT_T={semanal:"Semanal",quinzenal:"Quinzenal"};
@@ -7058,8 +7059,8 @@ function apurarLoja(id){
     if(valor&&!CFG.sup.multi&&s.lojas.length>1){const primeira=s.lojas.find(x=>lojaBateu(x));if(primeira!==id)valor=0}
     return {...s,valor};
   });
-  const gf=faixasPag(pMes,CFG.ger.faixas,CFG.ger.acumula,f=>f.base==="meta"?metaMes:vendaMes);
-  const ger={...GER[id],valor:gf.v,usadas:gf.usadas};
+  const GR=(CFG.gerLoja&&CFG.gerLoja[id])||CFG.ger;const gf=faixasPag(pMes,GR.faixas,GR.acumula,f=>f.base==="meta"?metaMes:vendaMes);
+  const ger={...GER[id],valor:gf.v,usadas:gf.usadas,regra:GR,propria:GR!==CFG.ger};
   const tv=vend.reduce((s,v)=>s+v.total,0),ts=sup.reduce((s,x)=>s+x.valor,0);
   const r={id,fmt,ps,metaMes,vendaMes,pMes,bateu,vend,ex,sup,ger,tv,ts,tg:ger.valor,total:tv+ts+ger.valor,pessoas:vend.filter(v=>v.total>0).length+sup.filter(s=>s.valor>0).length+(ger.valor>0?1:0)};
   CACHE.set(key,r);return r;
@@ -7100,7 +7101,7 @@ function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cf
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
-  if(d.cfg){if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
+  if(d.cfg){if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
   (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
@@ -7184,7 +7185,7 @@ function tAcoes(){
       <div><b>Vendedor · loja semanal</b>${fx(v)}${v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</div>
       <div><b>Vendedor · loja quinzenal</b>${fx(q)}${q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</div>
       <div><b>Funções de suporte</b>${brl(CFG.sup.valor)} por loja que bater a meta do mês${CFG.sup.multi?"; quem atende 2 lojas recebe por cada loja que bater, mesmo fora da lotação":""}</div>
-      <div><b>Gerente</b>${CFG.ger.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês`).join(" · ")}</div>
+      <div><b>Gerente</b>${CFG.ger.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês`).join(" · ")}${Object.entries(CFG.gerLoja||{}).map(([l,r])=>`<br>${esc(loja(l).curto)}: ${r.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"}`).join(" · ")}`).join("")}</div>
     </div>
     <div class="camp-foot"><span>${COMP} fechada · ${LOJAS.filter(l=>escopo().includes(l.id)).length} loja(s)</span>
       <span style="display:flex;gap:8px;flex-wrap:wrap">${P().regras?`<button class="btn btn-sm" data-prtab="regras">Editar regras</button>`:""}${P().verRes?`<button class="btn btn-sm btn-primary" data-prtab="resultados">Ver apuração</button>`:""}</span></div>
@@ -7200,7 +7201,7 @@ function tAcoes(){
 
 /* ---------- Resultados (apuração calculada) ---------- */
 const tier=(p,faixas)=>faixas.filter(f=>p>=f.min).length;
-function cel(x,faixas){if(!x)return `<div class="pc t0" title="Sem meta no Indeva neste período"><b>—</b><small>sem meta</small></div>`;const t=Math.min(tier(x.p,faixas),2);const tip=`Meta ${brl(x.meta)} · venda ${brl(x.venda)}`+(x.vo?` (inclui ${brl(x.vo)} em outra loja: ${x.od})`:"")+(Math.abs(x.vl-x.vi)>0.01?` · Indeva mostra ${brl(x.vi)}`:"");return `<div class="pc t${t}" title="${esc(tip)}"><b>${pct(x.p)}${x.vo?'<sup style="color:var(--info)"> +</sup>':""}${Math.abs(x.vl-x.vi)>0.01?'<sup style="color:var(--warn,#b7791f)"> !</sup>':""}</b><small>${x.valor?brl(x.valor):"—"}</small></div>`}
+function cel(x,faixas){if(!x)return `<div class="pc t0" title="Sem meta no Indeva neste período"><b>—</b><small>sem meta</small></div>`;const t=Math.min(tier(x.p,faixas),2);const tip=`Meta ${brl(x.meta)} · venda ${brl(x.venda)}`+(x.vo?` (inclui ${brl(x.vo)} em outra loja: ${x.od})`:"")+(Math.abs(x.vl-x.vi)>0.01?` · Indeva mostra ${brl(x.vi)}`:"");return `<div class="pc t${t}" title="${esc(tip)}"><b>${pct(x.p)}${x.vo?'<sup style="color:var(--info)"> +</sup>':""}${Math.abs(x.vl-x.vi)>0.01?'<sup style="color:var(--warn,#b7791f)"> !</sup>':""}</b><small>${x.valor?brl(x.valor):"sem prêmio"}</small><small class="muted" style="font-weight:400;font-size:.7rem">${brl(x.venda)} de ${brl(x.meta)}</small></div>`}
 function tResultados(){
   const ids=escopo();
   const sel=UI.view==="gerente"?MINHA:UI.loja;
@@ -7239,7 +7240,11 @@ function tResultados(){
       <tbody>${a.vend.map(v=>`<tr><td><div class="who"><div class="avatar">${initials(v.nome)}</div><div><b>${esc(v.nome)}</b><span>vendeu ${brl0(v.vMes)}${v.fora?` · ${brl0(v.fora)} em outra loja`:""}</span></div></div></td>
         ${v.per.map(x=>`<td class="c">${cel(x,R.faixas)}</td>`).join("")}
         <td class="c num">${pct(v.pMes)}${CFG.vend[a.fmt].mes.indiv&&a.bateu&&!v.indOk?'<br><span class="small muted">abaixo da meta</span>':""}</td><td class="r num">${v.mes?brl(v.mes):"<span class='muted'>—</span>"}</td><td class="r num"><b>${brl(v.total)}</b></td></tr>`).join("")}</tbody>
-      <tfoot><tr><td>Total</td>${a.ps.map((p,i)=>`<td class="c num">${brl0(a.vend.reduce((s,v)=>s+(v.per[i]?.valor||0),0))}</td>`).join("")}<td></td><td class="r num">${brl(a.vend.reduce((s,v)=>s+v.mes,0))}</td><td class="r num">${brl(a.tv)}</td></tr></tfoot>
+      <tfoot>${(()=>{const pm=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.meta||0),0),pv=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.venda||0),0);const mm=a.vend.reduce((s,v)=>s+v.metaV,0),vm=a.vend.reduce((s,v)=>s+v.vMes,0);
+        return `<tr><td>Meta dos vendedores</td>${a.ps.map((p,i)=>`<td class="c num">${brl(pm(i))}</td>`).join("")}<td class="c num">${brl(mm)}</td><td></td><td></td></tr>
+        <tr><td>Venda dos vendedores</td>${a.ps.map((p,i)=>`<td class="c num">${brl(pv(i))}</td>`).join("")}<td class="c num">${brl(vm)}</td><td></td><td></td></tr>
+        <tr><td>% da meta</td>${a.ps.map((p,i)=>`<td class="c num">${pct(pm(i)?pv(i)/pm(i)*100:0)}</td>`).join("")}<td class="c num">${pct(mm?vm/mm*100:0)}</td><td></td><td></td></tr>
+        <tr><td>Prêmios</td>${a.ps.map((p,i)=>`<td class="c num">${brl(a.vend.reduce((s,v)=>s+(v.per[i]?.valor||0),0))}</td>`).join("")}<td></td><td class="r num">${brl(a.vend.reduce((s,v)=>s+v.mes,0))}</td><td class="r num">${brl(a.tv)}</td></tr>`})()}</tfoot>
     </table></div></div>
 
   ${a.ex.length?`<div class="card" style="margin-top:16px"><div class="card-head"><div><h2>Outras vendas da loja</h2><p>Entram na venda da loja, mas não na apuração individual daqui.</p></div></div>
@@ -7251,7 +7256,7 @@ function tResultados(){
       <tbody>${a.sup.length?"":`<tr><td colspan="2" class="muted small">Nenhum caixa, estoquista ou auxiliar de loja nesta loja.</td></tr>`}${a.sup.map(s=>{const outras=s.lojas.filter(x=>x!==sel);const tot=outras.length?outras.reduce((t,o)=>t+(apurarLoja(o).sup.find(z=>z.id===s.id)?.valor||0),s.valor):0;return `<tr><td><div class="who"><div class="avatar">${initials(s.nome)}</div><div><b>${esc(s.nome)}</b><span>${s.cargo}${outras.length?` · também em ${loja(outras[0]).curto} · ${brl(tot)} no mês`:""}</span></div></div></td><td class="r num">${s.valor?brl(s.valor):"<span class='muted'>—</span>"}</td></tr>`}).join("")}</tbody></table></div></div>
     <div class="card"><div class="card-head"><div><h2>Gerente</h2><p>Faixas sobre a meta do mês da loja.</p></div></div>
       <div class="who" style="margin-bottom:14px"><div class="avatar">${initials(a.ger.nome)}</div><div><b>${esc(a.ger.nome)}</b><span>${esc(a.ger.cargo||"Gerente de loja")} · ${pct(a.pMes)} da meta</span></div></div>
-      <div class="ex">${CFG.ger.faixas.map(f=>{const usada=a.ger.usadas.includes(f);return `<div class="ex-row"><span>${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês ${usada?'<span class="chip c-ok">aplicada</span>':a.pMes>=f.min?'<span class="chip c-mute">substituída</span>':""}</span><b>${usada?brl(f.pct/100*(f.base==="meta"?a.metaMes:a.vendaMes)):"—"}</b></div>`}).join("")}
+      <div class="ex">${a.ger.propria?`<span class="small muted">Regra própria desta loja (Configurações › Regras de Apuração)</span>`:""}${a.ger.regra.faixas.map(f=>{const usada=a.ger.usadas.includes(f);return `<div class="ex-row"><span>${pct(f.min)} → ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"} do mês ${usada?'<span class="chip c-ok">aplicada</span>':a.pMes>=f.min?'<span class="chip c-mute">substituída</span>':""}</span><b>${usada?brl(f.pct/100*(f.base==="meta"?a.metaMes:a.vendaMes)):"—"}</b></div>`}).join("")}
         <hr class="sep"><div class="ex-row"><span><b>Prêmio do gerente</b></span><b>${brl(a.ger.valor)}</b></div></div></div>
   </div>`;
 }
@@ -7368,11 +7373,19 @@ function tRegras(){
     </div>
     <div class="card">
       <div class="card-head" style="margin:0"><div><h2>Gerente</h2><p>Faixas sobre o atingimento da meta do mês da loja.</p></div></div>
-      <div class="faixas">${g.faixas.map((f,i)=>`<div class="faixa g"><span>Atingiu</span><input class="input num" type="number" step="1" min="0" id="ger-${i}-min" data-prcfg="ger.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo"><span>% → ganha</span><input class="input num" type="number" step="0.1" min="0" id="ger-${i}-pct" data-prcfg="ger.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual"><span>% da</span><select class="input" id="ger-${i}-base" data-prcfg="ger.faixas.${i}.base"><option value="venda" ${f.base==="venda"?"selected":""}>venda total do mês</option><option value="meta" ${f.base==="meta"?"selected":""}>meta do mês</option></select><button class="btn btn-sm btn-ghost x" data-prdel="ger.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}
+      <div class="faixas">${g.faixas.map((f,i)=>`<div class="faixa g"><span>Atingiu</span><input class="input num" type="number" step="1" min="0" id="ger-${i}-min" data-prcfg="ger.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo"><span>% → ganha</span><input class="input num" type="number" step="0.01" min="0" id="ger-${i}-pct" data-prcfg="ger.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual"><span>% da</span><select class="input" id="ger-${i}-base" data-prcfg="ger.faixas.${i}.base"><option value="venda" ${f.base==="venda"?"selected":""}>venda total do mês</option><option value="meta" ${f.base==="meta"?"selected":""}>meta do mês</option></select><button class="btn btn-sm btn-ghost x" data-prdel="ger.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}
         <button class="btn btn-sm" style="align-self:flex-start" data-pradd="ger.faixas">+ Faixa</button></div>
       <label class="tog"><input type="checkbox" id="pr-ger-acum" data-prcfg="ger.acumula" ${g.acumula?"checked":""}> Faixas somam (desmarcado: vale só a maior faixa atingida)</label>
       <div class="ex"><span class="small muted">Exemplo: loja com meta de R$ 400.000</span>${[95,105,120,130].map(p=>`<div class="ex-row"><span>Atingiu ${p}% (vendeu ${brl0(4000*p)})</span><b>${brl(exG(p))}</b></div>`).join("")}</div>
       ${aviso?`<div class="warnbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${IC.warn}</svg><span>Acima de 120% o gerente recebe menos do que receberia só pela faixa de 100%: com 130%, ${brl(exG(130))} contra ${brl(so1(130))}. Confira se a faixa de 120% deve ser sobre a venda ou se as faixas devem somar.</span></div>`:""}
+      <hr class="sep">
+      <div class="field"><label>Regra própria por loja (substitui a regra geral do gerente)</label>
+        ${Object.entries(CFG.gerLoja||{}).map(([lid,r])=>`<div class="ex" style="gap:8px"><div class="ex-row"><b>${esc(loja(lid).nome)}</b><button class="btn btn-sm btn-ghost" data-prgerdel="${lid}">Remover regra da loja</button></div>
+          <div class="faixas">${r.faixas.map((f,i)=>`<div class="faixa g"><span>Atingiu</span><input class="input num" type="number" step="1" min="0" id="gl-${lid}-${i}-min" data-prcfg="gerLoja.${lid}.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo"><span>% → ganha</span><input class="input num" type="number" step="0.01" min="0" id="gl-${lid}-${i}-pct" data-prcfg="gerLoja.${lid}.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual"><span>% da</span><select class="input" id="gl-${lid}-${i}-base" data-prcfg="gerLoja.${lid}.faixas.${i}.base"><option value="venda" ${f.base==="venda"?"selected":""}>venda total do mês</option><option value="meta" ${f.base==="meta"?"selected":""}>meta do mês</option></select><button class="btn btn-sm btn-ghost x" data-prdel="gerLoja.${lid}.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}
+          <button class="btn btn-sm" style="align-self:flex-start" data-pradd="gerLoja.${lid}.faixas">+ Faixa</button></div>
+          <label class="tog"><input type="checkbox" id="gl-${lid}-acum" data-prcfg="gerLoja.${lid}.acumula" ${r.acumula?"checked":""}> Faixas somam</label></div>`).join("")}
+        <div class="faixa"><select class="input" id="pr-gerloja" aria-label="Loja"><option value="">Escolha a loja</option>${LOJAS.filter(l=>!(CFG.gerLoja||{})[l.id]).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("")}</select><button class="btn btn-sm" data-pract="geradd">+ Regra para a loja</button></div>
+      </div>
     </div>
   </div>`;
 }
@@ -7418,7 +7431,9 @@ document.addEventListener("click",e=>{
   if(d.pradd){const [o,k]=path(CFG,d.pradd);const arr=o[k];const last=arr[arr.length-1]||{min:80,pct:1};arr.push(d.pradd.startsWith("ger")?{min:last.min+20,pct:last.pct,base:last.base||"venda"}:{min:last.min+20,pct:1});render();return}
   if(d.prdel){const [o,k]=path(CFG,d.prdel);o.splice(+k,1);render();return}
   if(d.prsupdel!==undefined){CFG.sup.pessoas.splice(+d.prsupdel,1);render();return}
+  if(d.prgerdel){delete CFG.gerLoja[d.prgerdel];render();toast("Regra da loja removida. Clique em Salvar regras para gravar.");return}
   const act=d.pract;
+  if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
   if(act==="lancar"){let n=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026");return}
