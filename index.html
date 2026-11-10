@@ -7353,7 +7353,8 @@ let CFG_SALVO=clone(CFG_PADRAO),CARREGADO=false,CARREGANDO=false,ERRO_DB="";
 const podeGravar=()=>typeof ROLE!=="undefined"&&ROLE==="rh"&&!!SB&&!!ST;
 const regrasPendentes=()=>JSON.stringify(CFG)!==JSON.stringify(CFG_SALVO);
 function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,
-  lotes:LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,conf:L.conf||null,correcoes:L.correcoes||[],eventos:L.eventos,congelado:L.congelado||null}))}}
+  lotes:[...LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,conf:L.conf||null,correcoes:L.correcoes||[],eventos:L.eventos,congelado:L.congelado||null})),
+    ...((typeof ST!=="undefined"&&ST&&ST.premiacoes&&ST.premiacoes.comp===COMP&&Array.isArray(ST.premiacoes.lotes))?ST.premiacoes.lotes.filter(x=>!LOTES.some(L=>L.id===x.id)):[])]}}
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
@@ -7671,7 +7672,7 @@ function confBox(id){
   const st={aberta:'<span class="chip c-bad">Aguardando RH</span>',aceita:'<span class="chip c-ok">Aceita</span>',recusada:'<span class="chip c-mute">Recusada</span>'};
   return `<div class="ex" style="margin-bottom:16px;gap:10px">
     <div class="ex-row" style="flex-wrap:wrap;gap:10px"><span><b>Conferência do gerente</b> · ${confChip(L)}</span>
-      <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}</span></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}${p.conferir&&!pode?`<span class="small muted">Conferência encerrada: a apuração desta loja já foi ${({aprovado:"aprovada pelo RH",folha:"lançada na folha",pago:"paga"})[L.status]||L.status}.</span>`:""}</span></div>
     ${cs.length?`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Situação</th>${p.aprovar?"<th></th>":""}</tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${esc(c.em)} · ${esc(c.quem)}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:220px">${esc(c.just)}${c.resposta?`<br><span class="muted">RH: ${esc(c.resposta)}</span>`:""}</td><td>${st[c.status]||""}</td>${p.aprovar?`<td>${c.status==="aberta"?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table></div>`:""}
   </div>`;
 }
