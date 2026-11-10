@@ -1118,7 +1118,7 @@ R.usuarios=()=>{
   if(tab==="usuarios"){
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th>Termos (LGPD)</th><th></th></tr></thead>
     <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="comercial"?"Todas as lojas · duas regionais":u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
-      <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
+      <td style="white-space:nowrap"><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button>${u.ativo&&u.user_id&&u.perfil!=="rh"?` <button class="btn btn-sm btn-ghost" data-vcusr="${esc(u.user_id)}" title="Ver o portal como este usuário vê (só para olhar, nada é gravado)">Ver como</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
   } else if(tab==="solic"){
@@ -6405,9 +6405,9 @@ function vcPerfil(id){
   // sem login ainda: é o que o primeiro acesso criaria (PJ com time entra como gerente; os demais, como colaborador)
   return {login:"",nome:(emp(id)||{}).nome||"",perfil:p&&lid?"gerente":"colaborador",lojas:[],colaborador_id:id,supervisor_id:null,ativo:true,simulado:true};
 }
-async function vcMontar(id){
-  const e=emp(id);if(!e)throw new Error("Pessoa não encontrada.");
-  const P=vcPerfil(id),gestor=P.perfil!=="colaborador";
+async function vcMontar(id,Pf){
+  const e=emp(id)||(Pf?{id,nome:Pf.nome||Pf.login||"Usuário",cargo:PERFIS[Pf.perfil]||Pf.perfil,lojaId:(Pf.lojas||[])[0]||null,admissao:null}:null);if(!e)throw new Error("Pessoa não encontrada.");
+  const P=Pf?{...Pf}:vcPerfil(id),gestor=P.perfil!=="colaborador";
   const nuc=new Set(ST.stores.filter(s=>/n[uú]cleo/i.test(s.nome||"")).map(s=>s.id));
   const lideres=new Map(liderSnapshots());
   const membros=((lideres.get(id)||{}).dados||{m:[]}).m.filter(x=>{const c=emp(x[0]);return c&&!c.desligado&&!c.pj});
@@ -6420,7 +6420,7 @@ async function vcMontar(id){
     :{id,nome:e.nome,cargo:e.cargo,admissao:e.admissao,loja_id:e.lojaId,loja_nome:loja.nome,cidade:loja.cidade};
   // lojas inteiras do gestor: as do login (sem o Núcleo) ou a carteira do supervisor
   let minhas=[];
-  if(gestor){minhas=P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):(P.lojas||[]);minhas=minhas.filter(l=>!nuc.has(l))}
+  if(gestor){minhas=P.perfil==="comercial"?ST.stores.map(s=>s.id):P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):(P.lojas||[]);minhas=minhas.filter(l=>!nuc.has(l))}
   const lojasVis=new Set([...minhas,...(gestor?membros.map(x=>(emp(x[0])||{}).lojaId):[])].filter(Boolean));
   const visiveis=gestor?new Set([...ativos().filter(c=>minhas.includes(c.lojaId)).map(c=>c.id),...equipeIds]):new Set([id,...equipeIds]);
   const D={};
@@ -6464,13 +6464,13 @@ async function vcMontar(id){
     premiacoes_lotes:()=>rpcFn("premiacoes_lotes").then(r=>({data:(r.data||[]).filter(L=>numsVC.includes(+String(L.lojaId||"").replace(/^l0*/,""))),error:r.error}))}};
 }
 /* ---- entrar e sair ---- */
-async function vcEntrar(id){
+async function vcEntrar(id,Pf){
   if(ROLE!=="rh"||VC)return;
-  const e=emp(id);if(!e){toast("Pessoa não encontrada.");return}
+  const e=emp(id)||(Pf?{nome:Pf.nome||Pf.login||"usuário"}:null);if(!e){toast("Pessoa não encontrada.");return}
   toast("Abrindo o portal como "+e.nome.split(" ")[0]+"…");
   try{
     if(typeof FILA!=="undefined")await FILA;
-    const v=await vcMontar(id);
+    const v=await vcMontar(id,Pf);
     logEvento("Ver como",v.nome+" · "+(PERFIS[v.P.perfil]||v.P.perfil));
     VC={...v,real:SB};SB=vcCliente(SB);
     PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
@@ -6496,9 +6496,10 @@ function vcEscolhaHTML(){
 const colabAcessosSemVC=colabAcessosHTML;
 colabAcessosHTML=function(...a){const h=colabAcessosSemVC(...a);const i=h.indexOf('<div class="note"');return i<0?vcEscolhaHTML()+h:h.slice(0,i)+vcEscolhaHTML()+h.slice(i)};
 document.addEventListener("click",ev=>{
-  const t=ev.target.closest("[data-vercomo],[data-vcver],[data-vcsair]");if(!t)return;
+  const t=ev.target.closest("[data-vercomo],[data-vcver],[data-vcsair],[data-vcusr]");if(!t)return;
   if(t.dataset.vcsair){vcSair();return}
   if(t.dataset.vercomo){vcEntrar(t.dataset.vercomo);return}
+  if(t.dataset.vcusr){const u=(USUARIOS||[]).find(x=>x.user_id===t.dataset.vcusr);if(!u){toast("Usuário não encontrado.");return}vcEntrar(u.colaborador_id&&emp(u.colaborador_id)?u.colaborador_id:"u:"+u.user_id,{...u});return}
   const v=($("#vc-pessoa")||{}).value||"";if(!v){toast("Escolha a pessoa.");return}
   vcEntrar(v.startsWith("e:")?v.slice(2):v);
 });
