@@ -7222,10 +7222,15 @@ async function exportSwile(){
   const todos={...pes};lancAtivos().filter(l=>l.tipo==="complemento"&&!todos[l.key]).forEach(l=>{todos[l.key]={nome:l.nome,cpf:/^\d{11}$/.test(l.key)?l.key:"",valor:0,origem:["Valor complementar"],key:l.key};if(!/^\d{11}$/.test(l.key)&&!falta.includes(l.nome))falta.push(l.nome)});
   const linhas=Object.values(todos).map(p=>{const c=lancSoma(p.key,"complemento"),d=lancSoma(p.key,"desconto");return {...p,bruto:p.valor,comp:c,desc:d,valor:Math.max(0,p.valor+c-d)}}).filter(p=>p.valor>0).sort((a,b)=>a.nome.localeCompare(b.nome));
   const fmtC=c=>String(c||"").replace(/\D/g,"");
-  const csv="\ufeffNome completo;CPF;Saldo Livre\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),fmtC(p.cpf),(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
-  const nome="swile-premiacoes-"+COMP_ISO+".csv";
+  if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const aoa=[["Nome completo","CPF","Saldo Livre"],...linhas.map(p=>[p.nome,fmtC(p.cpf).padStart(11,"0"),Math.round(p.valor*100)/100])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  for(let r=1;r<aoa.length;r++){const c=ws[XLSX.utils.encode_cell({r,c:1})];if(c){c.t="s";c.v=String(aoa[r][1]);c.z="@"}const v=ws[XLSX.utils.encode_cell({r,c:2})];if(v){v.t="n";v.z="0.00"}}
+  ws["!cols"]=[{wch:42},{wch:14},{wch:14}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Saldo Livre");
+  const nome="swile-premiacoes-"+COMP_ISO+".xlsx";
   if(typeof logEvento==="function")logEvento("Premiações · Exportação Swile",linhas.length+" pessoas · "+brl(linhas.reduce((s,p)=>s+p.valor,0))+" · complementos "+brl(linhas.reduce((s,p)=>s+p.comp,0))+" · descontos "+brl(linhas.reduce((s,p)=>s+p.desc,0)));
-  await salvarArquivo(new TextEncoder().encode(csv).buffer,nome,"text/csv");
+  await salvarArquivo(XLSX.write(wb,{bookType:"xlsx",type:"array"}),nome,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   {const orf=lancAtivos().filter(l=>l.tipo==="desconto"&&!todos[l.key]);if(orf.length)toast(orf.length+" desconto(s) de pessoa sem valor neste mês não entraram no arquivo")}
   if(falta.length)modal("CPF não encontrado",`<p>Estas pessoas foram exportadas sem CPF. Confira o cadastro antes de importar na Swile:</p><ul>${falta.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`,`<button class="btn" data-close>Fechar</button>`);
 }
