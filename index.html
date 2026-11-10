@@ -1675,7 +1675,7 @@ async function iniciarSessao(novoLogin){
   if(!user){mostrarTela("login");return}
   const {data:p}=await SB.from("perfis").select("*").eq("user_id",user.id).maybeSingle();
   if(!p||!p.ativo){await SB.auth.signOut();mostrarTela("login","Este usuário não tem acesso ativo ao portal. Fale com o RH.");return}
-  PERFIL=p;ROLE=perfilGestor(p.perfil);$(".app").classList.toggle("consulta",p.perfil==="comercial"||p.perfil==="supervisor");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
+  PERFIL=p;ROLE=perfilGestor(p.perfil);if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";window.__PREM_COMP=undefined;window.__PREM_DATA=undefined}$(".app").classList.toggle("consulta",p.perfil==="comercial"||p.perfil==="supervisor");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
   if(novoLogin){SB.rpc("registrar_acesso").then(()=>{},()=>{});logEvento("Login","Acesso ao portal")}
   mostrarTela("carregando");
   try{
@@ -1691,7 +1691,8 @@ async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
   SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;EQUIPE=[];$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
-  location.hash="";mostrarTela("login");
+  if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
+  location.hash="";location.reload();
 }
 async function boot(){
   mostrarTela("carregando");
