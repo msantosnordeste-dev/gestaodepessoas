@@ -7627,7 +7627,7 @@ function pagina(){
     <div><div class="eyebrow">Premiações e Incentivos · ${grupo}</div><h1>${TITULO[UI.tab]}</h1></div>
     <div class="top-actions">${acts.join("")}</div>
   </div>
-  ${apTab?kpis():""}
+  ${apTab&&(!(webNaoRH()||UI.view!=="rh")||UI.tab==="resultados")?kpis():""}
   <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,arena:tArena,reconhecimento:tRegrasRec,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
