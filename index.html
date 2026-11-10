@@ -600,6 +600,17 @@ const LAST={};let SALVANDO=0,SYNC="ok",FILA=Promise.resolve();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const PERFIS={rh:"RH · acesso total",gerente:"Gerente de loja"};
+function pnLista(tipo){
+  const lojasIds=ST.stores.map(s=>s.id),at=ativos().filter(e=>lojasIds.includes(e.lojaId));
+  const T={ativos:["Equipe ativa",at],exp:["Em período de experiência",at.filter(emExperiencia)],ferias:["Em férias hoje",at.filter(e=>feriasEmCurso(e))],afast:["Afastados",at.filter(e=>e.afastado)]}[tipo];if(!T)return;
+  const det=e=>{if(e.afastado)return `<span class="chip c-info">Afastado</span>`;const f=feriasEmCurso(e);if(f)return `<span class="chip c-ok">Férias</span>${f.fim?` <span class="small muted">até ${fdate(f.fim)}</span>`:""}`;
+    if(emExperiencia(e)){const d=diffDays(e.admissao,TODAY);return `<span class="chip c-brand">Experiência</span> <span class="small muted">${d}º dia · 45 dias em ${fdate(addDays(e.admissao,44))} · 90 dias em ${fdate(addDays(e.admissao,89))}</span>`}return `<span class="chip ${status(e).c}">${status(e).t}</span>`};
+  const L=T[1].slice().sort((a,b)=>store(a.lojaId).nome.localeCompare(store(b.lojaId).nome)||a.nome.localeCompare(b.nome));
+  modal(T[0]+" · "+L.length,L.length?`<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Cargo</th><th>Unidade</th><th>Admissão</th><th>Situação</th></tr></thead><tbody>${L.map(e=>`<tr><td><b>${esc(e.nome)}</b></td><td class="small">${esc(e.cargo||"")}</td><td class="small">${esc(store(e.lojaId).nome)}</td><td class="num small">${fdate(e.admissao)}</td><td>${det(e)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Ninguém nesta situação hoje.</div>`,`<button class="btn" data-close>Fechar</button>`);
+}
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-pnlista]");if(t)pnLista(t.dataset.pnlista)});
+document.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("[data-pnlista]")){ev.preventDefault();pnLista(ev.target.dataset.pnlista)}});
+(()=>{const s=document.createElement("style");s.textContent=".pn-kpi{cursor:pointer;transition:box-shadow .15s,transform .15s}.pn-kpi:hover,.pn-kpi:focus-visible{box-shadow:0 0 0 2px var(--brand);transform:translateY(-1px)}";document.head.appendChild(s)})();
 function nomeSocialAplicar(e){const s=String(e.nomeSocial||"").trim();if(s){if(!e.nomeCivil)e.nomeCivil=e.nome;e.nome=s}else if(e.nomeCivil){e.nome=e.nomeCivil;delete e.nomeCivil}return e}
 const nomeRegistro=e=>e?(e.nomeCivil||e.nome):"";
 function normalize(o){
@@ -1048,7 +1059,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&p.id==="experiencia")||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
@@ -1090,9 +1101,10 @@ function painelLoja(){
     "")+`
   ${G()?"":correioCard()}
   <div class="grid kpis">
-    <div class="card kpi hero"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
-    <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${at.filter(emExperiencia).length}</span><span class="sub">avalie no 45º e no 90º dia</span></div>
-    <div class="card kpi"><span class="lbl">Em férias hoje</span><span class="val num">${at.filter(e=>feriasEmCurso(e)).length}</span><span class="sub">fora da escala</span></div>
+    <div class="card kpi hero pn-kpi" data-pnlista="ativos" role="button" tabindex="0" title="Ver a lista"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
+    <div class="card kpi pn-kpi" data-pnlista="exp" role="button" tabindex="0" title="Ver quem está em experiência"><span class="lbl">Em experiência</span><span class="val num">${at.filter(emExperiencia).length}</span><span class="sub">avaliação no 45º e no 90º dia · ver lista</span></div>
+    <div class="card kpi pn-kpi" data-pnlista="ferias" role="button" tabindex="0" title="Ver quem está em férias"><span class="lbl">Em férias hoje</span><span class="val num">${at.filter(e=>feriasEmCurso(e)).length}</span><span class="sub">fora da escala · ver lista</span></div>
+    <div class="card kpi pn-kpi" data-pnlista="afast" role="button" tabindex="0" title="Ver quem está afastado"><span class="lbl">Afastados</span><span class="val num">${at.filter(e=>e.afastado).length}</span><span class="sub">fora da escala · ver lista</span></div>
     ${visaoGestora()?"":`<div class="card kpi"><span class="lbl">Aguardando o RH</span><span class="val num">${pend}</span><span class="sub">registros enviados por você</span></div>`}
   </div>
   ${varias?`<div class="card"><div class="card-head"><div><h2>Quadro por loja</h2><p>Ativos em relação ao quadro ideal</p></div></div>
