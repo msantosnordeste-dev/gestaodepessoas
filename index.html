@@ -726,6 +726,33 @@ async function carregarSolicitacoes(){
   if(ROLE==="rh"){const {data,error}=await SB.from("solicitacoes").select("*").eq("status","pendente").order("criado_em").limit(1000);if(!error)SOLIC=data.map(movDeLinha);const r2=await SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(500);if(!r2.error)SOLIC_ALL=r2.data.map(movDeLinha)}
   else{const {data,error}=await SB.from("solicitacoes").select("*").order("criado_em",{ascending:false}).limit(500);if(!error)MOVS=data.map(movDeLinha)}
 }
+function zerarSenhasForm(){
+  if(ROLE!=="rh"){toast("Somente o RH pode zerar as senhas.");return}
+  const eu=(PERFIL&&PERFIL.user_id)||"";const outros=(USUARIOS||[]).filter(u=>u.user_id!==eu);
+  const semCad=outros.filter(u=>!u.colaborador_id);
+  modal("Zerar todas as senhas · emergência",`<div class="note" style="border-color:var(--bad,#c0392b)"><b>Use só em emergência</b> (suspeita de senha vazada, acesso indevido, troca de equipe do RH).</div>
+  <p style="margin:12px 0 6px">Ao confirmar, de uma só vez:</p>
+  <ul style="margin:0 0 10px 18px;line-height:1.6"><li>a senha de <b>${outros.length} usuário(s)</b> deixa de funcionar;</li><li>todas as sessões abertas são encerradas (quem estiver no portal sai na hora);</li><li>o seu acesso (${esc((PERFIL&&PERFIL.nome)||"RH")}) continua funcionando.</li></ul>
+  <p style="margin:0 0 6px"><b>Como cada um volta:</b> colaboradores, gerentes, supervisão e prestadores PJ criam uma senha nova em <b>Primeiro acesso</b>, com CPF e data de nascimento. Perfil, lojas, histórico e termos aceitos continuam iguais.</p>
+  ${semCad.length?`<p style="margin:0 0 6px">Estes ${semCad.length} usuário(s) não têm cadastro de CPF e precisam de senha nova dada pelo RH, um a um, em Editar: <b>${semCad.map(u=>esc(u.nome||u.login)).join(", ")}</b>.</p>`:""}
+  <div class="field" style="margin-top:12px"><label for="zs-conf">Para confirmar, digite <b>ZERAR TODAS</b></label><input class="input" id="zs-conf" autocomplete="off" spellcheck="false"></div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-danger" data-act="zerarSenhasOk" id="zs-ok">Zerar todas as senhas agora</button>`);
+}
+async function zerarSenhasExec(){
+  const c=($("#zs-conf")||{}).value||"";if(c.trim()!=="ZERAR TODAS"){toast("Digite ZERAR TODAS para confirmar.");return}
+  const bt=$("#zs-ok");if(bt){bt.disabled=true;bt.textContent="Zerando…"}
+  let data=null,msg=null;
+  try{const r=await SB.functions.invoke("usuarios",{body:{acao:"zerar_todas",confirmacao:"ZERAR TODAS"}});data=r.data;
+    if(r.error){msg="Não foi possível falar com o servidor.";try{const j=await r.error.context.json();if(j&&j.erro)msg=j.erro}catch(e){}}else if(data&&data.erro)msg=data.erro}
+  catch(e){msg=String(e&&e.message||e)}
+  if(msg){if(bt){bt.disabled=false;bt.textContent="Zerar todas as senhas agora"}toast(msg);return}
+  await carregarUsuarios().catch(()=>{});LOGV=null;
+  modal("Senhas zeradas",`<p><b>${data.total} usuário(s)</b> tiveram a senha zerada e as sessões encerradas.</p>
+  <p>Avise a equipe: para voltar, cada pessoa entra em <b>Primeiro acesso</b> e cria uma senha nova com CPF e data de nascimento.</p>
+  ${(data.semCadastro||[]).length?`<p>Dê uma senha nova, em Editar, para: <b>${data.semCadastro.map(esc).join(", ")}</b>.</p>`:""}
+  ${(data.falhas||[]).length?`<p style="color:var(--bad,#c0392b)">Não foi possível zerar: ${data.falhas.map(esc).join(", ")}. Tente de novo ou desative esses usuários.</p>`:""}`,`<button class="btn btn-primary" data-close>Entendi</button>`);
+  render();
+}
 async function carregarUsuarios(){const {data}=await SB.from("perfis").select("*").order("nome");USUARIOS=data||[]}
 async function carregarLog(){
   const {data,error}=await SB.from("log_acesso").select("*").order("em",{ascending:false}).limit(1000);
@@ -1180,7 +1207,7 @@ R.usuarios=()=>{
     <tbody>${vis.map(l=>`<tr><td class="num">${new Date(l.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"medium"})}</td><td><b>${esc(l.nome||l.login||"—")}</b>${l.login?`<br><span class="small muted">${esc(l.login)}</span>`:""}</td><td>${(PERFIS_CURTO[l.perfil]||"—")}</td><td><span class="chip ${cor(l.evento)}">${esc(l.evento)}</span></td><td style="white-space:normal;min-width:220px">${esc(l.detalhe)}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">${LOGV===null?"Carregando…":"Nenhum registro."}</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Mostra os 1.000 registros mais recentes. Tentativas de senha incorreta ficam no painel do Supabase, em Authentication › Logs.</div></div>`;
   }
-  return header("Sistema","Usuários e acessos",tab==="usuarios"?`<button class="btn btn-primary" data-act="novoUsuario">+ Novo usuário</button>`:tab==="solic"&&SOLIC.length?`<button class="btn btn-primary" data-act="aprovarTodas">Aprovar todas (${SOLIC.length})</button>`:"")+corpo;
+  return header("Sistema","Usuários e acessos",tab==="usuarios"?`${ROLE==="rh"?`<button class="btn btn-danger" data-act="zerarSenhas" title="Emergência: invalida a senha de todos os usuários e encerra todas as sessões">Zerar todas as senhas</button> `:""}<button class="btn btn-primary" data-act="novoUsuario">+ Novo usuário</button>`:tab==="solic"&&SOLIC.length?`<button class="btn btn-primary" data-act="aprovarTodas">Aprovar todas (${SOLIC.length})</button>`:"")+corpo;
 };
 function dadosHeadcount(){
   const todas=ST.stores.filter(lojaTemGente).map(s=>s.id);
@@ -1694,7 +1721,7 @@ async function entrar(){
   const b=$("#btn-entrar");b.disabled=true;b.textContent="Entrando…";
   const {error}=await SB.auth.signInWithPassword({email:login.includes("@")?login:login+"@"+DOMINIO,password:senha});
   b.disabled=false;b.textContent="Entrar";
-  if(error){erroTela(/banned/i.test(error.message)?"Usuário desativado. Fale com o RH.":/rate|too many/i.test(error.message)?"Muitas tentativas. Aguarde alguns minutos e tente de novo.":"Usuário ou senha incorretos.");return}
+  if(error){erroTela(/banned/i.test(error.message)?"Usuário desativado. Fale com o RH.":/rate|too many/i.test(error.message)?"Muitas tentativas. Aguarde alguns minutos e tente de novo.":"Usuário ou senha incorretos. Se o RH zerou as senhas, crie uma nova em Primeiro acesso.");return}
   await iniciarSessao(true);
 }
 async function iniciarSessao(novoLogin){
@@ -6805,6 +6832,8 @@ document.addEventListener("click",ev=>{
   if(d.fichaform){abrirFichaForm(d.fichaform);return}
   if(d.act==="sair"){sair();return}
   if(d.act==="novoUsuario"){usuarioForm();return}
+  if(d.act==="zerarSenhas"){zerarSenhasForm();return}
+  if(d.act==="zerarSenhasOk"){zerarSenhasExec();return}
   if(d.act==="salvarUsuario"){salvarUsuario(d.login);return}
   if(d.act==="atualizarLog"){LOGV=null;render();return}
   if(d.hcloja){const todas=ST.stores.filter(lojaTemGente).map(s=>s.id);let sel=(UI.hcLojas||[]).filter(id=>todas.includes(id));
