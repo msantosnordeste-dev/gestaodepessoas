@@ -7569,11 +7569,16 @@ const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined
 const COMP_ISO=COMP_ISO_W;
 let CONF_OK=false;
 const periodoEncerrado=()=>!!(window.__PREM_PERIODO&&window.__PREM_PERIODO.encerrado);
+const lojaPer=id=>(window.__PREM_LOJAS_PER||[]).find(r=>+r.loja_num===+loja(id).num)||null;
+const lojaEncerrada=id=>periodoEncerrado()||!!(lojaPer(id)&&lojaPer(id).encerrado);
+const fmtDH=d=>new Date(d).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+// prazo do encerramento automático: 48 h após a aprovação do gerente (se o RH não reabriu depois dela)
+const fechaAuto=L=>{if(!L||L.conf!=="aprovado"||!L.confEm||(L.correcoes||[]).some(c=>c.status==="aberta"))return null;const lp=lojaPer(L.lojaId);if(lp&&lp.reaberto_em&&new Date(lp.reaberto_em)>new Date(L.confEm))return null;return new Date(new Date(L.confEm).getTime()+48*3600e3)};
 const pad2=n=>String(n).padStart(2,"0"),fmtEv=d=>pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());
 // lote aprovado pelo RH + aprovado pelo gerente, sem correção aberta: "Importada no Swile" 15 min depois da aprovação do gerente
 function swileAuto(){
   if(periodoEncerrado())return;let mudou=0,prox=Infinity;
-  LOTES.forEach(L=>{if(L.status!=="aprovado"||L.conf!=="aprovado"||!L.confEm)return;if((L.correcoes||[]).some(c=>c.status==="aberta"))return;
+  LOTES.forEach(L=>{if(L.status!=="aprovado"||L.conf!=="aprovado"||!L.confEm||lojaEncerrada(L.lojaId))return;if((L.correcoes||[]).some(c=>c.status==="aberta"))return;
     const t=new Date(new Date(L.confEm).getTime()+15*60e3);L.swilePrev=t;
     if(Date.now()>=t.getTime()){L.status="folha";L.swileAuto=true;L.eventos=L.eventos||[];L.eventos.push(ev(fmtEv(t),"Sistema","Importada no Swile · automático, 15 min após a aprovação do gerente"));mudou++}
     else prox=Math.min(prox,t.getTime())});
@@ -7642,6 +7647,7 @@ function pagina(){
     <div><div class="eyebrow">Premiações e Incentivos · ${grupo}</div><h1>${TITULO[UI.tab]}</h1></div>
     <div class="top-actions">${acts.join("")}</div>
   </div>
+  ${(()=>{if(periodoEncerrado()||(!webNaoRH()&&UI.view==="rh"))return "";const fe=escopo().filter(id=>lojaEncerrada(id));if(!fe.length)return "";return `<div class="banner" style="background:#fdecea;border-color:#e6b0aa"><span><b>${fe.length===escopo().length?(fe.length>1?"Suas lojas estão encerradas":"Sua loja está encerrada"):"Lojas encerradas"} em ${COMP}:</b> ${fe.map(id=>{const lp=lojaPer(id);return esc(loja(id).curto||loja(id).nome)+(lp&&lp.automatico?" (automático, 48 h após a aprovação)":" (pelo RH)")}).join(", ")}. Somente consulta.</span></div>`})()}
   ${periodoEncerrado()?`<div class="banner" style="background:#fdecea;border-color:#e6b0aa"><span><b>Período ${COMP} encerrado</b>${window.__PREM_PERIODO.encerrado_por?" por "+esc(window.__PREM_PERIODO.encerrado_por):""}${window.__PREM_PERIODO.encerrado_em?" em "+new Date(window.__PREM_PERIODO.encerrado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""}. Apuração finalizada: somente consulta.</span></div>`:""}
   ${apTab&&(!(webNaoRH()||UI.view!=="rh")||UI.tab==="resultados")?kpis():""}
   <div id="pr-tab">${({acoes:tAcoes,aprovacoes:()=>periodoBar()+tAprov(),meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,arena:tArena,reconhecimento:tRegrasRec,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
@@ -8242,7 +8248,33 @@ function periodoBar(){
   return `<div class="card" style="${enc?"border-color:#e6b0aa;background:#fff7f6":""}"><div class="card-head"><div><h2>Período ${COMP} · ${enc?"encerrado":"aberto"}</h2>
    <p>${enc?`Encerrado${P0.encerrado_por?" por "+esc(P0.encerrado_por):""}${P0.encerrado_em?" em "+new Date(P0.encerrado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""}. Ninguém aprova, pede correção ou muda status enquanto estiver encerrado.`:`${sw} de ${ls.length} loja(s) já enviadas ao Swile${prev.length?` · ${prev.length} seguem sozinhas para o Swile 15 min após a aprovação do gerente`:""}. Encerre quando a operação do mês estiver finalizada.`}</p>
    ${ult&&ult.motivo?`<p class="small muted">Último registro: ${esc(ult.acao)} · ${esc(ult.quem||"")} · ${esc(ult.motivo)}</p>`:""}</div>
-   ${enc?`<button class="btn" data-prperabre="1">Reabrir período</button>`:`<button class="btn btn-danger" data-prperfecha="1">Encerrar período</button>`}</div></div>`;
+   ${enc?`<button class="btn" data-prperabre="1">Reabrir período</button>`:`<button class="btn btn-danger" data-prperfecha="1">Encerrar período</button>`}</div>
+   ${enc?"":`<details ${UI.perLojasAberto?"open":""} id="pr-per-lojas"><summary style="cursor:pointer;font-weight:600;margin:6px 0 10px">Encerramento por loja · ${LOTES.filter(L=>lojaEncerrada(L.lojaId)).length} de ${LOTES.length} encerrada(s)</summary>
+   <p class="small muted" style="margin:0 0 8px">Se o RH não encerrar, a loja é encerrada automaticamente 48 h após a aprovação do gerente (sem correção em aberto). Loja reaberta pelo RH só volta a fechar sozinha depois de uma nova aprovação do gerente.</p>
+   <div class="table-wrap"><table><thead><tr><th>Loja</th><th>Situação</th><th>Aprovação do gerente</th><th>Encerramento</th><th></th></tr></thead><tbody>
+   ${LOTES.slice().sort((a,b)=>loja(a.lojaId).num-loja(b.lojaId).num).map(L=>{const lp=lojaPer(L.lojaId),fe=lojaEncerrada(L.lojaId),fa=fechaAuto(L);
+     const sit=["folha","pago"].includes(L.status)?"Importada no Swile":L.status==="aprovado"?"Aprovada pelo RH":L.status==="devolvido"?"Devolvida":"Aguardando RH";
+     return `<tr><td><b>${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}</b></td><td class="small">${sit}</td><td class="small">${L.conf==="aprovado"&&L.confEm?fmtDH(L.confEm):L.conf==="correcao"?`<span class="chip c-warn">correção</span>`:"—"}</td>
+      <td class="small">${fe?`<span class="chip c-bad">Encerrada</span> ${lp&&lp.automatico?"automático":"pelo RH"}${lp&&lp.encerrado_em?" · "+fmtDH(lp.encerrado_em):""}`:fa?`Automático em ${fmtDH(fa)}`:`<span class="muted">aguarda aprovação do gerente</span>`}</td>
+      <td class="r">${fe?`<button class="btn btn-sm" data-prlojaabre="${L.lojaId}">Reabrir</button>`:`<button class="btn btn-sm" data-prlojafecha="${L.lojaId}">Encerrar</button>`}</td></tr>`}).join("")}
+   </tbody></table></div></details>`}</div>`;
+}
+function lojaPerModal(lojaId,encerrar){
+  const L=LOTES.find(x=>x.lojaId===lojaId),nm=loja(lojaId).curto||loja(lojaId).nome;
+  modal(encerrar?`Encerrar ${nm} · ${COMP}`:`Reabrir ${nm} · ${COMP}`,encerrar?`<p>A ${esc(nm)} fica bloqueada em ${COMP}: o gerente não aprova nem pede correção, e o RH não muda o status até reabrir.</p>
+   ${L&&!["folha","pago"].includes(L.status)?`<div class="note" style="margin:10px 0">Esta loja ainda não foi enviada ao Swile.</div>`:""}
+   ${L&&(L.correcoes||[]).some(c=>c.status==="aberta")?`<div class="note" style="margin:10px 0;border-color:#e6b0aa">Há correção em aberto nesta loja.</div>`:""}
+   <div class="field"><label for="pr-lj-mot">Observação (opcional)</label><input class="input" id="pr-lj-mot" maxlength="300"></div>`
+   :`<p>Reabrir libera de novo aprovação, correção e mudança de status da ${esc(nm)} em ${COMP}. Ela só volta a fechar sozinha 48 h depois de uma nova aprovação do gerente.</p><div class="field"><label for="pr-lj-mot">Motivo da reabertura (obrigatório)</label><input class="input" id="pr-lj-mot" maxlength="300"></div>`,
+   `<button class="btn" data-close>Cancelar</button><button class="btn ${encerrar?"btn-danger":"btn-primary"}" data-prlojaok="${lojaId}" data-prlojaenc="${encerrar?1:0}">${encerrar?"Encerrar loja":"Reabrir loja"}</button>`);
+}
+async function lojaPerSalvar(lojaId,encerrar,btn){
+  const mot=(($("#pr-lj-mot")||{}).value||"").trim();if(!encerrar&&mot.length<5){toast("Escreva o motivo da reabertura");return}
+  if(btn)btn.disabled=true;
+  const {data,error}=await SB.rpc("premiacoes_loja_periodo_definir",{p_comp:COMP_ISO,p_loja_num:+loja(lojaId).num,p_encerrar:encerrar,p_motivo:mot});
+  if(error){if(btn)btn.disabled=false;toast(error.message||"Não foi possível salvar");return}
+  const A=window.__PREM_LOJAS_PER=(window.__PREM_LOJAS_PER||[]).filter(r=>+r.loja_num!==+loja(lojaId).num);A.push(data);UI.perLojasAberto=true;
+  closeModal();render();toast((loja(lojaId).curto||loja(lojaId).nome)+(encerrar?" encerrada":" reaberta"));
 }
 function periodoModal(encerrar){
   const pend=LOTES.filter(L=>!["folha","pago"].includes(L.status)),corr=LOTES.filter(L=>(L.correcoes||[]).some(c=>c.status==="aberta"));
@@ -8433,6 +8465,11 @@ document.addEventListener("click",e=>{
   if(t.hasAttribute("data-close")&&(e.target===t||t.matches("button"))){closeModal();return}
   if(d.prview){UI.view=d.prview;UI.loja="";render();return}
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
+  {const lid=d.praprovar||d.praprovarger||d.prdevolver||d.prpago||d.prreabrir||d.prconfok||d.prcorr||d.prcorrmulti||d.prcorrenviar;const Lx=lid&&LOTES.find(x=>x.id===lid);
+   if(Lx&&!periodoEncerrado()&&lojaEncerrada(Lx.lojaId)){toast((loja(Lx.lojaId).curto||loja(Lx.lojaId).nome)+" está encerrada em "+COMP+". Para alterar, o RH precisa reabrir a loja.");return}}
+  if(d.prlojafecha){lojaPerModal(d.prlojafecha,true);return}
+  if(d.prlojaabre){lojaPerModal(d.prlojaabre,false);return}
+  if(d.prlojaok){lojaPerSalvar(d.prlojaok,d.prlojaenc==="1",t);return}
   if(periodoEncerrado()&&["praprovar","praprovarger","prcaceita","prconfok","prcorr","prcorrenviar","prcorrmulti","prdevolver","prpago","prreabrir"].some(k=>d[k]!==undefined)){toast("Período "+COMP+" encerrado pelo RH. Para alterar, o RH precisa reabrir.");return}
   if(d.prperfecha){periodoModal(true);return}
   if(d.prperabre){periodoModal(false);return}
@@ -8541,6 +8578,7 @@ async function carregarPremData(){
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_vendedores",{p_comp:CMP});window.__PREM_RANKVEND=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKVEND=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_faturamento",{p_comp:CMP});window.__PREM_RANKFAT=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKFAT=[]}}
     try{const {data}=await SB.from("premiacoes_periodos").select("*").eq("comp",CMP).limit(1);window.__PREM_PERIODO=(data&&data[0])||{comp:CMP,encerrado:false}}catch(e){window.__PREM_PERIODO={comp:CMP,encerrado:false}}
+    try{const {data}=await SB.from("premiacoes_lojas_periodo").select("*").eq("comp",CMP);window.__PREM_LOJAS_PER=data||[]}catch(e){window.__PREM_LOJAS_PER=[]}
     if(ROLE!=="colaborador"){try{const [cq,ev,ps]=await Promise.all([SB.rpc("premiacoes_conquistas"),SB.rpc("premiacoes_evolucao"),SB.rpc("premiacoes_pessoas",{p_comp:CMP})]);window.__PREM_CONQ=Array.isArray(cq&&cq.data)?cq.data:[];window.__PREM_EVOL=Array.isArray(ev&&ev.data)?ev.data:[];window.__PREM_PESSOAS=(ps&&ps.data)||{}}catch(e){window.__PREM_CONQ=[];window.__PREM_EVOL=[];window.__PREM_PESSOAS={}}}
     window.__PREM_PER=(lj.find(r=>r.dados&&r.dados.periodos)||{dados:{}}).dados.periodos||(CMP!=="2026-10"?premPeriodosPadrao(CMP):null);
     window.__PREM_DATA={LOJAS:lj.map(r=>r.dados.loja).sort((x,y)=>x.num-y.num),
