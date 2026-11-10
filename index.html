@@ -7569,6 +7569,9 @@ const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined
 const COMP_ISO=COMP_ISO_W;
 let CONF_OK=false;
 const periodoEncerrado=()=>!!(window.__PREM_PERIODO&&window.__PREM_PERIODO.encerrado);
+const semPremio=L=>{const t=L&&L.congelado&&L.congelado.total!=null?+L.congelado.total:(L?lotal(L).total:0);return (+t||0)<=0.005};
+const gerConferiu=L=>!!L&&L.conf==="aprovado"&&!(L.correcoes||[]).some(c=>c.status==="aberta");
+const podeFinalizar=L=>gerConferiu(L)||semPremio(L);
 const lojaPer=id=>(window.__PREM_LOJAS_PER||[]).find(r=>+r.loja_num===+loja(id).num)||null;
 const lojaEncerrada=id=>periodoEncerrado()||!!(lojaPer(id)&&lojaPer(id).encerrado);
 const fmtDH=d=>new Date(d).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
@@ -8250,13 +8253,13 @@ function periodoBar(){
    ${ult&&ult.motivo?`<p class="small muted">Último registro: ${esc(ult.acao)} · ${esc(ult.quem||"")} · ${esc(ult.motivo)}</p>`:""}</div>
    ${enc?`<button class="btn" data-prperabre="1">Reabrir período</button>`:`<button class="btn btn-danger" data-prperfecha="1">Encerrar período</button>`}</div>
    ${enc?"":`<details ${UI.perLojasAberto?"open":""} id="pr-per-lojas"><summary style="cursor:pointer;font-weight:600;margin:6px 0 10px">Encerramento por loja · ${LOTES.filter(L=>lojaEncerrada(L.lojaId)).length} de ${LOTES.length} encerrada(s)</summary>
-   <p class="small muted" style="margin:0 0 8px">Se o RH não encerrar, a loja é encerrada automaticamente 48 h após a aprovação do gerente (sem correção em aberto). Loja reaberta pelo RH só volta a fechar sozinha depois de uma nova aprovação do gerente.</p>
+   <p class="small muted" style="margin:0 0 8px">Nenhuma loja com prêmio é encerrada ou importada no Swile sem a conferência do gerente. Se o RH não encerrar, a loja é encerrada automaticamente 48 h após a aprovação do gerente (sem correção em aberto). Loja sem prêmio no mês finaliza sozinha 48 h após a aprovação do RH. Loja reaberta pelo RH só volta a fechar sozinha depois de uma nova aprovação do gerente.</p>
    <div class="table-wrap"><table><thead><tr><th>Loja</th><th>Situação</th><th>Aprovação do gerente</th><th>Encerramento</th><th></th></tr></thead><tbody>
    ${LOTES.slice().sort((a,b)=>loja(a.lojaId).num-loja(b.lojaId).num).map(L=>{const lp=lojaPer(L.lojaId),fe=lojaEncerrada(L.lojaId),fa=fechaAuto(L);
      const sit=["folha","pago"].includes(L.status)?"Importada no Swile":L.status==="aprovado"?"Aprovada pelo RH":L.status==="devolvido"?"Devolvida":"Aguardando RH";
      return `<tr><td><b>${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}</b></td><td class="small">${sit}</td><td class="small">${L.conf==="aprovado"&&L.confEm?fmtDH(L.confEm):L.conf==="correcao"?`<span class="chip c-warn">correção</span>`:"—"}</td>
-      <td class="small">${fe?`<span class="chip c-bad">Encerrada</span> ${lp&&lp.automatico?"automático":"pelo RH"}${lp&&lp.encerrado_em?" · "+fmtDH(lp.encerrado_em):""}`:fa?`Automático em ${fmtDH(fa)}`:`<span class="muted">aguarda aprovação do gerente</span>`}</td>
-      <td class="r">${fe?`<button class="btn btn-sm" data-prlojaabre="${L.lojaId}">Reabrir</button>`:`<button class="btn btn-sm" data-prlojafecha="${L.lojaId}">Encerrar</button>`}</td></tr>`}).join("")}
+      <td class="small">${fe?`<span class="chip c-bad">Encerrada</span> ${lp&&lp.automatico?"automático":"pelo RH"}${lp&&lp.encerrado_em?" · "+fmtDH(lp.encerrado_em):""}`:fa?`Automático em ${fmtDH(fa)}`:(semPremio(L)?`<span class="muted">sem prêmio · automático 48 h após a aprovação do RH</span>`:`<span class="muted">aguarda aprovação do gerente</span>`)}</td>
+      <td class="r">${fe?`<button class="btn btn-sm" data-prlojaabre="${L.lojaId}">Reabrir</button>`:podeFinalizar(L)?`<button class="btn btn-sm" data-prlojafecha="${L.lojaId}">Encerrar</button>`:`<span class="small muted" title="Só loja sem prêmio no mês pode ser encerrada sem a conferência do gerente">aguarda gerente</span>`}</td></tr>`}).join("")}
    </tbody></table></div></details>`}</div>`;
 }
 function lojaPerModal(lojaId,encerrar){
@@ -8277,6 +8280,8 @@ async function lojaPerSalvar(lojaId,encerrar,btn){
   closeModal();render();toast((loja(lojaId).curto||loja(lojaId).nome)+(encerrar?" encerrada":" reaberta"));
 }
 function periodoModal(encerrar){
+  const semConf=LOTES.filter(L=>!podeFinalizar(L));
+  if(encerrar&&semConf.length){modal(`Encerrar período ${COMP}`,`<p>Ainda não dá para encerrar: nenhuma loja com prêmio pode ser finalizada sem a conferência do gerente.</p><div class="note" style="margin:10px 0"><b>Aguardando conferência do gerente (${semConf.length}):</b> ${semConf.map(L=>esc(loja(L.lojaId).curto||loja(L.lojaId).nome)).join(", ")}.</div>`,`<button class="btn btn-primary" data-close>Entendi</button>`);return}
   const pend=LOTES.filter(L=>!["folha","pago"].includes(L.status)),corr=LOTES.filter(L=>(L.correcoes||[]).some(c=>c.status==="aberta"));
   modal(encerrar?`Encerrar período ${COMP}`:`Reabrir período ${COMP}`,encerrar?`<p>Encerrar finaliza a operação de <b>${COMP}</b>: aprovações, pedidos de correção e mudanças de status ficam bloqueados para todos, inclusive gerentes. Os dados continuam disponíveis para consulta e exportação.</p>
    ${pend.length?`<div class="note" style="margin:10px 0"><b>${pend.length} loja(s) ainda não foram enviadas ao Swile:</b> ${pend.map(L=>esc(loja(L.lojaId).curto||loja(L.lojaId).nome)).join(", ")}.</div>`:`<p class="small" style="color:#1b8a5a">Todas as lojas já foram enviadas ao Swile.</p>`}
@@ -8531,7 +8536,7 @@ document.addEventListener("click",e=>{
     render();toast(novos+" incluído(s) e "+atual+" atualizado(s). Confira e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
-  if(act==="lancar"){let n=0,bloq=0,semGer=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){if(corrAbertas(L).length){bloq++;return}if(L.conf!=="aprovado")semGer++;L.status="folha";registrar(L,"Importada no Swile");n++}});if(n)gravar();render();toast(n+" loja(s) importada(s) no Swile"+(bloq?" · "+bloq+" com correção do gerente em aberto ficaram de fora":"")+(semGer?" · "+semGer+" sem conferência do gerente":""));return}
+  if(act==="lancar"){let n=0,bloq=0,semGer=[];LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)&&!lojaEncerrada(L.lojaId)){if(corrAbertas(L).length){bloq++;return}if(!podeFinalizar(L)){semGer.push(loja(L.lojaId).curto||loja(L.lojaId).nome);return}L.status="folha";registrar(L,"Importada no Swile");n++}});if(n)gravar();render();toast(n+" loja(s) importada(s) no Swile"+(bloq?" · "+bloq+" com correção do gerente em aberto ficaram de fora":"")+(semGer.length?" · aguardando conferência do gerente: "+semGer.join(", "):""));return}
   if(act==="nova"){novaCampanha();return}
   if(act==="padrao"){CFG=clone(CFG_PADRAO);render();toast("Regras padrão carregadas. Clique em Salvar regras para gravar.");return}
   if(act==="salvar"){if(!podeGravar()){toast("Somente a conta do RH grava regras");return}CFG_SALVO=clone(CFG);LOTES.forEach(sync);if(typeof logEvento==="function")logEvento("Premiações · Regras de apuração salvas",COMP);gravar();render();toast("Regras salvas. As apurações aguardando aprovação foram recalculadas.");return}
