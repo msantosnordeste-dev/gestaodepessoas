@@ -8154,7 +8154,7 @@ function tRegrasRec(){
   const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
   const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma as faixas)":" (vale a maior faixa)");
   const card=(tp,quem,quando,crit,onde)=>`<div>${arBadge(tp,58)}<h3>${AR_T[tp].t}</h3><dl><dt>Quem ganha</dt><dd>${quem}</dd><dt>Quando</dt><dd>${quando}</dd><dt>Critério</dt><dd>${crit}</dd><dt>Onde aparece</dt><dd>${onde}</dd></dl></div>`;
-  return AR_CSS+`<div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor do prêmio em dinheiro: são reconhecimento.</p></div></div>
+  return AR_CSS+`<div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor da Premiação Swile: são reconhecimento.</p></div></div>
   <div class="ar-rc">
    ${card("faturamento","O 1º lugar de toda a rede no Ranking por Faturamento.","Todo mês, no fechamento da apuração.","Maior valor vendido no mês (R$), somando todas as lojas em que vendeu.","Portal do vendedor (Meu prêmio e Meus dados) e Arena de Conquistas.")}
    ${card("alcance","O 1º lugar de toda a rede no Ranking de Vendedores.","Todo mês, no fechamento da apuração.","Maior % da meta atingido no mês (venda ÷ meta).","Portal do vendedor, Ranking de Vendedores (selo 🎯) e Arena de Conquistas.")}
@@ -8174,7 +8174,7 @@ function tRegrasRec(){
    <li><b>Ranking Nacional de Lojas:</b> classifica as lojas pelo % da meta do mês atingido pela loja, com a posição na regional e na rede.</li>
    <li><b>Ranking por Faturamento:</b> classifica pelo valor vendido (R$). É exclusivo do RH; os demais perfis veem só a medalha de quem ganhou.</li>
   </ul></div>
-  <div class="card"><div class="card-head"><div><h2>Premiação em dinheiro · Campanha de Incentivo de Vendas</h2><p>Resumo das regras em vigor. O detalhe completo fica em Ações de Incentivo.</p></div></div><ul class="ar-ul">
+  <div class="card"><div class="card-head"><div><h2>Premiação Swile · Campanha de Incentivo de Vendas</h2><p>Resumo das regras em vigor. O detalhe completo fica em Ações de Incentivo.</p></div></div><ul class="ar-ul">
    <li><b>Vendedor · loja semanal:</b> ${fx(v)}${v.mes&&v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</li>
    <li><b>Vendedor · loja quinzenal:</b> ${fx(q)}${q.mes&&q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</li>
    <li><b>Funções de apoio:</b> ${(CFG.sup.cargos||[]).map(c=>esc(c)+" "+brl(supValor(c))).join(" · ")} por loja que bater ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?"; quem atende mais de uma loja recebe por cada loja que bater":""}.</li>
