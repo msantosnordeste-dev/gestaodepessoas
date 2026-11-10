@@ -1072,7 +1072,7 @@ function painelLoja(){
   const pend=MOVS.filter(m=>m.status==="pendente").length;
   const max=Math.max(1,...ST.stores.map(s=>Math.max(s.quadro,at.filter(e=>e.lojaId===s.id).length)));
   return header((primeiro(SESSION&&SESSION.nome)?"Olá, "+esc(primeiro(SESSION.nome))+" · ":"")+parse(TODAY).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}),varias?"Minhas lojas":esc(ST.stores[0].nome),
-    visaoGestora()?"":`<button class="btn" data-go="ponto">Escala da semana</button><button class="btn btn-primary" data-go="experiencia">Avaliações</button>`)+`
+    "")+`
   ${visaoGestora()?"":correioCard()}
   <div class="grid kpis">
     <div class="card kpi hero"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
@@ -7055,7 +7055,7 @@ const CFG_PADRAO={
   },
   sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.id==="u7"&&s.lojas.length===1&&s.lojas[0]==="l41"?["l41","l40"]:s.lojas.slice()}))},
   ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false},
-  regional:{l10:"Sul/Sudeste",l12:"Sul/Sudeste",l13:"Sul/Sudeste",l16:"Sul/Sudeste",l17:"Sul/Sudeste",l18:"Sul/Sudeste",l19:"Sul/Sudeste",l24:"Sul/Sudeste",l25:"Sul/Sudeste",l31:"Sul/Sudeste",l34:"Sul/Sudeste",l35:"Sul/Sudeste",l36:"Sul/Sudeste",l37:"Sul/Sudeste",l20:"Norte/Nordeste",l21:"Norte/Nordeste",l26:"Norte/Nordeste",l33:"Norte/Nordeste",l39:"Norte/Nordeste",l40:"Norte/Nordeste",l41:"Norte/Nordeste"},
+  regional:{l10:"Sul/Sudeste",l12:"Sul/Sudeste",l13:"Sul/Sudeste",l16:"Sul/Sudeste",l17:"Sul/Sudeste",l18:"Sul/Sudeste",l19:"Sul/Sudeste",l24:"Norte/Nordeste",l25:"Sul/Sudeste",l31:"Sul/Sudeste",l34:"Sul/Sudeste",l35:"Sul/Sudeste",l36:"Sul/Sudeste",l37:"Sul/Sudeste",l20:"Norte/Nordeste",l21:"Norte/Nordeste",l26:"Norte/Nordeste",l33:"Norte/Nordeste",l39:"Norte/Nordeste",l40:"Norte/Nordeste",l41:"Norte/Nordeste"},
   gest:{faixas:[{min:0,pct:0.15}]},
   supv:{faixas:[{min:0,pct:0.2},{min:100,pct:0.3},{min:130,pct:0.4}]},
   gerLoja:{l20:{faixas:[{min:100,pct:0.3,base:"meta"},{min:120,pct:0.6,base:"venda"}],acumula:false}}
@@ -7328,7 +7328,7 @@ function carregar(){
   if(CARREGADO)return;CARREGADO=true;
   if(typeof SB!=="undefined"&&SB)carregarConf().then(()=>render());
   if(typeof ST!=="undefined"&&ST&&ST.premiacoes)aplicarDB(JSON.parse(JSON.stringify(ST.premiacoes)));
-  else if(window.__PREM_CFG)aplicarDB({comp:COMP,cfg:JSON.parse(JSON.stringify(window.__PREM_CFG))});
+  else if(window.__PREM_CFG||window.__PREM_LOTES)aplicarDB({comp:COMP,cfg:window.__PREM_CFG?JSON.parse(JSON.stringify(window.__PREM_CFG)):null,lotes:JSON.parse(JSON.stringify(window.__PREM_LOTES||[]))});
 }
 function quem(){const n=(typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH";if(gerLogin())return n+" · Gerente";return UI.view==="rh"?n+" · RH":n+" · RH, pela "+PERFIS[UI.view].t.toLowerCase()}
 function registrar(L,acao){L.eventos.push(ev(agora(),quem(),acao));if(typeof logEvento==="function")logEvento("Premiações · "+acao,loja(L.lojaId).nome+" · "+COMP)}
@@ -7346,7 +7346,7 @@ const webNaoRH=()=>typeof ROLE!=="undefined"&&(ROLE==="gerente"||ROLE==="colabor
 const gerLogin=()=>webNaoRH()&&PERFIL_W()==="gerente";
 const supLogin=()=>webNaoRH()&&PERFIL_W()==="supervisor";
 const P=()=>{const p=PERM[UI.view];if(!webNaoRH())return {...p,verMeu:false};const base={...p,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,regras:false,conferir:gerLogin(),verMeu:false};
-  if(supLogin())return {...base,verRes:true,verSup:false,verHist:false,verMeu:true};
+  if(supLogin())return {...base,verRes:true,verSup:false,verHist:true,verMeu:true};
   return {...base,verSup:!gerLogin()&&p.verSup}};
 const numLoja=s=>{const m=String(s&&s.id||"").match(/^lj-0*(\d+)/)||String(s&&s.nome||"").match(/Loja\s*0*(\d+)/i);return m?m[1]:null};
 const minhasLojasMod=()=>((typeof ST!=="undefined"&&ST&&ST.stores)||[]).map(s=>numLoja(s)).filter(Boolean).map(n=>"l"+n).filter(id=>LOJAS.some(l=>l.id===id));
@@ -7728,11 +7728,12 @@ function tHistGer(){
 }
 function tHist(){
   if(UI.view==="gerente")return tHistGer();
-  const ids=escopo().filter(x=>!UI.histLoja||x===UI.histLoja);
+  const regsH=[...new Set(escopo().map(regDe))].sort();if(UI.histReg&&!regsH.includes(UI.histReg))UI.histReg="";
+  const ids=escopo().filter(x=>(!UI.histLoja||x===UI.histLoja)&&(!UI.histReg||regDe(x)===UI.histReg));
   const atuais=LOTES.filter(L=>ids.includes(L.lojaId)&&["folha","pago"].includes(L.status)).map(L=>({comp:L.comp,lojaId:L.lojaId,total:lotal(L).total,pessoas:lotal(L).pessoas,status:L.status,aprovado:L.eventos.find(e=>e.acao==="Equipe aprovada")?.em+" · RH e supervisora",lote:L.id}));
   const rows=[...atuais,...HIST.filter(h=>ids.includes(h.lojaId)).reverse()];
   return `<div class="card">
-    <div class="toolbar">${UI.view==="gerente"?"":`<select class="input" id="pr-f-hloja" aria-label="Loja"><option value="">Todas as lojas</option>${LOJAS.map(l=>`<option value="${l.id}" ${l.id===UI.histLoja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
+    <div class="toolbar">${UI.view==="gerente"?"":`${regsH.length>1?`<select class="input" id="pr-f-hreg" aria-label="Regional"><option value="">Todas as regionais</option>${regsH.map(r=>`<option ${r===UI.histReg?"selected":""}>${esc(r)}</option>`).join("")}</select>`:`<span class="chip c-mute">${esc(regsH[0]||"")}</span>`}<select class="input" id="pr-f-hloja" aria-label="Loja"><option value="">Todas as lojas</option>${LOJAS.filter(l=>!UI.histReg||regDe(l.id)===UI.histReg).map(l=>`<option value="${l.id}" ${l.id===UI.histLoja?"selected":""}>${l.nome}</option>`).join("")}</select>`}
       <span class="small muted" style="margin-left:auto">${rows.length} apurações</span></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Competência</th><th>Loja</th><th class="r">Pessoas</th><th class="r">Valor</th><th>Situação</th><th>Aprovado em</th><th></th></tr></thead>
@@ -7899,6 +7900,7 @@ document.addEventListener("change",e=>{
   if(t.id==="pr-f-minha"){MINHA=t.value;setTimeout(render);return}
   if(t.id==="pr-f-reg"){UI.reg=t.value;UI.loja="";setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-hreg"){UI.histReg=t.value;UI.histLoja="";setTimeout(render);return}
   if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
   if(d.prcargo){const c=CFG.sup.cargos;if(t.checked&&!c.includes(d.prcargo))c.push(d.prcargo);if(!t.checked)c.splice(c.indexOf(d.prcargo),1);setTimeout(render);return}
   if(d.prper){const [fm,ix]=d.prper.split(".");const a=CFG.periodos[fm],i=+ix;let v=Math.round(parseFloat(t.value)||a[i][1]);v=Math.max(a[i][0],Math.min(v,a[i+1][1]-1));a[i][1]=v;a[i+1][0]=v+1;setTimeout(render);return}
@@ -7920,7 +7922,7 @@ async function carregarPremData(){
       VEND:vd.map(v=>({id:v.vend_id,nome:v.nome,lojaId:v.loja_id,per:Object.fromEntries(Object.entries(v.per||{}).map(([k,x])=>[k,{meta:+x.meta,vl:+x.vl,vo:+(x.vo||0),vi:x.vi!=null?+x.vi:+x.vl,od:x.od||""}]))})),
       EXTRA:lj.flatMap(r=>r.dados.extra||[]),GER:Object.fromEntries(lj.map(r=>[r.loja_id,r.dados.ger||{nome:"",cargo:"Gerente de loja"}])),SUP:Object.values(sup),
       ACEL:{v:Object.fromEntries(vd.filter(v=>v.acel).map(v=>[v.vend_id,v.acel])),g:Object.fromEntries(lj.filter(r=>r.dados.acel_g).map(r=>[r.loja_id,r.dados.acel_g]))},AGG:agg};
-    if(ROLE!=="rh"){try{const {data}=await SB.rpc("premiacoes_cfg");window.__PREM_CFG=data||null}catch(e){}}
+    if(ROLE!=="rh"){try{const [c,l]=await Promise.all([SB.rpc("premiacoes_cfg"),SB.rpc("premiacoes_lotes")]);window.__PREM_CFG=c.data||null;window.__PREM_LOTES=Array.isArray(l.data)?l.data:[]}catch(e){}}
     criarPREM();
   }catch(e){PREM_ERRO="Não foi possível carregar as premiações: "+((e&&e.message)||e)}
   PREM_CARREG=false;render();
