@@ -804,6 +804,7 @@ function montarGerente(){
 async function atualizarPeriodico(){
   if(!SB||!SESSION||document.hidden)return;
   try{
+    if(ROLE!=="colaborador"&&(typeof VC==="undefined"||!VC)){try{await SB.rpc("premiacoes_swile_tick")}catch(e){}}
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
     else if(ROLE==="gerente"){await carregarGerente()}
     await carregarPlanos();await carregarChamados();
@@ -1138,7 +1139,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["correio","experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
 const pages=()=>{const b=pagesBase();if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
