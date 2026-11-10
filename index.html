@@ -8195,14 +8195,20 @@ function tRegrasRec(){
    <li><b>Ranking Nacional de Lojas:</b> classifica as lojas pelo % da meta do mês atingido pela loja, com a posição na regional e na rede.</li>
    <li><b>Ranking por Faturamento:</b> classifica pelo valor vendido (R$). É exclusivo do RH; os demais perfis veem só a medalha de quem ganhou.</li>
   </ul></div>
-  <div class="card"><div class="card-head"><div><h2>Premiação Swile · Campanha de Incentivo de Vendas</h2><p>Resumo das regras em vigor. O detalhe completo fica em Ações de Incentivo.</p></div></div><ul class="ar-ul">
-   <li><b>Vendedor · loja semanal:</b> ${fx(v)}${v.mes&&v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</li>
-   <li><b>Vendedor · loja quinzenal:</b> ${fx(q)}${q.mes&&q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</li>
-   <li><b>Funções de apoio:</b> ${(CFG.sup.cargos||[]).map(c=>esc(c)+" "+brl(supValor(c))).join(" · ")} por loja que bater ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?"; quem atende mais de uma loja recebe por cada loja que bater":""}.</li>
-   <li><b>Gerente de loja:</b> ${CFG.ger.faixas.map(f=>`${fxMin(f)} → ${fxG(f,1)}`).join(" · ")}${Object.keys(CFG.gerLoja||{}).length?`. Regras próprias: ${Object.entries(CFG.gerLoja||{}).map(([l,r])=>`${esc(loja(l).curto||loja(l).nome)}: ${r.faixas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" · ")}`).join("; ")}`:""}.</li>
-   <li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>
-   <li><b>Fluxo:</b> o RH aprova a apuração; em seguida o gerente da loja aprova ou pede correção; depois o valor é importado no Swile.</li>
-  </ul></div>
+  ${(()=>{const souRH=!webNaoRH()&&UI.view==="rh";const ids=escopo().slice().sort((a,b)=>loja(a).num-loja(b).num);
+   const vRegra=fm=>{const R=CFG.vend[fm];if(!R)return "–";return fx(R)+(R.mes&&R.mes.ativo?` · loja${R.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(R.mes.pct)}`:"")};
+   const gRegra=id=>{const G=(CFG.gerLoja&&CFG.gerLoja[id])||CFG.ger;return G.faixas.map(f=>`${fxMin(f)} → ${fxG(f,1)}`).join(" · ")+(CFG.gerLoja&&CFG.gerLoja[id]?` <span class="chip c-brand">regra própria</span>`:"")};
+   const fmtLbl=fm=>fm==="quinzenal"?"Quinzenal":fm==="semanal"?"Semanal":esc(fm||"–");
+   const titulo=souRH?"de todas as unidades":UI.view==="gerente"?(ids.length>1?"das suas "+ids.length+" unidades":"da sua unidade"):"das unidades em que você atua";
+   return `<div class="card"><div class="card-head"><div><h2>Premiação Swile · Campanha de Incentivo de Vendas</h2><p>Regras em vigor ${titulo}. O detalhe completo fica em Ações de Incentivo.</p></div></div>
+   <div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Apuração</th><th>Vendedor</th><th>Gerente de loja</th></tr></thead><tbody>
+   ${ids.map(id=>{const fm=CFG.formato[id];return `<tr><td><b>${esc(loja(id).nome)}</b>${souRH||UI.view!=="gerente"?`<div class="small muted">${esc(regDe(id))}</div>`:""}</td><td>${fmtLbl(fm)}</td><td class="small">${vRegra(fm)}</td><td class="small">${gRegra(id)}</td></tr>`}).join("")||`<tr><td colspan="4" class="muted">Nenhuma unidade no seu acesso.</td></tr>`}
+   </tbody></table></div>
+   <ul class="ar-ul" style="margin-top:12px">
+    <li><b>Funções de apoio:</b> ${(CFG.sup.cargos||[]).map(c=>esc(c)+" "+brl(supValor(c))).join(" · ")} por loja que bater ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?"; quem atende mais de uma loja recebe por cada loja que bater":""}.</li>
+    ${UI.view==="gerente"&&!souRH?"":`<li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>`}
+    <li><b>Fluxo:</b> o RH aprova a apuração; em seguida o gerente da loja aprova ou pede correção; depois o valor é enviado ao Swile.</li>
+   </ul></div>`})()}
   ${webNaoRH()||UI.view!=="rh"?"":`<div class="card"><div class="card-head"><div><h2>Quem vê o quê</h2><p>Visível só para o RH.</p></div></div><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Vê</th></tr></thead><tbody>
    <tr><td><b>Vendedor</b></td><td>Seu prêmio, sua posição na loja e no Brasil, estrelas, e as próprias medalhas e troféus (Meu prêmio e Meus dados).</td></tr>
    <tr><td><b>Gerente de loja</b></td><td>Arena de Conquistas, Ranking de Vendedores e Prêmio da Equipe das suas lojas.</td></tr>
