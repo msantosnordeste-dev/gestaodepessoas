@@ -6480,7 +6480,7 @@ async function vcMontar(id,Pf){
     :{id,nome:e.nome,cargo:e.cargo,admissao:e.admissao,loja_id:e.lojaId,loja_nome:loja.nome,cidade:loja.cidade};
   // lojas inteiras do gestor: as do login (sem o Núcleo) ou a carteira do supervisor
   let minhas=[];
-  if(gestor){minhas=P.perfil==="comercial"?ST.stores.map(s=>s.id):P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):[...new Set([...(P.lojas||[]),...(emp(id)&&emp(id).lojaId?[emp(id).lojaId]:[])])];minhas=minhas.filter(l=>!nuc.has(l)&&ST.stores.some(s=>s.id===l))}
+  if(gestor){minhas=P.perfil==="comercial"?[...new Set(supervisores().flatMap(s=>s.lojas||[]))]:P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):[...new Set([...(P.lojas||[]),...(emp(id)&&emp(id).lojaId?[emp(id).lojaId]:[])])];minhas=minhas.filter(l=>!nuc.has(l)&&ST.stores.some(s=>s.id===l))}
   const lojasVis=new Set([...minhas,...(gestor?membros.map(x=>(emp(x[0])||{}).lojaId):[])].filter(Boolean));
   const visiveis=gestor?new Set([...ativos().filter(c=>minhas.includes(c.lojaId)).map(c=>c.id),...equipeIds]):new Set([id,...equipeIds]);
   const D={};
