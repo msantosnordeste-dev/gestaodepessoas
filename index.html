@@ -7207,7 +7207,7 @@ function tAcoes(){
 
 /* ---------- Resultados (apuração calculada) ---------- */
 const tier=(p,faixas)=>faixas.filter(f=>p>=f.min).length;
-function cel(x,faixas){if(!x)return `<div class="pc t0" title="Sem meta no Indeva neste período"><b>—</b><small>sem meta</small></div>`;const t=Math.min(tier(x.p,faixas),2);const tip=`Meta ${brl(x.meta)} · venda ${brl(x.venda)}`+(x.vo?` (inclui ${brl(x.vo)} em outra loja: ${x.od})`:"")+(Math.abs(x.vl-x.vi)>0.01?` · Indeva mostra ${brl(x.vi)}`:"");return `<div class="pc t${t}" title="${esc(tip)}"><b>${pct(x.p)}${x.vo?'<sup style="color:var(--info)"> +</sup>':""}${Math.abs(x.vl-x.vi)>0.01?'<sup style="color:var(--warn,#b7791f)"> !</sup>':""}</b><small>${x.valor?brl(x.valor):"sem prêmio"}</small><small class="muted" style="font-weight:400;font-size:.7rem">vendeu ${brl(x.venda)}</small></div>`}
+function cel(x,faixas){if(!x)return `<div class="pc t0" title="Sem meta no Indeva neste período"><b>—</b><small>sem meta</small></div>`;const t=Math.min(tier(x.p,faixas),2);const tip=`Meta ${brl(x.meta)} · venda ${brl(x.venda)}`+(x.vo?` (inclui ${brl(x.vo)} em outra loja: ${x.od})`:"")+(Math.abs(x.vl-x.vi)>0.01?` · Indeva mostra ${brl(x.vi)}`:"");return `<div class="pc t${t}" title="${esc(tip)}"><b>${pct(x.p)}${x.vo?'<sup style="color:var(--info)"> +</sup>':""}${Math.abs(x.vl-x.vi)>0.01?'<sup style="color:var(--warn,#b7791f)"> !</sup>':""}</b><small>${x.valor?brl(x.valor):"sem prêmio"}</small><small class="muted" style="font-weight:400;font-size:.7rem">${brl(x.venda)}</small></div>`}
 function tResultados(){
   const ids=escopo();
   const sel=UI.view==="gerente"?MINHA:UI.loja;
