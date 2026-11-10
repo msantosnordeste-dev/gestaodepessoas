@@ -7184,12 +7184,13 @@ function exportarFechamento(){
   const fmt=(ws,moeda,pct)=>{const r=XLSX.utils.decode_range(ws["!ref"]);for(let C=r.s.c;C<=r.e.c;C++){const h=(ws[XLSX.utils.encode_cell({r:0,c:C})]||{}).v||"";const z=/\(R\$\)/.test(h)?"#,##0.00":/^%/.test(h)?"0.00%":null;if(!z)continue;for(let R=1;R<=r.e.r;R++){const c=ws[XLSX.utils.encode_cell({r:R,c:C})];if(c&&typeof c.v==="number")c.z=z}}
     ws["!cols"]=Object.keys((ws["!ref"]&&XLSX.utils.sheet_to_json(ws,{header:1})[0])||[]).map((_,i)=>({wch:i<2?34:18}))};
   const wb=XLSX.utils.book_new();const w1=XLSX.utils.json_to_sheet(resumo),w2=XLSX.utils.json_to_sheet(pessoas);fmt(w1);fmt(w2);
-  XLSX.utils.book_append_sheet(wb,w1,"Fechamento por loja");XLSX.utils.book_append_sheet(wb,w2,"Prêmio por pessoa");
+  XLSX.utils.book_append_sheet(wb,w1,"Fechamento por loja");XLSX.utils.book_append_sheet(wb,w2,"Prêmio por pessoa");if(!webNaoRH()&&DESCONTOS.length){const w3=XLSX.utils.json_to_sheet(DESCONTOS.map(d=>({"Pessoa":d.nome,"Origem":d.funcao,"Descrição":d.descricao,"Desconto (R$)":+d.valor,"Lançado por":d.por,"Em":d.em})));fmt(w3);XLSX.utils.book_append_sheet(wb,w3,"Descontos")}
   XLSX.writeFile(wb,"Fechamento premiacoes "+COMP.replace("/","-")+(ids.length===1?" - "+loja(ids[0]).curto:"")+".xlsx");
   if(typeof logEvento==="function")logEvento("Premiações · fechamento exportado",ids.length+" loja(s) · "+COMP);
 }
-async function exportSwile(){
-  if(!podeGravar()){toast("A exportação é só para o RH");return}
+let PREMIADOS=null;
+async function premiadosLista(){
+  if(!podeGravar())return null;
   const {data:cp,error}=await SB.from("premiacoes_cpf").select("pessoa_id,nome_completo,cpf").eq("comp",COMP_ISO);if(error){toast("Não foi possível ler os CPFs: "+error.message);return}
   const cpfV=Object.fromEntries((cp||[]).map(r=>[r.pessoa_id,r]));
   const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
@@ -7209,12 +7210,20 @@ async function exportSwile(){
   apurarSupervisao().forEach(x=>{const nm=x.nome||"Supervisão "+x.reg;const r=x.nome?empCpf(x.nome):null;add(r?r.nome:nm,r?r.cpf:"",x.valor,"Supervisão "+x.reg)});
   {const G=apurarGestao();const gc=emps.find(e=>!e.desligado&&/gestor(a)? comercial/i.test(norm(e.cargo)))||pjs.find(p=>/gestor(a)? comercial/i.test(norm(p.area)));
    const gn=gc?(gc.cargo?nomeReg(gc):(gc.respNome||gc.razaoSocial)):G.nome;const r=gn?empCpf(gn):null;add(r?r.nome:(gn||"Gestão comercial"),r?r.cpf:"",G.valor,"Gestão comercial")}
-  const linhas=Object.values(pes).sort((a,b)=>a.nome.localeCompare(b.nome));
+  Object.entries(pes).forEach(([k,p])=>p.key=k);PREMIADOS={pes,falta,em:Date.now()};return PREMIADOS;
+}
+async function exportSwile(){
+  if(!podeGravar()){toast("A exportação é só para o RH");return}
+  const R=await premiadosLista();if(!R)return;const {pes,falta}=R;const dig=s=>String(s||"").replace(/\D/g,"");
+  const desc=k=>DESCONTOS.filter(d=>d.key===k).reduce((s,d)=>s+(+d.valor||0),0);
+  const linhas=Object.values(pes).map(p=>({...p,bruto:p.valor,desc:desc(p.key),valor:Math.max(0,p.valor-desc(p.key))})).filter(p=>p.valor>0).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const orfaos=DESCONTOS.filter(d=>!pes[d.key]);
   const fmtC=c=>{const d=dig(c);return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):c};
   const csv="\ufeffNome completo;CPF;Valor total\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),fmtC(p.cpf),(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
   const nome="swile-premiacoes-"+COMP_ISO+".csv";
-  if(typeof logEvento==="function")logEvento("Premiações · Exportação Swile",linhas.length+" pessoas · "+brl(linhas.reduce((s,p)=>s+p.valor,0)));
+  if(typeof logEvento==="function")logEvento("Premiações · Exportação Swile",linhas.length+" pessoas · "+brl(linhas.reduce((s,p)=>s+p.valor,0))+(DESCONTOS.length?" · descontos "+brl(linhas.reduce((s,p)=>s+p.desc,0)):""));
   await salvarArquivo(new TextEncoder().encode(csv).buffer,nome,"text/csv");
+  if(orfaos.length)toast(orfaos.length+" desconto(s) de pessoa sem premiação neste mês não entraram no arquivo");
   if(falta.length)modal("CPF não encontrado",`<p>Estas pessoas foram exportadas sem CPF. Confira o cadastro antes de importar na Swile:</p><ul>${falta.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`,`<button class="btn" data-close>Fechar</button>`);
 }
 async function gerarPPT(){
@@ -7386,11 +7395,12 @@ const HIST_GER=[];
 let CFG_SALVO=clone(CFG_PADRAO),CARREGADO=false,CARREGANDO=false,ERRO_DB="";
 const podeGravar=()=>typeof ROLE!=="undefined"&&ROLE==="rh"&&!!SB&&!!ST;
 const regrasPendentes=()=>JSON.stringify(CFG)!==JSON.stringify(CFG_SALVO);
-function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,
+let DESCONTOS=[];
+function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,descontos:DESCONTOS,
   lotes:[...LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,conf:L.conf||null,correcoes:L.correcoes||[],eventos:L.eventos,congelado:L.congelado||null})),
     ...((typeof ST!=="undefined"&&ST&&ST.premiacoes&&ST.premiacoes.comp===COMP&&Array.isArray(ST.premiacoes.lotes))?ST.premiacoes.lotes.filter(x=>!LOTES.some(L=>L.id===x.id)):[])]}}
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
-function aplicarDB(d){
+function aplicarDB(d){if(d&&Array.isArray(d.descontos)&&(!d.comp||d.comp===COMP))DESCONTOS=JSON.parse(JSON.stringify(d.descontos));
   if(!d||d.comp!==COMP)return;
   if(d.cfg){if(!d.cfg.gest)d.cfg.gest=clone(CFG_PADRAO.gest);if(!d.cfg.supv)d.cfg.supv=clone(CFG_PADRAO.supv);if(!d.cfg.regional||Object.values(d.cfg.regional).every(v=>["SP","RJ","BA","PR","ES","PE","AM"].includes(v)))d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).map(c=>nCargo(c)==="auxiliar de loja"?"Auxiliar de Loja":c);d.cfg.sup.cargos=cs.length?[...new Set(cs)]:CARGOS_SUP.slice();if(!d.cfg.sup.valores||typeof d.cfg.sup.valores!=="object")d.cfg.sup.valores={};d.cfg.sup.cargos.forEach(c=>{if(d.cfg.sup.valores[c]==null)d.cfg.sup.valores[c]=+d.cfg.sup.valor||100})}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
@@ -7435,7 +7445,7 @@ async function carregarConf(){
     CONF_OK=true}catch(e){toast("Não foi possível ler as conferências dos gerentes.")}
 }
 const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
-const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"&&!webNaoRH()]];
 const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
 
@@ -7483,7 +7493,7 @@ function pagina(){
     <div class="top-actions">${acts.join("")}</div>
   </div>
   ${apTab?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:tMeuPremioSup,resultados:tResultados,ranking:tRanking,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:tMeuPremioSup,resultados:tResultados,ranking:tRanking,descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -7858,6 +7868,23 @@ function gerarPDFSup(){
   if(typeof logEvento==="function")logEvento("Premiações · PDF da supervisão e gestão gerado",nome);
   salvarPDF(doc,nome);
 }
+function tDescontos(){
+  if(!PREMIADOS){premiadosLista().then(()=>render());return `<div class="card empty">Carregando quem recebe premiação em ${COMP}…</div>`}
+  if(Date.now()-PREMIADOS.em>20000&&!PREMIADOS.atualizando){PREMIADOS.atualizando=true;premiadosLista().then(()=>render())}
+  const pes=PREMIADOS.pes,L=Object.values(pes).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const fun=p=>[...new Set(p.origem.map(o=>/gerente/.test(o)?"Gerente":/Supervisão/.test(o)?"Supervisão":/Gestão/.test(o)?"Gestão comercial":"Loja "+o.replace(/^Loja /,"")))].join(" · ");
+  const desc=k=>DESCONTOS.filter(d=>d.key===k).reduce((s,d)=>s+(+d.valor||0),0);
+  const bruto=L.reduce((s,p)=>s+p.valor,0),td=DESCONTOS.reduce((s,d)=>s+(+d.valor||0),0);
+  return `<div class="grid kpis"><div class="card kpi"><span class="lbl">Premiação bruta</span><span class="val num">${brl(bruto)}</span><span class="sub">${L.length} pessoas</span></div><div class="card kpi"><span class="lbl">Descontos</span><span class="val num" style="color:var(--bad)">${brl(td)}</span><span class="sub">${DESCONTOS.length} lançamento(s)</span></div><div class="card kpi hero"><span class="lbl">Líquido para o Swile</span><span class="val num">${brl(L.reduce((s,p)=>s+Math.max(0,p.valor-desc(p.key)),0))}</span><span class="sub">${COMP}</span></div></div>
+  <div class="card"><div class="card-head"><div><h2>Incluir desconto</h2><p>Vale para qualquer função: vendedor, apoio, gerente, supervisão ou gestão comercial. O valor é abatido do total da pessoa na exportação Swile.</p></div></div>
+    <div class="form-grid"><div class="field full"><label for="pr-dc-p">Pessoa</label><select class="input" id="pr-dc-p"><option value="">Selecione…</option>${L.map(p=>`<option value="${esc(p.key)}">${esc(p.nome)} · ${esc(fun(p))} · ${brl(p.valor)}</option>`).join("")}</select></div>
+    <div class="field"><label for="pr-dc-v">Valor do desconto (R$)</label><input class="input num" id="pr-dc-v" type="number" step="0.01" min="0.01" placeholder="0,00"></div>
+    <div class="field full"><label for="pr-dc-d">Descrição (a que se refere)</label><input class="input" id="pr-dc-d" maxlength="200" placeholder="Ex.: adiantamento, ajuste do mês anterior, falta de caixa"></div></div>
+    <div style="margin-top:10px"><button class="btn btn-primary" data-pract="dcadd">Incluir desconto</button></div></div>
+  <div class="card"><div class="card-head"><div><h2>Descontos de ${COMP}</h2></div></div>${DESCONTOS.length?`<div class="table-wrap"><table><thead><tr><th>Pessoa</th><th>Função</th><th>Descrição</th><th class="r">Desconto</th><th class="r">Prêmio</th><th class="r">Líquido</th><th>Lançado por</th><th></th></tr></thead><tbody>
+    ${DESCONTOS.map(d=>{const p=pes[d.key];return `<tr><td><b>${esc(d.nome)}</b></td><td class="small">${esc(p?fun(p):d.funcao||"")}</td><td>${esc(d.descricao)}</td><td class="r num" style="color:var(--bad)">− ${brl(+d.valor)}</td><td class="r num">${p?brl(p.valor):'<span class="chip c-warn">sem prêmio no mês</span>'}</td><td class="r num"><b>${p?brl(Math.max(0,p.valor-desc(d.key))):"—"}</b></td><td class="small">${esc(d.por||"")}<br>${esc(d.em||"")}</td><td><button class="btn btn-sm btn-ghost" data-prdcdel="${esc(d.id)}" aria-label="Excluir desconto">Excluir</button></td></tr>`}).join("")}</tbody>
+    <tfoot><tr><td colspan="3">Total</td><td class="r num">− ${brl(td)}</td><td colspan="4"></td></tr></tfoot></table></div>`:`<div class="empty">Nenhum desconto lançado.</div>`}</div>`;
+}
 function tMeuPremioGer(){
   const ids=minhasLojasMod();if(!ids.length)return `<div class="card empty">Sua loja não está na apuração de ${COMP}.</div>`;
   const aps=ids.map(apurarLoja),tot=aps.reduce((t,a)=>t+a.ger.valor+a.ger.acel,0);
@@ -8056,6 +8083,7 @@ document.addEventListener("click",e=>{
   if(d.prpago){const L=LOTES.find(x=>x.id===d.prpago);L.status="pago";registrar(L,"Pagamento confirmado");gravar();render();toast("Pagamento confirmado");return}
   if(d.pradd){const [o,k]=path(CFG,d.pradd);const arr=o[k];const last=arr[arr.length-1]||{min:80,pct:1};arr.push(d.pradd.startsWith("ger")?{min:last.min+20,pct:last.pct||1,base:last.base||"venda"}:{min:last.min+20,pct:1});render();return}
   if(d.prdel){const [o,k]=path(CFG,d.prdel);o.splice(+k,1);render();return}
+  if(d.prdcdel){const i=DESCONTOS.findIndex(x=>x.id===d.prdcdel);if(i>=0){const x=DESCONTOS.splice(i,1)[0];gravar();if(typeof logEvento==="function")logEvento("Premiações · desconto excluído",x.nome+" · "+brl(+x.valor));render()}return}
   if(d.prsupfdel){const i=CFG.sup.cargos.findIndex(x=>x===d.prsupfdel);if(i>=0)CFG.sup.cargos.splice(i,1);render();return}
   if(d.prsupdel!==undefined){CFG.sup.pessoas.splice(+d.prsupdel,1);render();return}
   if(d.prgerdel){delete CFG.gerLoja[d.prgerdel];render();toast("Regra da loja removida. Clique em Salvar regras para gravar.");return}
@@ -8065,6 +8093,12 @@ document.addEventListener("click",e=>{
   if(act==="swile"){exportSwile();return}
   if(act==="pdfsup"){gerarPDFSup();return}
   if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
+  if(act==="dcadd"){const k=$("#pr-dc-p").value,v=parseFloat($("#pr-dc-v").value),d=($("#pr-dc-d").value||"").trim();const p=PREMIADOS&&PREMIADOS.pes[k];
+    if(!p){toast("Escolha a pessoa");return}if(!(v>0)){toast("Informe o valor do desconto");return}if(d.length<3){toast("Descreva a que se refere o desconto");return}
+    const ja=DESCONTOS.filter(x=>x.key===k).reduce((s,x)=>s+(+x.valor||0),0);if(ja+v>p.valor+0.001){toast("O desconto passa do prêmio da pessoa ("+brl(p.valor)+")");return}
+    const agora=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).replace(",","");
+    DESCONTOS.push({id:"d"+Date.now().toString(36),key:k,nome:p.nome,funcao:p.origem.join(", "),valor:Math.round(v*100)/100,descricao:d,por:(SESSION&&SESSION.nome)||"RH",em:agora});
+    gravar();if(typeof logEvento==="function")logEvento("Premiações · desconto incluído",p.nome+" · "+brl(v)+" · "+d);render();toast("Desconto incluído");return}
   if(act==="supfadd"){const c=($("#pr-supf-nome").value||"").trim();if(!c){toast("Digite a função");return}if(/vendedor|gerente/i.test(nCargo(c))){toast("Vendedor e gerente têm regras próprias");return}if(!supCargoOk(c))CFG.sup.cargos.push(c);CFG.sup.valores=CFG.sup.valores||{};CFG.sup.valores[(CFG.sup.cargos.find(x=>nCargo(x)===nCargo(c)))]=parseFloat($("#pr-supf-valor").value)||0;render();toast("Função incluída. Use Buscar no cadastro e depois Salvar regras.");return}
   if(act==="supsync"){const num=s=>{const m=String(s||"").match(/^(?:lj-)?0*(\d+)/);return m?"l"+(+m[1]):null};let novos=0,atual=0;
     ST.emps.filter(e=>!e.desligado&&supCargoOk(e.cargo)).forEach(e=>{const l1=num(e.lojaId);if(!l1||!LOJAS.some(l=>l.id===l1))return;
