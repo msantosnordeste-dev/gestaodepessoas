@@ -7977,7 +7977,7 @@ function tMeuPremioGer(){
 function rankVendLinhas(modo){
   const fat=modo==="fat",rk=new Map(((fat?window.__PREM_RANKFAT:window.__PREM_RANKVEND)||[]).map(r=>[r.vend_id,r]));const ids=new Set(escopo());
   return VEND.filter(v=>ids.has(v.lojaId)).map(v=>{let meta=0,venda=0;Object.values(v.per||{}).forEach(x=>{meta+=+x.meta||0;venda+=(+x.vl||0)+(+x.vo||0)});
-    const r=rk.get(v.id);const pct=r&&r.pct!=null?+r.pct:(meta>0?venda/meta*100:null);if(fat&&!(venda>0))return null;
+    const r=rk.get(v.id);if(rk.size&&!r)return null;const pct=r&&r.pct!=null?+r.pct:(meta>0?venda/meta*100:null);if(fat&&!(venda>0))return null;
     return {id:v.id,nome:v.nome,lojaId:v.lojaId,loja:loja(v.lojaId).nome,num:loja(v.lojaId).num,reg:regDe(v.lojaId),meta,venda,pct,posL:r?r.pos_loja:null,totL:r?r.tot_loja:null,posN:r?r.pos_nac:null,totN:r?r.tot_nac:null,est:r?r.estrelas:0}}).filter(x=>x&&(fat||x.pct!=null));
 }
 function rankVendFiltradas(modo){
@@ -8011,7 +8011,7 @@ function tRankVend(modo){
    ${sel("pr-f-rvord","Ordenar",[["nac","Ordenar pelo ranking nacional"],["loja","Agrupar por loja (ranking da loja)"]],ord)}
    <input class="input" id="pr-f-rvbusca" type="search" placeholder="Buscar vendedor" value="${esc(UI.rvBusca||"")}" style="width:auto;min-width:180px">
    <button class="btn" data-prrvexp="${fat?"fat":"pct"}" style="margin-left:auto">Exportar planilha</button></div>
-  <p class="small muted" style="margin:6px 0 10px">${fat?`Classificação pelo faturamento (valor vendido em R$) em ${COMP}.`:`Classificação pelo % da meta do mês atingido (venda ÷ meta) em ${COMP}.`} A posição nacional considera todos os ${totN} vendedores da rede; a posição na loja considera só os colegas da mesma loja. Clique no nome para ver o detalhe.</p>
+  <p class="small muted" style="margin:6px 0 10px">${fat?`Classificação pelo faturamento (valor vendido em R$) em ${COMP}.`:`Classificação pelo % da meta do mês atingido (venda ÷ meta) em ${COMP}.`} A posição nacional considera todos os ${totN} vendedores da rede; a posição na loja considera só os colegas da mesma loja. Não entram no ranking colaboradores com menos de 15 dias de casa no fechamento do mês. Clique no nome para ver o detalhe.</p>
   <div class="table-wrap"><table><thead><tr><th class="r">Ranking loja</th><th class="r">Ranking nacional</th><th>Vendedor</th><th>Loja</th><th>Regional</th><th class="r">Meta</th><th class="r">${fat?"Faturamento":"Venda"}</th><th class="r">% atingido</th><th>Estrelas</th></tr></thead>
   <tbody>${corpo||`<tr><td colspan="9" class="muted">Nenhum vendedor com esses filtros.</td></tr>`}</tbody></table></div></div>`;
 }
