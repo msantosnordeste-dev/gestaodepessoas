@@ -600,6 +600,8 @@ const LAST={};let SALVANDO=0,SYNC="ok",FILA=Promise.resolve();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const PERFIS={rh:"RH · acesso total",gerente:"Gerente de loja"};
+function nomeSocialAplicar(e){const s=String(e.nomeSocial||"").trim();if(s){if(!e.nomeCivil)e.nomeCivil=e.nome;e.nome=s}else if(e.nomeCivil){e.nome=e.nomeCivil;delete e.nomeCivil}return e}
+const nomeRegistro=e=>e?(e.nomeCivil||e.nome):"";
 function normalize(o){
   if(o.cfg&&o.cfg.irrf)o.cfg.irrf.forEach(f=>{if(f[0]===null)f[0]=Infinity});
   o.emps.forEach(e=>{if(!e.avaliacoes)e.avaliacoes=[];if(!e.ferias)e.ferias=[]});
@@ -619,13 +621,13 @@ async function tudo(t,ordem){
 }
 
 /* ---- gravação: compara com o que já está no banco e envia só o que mudou ---- */
-const PUB=["nome","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado","gestorId"];
+const PUB=["nome","nomeSocial","cargo","lojaId","admissao","aso","banco","he","afastado","desligado","ferias","avaliacoes","efetivado","gestorId"];
 const PK={lojas:"id",colaboradores:"id",colaboradores_privado:"id",escalas:"chave",admissoes:"id",rh_estado:"id",prestadores:"id",org_unidades:"loja_id",org_lideres:"lider_id"};
 const ORDEM=["lojas","colaboradores","colaboradores_privado","escalas","admissoes","rh_estado","prestadores","org_unidades","org_lideres"];
 function setSync(s){SYNC=s;const el=document.getElementById("sync");if(el){el.textContent=s==="saving"?"Salvando…":s==="error"?"Erro ao salvar":"Tudo salvo";el.className="sync "+s}}
 function linhas(){
-  const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});return o};
-  const priv=e=>{const o={};Object.keys(e).forEach(k=>{if(k!=="id"&&!PUB.includes(k))o[k]=e[k]});return o};
+  const pub=e=>{const o={};PUB.forEach(k=>{if(e[k]!==undefined)o[k]=e[k]});if(e.nomeCivil)o.nome=e.nomeCivil;if(!o.nomeSocial)delete o.nomeSocial;return o};
+  const priv=e=>{const o={};Object.keys(e).forEach(k=>{if(k!=="id"&&k!=="nomeCivil"&&!PUB.includes(k))o[k]=e[k]});return o};
   return {
     lojas:ST.stores.map(s=>{const {id,nome,cidade,tipo,quadro,...extra}=s;return [s.id,{id:s.id,nome:s.nome,cidade:s.cidade||"",tipo:s.tipo||"",quadro:Number(s.quadro)||0,dados:extra}]}),
     colaboradores:ST.emps.map(e=>[e.id,{id:e.id,loja_id:e.lojaId,dados:pub(e)}]),
@@ -671,7 +673,7 @@ async function carregarRH(){
   const d=(est[0]&&est[0].dados)||{};
   ST=normalize({...d,
     stores:lj.map(r=>({...(r.dados||{}),id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.id.localeCompare(b.id)),
-    emps:co.map(r=>({id:r.id,...(priv.get(r.id)||{}),...r.dados,lojaId:r.loja_id})),
+    emps:co.map(r=>nomeSocialAplicar({id:r.id,...(priv.get(r.id)||{}),...r.dados,lojaId:r.loja_id})),
     escalaOverrides:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     admissoes:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id})),
     pjs:pj.map(r=>({...r.dados,id:r.id})),
@@ -695,7 +697,7 @@ async function carregarGerente(){
   const [lj,co,es,ad]=await Promise.all(["lojas","colaboradores","escalas","admissoes"].map(t=>tudo(t)));
   if(!lj.length)throw new Error("sem lojas");
   BASE_G={stores:lj.map(r=>({...(r.dados||{}),id:r.id,nome:r.nome,cidade:r.cidade,tipo:r.tipo,quadro:r.quadro})).sort((a,b)=>a.nome.localeCompare(b.nome)),
-    emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
+    emps:co.map(r=>nomeSocialAplicar({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
   try{const {data}=await SB.rpc("meus_dados");window.__ORIGEM=(data&&data.loja_id)||null}catch(e){window.__ORIGEM=null}
@@ -1733,7 +1735,7 @@ async function avisoFeriasPDF(eid,ini){
 const TIPOS_CONTRATO=["Experiência 45 + 45 dias","Prazo indeterminado","Temporário (Lei 6.019)","Aprendiz","Intermitente"];
 /* [chave, rótulo, tipo (t texto, d data, n número, b sim/não, cargo, loja, tc), largura total] */
 const FICHA=[
-  {s:"Identificação",c:[["nome","Nome completo","t",1],["nascimento","Data de nascimento","d"],["sexo","Sexo"],["estadoCivil","Estado civil"],["nacionalidade","Nacionalidade"],["naturalidade","Naturalidade (cidade/UF)"],["nomeMae","Nome da mãe","t",1],["nomePai","Nome do pai","t",1],["escolaridade","Escolaridade"],["racaCor","Raça/cor"],["pcd","Pessoa com deficiência"]]},
+  {s:"Identificação",c:[["nome","Nome completo (registro civil)","t",1],["nomeSocial","Nome social (se houver: é o nome que aparece no sistema)","t",1],["nascimento","Data de nascimento","d"],["sexo","Sexo"],["estadoCivil","Estado civil"],["nacionalidade","Nacionalidade"],["naturalidade","Naturalidade (cidade/UF)"],["nomeMae","Nome da mãe","t",1],["nomePai","Nome do pai","t",1],["escolaridade","Escolaridade"],["racaCor","Raça/cor"],["pcd","Pessoa com deficiência"]]},
   {s:"Documentos",c:[["cpf","CPF"],["pis","PIS/NIS"],["rg","RG"],["rgOrgao","Órgão emissor do RG"],["rgUf","UF do RG"],["rgEmissao","Emissão do RG","d"],["ctpsNumero","CTPS número"],["ctpsSerie","CTPS série"],["ctpsUf","CTPS UF"],["tituloEleitor","Título de eleitor"],["reservista","Certificado de reservista"],["cnh","CNH"],["cnhCategoria","CNH categoria"],["reservistaCategoria","Reservista categoria"],["pisCadastro","PIS cadastrado em","d"],["ctpsEmissao","CTPS expedição","d"],["tituloZona","Título · zona"],["tituloSecao","Título · seção"]]},
   {s:"Endereço e contato",c:[["logradouro","Logradouro","t",1],["numero","Número"],["complemento","Complemento"],["bairro","Bairro"],["cidade","Cidade"],["uf","UF"],["cep","CEP"],["telefone","Telefone celular"],["whatsapp","WhatsApp"],["telefoneResidencial","Telefone residencial"],["email","E-mail"]]},
   {s:"Dados bancários",c:[["banco","Banco ou domicílio bancário"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"]]},
@@ -1742,7 +1744,7 @@ const FICHA=[
   {s:"Contrato de trabalho",c:[["matricula","Matrícula"],["cargo","Cargo","cargo"],["cbo","CBO"],["lojaId","Unidade","loja"],["admissao","Data de admissão","d"],["salario","Salário (R$)","n"],["tipoContrato","Tipo de contrato","tc"],["jornada","Jornada"],["horario","Horário de trabalho"],["intervalo","Horário de intervalo"],["comissao","Comissão sobre vendas (%)","n"],["vt","Optante pelo vale-transporte","b"]]}
 ];
 const CAMPOS=FICHA.flatMap(s=>s.c);
-const BASE_KEYS=["nome","cpf","cargo","lojaId","admissao","salario","comissao","vt"];
+const BASE_KEYS=["nome","nomeSocial","cpf","cargo","lojaId","admissao","salario","comissao","vt"];
 const soDig=s=>String(s||"").replace(/\D/g,"");
 function cpfValido(c){c=soDig(c);if(c.length!==11||/^(\d)\1+$/.test(c))return false;
   const dv=n=>{let s=0;for(let i=0;i<n;i++)s+=Number(c[i])*(n+1-i);const r=(s*10)%11;return r===10?0:r};return dv(9)===Number(c[9])&&dv(10)===Number(c[10])}
@@ -1831,7 +1833,7 @@ function normalizarExtraido(o){
 }
 function dadosDoColab(e){
   const f=e.ficha||{};const d={};
-  CAMPOS.forEach(([k,,tp])=>{d[k]=BASE_KEYS.includes(k)?(e[k]??""):(f[k]??(tp==="n"?null:""))});
+  CAMPOS.forEach(([k,,tp])=>{d[k]=BASE_KEYS.includes(k)?(e[k]??""):(f[k]??(tp==="n"?null:""))});d.nome=nomeRegistro(e);d.nomeSocial=e.nomeSocial||"";
   d.cpf=e.cpf&&!e.cpf.includes("•")?e.cpf:(f.cpf||"");
   if(!d.tipoContrato)d.tipoContrato=e.efetivado||!emExperiencia(e)?"Prazo indeterminado":"Experiência 45 + 45 dias";
   return d;
@@ -1892,17 +1894,17 @@ function salvarFicha(){
   if(!(v.salario>=ST.cfg.salarioMinimo))return err("O salário precisa ser pelo menos o mínimo de "+brl(ST.cfg.salarioMinimo)+".");
   if(v.cpf){const dig=soDig(v.cpf);const dup=ST.emps.find(x=>x.id!==FX.eid&&soDig(x.cpf)===dig&&!x.desligado);if(dig.length===11&&dup)return err("O CPF já está cadastrado para "+dup.nome+".")}
   const deps=FX.deps.filter(x=>x.nome);
-  const base={nome:v.nome,cpf:v.cpf?fmtCPF(v.cpf):"—",cargo:v.cargo,lojaId:v.lojaId,admissao:v.admissao,salario:v.salario,comissao:v.comissao||0,vt:!!v.vt,dependentes:deps.filter(x=>x.ir).length};
+  const base={nome:v.nome,nomeSocial:(v.nomeSocial||"").trim(),cpf:v.cpf?fmtCPF(v.cpf):"—",cargo:v.cargo,lojaId:v.lojaId,admissao:v.admissao,salario:v.salario,comissao:v.comissao||0,vt:!!v.vt,dependentes:deps.filter(x=>x.ir).length};
   const ficha={};CAMPOS.forEach(([k])=>{if(!BASE_KEYS.includes(k))ficha[k]=v[k]??""});ficha.cpf=base.cpf;ficha.dependentesLista=deps;
   {const al=FX.eid?emp(FX.eid):null;if(al&&al.ficha&&(al.ficha.rateioCC||[]).length>1)delete ficha.centroCusto;else if(ficha.centroCusto)ficha.centroCustoCodigo=(String(ficha.centroCusto).match(/^([\d.]+)/)||[])[1]||""}
   if(FX.importado){ficha.importadoDe=FX.origem;ficha.importadoEm=TODAY}
   let e=FX.eid?emp(FX.eid):null;let msg;
-  if(e){Object.assign(e,base);e.ficha={...(e.ficha||{}),...ficha};if(v.tipoContrato&&v.tipoContrato!=="Experiência 45 + 45 dias")e.efetivado=true;
+  if(e){delete e.nomeCivil;Object.assign(e,base);nomeSocialAplicar(e);e.ficha={...(e.ficha||{}),...ficha};if(v.tipoContrato&&v.tipoContrato!=="Experiência 45 + 45 dias")e.efetivado=true;
     logEvento("Ficha de registro atualizada",e.nome+(FX.importado?" · importada de "+FX.origem:""));msg="Ficha de "+primeiro(e.nome)+" atualizada"}
   else{
     e={id:uid(),...base,he:0,banco:0,vendas:0,afastado:false,desligado:null,ferias:[],avaliacoes:[],aso:addMonths(v.admissao,12),efetivado:!!v.tipoContrato&&v.tipoContrato!=="Experiência 45 + 45 dias",ficha};
-    ST.emps.push(e);
-    ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:e.nome,data:addDays(v.admissao,-1),status:"Pendente"});
+    nomeSocialAplicar(e);ST.emps.push(e);
+    ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:nomeRegistro(e),data:addDays(v.admissao,-1),status:"Pendente"});
     logEvento("Colaborador incluído",e.nome+" · "+store(e.lojaId).nome+(FX.importado?" · ficha importada de "+FX.origem:""));msg=primeiro(e.nome)+" incluído(a) na ficha de ativos";
   }
   const candId=FX.candId;FX=null;closeModal();commit(msg);fichaModal(e.id);
@@ -1929,7 +1931,7 @@ function gravarColab(v,deps,alvoId,origem){
   ficha.cpf=base.cpf;ficha.dependentesLista=deps;if(origem){ficha.importadoDe=origem;ficha.importadoEm=TODAY}
   const efetivo=!!v.tipoContrato&&v.tipoContrato!=="Experiência 45 + 45 dias";
   let e=alvoId?emp(alvoId):null;
-  if(e){Object.assign(e,base);e.ficha={...(e.ficha||{}),...ficha};if(efetivo)e.efetivado=true;return {e,novo:false}}
+  if(e){delete e.nomeCivil;Object.assign(e,base);nomeSocialAplicar(e);e.ficha={...(e.ficha||{}),...ficha};if(efetivo)e.efetivado=true;return {e,novo:false}}
   e={id:uid(),...base,he:0,banco:0,vendas:0,afastado:false,desligado:null,ferias:[],avaliacoes:[],aso:addMonths(v.admissao,12),efetivado:efetivo,ficha};
   ST.emps.push(e);
   ST.eventos.push({id:uid(),codigo:"S-2200",desc:"Admissão",ref:e.nome,data:addDays(v.admissao,-1),status:"Pendente"});
