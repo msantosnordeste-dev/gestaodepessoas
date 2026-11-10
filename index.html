@@ -7222,7 +7222,7 @@ async function exportSwile(){
   const todos={...pes};lancAtivos().filter(l=>l.tipo==="complemento"&&!todos[l.key]).forEach(l=>{todos[l.key]={nome:l.nome,cpf:/^\d{11}$/.test(l.key)?l.key:"",valor:0,origem:["Valor complementar"],key:l.key};if(!/^\d{11}$/.test(l.key)&&!falta.includes(l.nome))falta.push(l.nome)});
   const linhas=Object.values(todos).map(p=>{const c=lancSoma(p.key,"complemento"),d=lancSoma(p.key,"desconto");return {...p,bruto:p.valor,comp:c,desc:d,valor:Math.max(0,p.valor+c-d)}}).filter(p=>p.valor>0).sort((a,b)=>a.nome.localeCompare(b.nome));
   const fmtC=c=>String(c||"").replace(/\D/g,"");
-  const csv="\ufeffNome completo;CPF;Valor total\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),fmtC(p.cpf),(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
+  const csv="\ufeffNome completo;CPF;Saldo Livre\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),fmtC(p.cpf),(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
   const nome="swile-premiacoes-"+COMP_ISO+".csv";
   if(typeof logEvento==="function")logEvento("Premiações · Exportação Swile",linhas.length+" pessoas · "+brl(linhas.reduce((s,p)=>s+p.valor,0))+" · complementos "+brl(linhas.reduce((s,p)=>s+p.comp,0))+" · descontos "+brl(linhas.reduce((s,p)=>s+p.desc,0)));
   await salvarArquivo(new TextEncoder().encode(csv).buffer,nome,"text/csv");
