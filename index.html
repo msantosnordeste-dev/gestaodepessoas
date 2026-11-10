@@ -7194,16 +7194,24 @@ async function exportSwile(){
   const cpfV=Object.fromEntries((cp||[]).map(r=>[r.pessoa_id,r]));
   const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
   const emps=(typeof ST!=="undefined"&&ST&&ST.emps)||[];
-  const empCpf=nome=>{const e=emps.find(x=>!x.desligado&&norm(x.nome)===norm(nome))||emps.find(x=>norm(x.nome)===norm(nome));return e&&e.cpf&&/\d{11}/.test(String(e.cpf).replace(/\D/g,""))?{nome:e.nome,cpf:e.cpf}:null};
+  const pjs=(typeof ST!=="undefined"&&ST&&ST.pjs)||[],dig=s=>String(s||"").replace(/\D/g,"");
+  const nomeReg=e=>e.nomeCivil||e.nome,bate=(e,n)=>[e.nome,e.nomeCivil,e.nomeSocial].some(x=>x&&norm(x)===norm(n));
+  const pjCpf=p=>dig(p.respCpf).length===11?dig(p.respCpf):dig(p.cnpj).length===11?dig(p.cnpj):dig(p.cpf).length===11?dig(p.cpf):"";
+  const empCpf=nome=>{const e=emps.find(x=>!x.desligado&&bate(x,nome))||emps.find(x=>bate(x,nome));if(e&&dig(e.cpf).length===11)return {nome:nomeReg(e),cpf:e.cpf};
+    const p=pjs.find(x=>[x.respNome,x.razaoSocial,x.nomeSocial].some(y=>y&&norm(y)===norm(nome)));if(p&&pjCpf(p))return {nome:p.respNome||p.razaoSocial,cpf:pjCpf(p)};return null};
+  const porCpf=c=>{const d=dig(c);const e=d.length===11&&emps.find(x=>dig(x.cpf)===d);return e?nomeReg(e):null};
   const pes={},falta=[];
   const add=(nome,cpf,valor,origem)=>{if(!(valor>0))return;const k=cpf?String(cpf).replace(/\D/g,""):"?"+norm(nome);const p=pes[k]=pes[k]||{nome,cpf:cpf||"",valor:0,origem:[]};p.valor+=valor;p.origem.push(origem);if(!cpf&&!falta.includes(nome))falta.push(nome)};
   LOJAS.forEach(l=>{const a=apurarLoja(l.id),L=LOTES.find(x=>x.lojaId===l.id),cor=pid=>((L&&L.correcoes)||[]).find(c=>c.status==="aceita"&&c.pid===pid);
-    a.vend.forEach(v=>{const c=cor(v.id),r=cpfV[v.id];add(r?r.nome_completo:v.nome,r?r.cpf:"",c?c.real:v.total,l.curto)});
+    a.vend.forEach(v=>{const c=cor(v.id),r=cpfV[v.id],r2=r?null:empCpf(v.nome);add(r?(porCpf(r.cpf)||r.nome_completo):r2?r2.nome:v.nome,r?r.cpf:r2?r2.cpf:"",c?c.real:v.total,l.curto)});
     a.sup.forEach(s=>{const c=cor(s.id),r=empCpf(s.nome);add(r?r.nome:s.nome,r?r.cpf:"",c?c.real:s.valor,l.curto)});
     if(a.ger.nome){const c=cor("ger"),r=empCpf(a.ger.nome);add(r?r.nome:a.ger.nome,r?r.cpf:"",c?c.real:a.ger.valor+a.ger.acel,l.curto+" · gerente")}});
-  apurarSupervisao().forEach(x=>{if(!x.nome)return;const r=empCpf(x.nome);add(r?r.nome:x.nome,r?r.cpf:"",x.valor,"Supervisão "+x.reg)});
+  apurarSupervisao().forEach(x=>{const nm=x.nome||"Supervisão "+x.reg;const r=x.nome?empCpf(x.nome):null;add(r?r.nome:nm,r?r.cpf:"",x.valor,"Supervisão "+x.reg)});
+  {const G=apurarGestao();const gc=emps.find(e=>!e.desligado&&/gestor(a)? comercial/i.test(norm(e.cargo)))||pjs.find(p=>/gestor(a)? comercial/i.test(norm(p.area)));
+   const gn=gc?(gc.cargo?nomeReg(gc):(gc.respNome||gc.razaoSocial)):G.nome;const r=gn?empCpf(gn):null;add(r?r.nome:(gn||"Gestão comercial"),r?r.cpf:"",G.valor,"Gestão comercial")}
   const linhas=Object.values(pes).sort((a,b)=>a.nome.localeCompare(b.nome));
-  const csv="\ufeffNome completo;CPF;Valor total\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),p.cpf,(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
+  const fmtC=c=>{const d=dig(c);return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):c};
+  const csv="\ufeffNome completo;CPF;Valor total\r\n"+linhas.map(p=>[p.nome.replace(/;/g," "),fmtC(p.cpf),(Math.round(p.valor*100)/100).toFixed(2).replace(".",",")].join(";")).join("\r\n")+"\r\n";
   const nome="swile-premiacoes-"+COMP_ISO+".csv";
   if(typeof logEvento==="function")logEvento("Premiações · Exportação Swile",linhas.length+" pessoas · "+brl(linhas.reduce((s,p)=>s+p.valor,0)));
   await salvarArquivo(new TextEncoder().encode(csv).buffer,nome,"text/csv");
