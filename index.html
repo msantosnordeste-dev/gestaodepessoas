@@ -7343,7 +7343,8 @@ const ev=(em,quem,acao)=>({em,quem,acao});
 const LOTES=LOJAS.map(l=>({id:"L"+l.id,comp:COMP,lojaId:l.id,status:"aguardando",eq:false,gr:false,eventos:[ev("09/11 13:00","Sistema","Apuração de Outubro/2026 importada: metas Indeva + vendas Totvs"),ev("09/11 13:01","Sistema","Enviada para aprovação")],congelado:null}));
 const ajL=(L,tipo)=>(L.correcoes||[]).filter(c=>c.status==="aceita"&&(!tipo||(tipo==="gr"?c.pid==="ger":c.pid!=="ger"))).reduce((s,c)=>s+(c.real-c.apurado),0);
 const corrAbertas=(L,tipo)=>(L.correcoes||[]).filter(c=>c.status==="aberta"&&(!tipo||(tipo==="gr"?c.pid==="ger":c.pid!=="ger")));
-function sync(L){if(["folha","pago","devolvido"].includes(L.status))return;if(!L.gr&&apurarLoja(L.lojaId).tg+apurarLoja(L.lojaId).tag===0)L.gr=true;L.status=L.eq&&L.gr?"aprovado":"aguardando";if(L.status==="aprovado"&&!L.congelado){const a=apurarLoja(L.lojaId);L.congelado={total:a.total+ajL(L),pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav+ajL(L,"eq"),gv:a.tg+a.tag+ajL(L,"gr"),acel:a.ta,ajuste:ajL(L)}}}
+function sync(L){if(L.congelado&&["aprovado","folha","pago"].includes(L.status)){const c=L.congelado,e=ajL(L,"eq"),g=ajL(L,"gr"),oe=c.ajEq||0,og=c.ajGr||0;if(e!==oe||g!==og){c.eqv+=e-oe;c.gv+=g-og;c.total+=(e-oe)+(g-og);c.ajuste=ajL(L);c.ajEq=e;c.ajGr=g}}
+  if(["folha","pago","devolvido"].includes(L.status))return;if(!L.gr&&apurarLoja(L.lojaId).tg+apurarLoja(L.lojaId).tag===0)L.gr=true;L.status=L.eq&&L.gr?"aprovado":"aguardando";if(L.status==="aprovado"&&!L.congelado){const a=apurarLoja(L.lojaId);L.congelado={total:a.total+ajL(L),pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav+ajL(L,"eq"),gv:a.tg+a.tag+ajL(L,"gr"),acel:a.ta,ajuste:ajL(L),ajEq:ajL(L,"eq"),ajGr:ajL(L,"gr")}}}
 LOTES.forEach(sync);
 const HIST=[];
 const lotal=L=>L.congelado||(()=>{const a=apurarLoja(L.lojaId);return {total:a.total+ajL(L),pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav+ajL(L,"eq"),gv:a.tg+a.tag+ajL(L,"gr"),acel:a.ta,ajuste:ajL(L)}})();
@@ -7668,7 +7669,7 @@ function confChip(L){const ab=corrAbertas(L).length;return ab?`<span class="chip
 function pessoasLoja(a){return [...a.vend.map(v=>({pid:v.id,nome:v.nome,funcao:"Vendedor(a)",valor:v.total})),...a.sup.map(s=>({pid:s.id,nome:s.nome,funcao:s.cargo,valor:s.valor})),{pid:"ger",nome:a.ger.nome||"Gerente",funcao:"Gerente de loja",valor:a.ger.valor+a.ger.acel}]}
 function confBox(id){
   const L=LOTES.find(x=>x.lojaId===id),p=P();if(!L)return "";
-  const cs=L.correcoes||[],pode=p.conferir&&["aguardando","devolvido"].includes(L.status);
+  const cs=L.correcoes||[],pode=p.conferir&&["aguardando","devolvido","aprovado"].includes(L.status);
   const st={aberta:'<span class="chip c-bad">Aguardando RH</span>',aceita:'<span class="chip c-ok">Aceita</span>',recusada:'<span class="chip c-mute">Recusada</span>'};
   return `<div class="ex" style="margin-bottom:16px;gap:10px">
     <div class="ex-row" style="flex-wrap:wrap;gap:10px"><span><b>Conferência do gerente</b> · ${confChip(L)}</span>
@@ -7997,7 +7998,7 @@ document.addEventListener("click",e=>{
   if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
-  if(act==="lancar"){let n=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026");return}
+  if(act==="lancar"){let n=0,bloq=0,semGer=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){if(corrAbertas(L).length){bloq++;return}if(L.conf!=="aprovado")semGer++;L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026"+(bloq?" · "+bloq+" com correção do gerente em aberto ficaram de fora":"")+(semGer?" · "+semGer+" sem conferência do gerente":""));return}
   if(act==="nova"){novaCampanha();return}
   if(act==="padrao"){CFG=clone(CFG_PADRAO);render();toast("Regras padrão carregadas. Clique em Salvar regras para gravar.");return}
   if(act==="salvar"){if(!podeGravar()){toast("Somente a conta do RH grava regras");return}CFG_SALVO=clone(CFG);LOTES.forEach(sync);if(typeof logEvento==="function")logEvento("Premiações · Regras de apuração salvas",COMP);gravar();render();toast("Regras salvas. As apurações aguardando aprovação foram recalculadas.");return}
