@@ -1103,9 +1103,9 @@ R.usuarios=()=>{
   const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
   let corpo="";
   if(tab==="usuarios"){
-    corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead>
-    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td>
-      <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
+    corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th>Termos (LGPD)</th><th></th></tr></thead>
+    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
+      <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
   } else if(tab==="solic"){
@@ -1654,6 +1654,7 @@ async function iniciarSessao(novoLogin){
     else await carregarGerente();
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
+  if(bvPendente()){await telaBoasVindas();return}
   mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();
 }
 async function sair(){
@@ -1720,7 +1721,7 @@ const TIPOS_CONTRATO=["Experiência 45 + 45 dias","Prazo indeterminado","Tempor�
 const FICHA=[
   {s:"Identificação",c:[["nome","Nome completo","t",1],["nascimento","Data de nascimento","d"],["sexo","Sexo"],["estadoCivil","Estado civil"],["nacionalidade","Nacionalidade"],["naturalidade","Naturalidade (cidade/UF)"],["nomeMae","Nome da mãe","t",1],["nomePai","Nome do pai","t",1],["escolaridade","Escolaridade"],["racaCor","Raça/cor"],["pcd","Pessoa com deficiência"]]},
   {s:"Documentos",c:[["cpf","CPF"],["pis","PIS/NIS"],["rg","RG"],["rgOrgao","Órgão emissor do RG"],["rgUf","UF do RG"],["rgEmissao","Emissão do RG","d"],["ctpsNumero","CTPS número"],["ctpsSerie","CTPS série"],["ctpsUf","CTPS UF"],["tituloEleitor","Título de eleitor"],["reservista","Certificado de reservista"],["cnh","CNH"],["cnhCategoria","CNH categoria"],["reservistaCategoria","Reservista categoria"],["pisCadastro","PIS cadastrado em","d"],["ctpsEmissao","CTPS expedição","d"],["tituloZona","Título · zona"],["tituloSecao","Título · seção"]]},
-  {s:"Endereço e contato",c:[["logradouro","Logradouro","t",1],["numero","Número"],["complemento","Complemento"],["bairro","Bairro"],["cidade","Cidade"],["uf","UF"],["cep","CEP"],["telefone","Telefone celular"],["telefoneResidencial","Telefone residencial"],["email","E-mail"]]},
+  {s:"Endereço e contato",c:[["logradouro","Logradouro","t",1],["numero","Número"],["complemento","Complemento"],["bairro","Bairro"],["cidade","Cidade"],["uf","UF"],["cep","CEP"],["telefone","Telefone celular"],["whatsapp","WhatsApp"],["telefoneResidencial","Telefone residencial"],["email","E-mail"]]},
   {s:"Dados bancários",c:[["banco","Banco ou domicílio bancário"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"]]},
   {s:"Vínculo e registro",c:[["empregador","Empregador","t",1],["cnpj","CNPJ do empregador"],["nFicha","Nº da ficha"],["centroCusto","Centro de custo","cc"],["opcaoFgts","Opção FGTS em","d"],["fgtsConta","FGTS · conta vinculada"],["cargoRegistro","Cargo no registro"],["cboRegistro","CBO no registro"],["funcao","Função"],["salarioRegistro","Salário no registro (R$)","n"],["salarioPor","Salário por (mês, dia ou hora)"],["ultimoReajuste","Data do último reajuste","d"],["ultimaAlteracaoCargo","Última alteração de cargo","d"],["sindical","Contribuição sindical","t",1],["beneficiarios","Beneficiários","t",1]]},
   {s:"Ocorrências",c:[["afastamentosTxt","Afastamentos e acidentes","t",1],["obsTransferencias","Transferências e advertências","t",1],["observacoes","Observações","t",1],["fichasAnteriores","Fichas anteriores","t",1],["alertaImportacao","Alerta da importação","t",1]]},
@@ -2635,8 +2636,8 @@ function exportarPdf(){
 
 /* ============ prestadores PJ ============ */
 const PJ_FICHA=[
-  {s:"Prestador",c:[["razaoSocial","Razão social (empresa) ou nome completo (pessoa física)","t",1],["cnpj","CNPJ ou CPF"],["area","Função","cargo"],["nomeFantasia","Nome fantasia"],["inscricaoMunicipal","Inscrição municipal"],["regime","Regime tributário","sel:Simples Nacional|MEI|Lucro Presumido|Lucro Real"],["email","E-mail"],["telefone","Telefone"],["endereco","Endereço","t",1],["cidade","Cidade"],["uf","UF"],["cep","CEP"]]},
-  {s:"Responsável (quando for empresa)",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["nascimento","Data de nascimento (do prestador ou do responsável) · usada no primeiro acesso ao portal","d"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"]]},
+  {s:"Prestador",c:[["razaoSocial","Razão social (empresa) ou nome completo (pessoa física)","t",1],["cnpj","CNPJ ou CPF"],["area","Função","cargo"],["nomeFantasia","Nome fantasia"],["inscricaoMunicipal","Inscrição municipal"],["regime","Regime tributário","sel:Simples Nacional|MEI|Lucro Presumido|Lucro Real"],["email","E-mail"],["telefone","Telefone"],["whatsapp","WhatsApp"],["endereco","Endereço","t",1],["cidade","Cidade"],["uf","UF"],["cep","CEP"]]},
+  {s:"Responsável (quando for empresa)",c:[["respNome","Nome do responsável"],["respCpf","CPF do responsável"],["nascimento","Data de nascimento (do prestador ou do responsável) · usada no primeiro acesso ao portal","d"],["respEmail","E-mail do responsável"],["respTelefone","Telefone do responsável"],["respWhatsapp","WhatsApp do responsável"]]},
   {s:"Contrato",c:[["numeroContrato","Nº do contrato"],["objeto","Objeto do contrato (serviço prestado)","t",1],["lojaId","Unidade","loja"],["gestor","Gestor do contrato"],["inicio","Início da vigência","d"],["fim","Fim da vigência","d"],["renovacao","Renovação automática","b"],["avisoDias","Aviso para rescisão (dias)","n"]]},
   {s:"Valores e pagamento",c:[["modalidade","Modalidade","sel:Mensal fixo|Por hora|Por entrega/projeto"],["valorMensal","Valor mensal (R$)","n"],["valorHora","Valor por hora (R$)","n"],["horasMes","Horas previstas por mês","n"],["diaPagamento","Dia de pagamento","n"],["formaPagamento","Forma de pagamento","sel:Transferência|Pix|Boleto"],["banco","Banco"],["agencia","Agência"],["conta","Conta"],["pix","Chave Pix"],["reajusteIndice","Índice de reajuste","sel:IPCA|IGP-M|INPC|Sem reajuste|Outro"],["reajusteData","Data do próximo reajuste","d"],["exigeNF","Exige nota fiscal","b"],["retencoes","Retenções (ISS, IRRF, INSS…)","t",1]]},
   {s:"Comissionamento",c:[["comTipo","Tipo de comissão","sel:Sem comissão|% sobre vendas|% sobre margem|Faixas de meta|Valor fixo por meta"],["comBase","Base de cálculo (ex.: vendas da unidade)","t",1],["comPercentual","Percentual (%)","n"],["comValorFixo","Valor fixo por meta (R$)","n"],["comTeto","Teto mensal (R$)","n"],["comPeriodicidade","Periodicidade","sel:Mensal|Trimestral|Semestral|Anual"],["comObs","Regras e observações","t",1]]}
@@ -5418,7 +5419,7 @@ R.meusdados=()=>{
   const m=MEU||{};
   const itens=[["Nome",m.nome],["Cargo",m.cargo],["Unidade",m.loja_nome],["Cidade",m.cidade],["Admissão",m.admissao?fdate(m.admissao):""],["Tempo de casa",m.admissao?tempoCasa(m.admissao):""],["Login","CPF "+fmtCPF(SESSION?SESSION.login:"")]];
   return header("Meu espaço","Meus dados")+`<div class="card"><div class="form-grid">${itens.map(([k,v])=>`<div class="field"><label>${k}</label><b>${esc(v||"—")}</b></div>`).join("")}</div>
-  <div class="note" style="margin-top:14px">Algum dado errado? Fale com o RH. Por segurança, salário, documentos e dados pessoais não aparecem aqui.</div></div>`;
+  <div class="note" style="margin-top:14px">Algum dado errado? Fale com o RH. Por segurança, salário, documentos e dados pessoais não aparecem aqui.</div>${PERFIL&&PERFIL.termo_aceito_em?`<div style="margin-top:12px"><button class="btn btn-sm" data-bvpdf="eu">Baixar meu termo de aceite (PDF)</button></div>`:""}</div>`;
 };
 
 /* ---- Integração Brasileirissima dentro do portal (IB_HTML e IB_ASSETS vêm de montar-integracao.pl) ----
@@ -5597,8 +5598,8 @@ function colabAcessosHTML(tabs){
   <div class="note" style="margin:0 0 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Primeiro acesso ${lib?"liberado":"suspenso"}.</b> ${lib?"Colaboradores ativos podem criar o próprio login na tela de entrada com CPF e data de nascimento.":"Ninguém consegue criar login novo. Quem já tem acesso continua entrando normalmente."}</span><button class="btn btn-sm ${lib?"":"btn-primary"}" data-catoggle="1">${lib?"Suspender primeiro acesso":"Liberar primeiro acesso"}</button></div>
   <div class="toolbar"><div class="seg" role="tablist">${[["com","Com acesso ("+acc.length+")"],["sem","Sem acesso ("+semAcesso.length+")"],["nasc","Sem data de nascimento ("+semNasc.length+")"]].map(([k,t])=>`<button class="${fil===k?"on":""}" data-cafiltro="${k}">${t}</button>`).join("")}</div>
     <input class="input search" id="f-cabusca" type="search" placeholder="Buscar por nome, cargo ou unidade" value="${esc(UI.caBusca||"")}" aria-label="Buscar colaborador"><span class="muted small">${lista.length} pessoa${lista.length===1?"":"s"}</span></div>
-  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Situação</th><th>Acesso criado</th><th>Último acesso</th><th></th></tr></thead>
-  <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${e?`<button class="btn btn-sm" data-vercomo="${esc(e.id)}" title="Ver o portal como esta pessoa vê (só leitura)">Ver como</button>`:""}${acoes(u)}</div></td></tr>`).join("")||`<tr><td colspan="6" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Unidade</th><th>Situação</th><th>Acesso criado</th><th>Último acesso</th><th>Termos (LGPD)</th><th></th></tr></thead>
+  <tbody>${lista.map(({u,e})=>`<tr><td>${e?whoCell(e):`<b>${esc(u.nome)}</b>`}</td><td>${e?esc(store(e.lojaId).nome):"—"}</td><td>${sit(u,e)}</td><td class="num">${u?quando(u.criado_em):"—"}</td><td class="num">${u?quando(u.ultimo_acesso):"—"}</td><td style="white-space:nowrap">${bvRHcol(u)}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${e?`<button class="btn btn-sm" data-vercomo="${esc(e.id)}" title="Ver o portal como esta pessoa vê (só leitura)">Ver como</button>`:""}${acoes(u)}</div></td></tr>`).join("")||`<tr><td colspan="7" class="empty">${fil==="com"?"Nenhum colaborador criou acesso ainda.":"Ninguém nesta lista."}</td></tr>`}</tbody></table></div>
   <div class="note" style="margin-top:14px">O colaborador entra com o CPF e a senha que ele mesmo criou, e vê só o Meu espaço (treinamentos e dados básicos), sem acesso a outras pessoas. Ao ser desligado, o acesso cai sozinho. Esqueceu a senha? Use "Novo 1º acesso". Quem está sem data de nascimento na ficha não consegue criar o acesso. Prestadores PJ com função seguem as mesmas regras (CPF do prestador ou do responsável e a data de nascimento da ficha do prestador); quem é gestor (supervisor, gestor da unidade ou com equipe no "Reporta a") entra como gerente das lojas dele.</div></div>`;
 }
 document.addEventListener("click",async ev=>{
@@ -7925,6 +7926,162 @@ R.premiacoes=()=>{if(PREM)return ROLE==="colaborador"?PREM.meuPremio():PREM.pagi
 
 ICON.premiacoes='<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 6h3v1.5A3.5 3.5 0 0 1 16.6 11M7 6H4v1.5A3.5 3.5 0 0 0 7.4 11"/>';
 
+
+/* ============ Boas-vindas · atualização cadastral obrigatória · Termos de Uso e LGPD ============
+   Toda senha criada ou redefinida (primeiro acesso, RH ou o próprio usuário) marca perfis.atualizacao_pendente
+   no banco (gatilho em auth.users). No próximo login a pessoa só entra depois de confirmar celular, WhatsApp
+   e e-mail e aceitar os termos. Os contatos vão para a ficha do colaborador (ou do PJ) e o aceite fica em termos_aceite. */
+const TERMO_VER="1.0 · 09/11/2026";
+const TERMO_TXT=`TERMOS DE USO DA PLATAFORMA CONECTAGP E AVISO DE PRIVACIDADE (LGPD)
+Versão ${TERMO_VER}
+
+1. SOBRE A PLATAFORMA
+O ConectaGP é o portal de Gestão de Pessoas da Brasileiríssima, de uso exclusivo de colaboradores, prestadores de serviço e gestores autorizados pelo RH. Ele reúne informações de cadastro, treinamentos, integração, escalas, férias, premiações, comunicados e solicitações ao RH.
+
+2. ACESSO E SENHA
+2.1. O acesso é pessoal e intransferível. Você entra com o seu usuário (ou CPF) e a senha que você criou ou que o RH redefiniu.
+2.2. Não compartilhe a sua senha com ninguém, nem com colegas ou gestores. Se suspeitar que outra pessoa conhece a sua senha, peça ao RH a redefinição imediatamente.
+2.3. Tudo o que for feito com o seu login é considerado feito por você. Os acessos e as principais ações ficam registrados (data, hora e tipo de ação) para segurança e auditoria.
+2.4. Ao ser desligado(a) ou ao terminar o contrato, o acesso é encerrado automaticamente.
+
+3. REGRAS DE USO
+3.1. Use a plataforma apenas para assuntos de trabalho.
+3.2. As informações que você vê sobre outras pessoas (por exemplo, da sua equipe ou da sua unidade) são confidenciais. Não copie, fotografe, divulgue ou use essas informações fora das suas atividades.
+3.3. Mantenha os seus dados de contato atualizados. Eles são usados para comunicados, recuperação de acesso e assuntos do contrato de trabalho ou de prestação de serviço.
+3.4. O descumprimento destas regras pode levar ao bloqueio do acesso e às medidas previstas no Código de Ética e Conduta e na legislação.
+
+4. TRATAMENTO DE DADOS PESSOAIS (LEI Nº 13.709/2018 · LGPD)
+4.1. Controlador: a empresa do grupo Brasileiríssima com a qual você tem vínculo de trabalho ou contrato de prestação de serviço.
+4.2. Dados tratados: dados de identificação e documentos, endereço e contatos (celular, WhatsApp e e-mail), dados do vínculo (cargo, unidade, admissão, jornada, escalas, férias, afastamentos, avaliações, treinamentos), dados de remuneração, benefícios, metas, vendas e premiações, dependentes, dados bancários e registros de acesso à plataforma. Dados de saúde (como atestados e ASO) são tratados somente quando exigidos por lei.
+4.3. Finalidades: cumprir o contrato de trabalho ou de prestação de serviço; cumprir obrigações legais e regulatórias (trabalhistas, previdenciárias, fiscais, eSocial, saúde e segurança do trabalho); gerir folha, benefícios, escalas, treinamentos e premiações; comunicar-se com você; garantir a segurança da plataforma e prevenir fraudes.
+4.4. Bases legais: execução de contrato (art. 7º, V), cumprimento de obrigação legal ou regulatória (art. 7º, II), exercício regular de direitos (art. 7º, VI), legítimo interesse (art. 7º, IX) e, para dados sensíveis, as hipóteses do art. 11, II, da LGPD.
+4.5. Compartilhamento: somente com quem precisa dos dados para essas finalidades, como escritório de contabilidade e folha de pagamento, operadoras de benefícios e de cartões de premiação, serviços de saúde ocupacional, órgãos públicos (como eSocial, Receita Federal e INSS) e fornecedores de tecnologia que hospedam a plataforma, todos obrigados a manter sigilo e segurança.
+4.6. Armazenamento e transferência: os dados ficam em serviços de nuvem contratados, que podem estar localizados fora do Brasil, com garantias de segurança compatíveis com a LGPD (art. 33).
+4.7. Retenção: os dados são mantidos durante o vínculo e, depois dele, pelos prazos exigidos pela legislação trabalhista, previdenciária e fiscal ou para defesa em processos.
+4.8. Segurança: o acesso é controlado por perfil (cada pessoa vê apenas o necessário à sua função), com senha pessoal e registro de acessos.
+4.9. Seus direitos (art. 18): confirmar se tratamos seus dados, acessá-los, corrigir dados incompletos ou desatualizados, pedir anonimização, bloqueio ou eliminação de dados desnecessários, saber com quem compartilhamos e pedir informações sobre o tratamento. Alguns dados não podem ser eliminados enquanto houver obrigação legal de mantê-los.
+4.10. Canal: para exercer seus direitos ou tirar dúvidas, fale com o RH pelo menu Chamados do próprio portal ou pelos canais oficiais do RH.
+
+5. ALTERAÇÕES
+Estes termos podem ser atualizados. Quando houver nova versão, a plataforma pedirá um novo aceite no seu próximo acesso.
+
+6. DECLARAÇÃO
+Ao marcar as opções abaixo e clicar em "Aceitar e entrar", declaro que li e aceito os Termos de Uso da plataforma, que tomei ciência do Aviso de Privacidade e que os dados de contato informados são verdadeiros e meus.`;
+let BV=null;
+const bvPendente=()=>!!(PERFIL&&(PERFIL.atualizacao_pendente||(PERFIL.termo_aceito_em&&PERFIL.termo_versao!==TERMO_VER)));
+const bvDig=v=>String(v||"").replace(/\D/g,"");
+const bvFone=v=>{const d=bvDig(v).slice(0,11);if(d.length<3)return d;if(d.length<=6)return "("+d.slice(0,2)+") "+d.slice(2);if(d.length<=10)return "("+d.slice(0,2)+") "+d.slice(2,6)+"-"+d.slice(6);return "("+d.slice(0,2)+") "+d.slice(2,7)+"-"+d.slice(7)};
+const bvCelOk=v=>/^[1-9][0-9]9[0-9]{8}$/.test(bvDig(v));
+const bvWppOk=v=>/^[1-9][0-9][0-9]{8,9}$/.test(bvDig(v));
+const bvMailOk=v=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v||"").trim());
+function bvCss(){if(document.getElementById("bv-css"))return;const s=document.createElement("style");s.id="bv-css";s.textContent=`
+.gate.bv{max-width:560px;text-align:left}.bv-pass{display:flex;gap:6px;margin:4px 0 14px}.bv-pass span{flex:1;height:4px;border-radius:4px;background:var(--line,#dfe8e3)}.bv-pass span.on{background:var(--brand,#0b7f4a)}
+.bv-step{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#5b6d64);margin:0 0 4px}
+.bv-termo{max-height:280px;overflow:auto;border:1px solid var(--line,#dfe8e3);border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;background:var(--bg,#f6f8f7);margin:10px 0}
+.bv-ck{display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:14px;cursor:pointer}.bv-ck input{margin-top:3px;width:18px;height:18px;flex:none}
+.bv-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.bv-acts .btn{flex:1;justify-content:center;min-width:140px}
+.bv-ok{display:grid;gap:6px;background:var(--bg,#f6f8f7);border-radius:10px;padding:12px 14px;margin:10px 0;font-size:14px}`;document.head.appendChild(s)}
+async function telaBoasVindas(){
+  bvCss();mostrarTela("login");
+  BV={passo:1,celular:"",whatsapp:"",mesmo:true,email:"",l1:false,l2:false,rec:null};
+  try{const {data}=await SB.rpc("meus_contatos");if(data){BV.celular=bvFone(data.celular||"");BV.whatsapp=bvFone(data.whatsapp||"");BV.email=data.email||"";BV.mesmo=!BV.whatsapp||bvDig(BV.whatsapp)===bvDig(BV.celular)}}catch(e){}
+  bvRender();
+}
+function bvRender(){
+  const g=$(".gate");if(!g||!BV)return;g.classList.add("bv");
+  const nome=String((MEU&&MEU.nome)||(PERFIL&&PERFIL.nome)||"").split(" ")[0];
+  const pass=`<div class="bv-pass" aria-hidden="true">${[1,2,3].map(n=>`<span class="${BV.passo>=n?"on":""}"></span>`).join("")}</div>`;
+  const err=`<p class="small" id="g-err" style="color:var(--bad)" hidden></p>`;
+  const sair=`<button class="btn btn-ghost" data-act="sair">Sair</button>`;
+  let h="";
+  if(BV.passo===1)h=`<p class="bv-step">Etapa 1 de 3</p><h1>Boas-vindas${nome?", "+esc(nome):""}!</h1>${pass}
+    <p>Que bom ter você no <b>ConectaGP</b>, o portal de Gestão de Pessoas da Brasileiríssima.</p>
+    <p class="muted">Antes de começar, faça a <b>atualização obrigatória de dados</b>: confirme o seu celular, WhatsApp e e-mail e aceite os Termos de Uso e o Aviso de Privacidade (LGPD). Leva menos de 2 minutos e só precisa ser feito agora.</p>
+    <div class="bv-acts">${sair}<button class="btn btn-primary" data-bvir="2">Começar</button></div>`;
+  if(BV.passo===2)h=`<p class="bv-step">Etapa 2 de 3 · Atualização de dados</p><h1>Seus contatos</h1>${pass}
+    <p class="muted">Esses dados vão direto para o seu cadastro no RH.</p>
+    <form class="form-grid" id="form-bv" onsubmit="return false">
+      <div class="field full"><label for="bv-cel">Telefone celular (com DDD)</label><input class="input" id="bv-cel" inputmode="tel" autocomplete="tel" placeholder="(00) 90000-0000" value="${esc(BV.celular)}"></div>
+      <label class="bv-ck full"><input type="checkbox" id="bv-mesmo" ${BV.mesmo?"checked":""}><span>O meu WhatsApp é este mesmo número</span></label>
+      <div class="field full" ${BV.mesmo?"hidden":""} id="bv-wpp-f"><label for="bv-wpp">WhatsApp (com DDD)</label><input class="input" id="bv-wpp" inputmode="tel" placeholder="(00) 90000-0000" value="${esc(BV.whatsapp)}"></div>
+      <div class="field full"><label for="bv-mail">E-mail</label><input class="input" id="bv-mail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="voce@exemplo.com" value="${esc(BV.email)}"></div>
+    </form>${err}
+    <div class="bv-acts"><button class="btn" data-bvir="1">Voltar</button><button class="btn btn-primary" data-bvir="3">Continuar</button></div>`;
+  if(BV.passo===3)h=`<p class="bv-step">Etapa 3 de 3 · Termos</p><h1>Termos de Uso e LGPD</h1>${pass}
+    <p class="muted">Leia com atenção. Uma cópia do termo de aceite fica disponível para você baixar em PDF.</p>
+    <div class="bv-termo" tabindex="0" aria-label="Texto dos termos">${esc(TERMO_TXT)}</div>
+    <label class="bv-ck"><input type="checkbox" id="bv-l1" ${BV.l1?"checked":""}><span>Li e aceito os <b>Termos de Uso</b> da plataforma ConectaGP.</span></label>
+    <label class="bv-ck"><input type="checkbox" id="bv-l2" ${BV.l2?"checked":""}><span>Tomei ciência do <b>Aviso de Privacidade</b> e de como os meus dados pessoais são tratados (LGPD).</span></label>${err}
+    <div class="bv-acts"><button class="btn" data-bvir="2">Voltar</button><button class="btn btn-primary" data-bvaceitar="1" id="bv-aceitar" ${BV.l1&&BV.l2?"":"disabled"}>Aceitar e entrar</button></div>`;
+  if(BV.passo===4){const r=BV.rec||{};h=`<p class="bv-step">Tudo pronto</p><h1>Cadastro atualizado</h1>${pass}
+    <p>Obrigado! Seus contatos foram gravados no seu cadastro e o aceite dos termos foi registrado.</p>
+    <div class="bv-ok"><span>Celular: <b>${esc(r.celular||"")}</b></span><span>WhatsApp: <b>${esc(r.whatsapp||"")}</b></span><span>E-mail: <b>${esc(r.email||"")}</b></span><span class="small muted">Aceite em ${r.aceito_em?new Date(r.aceito_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""} · versão ${esc(TERMO_VER)}</span></div>
+    <div class="bv-acts"><button class="btn" data-bvpdf="eu">Baixar termo (PDF)</button><button class="btn btn-primary" data-bventrar="1">Entrar no portal</button></div>`}
+  g.innerHTML=`<div class="gate-brand">ConectaGP · Brasileiríssima</div>`+h;
+  const f=g.querySelector("input:not([type=checkbox])");if(f)f.focus();
+}
+function bvLer(){
+  const c=$("#bv-cel"),w=$("#bv-wpp"),m=$("#bv-mail"),k=$("#bv-mesmo");
+  if(c)BV.celular=c.value;if(w)BV.whatsapp=w.value;if(m)BV.email=m.value.trim();if(k)BV.mesmo=k.checked;
+  const l1=$("#bv-l1"),l2=$("#bv-l2");if(l1)BV.l1=l1.checked;if(l2)BV.l2=l2.checked;
+  if(BV.mesmo)BV.whatsapp=BV.celular;
+}
+async function bvAceitar(){
+  bvLer();if(!(BV.l1&&BV.l2))return erroTela("Marque as duas opções para continuar.");
+  const b=$("#bv-aceitar");b.disabled=true;b.textContent="Registrando…";
+  const {data,error}=await SB.rpc("concluir_boas_vindas",{p_celular:BV.celular,p_whatsapp:BV.whatsapp,p_email:BV.email,p_versao:TERMO_VER,p_texto:TERMO_TXT,p_user_agent:navigator.userAgent});
+  if(error){b.disabled=false;b.textContent="Aceitar e entrar";return erroTela(/inválid|não informado/i.test(error.message)?error.message:"Não foi possível registrar agora. Tente de novo.")}
+  BV.rec=data;PERFIL.atualizacao_pendente=false;PERFIL.termo_versao=TERMO_VER;PERFIL.termo_aceito_em=data.aceito_em;
+  BV.passo=4;bvRender();
+}
+function bvEntrar(){BV=null;const g=$(".gate");if(g)g.classList.remove("bv");mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal()}
+async function termoPDF(userId){
+  if(!window.jspdf){toast("O gerador de PDF não carregou. Recarregue a página e tente de novo.");return}
+  let q=SB.from("termos_aceite").select("*").order("aceito_em",{ascending:false}).limit(1);
+  q=q.eq("user_id",userId);
+  const {data,error}=await q;const r=data&&data[0];
+  if(error||!r){toast("Nenhum termo de aceite encontrado.");return}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
+  const W=210,H=297,M=18,verde=[11,127,74],tinta=[16,32,26],cinza=[91,109,100];
+  const topo=()=>{doc.setFillColor(...verde);doc.rect(0,0,W,24,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("BRASILEIRÍSSIMA",M,13);
+    doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text("ConectaGP · Gestão de Pessoas",M,19);doc.text("Termo de aceite · versão "+r.versao,W-M,13,{align:"right"})};
+  topo();
+  doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.setFontSize(13.5);doc.text("TERMO DE ACEITE · TERMOS DE USO E AVISO DE PRIVACIDADE (LGPD)",M,36);
+  const quando=new Date(r.aceito_em).toLocaleString("pt-BR",{dateStyle:"long",timeStyle:"medium",timeZone:"America/Sao_Paulo"});
+  const login=/^\d{11}$/.test(r.login||"")?"CPF "+fmtCPF(r.login):(r.login||"");
+  const lin=[["Titular",r.nome||""],["Login",login],["Perfil",(PERFIS[r.perfil]||r.perfil||"")],["Celular",r.celular||""],["WhatsApp",r.whatsapp||""],["E-mail",r.email||""],["Data e hora do aceite",quando+" (horário de Brasília)"],["Versão do termo",r.versao],["Registro",`nº ${r.id} · aceite eletrônico no ConectaGP`]];
+  let y=46;doc.setDrawColor(223,232,227);
+  lin.forEach(([a,b],i)=>{if(i%2===0){doc.setFillColor(242,246,243);doc.rect(M,y-4.6,W-2*M,7,"F")}doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(...cinza);doc.text(a,M+3,y);
+    doc.setFontSize(9.5);doc.setTextColor(...tinta);doc.setFont("helvetica","bold");doc.text(String(b),M+50,y);y+=7});
+  y+=4;doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...tinta);
+  const decl=doc.splitTextToSize("O(A) titular acima declarou, por meio do seu login pessoal e senha, que leu e aceitou os Termos de Uso da plataforma ConectaGP, que tomou ciência do Aviso de Privacidade (Lei nº 13.709/2018) e que os dados de contato informados são verdadeiros. Segue o texto integral aceito.",W-2*M);
+  doc.text(decl,M,y);y+=decl.length*4.4+4;
+  doc.setFontSize(8.3);
+  doc.splitTextToSize(r.texto,W-2*M).forEach(l=>{if(y>H-18){doc.addPage();topo();y=34;doc.setTextColor(...tinta);doc.setFont("helvetica","normal");doc.setFontSize(8.3)}
+    const tit=/^(\d+\. [A-ZÁÉÍÓÚÂÊÔÃÕÇ ()·º\/0-9.]+|TERMOS DE USO.*)$/.test(l.trim());doc.setFont("helvetica",tit?"bold":"normal");doc.text(l,M,y);y+=tit?4.6:3.9});
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...cinza);
+    doc.text("Registro nº "+r.id+" · "+(r.nome||"")+" · aceito em "+new Date(r.aceito_em).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"}),M,H-8);doc.text("Página "+i+" de "+n,W-M,H-8,{align:"right"})}
+  doc.save("Termo de aceite - "+(r.nome||"ConectaGP").replace(/[\\/:*?"<>|]/g,"")+".pdf");
+}
+const bvRHcol=u=>!u?"—":u.termo_aceito_em?`<span class="chip c-ok" title="Versão ${esc(u.termo_versao||"")}">Aceito ${fdate(String(u.termo_aceito_em).slice(0,10))}</span> <button class="btn btn-sm btn-ghost" data-bvpdf="${esc(u.user_id)}" title="Baixar o termo de aceite em PDF">PDF</button>`:u.atualizacao_pendente?`<span class="chip c-warn" title="Atualização de dados e aceite pedidos no próximo acesso">Pendente</span>`:`<span class="chip c-mute">—</span>`;
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-bvir],[data-bvaceitar],[data-bventrar],[data-bvpdf]");if(!t)return;const d=t.dataset;
+  if(d.bvpdf){termoPDF(d.bvpdf==="eu"?PERFIL.user_id:d.bvpdf);return}
+  if(!BV)return;
+  if(d.bvir){bvLer();const n=Number(d.bvir);const ge=$("#g-err");if(ge)ge.hidden=true;
+    if(BV.passo===2&&n===3){if(!bvCelOk(BV.celular))return erroTela("Informe um celular válido com DDD (ex.: (71) 99999-0000).");if(!bvWppOk(BV.whatsapp))return erroTela("Informe um WhatsApp válido com DDD.");if(!bvMailOk(BV.email))return erroTela("Informe um e-mail válido.")}
+    BV.passo=n;bvRender();return}
+  if(d.bvaceitar){bvAceitar();return}
+  if(d.bventrar){bvEntrar();return}
+});
+document.addEventListener("input",ev=>{const t=ev.target;if(!BV)return;
+  if(t.id==="bv-cel"||t.id==="bv-wpp"){t.value=bvFone(t.value)}
+  if(t.id==="bv-l1"||t.id==="bv-l2"){bvLer();const b=$("#bv-aceitar");if(b)b.disabled=!(BV.l1&&BV.l2)}
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(!BV)return;
+  if(t.id==="bv-mesmo"){bvLer();if(!BV.mesmo&&bvDig(BV.whatsapp)===bvDig(BV.celular))BV.whatsapp="";const f=$("#bv-wpp-f");if(f)f.hidden=BV.mesmo;if(!BV.mesmo){const w=$("#bv-wpp");if(w){w.value=BV.whatsapp;w.focus()}}}
+  if(t.id==="bv-l1"||t.id==="bv-l2"){bvLer();const b=$("#bv-aceitar");if(b)b.disabled=!(BV.l1&&BV.l2)}
+});
 
 boot();
 </script>
