@@ -1000,6 +1000,7 @@ const PAGES_G=[
   {id:"colaboradores",t:"Equipe"},
   {id:"experiencia",t:"Experiência"},
   {id:"td",t:"T&D"},
+  {id:"premiacoes",t:"Premiações e Incentivos"},
   {id:"ponto",t:"Ponto e escalas"},
   {id:"ferias",t:"Férias"},
   {g:"RH"},
@@ -7245,7 +7246,7 @@ const PERM={
   gestora:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
   gerente:{conferir:true,verSup:false,verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
 };
-const MINHA="l35";
+let MINHA="l35";
 
 /* ================= lotes de aprovação e histórico ================= */
 const ST_L={aguardando:["Aguardando aprovação","c-warn",1],devolvido:["Devolvido para revisão","c-bad",1],aprovado:["Aprovado","c-info",2],folha:["Lançado na folha","c-brand",3],pago:["Pago","c-ok",4]};
@@ -7273,9 +7274,10 @@ function aplicarDB(d){
 }
 function carregar(){
   if(CARREGADO)return;CARREGADO=true;
+  if(typeof SB!=="undefined"&&SB)carregarConf().then(()=>render());
   if(typeof ST!=="undefined"&&ST&&ST.premiacoes)aplicarDB(JSON.parse(JSON.stringify(ST.premiacoes)));
 }
-function quem(){const n=(typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH";return UI.view==="rh"?n+" · RH":n+" · RH, pela "+PERFIS[UI.view].t.toLowerCase()}
+function quem(){const n=(typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH";if(gerLogin())return n+" · Gerente";return UI.view==="rh"?n+" · RH":n+" · RH, pela "+PERFIS[UI.view].t.toLowerCase()}
 function registrar(L,acao){L.eventos.push(ev(agora(),quem(),acao));if(typeof logEvento==="function")logEvento("Premiações · "+acao,loja(L.lojaId).nome+" · "+COMP)}
 function bloqueadoPorRegras(){if(!regrasPendentes())return false;toast("Há regras alteradas e não salvas. Salve ou restaure as regras antes de aprovar.");return true}
 
@@ -7286,7 +7288,24 @@ function supReg(id){try{const num=String(loja(id).num);const sv=(typeof ST!=="un
   for(const s of sv){if(!s.regiao)continue;for(const lid of (s.lojas||[])){const st=((ST&&ST.stores)||[]).find(x=>x.id===lid);const m=String(lid).match(/^lj-0*(\d+)/)||(st&&String(st.nome||"").match(/Loja\s*0*(\d+)/i));if(m&&m[1]===num)return normReg(s.regiao)}}}catch(e){}return ""}
 const regDe=id=>supReg(id)||normReg((CFG.regional||{})[id])||"Sem regional";
 const regionais=()=>[...new Set(LOJAS.map(l=>regDe(l.id)))].sort((a,b)=>a.localeCompare(b));
-const P=()=>PERM[UI.view];
+const PERFIL_W=()=>(typeof PERFIL!=="undefined"&&PERFIL&&PERFIL.perfil)||"";
+const webNaoRH=()=>typeof ROLE!=="undefined"&&ROLE==="gerente";
+const gerLogin=()=>webNaoRH()&&PERFIL_W()==="gerente";
+const P=()=>{const p=PERM[UI.view];if(!webNaoRH())return p;return {...p,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,regras:false,verSup:!gerLogin()&&p.verSup,conferir:gerLogin()}};
+const numLoja=s=>{const m=String(s&&s.id||"").match(/^lj-0*(\d+)/)||String(s&&s.nome||"").match(/Loja\s*0*(\d+)/i);return m?m[1]:null};
+const minhasLojasMod=()=>((typeof ST!=="undefined"&&ST&&ST.stores)||[]).map(s=>numLoja(s)).filter(Boolean).map(n=>"l"+n).filter(id=>LOJAS.some(l=>l.id===id));
+const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined"&&ST&&ST.stores)||[]).find(x=>numLoja(x)===n);return s?s.id:"lj-"+n};
+const COMP_ISO="2026-10";
+let CONF_OK=false;
+async function carregarConf(){
+  try{const {data,error}=await SB.from("premiacoes_conferencia").select("*").eq("comp",COMP_ISO).order("criado_em");if(error)throw error;
+    LOTES.forEach(L=>{const n=loja(L.lojaId).num,rs=(data||[]).filter(r=>+r.loja_num===+n);
+      L.correcoes=rs.filter(r=>r.tipo==="correcao").map(r=>({id:r.id,pid:r.pid,nome:r.colaborador,funcao:r.funcao,apurado:+r.apurado,real:+r.valor_real,just:r.justificativa,status:r.status,resposta:r.resposta||"",em:new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),quem:r.autor_nome||""}));
+      const apr=rs.filter(r=>r.tipo==="aprovacao").pop();const ultCorr=rs.filter(r=>r.tipo==="correcao").pop();
+      L.conf=apr&&(!ultCorr||apr.criado_em>ultCorr.criado_em)?"aprovado":L.correcoes.length?"correcao":null;
+      if(typeof sync==="function")sync(L)});
+    CONF_OK=true}catch(e){toast("Não foi possível ler as conferências dos gerentes.")}
+}
 const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
 const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"]];
@@ -7311,6 +7330,7 @@ function subnav(){
   return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Configurações",SUB_CF)}</div>`;
 }
 function pagina(){
+  if(webNaoRH()){UI.view=gerLogin()?"gerente":"gestora";if(gerLogin()){const ms=minhasLojasMod();if(!ms.length)return `<div class="prem-pg"><div class="card empty">Sua loja ainda não está na apuração de ${COMP}. Fale com o RH.</div></div>`;if(!ms.includes(MINHA))MINHA=ms[0]}}
   carregar();
   if(!CARREGADO)return `<div class="prem-pg"><div class="card empty">Carregando premiações salvas…</div></div>`;
   if(!permitido(UI.tab))UI.tab="acoes";
@@ -7325,8 +7345,8 @@ function pagina(){
   if(UI.tab==="resultados")acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
   if(UI.tab==="supervisao")acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
   return `<div class="prem-pg">
-  <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div></div>
+  <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:gerLogin()?"Confira a apuração da sua loja. Se algum valor estiver errado, use <b>Pedir correção</b> com o valor real e a justificativa; o RH responde por aqui.":webNaoRH()?"Somente consulta.":podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
+    ${webNaoRH()?(gerLogin()&&minhasLojasMod().length>1?`<select class="input" id="pr-f-minha" style="width:auto" aria-label="Sua loja">${minhasLojasMod().map(id=>`<option value="${id}" ${id===MINHA?"selected":""}>${esc(loja(id).nome)}</option>`).join("")}</select>`:""):`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div>`}</div>
   <div class="topbar">
     <div><div class="eyebrow">Premiações e Incentivos · ${grupo}</div><h1>${TITULO[UI.tab]}</h1></div>
     <div class="top-actions">${acts.join("")}</div>
@@ -7605,7 +7625,7 @@ function gerarPDFSup(){
 }
 function tHistGer(){
   const L=LOTES.find(x=>x.lojaId===MINHA),a=apurarLoja(MINHA);
-  const sit=L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pela supervisora","c-info"]:["Aguardando supervisora","c-warn"]):ST_L[L.status];
+  const sit=gerLogin()?["Em aprovação","c-warn"]:L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pela supervisora","c-info"]:["Aguardando supervisora","c-warn"]):ST_L[L.status];
   const rows=[{comp:COMP,p:a.pMes,faixa:a.ger.usadas.map(x=>pct(x.min)+" → "+pct2(x.pct)+" da "+(x.base==="meta"?"meta":"venda")).join(" + ")||"Abaixo da meta",valor:L.congelado?L.congelado.gv:a.tg,st:sit},...HIST_GER.slice().reverse().map(h=>({...h,st:ST_L.pago}))];
   return `<div class="card"><div class="card-head"><div><h2>Meus prêmios</h2><p>${esc(GER[MINHA].nome)} · Gerente da ${loja(MINHA).nome}. Seu prêmio é aprovado pela supervisora.</p></div></div>
     <div class="table-wrap"><table><thead><tr><th>Competência</th><th>Meta da loja</th><th>Faixa aplicada</th><th class="r">Valor</th><th>Situação</th></tr></thead>
@@ -7736,13 +7756,21 @@ document.addEventListener("click",e=>{
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
   if(d.prlote){detalheLote(d.prlote);return}
   if(d.prvend){fichaVend(d.prvend);return}
+  if(d.prconfok&&typeof SB!=="undefined"&&SB){const L=LOTES.find(x=>x.id===d.prconfok);t.disabled=true;
+    SB.from("premiacoes_conferencia").insert({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"aprovacao",status:"registrada",autor_nome:quem()}).then(({error})=>{if(error){t.disabled=false;toast("Não foi possível registrar: "+error.message);return}
+      if(typeof logEvento==="function")logEvento("Premiações · Apuração conferida pelo gerente",loja(L.lojaId).nome+" · "+COMP);if(podeGravar()){L.eventos.push(ev(agora(),quem(),"Apuração conferida e aprovada pelo gerente"));gravar()}carregarConf().then(()=>{render();toast(loja(L.lojaId).curto+": apuração aprovada")})});return}
   if(d.prconfok){const L=LOTES.find(x=>x.id===d.prconfok);L.conf="aprovado";registrar(L,"Apuração conferida e aprovada pelo gerente");gravar();render();toast(loja(L.lojaId).curto+": apuração aprovada pelo gerente");return}
   if(d.prcorr){pedirCorrecao(d.prcorr);return}
   if(d.prcorrenviar){const L=LOTES.find(x=>x.id===d.prcorrenviar),a=apurarLoja(L.lojaId),x=pessoasLoja(a).find(y=>y.pid===$("#pr-c-pid").value);const real=numBR($("#pr-c-real").value),just=($("#pr-c-just").value||"").trim();
     if(!(real>=0)){toast("Informe o valor real em reais");return}if(just.length<10){toast("Escreva a justificativa (mínimo de 10 caracteres)");return}
+    if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").insert({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"correcao",status:"aberta",pid:x.pid,colaborador:x.nome,funcao:x.funcao,apurado:x.valor,valor_real:real,justificativa:just,autor_nome:quem()}).then(({error})=>{if(error){t.disabled=false;toast("Não foi possível enviar: "+error.message);return}
+      if(typeof logEvento==="function")logEvento("Premiações · Correção pedida",`${loja(L.lojaId).curto} · ${x.nome} · apurado ${brl(x.valor)} → real ${brl(real)}`);if(podeGravar()){L.eventos.push(ev(agora(),quem(),`Correção pedida: ${x.nome} · apurado ${brl(x.valor)} → real ${brl(real)}`));gravar()}
+      closeModal();carregarConf().then(()=>{render();toast("Pedido de correção enviado ao RH")})});return}
     L.correcoes=L.correcoes||[];L.correcoes.push({id:"c"+uid(),pid:x.pid,nome:x.nome,funcao:x.funcao,apurado:x.valor,real,just,status:"aberta",em:agora(),quem:quem()});L.conf="correcao";
     registrar(L,`Correção pedida: ${x.nome} · apurado ${brl(x.valor)} → real ${brl(real)}`);gravar();closeModal();render();toast("Pedido de correção enviado ao RH");return}
   if(d.prcaceita||d.prcrecusa){const [lid,cid]=(d.prcaceita||d.prcrecusa).split("|"),L=LOTES.find(x=>x.id===lid),c=L.correcoes.find(y=>y.id===cid);const aceita=!!d.prcaceita;
+    if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").update({status:aceita?"aceita":"recusada",resposta:aceita?"Correção aceita":"Correção recusada",respondido_nome:quem(),respondido_em:new Date().toISOString()}).eq("id",c.id).then(({error})=>{if(error){t.disabled=false;toast("Não foi possível responder: "+error.message);return}
+      registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);carregarConf().then(()=>{sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada")})});return}
     c.status=aceita?"aceita":"recusada";c.resposta=aceita?"Correção aceita":"Correção recusada";c.respEm=agora();c.respQuem=quem();
     registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada");return}
   if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);if(corrAbertas(L,"eq").length){toast("Responda antes a correção pedida pelo gerente");return}L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
@@ -7772,6 +7800,7 @@ document.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
   if(d.prsuploja){const [i,j]=d.prsuploja.split(".").map(Number);const s=CFG.sup.pessoas[i];const l=[s.lojas[0]||"",s.lojas[1]||""];l[j]=t.value;if(!l[0]){l[0]=l[1];l[1]=""}s.lojas=[...new Set(l.filter(Boolean))];setTimeout(render);return}
   if(t.id==="pr-f-loja"){UI.loja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-minha"){MINHA=t.value;setTimeout(render);return}
   if(t.id==="pr-f-reg"){UI.reg=t.value;UI.loja="";setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
   if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
