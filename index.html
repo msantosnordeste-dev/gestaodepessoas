@@ -7252,9 +7252,7 @@ function tResultados(){
         ${v.per.map(x=>`<td class="c">${cel(x,R.faixas)}</td>`).join("")}
         <td class="c num">${pct(v.pMes)}${CFG.vend[a.fmt].mes.indiv&&a.bateu&&!v.indOk?'<br><span class="small muted">abaixo da meta</span>':""}</td><td class="r num">${v.mes?brl(v.mes):"<span class='muted'>—</span>"}</td><td class="r num"><b>${brl(v.total)}</b></td></tr>`).join("")}</tbody>
       <tfoot>${(()=>{const pm=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.meta||0),0),pv=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.venda||0),0);const mm=a.vend.reduce((s,v)=>s+v.metaV,0),vm=a.vend.reduce((s,v)=>s+v.vMes,0);
-        return `<tr><td>Meta dos vendedores</td>${a.ps.map((p,i)=>`<td class="c num">${brl(pm(i))}</td>`).join("")}<td class="c num">${brl(mm)}</td><td></td><td></td></tr>
-        <tr><td>Venda dos vendedores</td>${a.ps.map((p,i)=>`<td class="c num">${brl(pv(i))}</td>`).join("")}<td class="c num">${brl(vm)}</td><td></td><td></td></tr>
-        <tr><td>% da meta</td>${a.ps.map((p,i)=>`<td class="c num">${pct(pm(i)?pv(i)/pm(i)*100:0)}</td>`).join("")}<td class="c num">${pct(mm?vm/mm*100:0)}</td><td></td><td></td></tr>
+        return `<tr><td>Total vendido</td>${a.ps.map((p,i)=>`<td class="c num">${brl(pv(i))}</td>`).join("")}<td class="c num">${brl(vm)}</td><td></td><td></td></tr>
         <tr><td>Prêmios</td>${a.ps.map((p,i)=>`<td class="c num">${brl(a.vend.reduce((s,v)=>s+(v.per[i]?.valor||0),0))}</td>`).join("")}<td></td><td class="r num">${brl(a.vend.reduce((s,v)=>s+v.mes,0))}</td><td class="r num">${brl(a.tv)}</td></tr>`})()}</tfoot>
     </table></div></div>
 
