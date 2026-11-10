@@ -1749,7 +1749,7 @@ async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
   SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;EQUIPE=[];$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
-  if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_RANKVEND","__PREM_RANKFAT","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
+  if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_RANKVEND","__PREM_RANKFAT","__PREM_CONQ","__PREM_EVOL","__PREM_PESSOAS","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
   location.hash="";location.reload();
 }
 async function boot(){
@@ -6556,6 +6556,9 @@ async function vcMontar(id,Pf){
     premiacoes_ranking_vendedores:a=>rpcFn("premiacoes_ranking_vendedores",a),
     premiacoes_ranking_faturamento:a=>rpcFn("premiacoes_ranking_faturamento",a),
     premiacoes_minhas_medalhas:()=>rpcFn("premiacoes_medalhas_de",{p_colab:P.colaborador_id||id}),
+    premiacoes_conquistas:()=>rpcFn("premiacoes_conquistas"),
+    premiacoes_evolucao:()=>rpcFn("premiacoes_evolucao"),
+    premiacoes_pessoas:a=>rpcFn("premiacoes_pessoas",a),
     premiacoes_meus_lancamentos:a=>rpcFn("premiacoes_lancamentos_de",{p_colab:P.colaborador_id||id,p_comp:a.p_comp}),
     premiacoes_lotes:()=>rpcFn("premiacoes_lotes").then(r=>({data:(r.data||[]).filter(L=>numsVC.includes(+String(L.lojaId||"").replace(/^l0*/,""))),error:r.error}))}};
 }
@@ -7555,8 +7558,9 @@ async function carregarConf(){
 const gerMulti=()=>UI.view==="gerente"&&gerLogin()&&minhasLojasMod().length>1;
 const escopo=()=>UI.view==="gerente"?(gerMulti()?minhasLojasMod():[MINHA]):LOJAS.map(l=>l.id);
 const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["rankvend","Ranking de Vendedores",()=>true],["rankfat","Ranking por Faturamento",()=>!webNaoRH()&&UI.view==="rh"],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos e complementos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_RC=[["arena","Arena de Conquistas",()=>true],["reconhecimento","Regras de Reconhecimento",()=>true]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"&&!webNaoRH()]];
-const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
+const TITULO=Object.fromEntries([...SUB_AP,...SUB_RC,...SUB_CF].map(x=>[x[0],x[1]]));
 
 const IC={
   premios:'<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 6h3v1.5A3.5 3.5 0 0 1 16.6 11M7 6H4v1.5A3.5 3.5 0 0 0 7.4 11"/>',
@@ -7568,13 +7572,13 @@ const IC={
   warn:'<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/>'
 };
 /* ================= render ================= */
-function permitido(tab){const all=[...SUB_AP,...SUB_CF].find(x=>x[0]===tab);return all&&all[2](P())}
+function permitido(tab){const all=[...SUB_AP,...SUB_RC,...SUB_CF].find(x=>x[0]===tab);return all&&all[2](P())}
 function subnav(){
   if(!permitido(UI.tab))UI.tab="acoes";
   const p=P();
   const pend=LOTES.filter(L=>L.status==="aguardando"&&escopo().includes(L.lojaId)&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr)||(!p.aprovar&&!p.aprovarGer))).length;
   const sub=(lbl,items)=>{const vis=items.filter(x=>x[2](p));return vis.length?`<div class="sub-label">${lbl}</div>`+vis.map(([k,t])=>`<a href="#${k}" data-prtab="${k}" class="${UI.tab===k?"on":""}" ${UI.tab===k?'aria-current="page"':""}>${t}${k==="aprovacoes"&&pend?`<span class="cnt">${pend}</span>`:""}</a>`).join(""):""};
-  return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Configurações",SUB_CF)}</div>`;
+  return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Reconhecimento",SUB_RC)}${sub("Configurações",SUB_CF)}</div>`;
 }
 function pagina(){
   if(webNaoRH()&&PERFIL&&PERFIL.perfil==="comercial"&&!UI.supIni){UI.supIni=1;UI.tab="meupremio"}
@@ -7584,7 +7588,7 @@ function pagina(){
   if(!CARREGADO)return `<div class="prem-pg"><div class="card empty">Carregando premiações salvas…</div></div>`;
   if(!permitido(UI.tab))UI.tab="acoes";
   const p=P(),apTab=SUB_AP.some(x=>x[0]===UI.tab);
-  const grupo=apTab?"Apuração":"Configurações";
+  const grupo=apTab?"Apuração":SUB_RC.some(x=>x[0]===UI.tab)?"Reconhecimento":"Configurações";
   const acts=[];
   if(UI.tab==="acoes"&&p.regras)acts.push(`<button class="btn btn-primary" data-pract="nova">+ Nova campanha</button>`);
   if(UI.tab==="regras")acts.push(`<button class="btn" data-pract="padrao">Restaurar padrão</button><button class="btn btn-primary" data-pract="salvar">Salvar regras</button>`);
@@ -7603,7 +7607,7 @@ function pagina(){
     <div class="top-actions">${acts.join("")}</div>
   </div>
   ${apTab?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,arena:tArena,reconhecimento:tRegrasRec,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -8088,6 +8092,104 @@ async function exportRankVend(modo){
   if(typeof logEvento==="function")logEvento("Premiações · Exportação ranking "+(fat?"por faturamento":"de vendedores"),L.length+" vendedores · "+COMP);
   await salvarArquivo(XLSX.write(wb,{bookType:"xlsx",type:"array"}),(fat?"ranking-faturamento-":"ranking-vendedores-")+COMP_ISO+".xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
+const AR_T={faturamento:{ic:"🏅",t:"Maior faturamento da rede",bg:"radial-gradient(circle at 35% 30%,#fff6c8,#f3c74a 55%,#c9971c)"},alcance:{ic:"🎯",t:"Maior alcance de meta da rede",bg:"radial-gradient(circle at 35% 30%,#e9f3ff,#8fb8ef 55%,#3f6fb5)"},tri:{ic:"🏆",t:"Troféu TRI",bg:"linear-gradient(160deg,#fff3c4,#e8b931 45%,#a8740f)"}};
+const arBadge=(tp,sz)=>`<span aria-hidden="true" style="display:inline-grid;place-items:center;width:${sz||40}px;height:${sz||40}px;border-radius:${tp==="tri"?"12px":"50%"};background:${AR_T[tp].bg};font-size:${Math.round((sz||40)*.52)}px;box-shadow:0 3px 10px rgba(0,0,0,.15);flex:none">${AR_T[tp].ic}</span>`;
+const arTri=t=>{const m=String(t||"").match(/^(\d{4})-T(\d)$/);return m?m[2]+"º trimestre/"+m[1]:String(t||"")};
+const AR_CSS=`<style>.ar-hero{background:linear-gradient(135deg,#0f6b46,#1b8a5a 55%,#e0b43a);color:#fff;border:0}.ar-hero h2,.ar-hero p{color:#fff}.ar-cnt{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}.ar-cnt>div{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.14);border-radius:14px;padding:10px 14px}.ar-cnt b{font-size:1.6rem;line-height:1}.ar-dest{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.ar-dest>div{border:1px solid var(--line,#dfe8e3);border-radius:14px;padding:12px 14px}.ar-dest .lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#667)}.ar-zero{color:var(--muted,#99a);opacity:.55}.ar-rc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.ar-rc>div{border:1px solid var(--line,#dfe8e3);border-radius:16px;padding:16px}.ar-rc h3{margin:10px 0 6px;font-size:1.05rem}.ar-rc dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:.9rem}.ar-rc dt{color:var(--muted,#667)}.ar-rc dd{margin:0}.ar-ul{margin:6px 0 0 18px;line-height:1.65}</style>`;
+function arEscopo(){
+  const base=escopo();const regs=[...new Set(base.map(regDe))].sort();if(UI.arReg&&!regs.includes(UI.arReg))UI.arReg="";
+  let ids=base.filter(id=>!UI.arReg||regDe(id)===UI.arReg);const lojasF=ids.slice().sort((a,b)=>loja(a).num-loja(b).num);if(UI.arLoja&&!ids.includes(UI.arLoja))UI.arLoja="";
+  if(UI.arLoja)ids=[UI.arLoja];return {ids,regs,lojasF};
+}
+function tArena(){
+  const {ids,regs,lojasF}=arEscopo();const idset=new Set(ids);
+  const CQ=(window.__PREM_CONQ||[]).filter(c=>idset.has(c.loja_id));
+  const PESS=window.__PREM_PESSOAS||{};
+  const sel=(id,lbl,opts,val)=>`<select class="input" id="${id}" style="width:auto" aria-label="${lbl}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  const cnt=tp=>CQ.filter(c=>c.tipo===tp).length;
+  const escLbl=UI.arLoja?loja(UI.arLoja).nome:UI.arReg?"Regional "+UI.arReg:(UI.view==="gerente"?(ids.length>1?"Suas "+ids.length+" lojas":loja(ids[0]||MINHA).nome):webNaoRH()?"Sua carteira · "+ids.length+" lojas":"Toda a rede · "+ids.length+" lojas");
+  // quadro de medalhas: vendedores atuais do escopo + quem conquistou nos últimos 12 meses
+  const pess={};
+  VEND.filter(v=>idset.has(v.lojaId)).forEach(v=>{const k=PESS[v.id]||("v:"+v.id);pess[k]=pess[k]||{nome:v.nome,loja:v.lojaId,c:[],atual:true}});
+  CQ.forEach(c=>{const k=c.pessoa||("v:"+c.vend_id);const p=pess[k]=pess[k]||{nome:c.nome||"",loja:c.loja_id,c:[],atual:false};p.c.push(c)});
+  let rows=Object.values(pess).map(p=>({...p,f:p.c.filter(x=>x.tipo==="faturamento").length,a:p.c.filter(x=>x.tipo==="alcance").length,t:p.c.filter(x=>x.tipo==="tri").length})).map(p=>({...p,tot:p.f+p.a+p.t,ult:p.c.map(x=>x.comp).sort().pop()||""}));
+  rows.sort((a,b)=>b.t-a.t||b.tot-a.tot||String(b.ult).localeCompare(String(a.ult))||a.nome.localeCompare(b.nome));
+  const comConq=rows.filter(r=>r.tot).length;if(UI.arTodos===undefined)UI.arTodos=rows.length<=40;
+  const vis=UI.arTodos?rows:rows.filter(r=>r.tot);
+  const z=n=>n?`<b>${n}</b>`:`<span class="ar-zero">0</span>`;
+  const quadro=`<div class="card"><div class="card-head"><div><h2>Quadro de medalhas da equipe</h2><p>Conquistas de cada vendedor nos últimos 12 meses · ${comConq} de ${rows.length} com conquista</p></div>
+   <label class="small" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="pr-f-artodos" ${UI.arTodos?"checked":""}> Mostrar todos os vendedores</label></div>
+   <div class="table-wrap"><table><thead><tr><th>Vendedor</th><th>Loja</th><th class="r" title="Maior faturamento da rede">🏅</th><th class="r" title="Maior alcance de meta da rede">🎯</th><th class="r" title="Troféu TRI">🏆</th><th class="r">Total</th><th>Conquistas</th></tr></thead>
+   <tbody>${vis.map(r=>`<tr><td><b>${esc(r.nome)}</b>${r.atual?"":` <span class="chip c-mute" title="Não está na apuração atual">anterior</span>`}</td><td class="small">${esc(loja(r.loja).nome)}</td><td class="r num">${z(r.f)}</td><td class="r num">${z(r.a)}</td><td class="r num">${z(r.t)}</td><td class="r num">${z(r.tot)}</td><td class="small">${r.c.slice().sort((a,b)=>String(b.comp).localeCompare(String(a.comp))).map(x=>`<span style="white-space:nowrap">${AR_T[x.tipo].ic} ${x.tipo==="tri"?arTri(x.tri):compLbl(x.comp)}</span>`).join(" · ")||`<span class="ar-zero">—</span>`}</td></tr>`).join("")||`<tr><td colspan="7" class="muted">Nenhuma conquista nos últimos 12 meses neste recorte.</td></tr>`}</tbody></table></div></div>`;
+  // destaques do mês
+  const rk=(window.__PREM_RANKVEND||[]).filter(r=>idset.has(r.loja_id)).sort((a,b)=>a.pos_nac-b.pos_nac);
+  const nm=id=>(VEND.find(v=>v.id===id)||{}).nome||"";
+  const bat=rk.filter(r=>+r.pct>=100).length;
+  const lojasRk=(window.__PREM_RANKLOJAS||[]).filter(r=>idset.has(r.loja_id)).sort((a,b)=>a.pos-b.pos);
+  const doMes=CQ.filter(c=>c.comp===COMP_ISO);
+  const med=n=>n===1?"🥇":n===2?"🥈":n===3?"🥉":"";
+  const dest=`<div class="card"><div class="card-head"><div><h2>Destaques da campanha · ${COMP}</h2><p>Campanha de Incentivo de Vendas · % da meta do mês (venda ÷ meta)</p></div></div>
+   ${doMes.length?`<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">${doMes.map(c=>`<div style="display:flex;align-items:center;gap:12px;background:#fff8dc;border:1px solid #f0d47a;border-radius:14px;padding:10px 14px">${arBadge(c.tipo,44)}<div><b>${esc(c.nome)}</b> · ${esc(loja(c.loja_id).nome)}<div class="small">${AR_T[c.tipo].t}${c.tipo==="tri"?" · "+arTri(c.tri):""}${c.tipo==="alcance"||c.tipo==="tri"?" · "+pct(+c.pct)+" da meta":""}${c.tipo==="faturamento"&&!webNaoRH()?" · "+brl(+c.venda):""}</div></div></div>`).join("")}</div>`:""}
+   <div class="ar-dest">
+    <div><span class="lbl">Top 3 em alcance de meta</span>${rk.slice(0,3).map(r=>`<div style="margin-top:6px">${med(rk.indexOf(r)+1)} <b>${esc(nm(r.vend_id))}</b><div class="small muted">${pct(+r.pct)} · ${r.pos_nac}º nacional · ${esc(loja(r.loja_id).curto||loja(r.loja_id).nome)}</div></div>`).join("")||`<div class="small muted" style="margin-top:6px">Sem dados no mês.</div>`}</div>
+    <div><span class="lbl">Vendedores que bateram a meta</span><div style="font-size:1.8rem;font-weight:700;margin-top:4px">${bat} <small style="font-size:1rem;font-weight:500">de ${rk.length}</small></div><div class="small muted">${rk.length?pct(bat/rk.length*100):"–"} da equipe neste recorte</div></div>
+    <div><span class="lbl">Loja destaque</span>${lojasRk[0]?`<div style="margin-top:6px"><b>${esc(lojasRk[0].nome)}</b><div class="small muted">${pct(+lojasRk[0].pct)} da meta · ${lojasRk[0].pos}º de ${lojasRk[0].tot} no ranking nacional de lojas</div></div>`:`<div class="small muted" style="margin-top:6px">Sem dados no mês.</div>`}
+     <div class="small" style="margin-top:8px">${lojasRk.filter(l=>+l.pct>=100).length} de ${lojasRk.length} loja(s) bateram a meta</div></div>
+   </div></div>`;
+  // evolução da equipe
+  const EV=(window.__PREM_EVOL||[]).filter(e=>idset.has(e.loja_id));
+  const meses=[...new Set(EV.map(e=>e.comp))].sort();
+  const serie=meses.map(m=>{const L=EV.filter(e=>e.comp===m),meta=L.reduce((s,e)=>s+ +e.meta,0),venda=L.reduce((s,e)=>s+ +e.venda,0);return {m,p:meta?venda/meta*100:0,vd:L.reduce((s,e)=>s+e.vendedores,0),bt:L.reduce((s,e)=>s+e.bateram,0),cq:CQ.filter(c=>c.comp===m).length}});
+  const W=Math.max(320,serie.length*90),H=200,mx=Math.max(120,...serie.map(s=>s.p))*1.1,y=v=>H-24-(v/mx)*(H-48),bw=Math.min(46,W/serie.length*.5);
+  const svg=serie.length?`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto" role="img" aria-label="Evolução do % da meta por mês">
+    <line x1="0" x2="${W}" y1="${y(100)}" y2="${y(100)}" stroke="#c0392b" stroke-dasharray="4 4" stroke-width="1"/><text x="${W-4}" y="${y(100)-4}" text-anchor="end" font-size="11" fill="#c0392b">meta 100%</text>
+    ${serie.map((s,i)=>{const cx=(i+.5)*W/serie.length;return `<rect x="${cx-bw/2}" y="${y(s.p)}" width="${bw}" height="${H-24-y(s.p)}" rx="6" fill="${s.p>=100?"#1b8a5a":"#e0b43a"}"/><text x="${cx}" y="${y(s.p)-6}" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">${(s.p).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</text><text x="${cx}" y="${H-6}" text-anchor="middle" font-size="11" fill="currentColor">${MESES_PR[+s.m.slice(5,7)-1].slice(0,3)}/${s.m.slice(2,4)}</text>`}).join("")}</svg>`:"";
+  const evol=`<div class="card"><div class="card-head"><div><h2>Evolução da equipe</h2><p>% da meta atingido por mês, vendedores na meta e conquistas · últimos 12 meses</p></div></div>
+   ${serie.length?svg+`<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Mês</th><th class="r">% da meta</th><th class="r">Vendedores na meta</th><th class="r">Conquistas</th></tr></thead><tbody>${serie.slice().reverse().map(s=>`<tr><td>${compLbl(s.m)}</td><td class="r num">${pct(s.p)}</td><td class="r num">${s.bt} de ${s.vd}</td><td class="r num">${s.cq||"–"}</td></tr>`).join("")}</tbody></table></div>`+(serie.length<2?`<p class="small muted">A evolução ganha um ponto novo a cada apuração carregada. Por enquanto há só ${compLbl(serie[0].m)}.</p>`:""):`<p class="small muted">Sem apurações neste recorte.</p>`}</div>`;
+  const filtros=(regs.length>1||lojasF.length>1)?`<div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">${regs.length>1?sel("pr-f-arreg","Regional",[["","Todas as regionais"],...regs.map(r=>[r,r])],UI.arReg||""):""}${lojasF.length>1?sel("pr-f-arloja","Loja",[["","Todas as lojas"],...lojasF.map(id=>[id,loja(id).nome])],UI.arLoja||""):""}</div>`:"";
+  return AR_CSS+filtros+`<div class="card ar-hero"><h2 style="margin:0">Arena de Conquistas</h2><p style="margin:4px 0 0;opacity:.9">${esc(escLbl)} · conquistas dos últimos 12 meses</p>
+   <div class="ar-cnt">${["faturamento","alcance","tri"].map(tp=>`<div>${arBadge(tp,40)}<span><b>${cnt(tp)}</b><br><small>${AR_T[tp].t}</small></span></div>`).join("")}</div></div>`+dest+quadro+evol;
+}
+function tRegrasRec(){
+  const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
+  const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma as faixas)":" (vale a maior faixa)");
+  const card=(tp,quem,quando,crit,onde)=>`<div>${arBadge(tp,58)}<h3>${AR_T[tp].t}</h3><dl><dt>Quem ganha</dt><dd>${quem}</dd><dt>Quando</dt><dd>${quando}</dd><dt>Critério</dt><dd>${crit}</dd><dt>Onde aparece</dt><dd>${onde}</dd></dl></div>`;
+  return AR_CSS+`<div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor do prêmio em dinheiro: são reconhecimento.</p></div></div>
+  <div class="ar-rc">
+   ${card("faturamento","O 1º lugar de toda a rede no Ranking por Faturamento.","Todo mês, no fechamento da apuração.","Maior valor vendido no mês (R$), somando todas as lojas em que vendeu.","Portal do vendedor (Meu prêmio e Meus dados) e Arena de Conquistas.")}
+   ${card("alcance","O 1º lugar de toda a rede no Ranking de Vendedores.","Todo mês, no fechamento da apuração.","Maior % da meta atingido no mês (venda ÷ meta).","Portal do vendedor, Ranking de Vendedores (selo 🎯) e Arena de Conquistas.")}
+   ${card("tri","Quem for o 1º lugar da rede em % da meta nos 3 meses do trimestre, sempre acima de 100%.","Por trimestre do calendário (jan–mar, abr–jun, jul–set, out–dez), no fechamento do último mês.","Os 3 meses precisam ser do mesmo vendedor, todos em 1º lugar e acima de 100% da meta. Se não houver, ninguém ganha.","Portal do vendedor (destaque dourado no mês que fecha o trimestre) e Arena de Conquistas.")}
+  </div></div>
+  <div class="card"><div class="card-head"><div><h2>Regras gerais do reconhecimento</h2></div></div><ul class="ar-ul">
+   <li><b>Quem participa:</b> vendedores que estão na apuração de premiação do mês.</li>
+   <li><b>Tempo de casa:</b> não concorre a rankings, medalhas e troféu quem tem menos de 15 dias de casa no último dia do mês da apuração (contados da admissão).</li>
+   <li><b>Identificação:</b> as conquistas ficam com a pessoa, pelo CPF. Se ela mudar de loja, leva as medalhas junto.</li>
+   <li><b>Empate:</b> se dois vendedores empatarem em 1º lugar, os dois recebem a medalha.</li>
+   <li><b>Contador:</b> o portal mostra as conquistas dos últimos 12 meses (até 12 medalhas de cada tipo e até 4 Troféus TRI por ano).</li>
+   <li><b>Automático:</b> medalhas e troféu são calculados sozinhos a cada apuração carregada, sem lançamento manual. Enquanto a apuração não é aprovada pelo RH, os valores podem mudar.</li>
+  </ul></div>
+  <div class="card"><div class="card-head"><div><h2>Rankings</h2></div></div><ul class="ar-ul">
+   <li><b>Ranking de Vendedores:</b> classifica pelo % da meta do mês (venda ÷ meta). Mostra a posição na loja e a posição nacional, entre todos os vendedores da rede.</li>
+   <li><b>Estrelas (1 a 5):</b> mostram a posição do vendedor entre os colegas da mesma loja: 5 Destaque da loja, 4 Acima da maioria, 3 Na média da loja, 2 Abaixo da média, 1 Pode crescer.</li>
+   <li><b>Ranking Nacional de Lojas:</b> classifica as lojas pelo % da meta do mês atingido pela loja, com a posição na regional e na rede.</li>
+   <li><b>Ranking por Faturamento:</b> classifica pelo valor vendido (R$). É exclusivo do RH; os demais perfis veem só a medalha de quem ganhou.</li>
+  </ul></div>
+  <div class="card"><div class="card-head"><div><h2>Premiação em dinheiro · Campanha de Incentivo de Vendas</h2><p>Resumo das regras em vigor. O detalhe completo fica em Ações de Incentivo.</p></div></div><ul class="ar-ul">
+   <li><b>Vendedor · loja semanal:</b> ${fx(v)}${v.mes&&v.mes.ativo?` · loja${v.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(v.mes.pct)}`:""}</li>
+   <li><b>Vendedor · loja quinzenal:</b> ${fx(q)}${q.mes&&q.mes.ativo?` · loja${q.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(q.mes.pct)}`:""}</li>
+   <li><b>Funções de apoio:</b> ${(CFG.sup.cargos||[]).map(c=>esc(c)+" "+brl(supValor(c))).join(" · ")} por loja que bater ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?"; quem atende mais de uma loja recebe por cada loja que bater":""}.</li>
+   <li><b>Gerente de loja:</b> ${CFG.ger.faixas.map(f=>`${fxMin(f)} → ${fxG(f,1)}`).join(" · ")}${Object.keys(CFG.gerLoja||{}).length?`. Regras próprias: ${Object.entries(CFG.gerLoja||{}).map(([l,r])=>`${esc(loja(l).curto||loja(l).nome)}: ${r.faixas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" · ")}`).join("; ")}`:""}.</li>
+   <li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>
+   <li><b>Fluxo:</b> o RH aprova a apuração; em seguida o gerente da loja aprova ou pede correção; depois o valor é importado no Swile.</li>
+  </ul></div>
+  <div class="card"><div class="card-head"><div><h2>Quem vê o quê</h2></div></div><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Vê</th></tr></thead><tbody>
+   <tr><td><b>Vendedor</b></td><td>Seu prêmio, sua posição na loja e no Brasil, estrelas, e as próprias medalhas e troféus (Meu prêmio e Meus dados).</td></tr>
+   <tr><td><b>Gerente de loja</b></td><td>Arena de Conquistas, Ranking de Vendedores e Prêmio da Equipe das suas lojas.</td></tr>
+   <tr><td><b>Supervisão</b></td><td>O mesmo para as lojas da sua regional.</td></tr>
+   <tr><td><b>Gestão comercial</b></td><td>O mesmo para as duas regionais.</td></tr>
+   <tr><td><b>RH</b></td><td>Toda a rede, inclusive o Ranking por Faturamento.</td></tr>
+  </tbody></table></div></div>`;
+}
 function tRanking(){
   const rk=window.__PREM_RANKLOJAS||[];if(!rk.length)return `<div class="card empty">Ranking indisponível para ${COMP}.</div>`;
   const regs=[...new Set(rk.map(r=>r.regional).filter(Boolean))].sort();if(UI.rkReg&&!regs.includes(UI.rkReg))UI.rkReg="";
@@ -8332,6 +8434,9 @@ document.addEventListener("change",e=>{
   if(t.id==="pr-f-reg"){UI.reg=t.value;UI.loja="";setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
   if(t.id==="pr-f-rkreg"){UI.rkReg=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-arreg"){UI.arReg=t.value;UI.arLoja="";setTimeout(render);return}
+  if(t.id==="pr-f-arloja"){UI.arLoja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-artodos"){UI.arTodos=t.checked;setTimeout(render);return}
   if(t.id==="pr-f-rvreg"){UI.rvReg=t.value;UI.rvLoja="";setTimeout(render);return}
   if(t.id==="pr-f-rvloja"){UI.rvLoja=t.value;setTimeout(render);return}
   if(t.id==="pr-f-rvord"){UI.rvOrd=t.value;setTimeout(render);return}
@@ -8360,6 +8465,7 @@ async function carregarPremData(){
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_lojas",{p_comp:CMP});window.__PREM_RANKLOJAS=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKLOJAS=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_vendedores",{p_comp:CMP});window.__PREM_RANKVEND=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKVEND=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_faturamento",{p_comp:CMP});window.__PREM_RANKFAT=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKFAT=[]}}
+    if(ROLE!=="colaborador"){try{const [cq,ev,ps]=await Promise.all([SB.rpc("premiacoes_conquistas"),SB.rpc("premiacoes_evolucao"),SB.rpc("premiacoes_pessoas",{p_comp:CMP})]);window.__PREM_CONQ=Array.isArray(cq&&cq.data)?cq.data:[];window.__PREM_EVOL=Array.isArray(ev&&ev.data)?ev.data:[];window.__PREM_PESSOAS=(ps&&ps.data)||{}}catch(e){window.__PREM_CONQ=[];window.__PREM_EVOL=[];window.__PREM_PESSOAS={}}}
     window.__PREM_PER=(lj.find(r=>r.dados&&r.dados.periodos)||{dados:{}}).dados.periodos||(CMP!=="2026-10"?premPeriodosPadrao(CMP):null);
     window.__PREM_DATA={LOJAS:lj.map(r=>r.dados.loja).sort((x,y)=>x.num-y.num),
       VEND:vd.map(v=>({id:v.vend_id,nome:v.nome,lojaId:v.loja_id,per:Object.fromEntries(Object.entries(v.per||{}).map(([k,x])=>[k,{meta:+x.meta,vl:+x.vl,vo:+(x.vo||0),vi:x.vi!=null?+x.vi:+x.vl,od:x.od||""}]))})),
