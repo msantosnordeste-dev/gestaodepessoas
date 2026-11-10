@@ -1033,7 +1033,8 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G):PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G):PAGES;
+const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
 function pendRH(){return SOLIC.length}
@@ -1104,7 +1105,7 @@ R.usuarios=()=>{
   let corpo="";
   if(tab==="usuarios"){
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th>Termos (LGPD)</th><th></th></tr></thead>
-    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
+    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="comercial"?"Todas as lojas · duas regionais":u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip c-mute">Desativado</span>`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
       <td><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
@@ -1645,7 +1646,7 @@ async function iniciarSessao(novoLogin){
   if(!user){mostrarTela("login");return}
   const {data:p}=await SB.from("perfis").select("*").eq("user_id",user.id).maybeSingle();
   if(!p||!p.ativo){await SB.auth.signOut();mostrarTela("login","Este usuário não tem acesso ativo ao portal. Fale com o RH.");return}
-  PERFIL=p;ROLE=perfilGestor(p.perfil);$(".app").classList.toggle("consulta",p.perfil==="comercial");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
+  PERFIL=p;ROLE=perfilGestor(p.perfil);$(".app").classList.toggle("consulta",p.perfil==="comercial"||p.perfil==="supervisor");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
   if(novoLogin){SB.rpc("registrar_acesso").then(()=>{},()=>{});logEvento("Login","Acesso ao portal")}
   mostrarTela("carregando");
   try{
@@ -6239,7 +6240,7 @@ montarGerente=function(){
    Gestão comercial: lojas marcadas pelo RH, só consulta (o banco recusa solicitações, anexos e planos). */
 PERFIS.supervisor="Supervisão";PERFIS.comercial="Gestão comercial";
 const PERFIS_CURTO={rh:"RH",gerente:"Gerente",supervisor:"Supervisão",comercial:"Gestão comercial",colaborador:"Colaborador"};
-const soConsulta=()=>!!PERFIL&&PERFIL.perfil==="comercial";
+const soConsulta=()=>!!PERFIL&&(PERFIL.perfil==="comercial"||PERFIL.perfil==="supervisor");
 const perfilGestor=p=>p==="supervisor"||p==="comercial"?"gerente":p;
 const usrCarteira=u=>{const s=supervisores().find(x=>x.id===u.supervisor_id);if(!s)return `<span class="chip c-warn">Supervisor não encontrado</span>`;
   const r=refPessoa(s.ref);return `Carteira de ${esc(r?r.nome:"supervisor")}: ${(s.lojas||[]).map(id=>esc(store(id).nome)).join(", ")||"nenhuma loja"}`};
@@ -6260,10 +6261,10 @@ usuarioForm=function(login){
   modal(u?"Editar usuário":"Novo usuário",`<form class="form-grid" id="form-usr">
     <div class="field full"><label for="u-nome">Nome completo</label><input class="input" id="u-nome" value="${esc(x.nome)}"></div>
     <div class="field"><label for="u-login">Usuário (login)</label><input class="input" id="u-login" autocapitalize="none" spellcheck="false" value="${esc(x.login)}" ${u?"disabled":""}></div>
-    <div class="field"><label for="u-perfil">Perfil</label><select class="input" id="u-perfil">${op("gerente","Gerente de loja")}${op("supervisor","Supervisão")}${op("comercial","Gestão comercial · só consulta")}${op("rh","RH · acesso total")}</select></div>
+    <div class="field"><label for="u-perfil">Perfil</label><select class="input" id="u-perfil">${op("gerente","Gerente de loja")}${op("supervisor","Supervisão · consulta da carteira")}${op("comercial","Gestão comercial · consulta das duas regionais")}${op("rh","RH · acesso total")}</select></div>
     <div class="field full" id="u-sup-f" ${x.perfil==="supervisor"?"":"hidden"}><label for="u-sup">Supervisor (cadastro em Lojas › Supervisores)</label><select class="input" id="u-sup"><option value="">Escolha…</option>${sups.map(s=>`<option value="${esc(s.id)}" ${s.id===x.supervisor_id?"selected":""}>${esc(s.nome)}${s.regiao?" · "+esc(s.regiao):""} · ${s.n} loja${s.n===1?"":"s"}</option>`).join("")}</select>
       <span class="small muted">${sups.length?"Vê as lojas da carteira desse supervisor. Mudou a carteira, o acesso acompanha sozinho.":"Nenhum supervisor cadastrado ainda. Cadastre em Lojas › Supervisores."}</span></div>
-    <fieldset class="field full fx-sec" id="u-loja-f" ${x.perfil==="gerente"||x.perfil==="comercial"?"":"hidden"}><legend>Lojas que acompanha</legend><div class="lojas-check">${ST.stores.map(s=>`<label class="check"><input type="checkbox" name="u-lojas" value="${esc(s.id)}" ${(x.lojas||[]).includes(s.id)?"checked":""}> ${esc(s.nome)}</label>`).join("")}</div><span class="small muted">Marque uma ou várias. Vê a equipe, a escala, as férias e as pendências das lojas marcadas, sem salários.</span></fieldset>
+    <fieldset class="field full fx-sec" id="u-loja-f" ${x.perfil==="gerente"?"":"hidden"}><legend>Lojas que acompanha</legend><div class="lojas-check">${ST.stores.map(s=>`<label class="check"><input type="checkbox" name="u-lojas" value="${esc(s.id)}" ${(x.lojas||[]).includes(s.id)?"checked":""}> ${esc(s.nome)}</label>`).join("")}</div><span class="small muted">Marque uma ou várias. Vê a equipe, a escala, as férias e as pendências das lojas marcadas, sem salários.</span></fieldset>
     <div class="field"><label for="u-pass">${u?"Nova senha (deixe em branco para manter)":"Senha (mínimo 8 caracteres)"}</label><input class="input" id="u-pass" type="password" autocomplete="new-password"></div>
     <div class="field"><label for="u-pass2">Repita a senha</label><input class="input" id="u-pass2" type="password" autocomplete="new-password"></div>
     ${u?`<label class="check full"><input type="checkbox" id="u-ativo" ${x.ativo?"checked":""}> Usuário ativo</label>`:""}
@@ -6276,8 +6277,8 @@ salvarUsuario=async function(loginEdit){
   const err=m=>{const el=$("#u-err");el.hidden=false;el.textContent=m};
   const u=loginEdit?USUARIOS.find(x=>x.login===loginEdit):null;
   const nome=$("#u-nome").value.trim(),login=u?u.login:normLogin($("#u-login").value),perfil=$("#u-perfil").value,sup=$("#u-sup").value,s1=$("#u-pass").value,s2=$("#u-pass2").value;
-  const comLojas=perfil==="gerente"||perfil==="comercial";
-  const lojas=comLojas?[...document.querySelectorAll('input[name="u-lojas"]:checked')].map(i=>i.value):[];
+  const comLojas=perfil==="gerente";
+  const lojas=perfil==="comercial"?ST.stores.map(s=>s.id):comLojas?[...document.querySelectorAll('input[name="u-lojas"]:checked')].map(i=>i.value):[];
   const ativo=u?$("#u-ativo").checked:true;
   if(!nome)return err("Informe o nome.");
   if(comLojas&&!lojas.length)return err("Marque pelo menos uma loja.");
@@ -6292,7 +6293,7 @@ salvarUsuario=async function(loginEdit){
   if(msg)return err(msg);
   await carregarUsuarios();closeModal();render();toast(u?"Usuário atualizado":"Usuário criado");
 };
-document.addEventListener("change",ev=>{if(ev.target.id!=="u-perfil")return;const v=ev.target.value;setTimeout(()=>{$("#u-loja-f").hidden=!(v==="gerente"||v==="comercial");$("#u-sup-f").hidden=v!=="supervisor"},0)});
+document.addEventListener("change",ev=>{if(ev.target.id!=="u-perfil")return;const v=ev.target.value;setTimeout(()=>{$("#u-loja-f").hidden=v!=="gerente";$("#u-sup-f").hidden=v!=="supervisor"},0)});
 
 /* ---- Prestador PJ com função: acesso ao portal pelas mesmas regras do colaborador ----
    Ele mesmo cria a senha no Primeiro acesso (CPF do prestador ou do responsável + data de nascimento da ficha).
@@ -6446,7 +6447,7 @@ async function vcEntrar(id){
     logEvento("Ver como",v.nome+" · "+(PERFIS[v.P.perfil]||v.P.perfil));
     VC={...v,real:SB};SB=vcCliente(SB);
     PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
-    $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial");
+    $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial"||PERFIL.perfil==="supervisor");
     ST=null;mostrarTela("carregando");
     if(ROLE==="colaborador")await carregarColaborador();else await carregarGerente();
     await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
