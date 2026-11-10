@@ -419,6 +419,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:0}
 @media (max-width:1100px){.loja-head{grid-template-columns:repeat(2,minmax(0,1fr))}.loja-head>div:first-child{grid-column:1/-1}.loja-head>div+div{border-left:0;padding-left:0}}
 @media (max-width:860px){.nav .sub-label{display:none}.nav .subnav{flex-direction:row;margin:0;padding:0;border:0}}
 .prem-pg{display:flex;flex-direction:column;gap:24px;min-width:0}
+.prem-modal .modal-b>*{flex-shrink:0}
 .prem-pg .linkbtn{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}.prem-pg .linkbtn:hover b{color:var(--brand-ink);text-decoration:underline}
 </style>
 </head>
@@ -7237,12 +7238,12 @@ const PERFIS={
   gestora:{t:"Gestora comercial",quem:"Patricia dos Santos Araujo",cargo:"Gestora comercial · visualização",escopo:"Todas as lojas"},
   gerente:{t:"Gerente",quem:"Lucas Marinho da Rocha",cargo:"Gerente · Loja 35",escopo:"Própria loja · histórico só dele"}
 };
-const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["verSup","Ver prêmio da supervisão e gestão"],["regras","Editar regras"]];
+const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["conferir","Conferir a apuração da loja (gerente)"],["verSup","Ver prêmio da supervisão e gestão"],["regras","Editar regras"]];
 const PERM={
   rh:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
   supervisora:{verSup:true,verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
   gestora:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
-  gerente:{verSup:false,verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
+  gerente:{conferir:true,verSup:false,verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
 };
 const MINHA="l35";
 
@@ -7250,23 +7251,25 @@ const MINHA="l35";
 const ST_L={aguardando:["Aguardando aprovação","c-warn",1],devolvido:["Devolvido para revisão","c-bad",1],aprovado:["Aprovado","c-info",2],folha:["Lançado na folha","c-brand",3],pago:["Pago","c-ok",4]};
 const ev=(em,quem,acao)=>({em,quem,acao});
 const LOTES=LOJAS.map(l=>({id:"L"+l.id,comp:COMP,lojaId:l.id,status:"aguardando",eq:false,gr:false,eventos:[ev("09/11 13:00","Sistema","Apuração de Outubro/2026 importada: metas Indeva + vendas Totvs"),ev("09/11 13:01","Sistema","Enviada para aprovação")],congelado:null}));
-function sync(L){if(["folha","pago","devolvido"].includes(L.status))return;if(!L.gr&&apurarLoja(L.lojaId).tg+apurarLoja(L.lojaId).tag===0)L.gr=true;L.status=L.eq&&L.gr?"aprovado":"aguardando";if(L.status==="aprovado"&&!L.congelado){const a=apurarLoja(L.lojaId);L.congelado={total:a.total,pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav,gv:a.tg+a.tag,acel:a.ta}}}
+const ajL=(L,tipo)=>(L.correcoes||[]).filter(c=>c.status==="aceita"&&(!tipo||(tipo==="gr"?c.pid==="ger":c.pid!=="ger"))).reduce((s,c)=>s+(c.real-c.apurado),0);
+const corrAbertas=(L,tipo)=>(L.correcoes||[]).filter(c=>c.status==="aberta"&&(!tipo||(tipo==="gr"?c.pid==="ger":c.pid!=="ger")));
+function sync(L){if(["folha","pago","devolvido"].includes(L.status))return;if(!L.gr&&apurarLoja(L.lojaId).tg+apurarLoja(L.lojaId).tag===0)L.gr=true;L.status=L.eq&&L.gr?"aprovado":"aguardando";if(L.status==="aprovado"&&!L.congelado){const a=apurarLoja(L.lojaId);L.congelado={total:a.total+ajL(L),pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav+ajL(L,"eq"),gv:a.tg+a.tag+ajL(L,"gr"),acel:a.ta,ajuste:ajL(L)}}}
 LOTES.forEach(sync);
 const HIST=[];
-const lotal=L=>L.congelado||(()=>{const a=apurarLoja(L.lojaId);return {total:a.total,pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav,gv:a.tg+a.tag,acel:a.ta}})();
+const lotal=L=>L.congelado||(()=>{const a=apurarLoja(L.lojaId);return {total:a.total+ajL(L),pessoas:a.pessoas,eqv:a.tv+a.ts+a.tav+ajL(L,"eq"),gv:a.tg+a.tag+ajL(L,"gr"),acel:a.ta,ajuste:ajL(L)}})();
 const HIST_GER=[];
 /* ---- gravação no banco do ConectaGP: rh/premiacoes (só a conta do RH grava) ---- */
 let CFG_SALVO=clone(CFG_PADRAO),CARREGADO=false,CARREGANDO=false,ERRO_DB="";
 const podeGravar=()=>typeof ROLE!=="undefined"&&ROLE==="rh"&&!!SB&&!!ST;
 const regrasPendentes=()=>JSON.stringify(CFG)!==JSON.stringify(CFG_SALVO);
 function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,
-  lotes:LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,eventos:L.eventos,congelado:L.congelado||null}))}}
+  lotes:LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,conf:L.conf||null,correcoes:L.correcoes||[],eventos:L.eventos,congelado:L.congelado||null}))}}
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
   if(d.cfg){if(!d.cfg.gest)d.cfg.gest=clone(CFG_PADRAO.gest);if(!d.cfg.supv)d.cfg.supv=clone(CFG_PADRAO.supv);if(!d.cfg.regional||Object.values(d.cfg.regional).every(v=>["SP","RJ","BA","PR","ES","PE","AM"].includes(v)))d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
-  (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
+  (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;L.conf=x.conf||null;L.correcoes=Array.isArray(x.correcoes)?x.correcoes:[];if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
 function carregar(){
   if(CARREGADO)return;CARREGADO=true;
@@ -7399,6 +7402,7 @@ function tResultados(){
   const a=apurarLoja(sel),R=CFG.vend[a.fmt];
   const pos=v=>Math.min(v,150)/150*100;
   return `<div class="card">${filtro}
+    ${confBox(sel)}
     <div class="loja-head">
       <div><span class="lbl">Meta do mês da loja · ${FMT_T[a.fmt].toLowerCase()}</span><div class="big num">${pct(a.pMes)} <span class="chip ${a.bateu?"c-ok":"c-bad"}" style="vertical-align:middle">${a.bateu?"Bateu a meta":"Não bateu"}</span></div>
         <div class="track"><div class="fill ${a.bateu?"":"under"}" style="width:${pos(a.pMes)}%"></div><div class="mk" style="left:${pos(100)}%"><span>100%</span></div><div class="mk" style="left:${pos(120)}%"><span>120%</span></div></div>
@@ -7449,15 +7453,15 @@ function tAprov(){
     <div class="card-head"><div><h2>${COMP}</h2><p>${papel}</p></div>
       ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) na folha</button>`:""}</div>
     ${ls.length?`<div class="table-wrap"><table>
-      <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação supervisora</th><th class="r">Total</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
+      <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação supervisora</th><th class="r">Total</th><th>Conferência do gerente</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
       <tbody>${ls.map(L=>{const S=ST_L[L.status],t=lotal(L);return `<tr>
         <td><b>${loja(L.lojaId).curto}</b><br><span class="small muted">${FMT_T[CFG.formato[L.lojaId]]} · ${t.pessoas} ${t.pessoas===1?"pessoa":"pessoas"}</span></td>
         <td class="r num">${brl(t.eqv)}</td><td>${ok(L.eq,"Aprovada","Falta RH")}</td>
         <td class="r num">${brl(t.gv)}</td><td>${t.gv?ok(L.gr,"Aprovado","Falta supervisora"):'<span class="chip c-mute">Sem prêmio</span>'}</td>
-        <td class="r num"><b>${brl(t.total)}</b></td><td><span class="chip ${S[1]}">${S[0]}</span></td>
+        <td class="r num"><b>${brl(t.total)}</b>${t.ajuste?`<br><span class="small muted">ajuste ${brl(t.ajuste)}</span>`:""}</td><td>${confChip(L)}</td><td><span class="chip ${S[1]}">${S[0]}</span></td>
         ${p.acompanhar?`<td>${steps(L.status)}</td>`:""}
         <td class="r"><button class="btn btn-sm" data-prlote="${L.id}">Detalhar</button>${podeDev(L)?` <button class="btn btn-sm btn-ghost" data-prdevolver="${L.id}">Devolver</button>`:""}${p.aprovar&&!L.eq&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${p.aprovarGer&&!L.gr&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}</td></tr>`}).join("")}</tbody>
-      <tfoot><tr><td>Total</td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).eqv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).gv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).total,0))}</td><td colspan="${p.acompanhar?3:2}"></td></tr></tfoot>
+      <tfoot><tr><td>Total</td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).eqv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).gv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).total,0))}</td><td colspan="${p.acompanhar?4:3}"></td></tr></tfoot>
     </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas lançadas na folha estão em Histórico de Premiações.</div>`}
     <p class="note" style="margin-top:14px">A loja só vai para a folha quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
   </div>`;
@@ -7491,6 +7495,30 @@ function fichaVend(vid){
     `<button class="btn" data-close>Fechar</button>`);
   const m=document.querySelector("#modal-root .modal");if(m)m.style.width="min(1100px,100%)";
 }
+function confChip(L){const ab=corrAbertas(L).length;return ab?`<span class="chip c-bad">${ab} correção(ões) pedida(s)</span>`:L.conf==="aprovado"?'<span class="chip c-ok">Conferida</span>':(L.correcoes||[]).length?'<span class="chip c-info">Correção respondida</span>':'<span class="chip c-mute">Aguardando gerente</span>'}
+function pessoasLoja(a){return [...a.vend.map(v=>({pid:v.id,nome:v.nome,funcao:"Vendedor(a)",valor:v.total})),...a.sup.map(s=>({pid:s.id,nome:s.nome,funcao:s.cargo,valor:s.valor})),{pid:"ger",nome:a.ger.nome||"Gerente",funcao:"Gerente de loja",valor:a.ger.valor+a.ger.acel}]}
+function confBox(id){
+  const L=LOTES.find(x=>x.lojaId===id),p=P();if(!L)return "";
+  const cs=L.correcoes||[],pode=p.conferir&&["aguardando","devolvido"].includes(L.status);
+  const st={aberta:'<span class="chip c-bad">Aguardando RH</span>',aceita:'<span class="chip c-ok">Aceita</span>',recusada:'<span class="chip c-mute">Recusada</span>'};
+  return `<div class="ex" style="margin-bottom:16px;gap:10px">
+    <div class="ex-row" style="flex-wrap:wrap;gap:10px"><span><b>Conferência do gerente</b> · ${confChip(L)}</span>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}</span></div>
+    ${cs.length?`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Situação</th>${p.aprovar?"<th></th>":""}</tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${esc(c.em)} · ${esc(c.quem)}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:220px">${esc(c.just)}${c.resposta?`<br><span class="muted">RH: ${esc(c.resposta)}</span>`:""}</td><td>${st[c.status]||""}</td>${p.aprovar?`<td>${c.status==="aberta"?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table></div>`:""}
+  </div>`;
+}
+function pedirCorrecao(lid){
+  const L=LOTES.find(x=>x.id===lid),a=apurarLoja(L.lojaId),ps=pessoasLoja(a);
+  modal(`Pedir correção · ${loja(L.lojaId).curto}`,`<form id="pr-f-corr" class="form-grid">
+    <div class="field full"><label for="pr-c-pid">Colaborador</label><select class="input" id="pr-c-pid">${ps.map(x=>`<option value="${x.pid}">${esc(x.nome)} · ${esc(x.funcao)} · apurado ${brl(x.valor)}</option>`).join("")}</select></div>
+    <div class="field"><label>Valor apurado</label><input class="input num" id="pr-c-ap" value="${brl(ps[0].valor)}" disabled></div>
+    <div class="field"><label for="pr-c-real">Valor real (R$)</label><input class="input num" id="pr-c-real" inputmode="decimal" placeholder="0,00" required></div>
+    <div class="field full"><label for="pr-c-just">Justificativa</label><textarea class="input" id="pr-c-just" rows="4" required placeholder="Explique o motivo da correção: venda não considerada, período, loja, documento…"></textarea></div>
+    <p class="small muted full">O RH recebe o pedido e aceita ou recusa. A aprovação da loja fica parada até a resposta.</p></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-prcorrenviar="${lid}">Enviar pedido de correção</button>`);
+  const sel=$("#pr-c-pid");sel.onchange=()=>{const x=ps.find(y=>y.pid===sel.value);$("#pr-c-ap").value=brl(x.valor)};
+}
+const numBR=s=>{s=String(s||"").trim().replace(/[R$\s]/g,"");if(!s)return NaN;if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");return Number(s)};
 function detalheLote(id){
   const L=LOTES.find(x=>x.id===id),a=apurarLoja(L.lojaId),p=P();
   const linhas=[...a.vend.map(v=>{const n=v.per.filter(x=>x&&x.valor>0).length,m=v.per.filter(Boolean).length;return [v.nome,"Vendedor(a)",`${n} de ${m} ${a.fmt==="semanal"?"semanas":"quinzenas"} na meta${v.mes?" · bônus do mês":""}${v.acel?" · acelerador "+brl(v.acel):""}`,v.total]}),
@@ -7501,10 +7529,12 @@ function detalheLote(id){
   const pend=L.status==="aguardando";
   modal(`${loja(L.lojaId).nome} · ${COMP}`,`
     <div class="ex"><div class="ex-row"><span>Meta do mês da loja</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div class="ex-row"><span>Total da apuração</span><b>${brl(lotal(L).total)}</b></div></div>
+    ${confBox(L.lojaId)}
     <div class="card-head" style="margin:0"><h3>Equipe · aprovação do RH</h3>${ok(L.eq,"Aprovada","Falta RH")}</div>${tab(linhas)}
     <div class="card-head" style="margin:0"><h3>Gerente · aprovação da supervisora</h3>${ok(L.gr,"Aprovado","Falta supervisora")}</div>${tab([g])}
     ${p.acompanhar?`<h3>Andamento</h3><div class="timeline">${L.eventos.map(e=>`<div class="tl"><b>${esc(e.acao)}</b><span>${e.em} · ${esc(e.quem)}</span></div>`).join("")}</div>`:""}`,
     `${pend&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr))?`<button class="btn btn-danger" data-prdevolver="${L.id}">Devolver</button>`:""}${L.status==="devolvido"&&p.aprovar?`<button class="btn btn-primary" data-prreabrir="${L.id}">Reabrir para aprovação</button>`:""}${pend&&p.aprovar&&!L.eq?`<button class="btn btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${pend&&p.aprovarGer&&!L.gr?`<button class="btn btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}<button class="btn" data-close>Fechar</button>`);
+  const m=document.querySelector("#modal-root .modal");if(m)m.style.width="min(1100px,100%)";
 }
 
 /* ---------- Histórico ---------- */
@@ -7680,7 +7710,7 @@ function tAcessos(){
 }
 
 /* ---------- modais ---------- */
-function modal(title,body,foot){$("#modal-root").innerHTML=`<div class="overlay prem-modal" data-close><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="btn btn-ghost btn-sm" data-close>Fechar</button></div><div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`}
+function modal(title,body,foot){$("#modal-root").innerHTML=`<div class="overlay prem-modal" data-prfundo><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button class="btn btn-ghost btn-sm" data-close>Fechar</button></div><div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div></div>`}
 function closeModal(){$("#modal-root").innerHTML=""}
 function novaCampanha(){
   modal("Nova campanha",`<form id="pr-f-nova" class="form-grid">
@@ -7697,6 +7727,7 @@ const agora=()=>{const d=new Date();return String(d.getDate()).padStart(2,"0")+"
 function path(o,p){const k=p.split(".");const last=k.pop();k.forEach(x=>o=o[x]);return [o,last]}
 document.addEventListener("click",e=>{
   if(page!=="premiacoes")return;
+  if(e.target.hasAttribute&&e.target.hasAttribute("data-prfundo")){closeModal();return}
   const t=e.target.closest("button,[data-close],a,tr.click");if(!t)return;
   const d=t.dataset;
   if(d.prtab){e.preventDefault();closeModal();UI.tab=d.prtab;render();window.scrollTo(0,0);return}
@@ -7705,8 +7736,17 @@ document.addEventListener("click",e=>{
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
   if(d.prlote){detalheLote(d.prlote);return}
   if(d.prvend){fichaVend(d.prvend);return}
-  if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
-  if(d.praprovarger){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovarger);L.gr=true;registrar(L,"Prêmio do gerente aprovado");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": prêmio do gerente aprovado"+(L.eq?"":" · falta o RH aprovar a equipe"));return}
+  if(d.prconfok){const L=LOTES.find(x=>x.id===d.prconfok);L.conf="aprovado";registrar(L,"Apuração conferida e aprovada pelo gerente");gravar();render();toast(loja(L.lojaId).curto+": apuração aprovada pelo gerente");return}
+  if(d.prcorr){pedirCorrecao(d.prcorr);return}
+  if(d.prcorrenviar){const L=LOTES.find(x=>x.id===d.prcorrenviar),a=apurarLoja(L.lojaId),x=pessoasLoja(a).find(y=>y.pid===$("#pr-c-pid").value);const real=numBR($("#pr-c-real").value),just=($("#pr-c-just").value||"").trim();
+    if(!(real>=0)){toast("Informe o valor real em reais");return}if(just.length<10){toast("Escreva a justificativa (mínimo de 10 caracteres)");return}
+    L.correcoes=L.correcoes||[];L.correcoes.push({id:"c"+uid(),pid:x.pid,nome:x.nome,funcao:x.funcao,apurado:x.valor,real,just,status:"aberta",em:agora(),quem:quem()});L.conf="correcao";
+    registrar(L,`Correção pedida: ${x.nome} · apurado ${brl(x.valor)} → real ${brl(real)}`);gravar();closeModal();render();toast("Pedido de correção enviado ao RH");return}
+  if(d.prcaceita||d.prcrecusa){const [lid,cid]=(d.prcaceita||d.prcrecusa).split("|"),L=LOTES.find(x=>x.id===lid),c=L.correcoes.find(y=>y.id===cid);const aceita=!!d.prcaceita;
+    c.status=aceita?"aceita":"recusada";c.resposta=aceita?"Correção aceita":"Correção recusada";c.respEm=agora();c.respQuem=quem();
+    registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada");return}
+  if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);if(corrAbertas(L,"eq").length){toast("Responda antes a correção pedida pelo gerente");return}L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
+  if(d.praprovarger){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovarger);if(corrAbertas(L,"gr").length){toast("Responda antes a correção pedida pelo gerente");return}L.gr=true;registrar(L,"Prêmio do gerente aprovado");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": prêmio do gerente aprovado"+(L.eq?"":" · falta o RH aprovar a equipe"));return}
   if(d.prdevolver){const L=LOTES.find(x=>x.id===d.prdevolver);L.status="devolvido";registrar(L,"Devolvida para revisão");gravar();closeModal();render();toast(loja(L.lojaId).curto+": devolvida para revisão");return}
   if(d.prreabrir){const L=LOTES.find(x=>x.id===d.prreabrir);L.status="aguardando";L.eq=false;L.gr=false;delete L.congelado;registrar(L,"Reaberta para aprovação");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": reaberta para aprovação");return}
   if(d.prpago){const L=LOTES.find(x=>x.id===d.prpago);L.status="pago";registrar(L,"Pagamento confirmado");gravar();render();toast("Pagamento confirmado");return}
