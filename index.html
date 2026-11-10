@@ -4543,6 +4543,16 @@ const seloPJ=r=>r&&r.tipo==="pj"?` <span class="chip" style="background:#dbeafe;
 /* ---- cadastro de supervisores (menu Lojas) ---- */
 const supervisores=()=>(ST.supervisores=ST.supervisores||[]);
 const supDaLoja=id=>supervisores().find(s=>(s.lojas||[]).includes(id));
+/* supervisor(a) lotado(a) na loja: o gerente da unidade reporta a ele(a); acima do supervisor, sempre o Gestor Comercial */
+const ehSupervisor=e=>!!e&&!e.pj&&(supervisores().some(s=>s.ref==="e:"+e.id)||/supervisor(a| a)? de vendas|supervisora? comercial|supervisora? de lojas/.test(semAcento(e.cargo||"").toLowerCase()));
+function gestorComercialRef(){const p=(ST.pjs||[]).find(x=>!x.encerrado&&/gestor(a| a)? comercial|gerente comercial/.test(semAcento((x.area||"")+" "+(x.objeto||"")).toLowerCase()));if(p){const g=pjComoPessoa("p:"+p.id);if(g)return g}return ativos().find(e=>/gestor(a| a)? comercial|gerente comercial/.test(semAcento(e.cargo||"").toLowerCase()))||null}
+function gestorAutoLoja(e){const n=orgNivel(e.cargo);if(n===1)return null;const mesmos=ativos().filter(x=>x.lojaId===e.lojaId&&x.id!==e.id&&!x.foraOrg&&!ehSupervisor(x));for(let k=n-1;k>=1;k--){const c=mesmos.filter(x=>orgNivel(x.cargo)===k).sort((a,b)=>String(a.admissao).localeCompare(String(b.admissao)));if(c.length)return c[0]}return null}
+const gestorAutoSupBase=gestorAuto;
+gestorAuto=function(e){
+  if(ehSupervisor(e)){const g=gestorComercialRef();return g&&g.id!==e.id?g:gestorAutoSupBase(e)}
+  if(orgNivel(e.cargo)===1){const s=ativos().find(x=>x.id!==e.id&&x.lojaId===e.lojaId&&!x.foraOrg&&ehSupervisor(x));if(s)return s}
+  return gestorAutoLoja(e)||gestorAutoSupBase(e);
+};
 function supervisoresCard(){
   if(G())return "";const l=supervisores();const sem=ST.stores.filter(s=>lojaTemGente(s)&&!supDaLoja(s.id)&&!/diretoria|nucleo|núcleo|fabrica|fábrica/i.test(s.nome));
   return `<div class="card"><div class="card-head"><div><h2>Supervisores</h2><p>Carteira de lojas de cada supervisor (colaborador ou PJ). Usado no organograma da rede.</p></div><button class="btn btn-sm btn-primary" data-supnovo="1">+ Supervisor</button></div>
