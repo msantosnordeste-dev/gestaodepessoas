@@ -6406,7 +6406,10 @@ function vcPerfil(id){
   const lid=liderSnapshots().some(([l])=>l===id);
   const p=String(id).startsWith("p:");
   // sem login ainda: é o que o primeiro acesso criaria (PJ com time entra como gerente; os demais, como colaborador)
-  return {login:"",nome:(emp(id)||{}).nome||"",perfil:p&&lid?"gerente":"colaborador",lojas:[],colaborador_id:id,supervisor_id:null,ativo:true,simulado:true};
+  const ee=emp(id)||{},cg=String(ee.cargo||ee.area||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const sv=(ST.supervisores||[]).find(s=>String(s.ref||"").replace(/^e:/,"")===id);
+  const perfil=sv?"supervisor":/gestor(a)?\s*comercial/.test(cg)?"comercial":p&&lid?"gerente":"colaborador";
+  return {login:"",nome:ee.nome||"",perfil,lojas:perfil==="comercial"?ST.stores.map(s=>s.id):[],colaborador_id:id,supervisor_id:sv?sv.id:null,ativo:true,simulado:true};
 }
 async function vcMontar(id,Pf){
   const e=emp(id)||(Pf?{id,nome:Pf.nome||Pf.login||"Usuário",cargo:PERFIS[Pf.perfil]||Pf.perfil,lojaId:(Pf.lojas||[])[0]||null,admissao:null}:null);if(!e)throw new Error("Pessoa não encontrada.");
@@ -7429,7 +7432,7 @@ const gerLogin=()=>webNaoRH()&&PERFIL_W()==="gerente";
 const supLogin=()=>webNaoRH()&&PERFIL_W()==="supervisor";
 const P=()=>{const p=PERM[UI.view];if(!webNaoRH())return {...p,verMeu:false};const base={...p,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,regras:false,conferir:gerLogin(),verMeu:false};
   if(supLogin())return {...base,verRes:true,verSup:false,verHist:true,verMeu:true};
-  return {...base,verSup:!gerLogin()&&p.verSup,verMeu:gerLogin()}};
+  return {...base,verSup:!gerLogin()&&p.verSup,verMeu:gerLogin()||(!!PERFIL&&PERFIL.perfil==="comercial")}};
 const numLoja=s=>{const m=String(s&&s.id||"").match(/^lj-0*(\d+)/)||String(s&&s.nome||"").match(/Loja\s*0*(\d+)/i);return m?m[1]:null};
 const minhasLojasMod=()=>((typeof ST!=="undefined"&&ST&&ST.stores)||[]).map(s=>numLoja(s)).filter(Boolean).map(n=>"l"+n).filter(id=>LOJAS.some(l=>l.id===id));
 const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined"&&ST&&ST.stores)||[]).find(x=>numLoja(x)===n);return s?s.id:"lj-"+n};
@@ -7468,6 +7471,7 @@ function subnav(){
   return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Configurações",SUB_CF)}</div>`;
 }
 function pagina(){
+  if(webNaoRH()&&PERFIL&&PERFIL.perfil==="comercial"&&!UI.supIni){UI.supIni=1;UI.tab="meupremio"}
   if(supLogin()||gerLogin()){const r=SUB_AP.find(x=>x[0]==="resultados");if(r)r[1]="Prêmio da Equipe";TITULO.resultados="Prêmio da Equipe";if(!UI.supIni){UI.supIni=1;UI.tab="meupremio"}}
   if(webNaoRH()){UI.view=gerLogin()?"gerente":"gestora";if(gerLogin()){const ms=minhasLojasMod();if(!ms.length)return `<div class="prem-pg"><div class="card empty">Sua loja ainda não está na apuração de ${COMP}. Fale com o RH.</div></div>`;if(!ms.includes(MINHA))MINHA=ms[0]}}
   carregar();
@@ -7498,6 +7502,7 @@ function pagina(){
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
   const tot=aps.reduce((s,a)=>s+a.total,0),bat=aps.filter(a=>a.bateu).length;
+  if(!aps.length)return "";
   const ag=LOTES.filter(L=>ids.includes(L.lojaId)&&L.status==="aguardando");
   const pago=UI.view==="gerente"?HIST_GER.reduce((s,h)=>s+h.valor,0):HIST.filter(h=>ids.includes(h.lojaId)).reduce((s,h)=>s+h.total,0)+LOTES.filter(L=>ids.includes(L.lojaId)&&L.status==="pago").reduce((s,L)=>s+lotal(L).total,0);
   const c=[`<div class="card kpi hero"><span class="lbl">Apurado em ${COMP}</span><span class="val num">${brl0(tot)}</span><span class="sub">${aps.reduce((s,a)=>s+a.pessoas,0)} pessoas premiadas</span></div>`,
@@ -7907,7 +7912,19 @@ function tRanking(){
   <tbody>${L.map(r=>{const pos=UI.rkReg?r.pos_reg:r.pos,eu=minhas.has(r.loja_id);return `<tr ${eu?'style="background:var(--brand-soft,#e7f4ec)"':""}><td class="r num"><b>${pos}º</b> ${med(pos)}</td><td><b>${esc(r.nome)}</b>${eu?' <span class="chip c-brand">Sua loja</span>':""}</td><td>${esc(r.regional||"—")}</td><td class="num">${bar(+r.pct)}${pct(+r.pct)}${+r.pct>=CFG.metaMin?' <span class="chip c-ok">Bateu</span>':""}</td>${UI.rkReg?`<td class="r num">${r.pos}º de ${r.tot}</td>`:""}</tr>`}).join("")}</tbody></table></div>
   <p class="small muted">${L.length} lojas ${UI.rkReg?"na regional "+esc(UI.rkReg):"na rede"} · ${COMP}. O ranking mostra só o percentual atingido; valores de meta e venda das outras lojas não são exibidos.</p></div>`;
 }
+function tMeuPremioCom(){
+  const G=apurarGestao(),R=apurarSupervisao();
+  const bar=p=>`<span class="mbar"><i class="${p>=CFG.metaMin?"":"under"}" style="width:${Math.min(p,140)/1.4}%"></i></span>`;
+  return `<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Meu prêmio · ${COMP}</span><span class="val num">${brl(G.valor)}</span><span class="sub">Gestão comercial · ${G.faixa?pct2(G.faixa.pct)+" do faturamento da rede":"sem faixa atingida"}</span></div>
+    <div class="card kpi"><span class="lbl">Meta da rede</span><span class="val num">${brl(G.meta)}</span><span class="sub">${G.lojas} lojas</span></div><div class="card kpi"><span class="lbl">Faturamento da rede</span><span class="val num">${brl(G.venda)}</span><span class="sub">venda do mês</span></div><div class="card kpi"><span class="lbl">% da meta atingido</span><span class="val num">${pct(G.p)}</span><span class="sub">${bar(G.p)}</span></div></div>
+  <div class="card"><div class="card-head"><div><h2>Regra do prêmio</h2><p>${CFG.gest.faixas.map(f=>`${Number(f.min)>0?"a partir de "+pct(f.min):"qualquer resultado"} → ${pct2(f.pct)} do faturamento total da rede`).join(" · ")}</p></div></div>
+  <div class="table-wrap" style="margin:0"><table><thead><tr><th>Regional</th><th>Supervisão</th><th class="r">Meta</th><th class="r">Venda</th><th>% atingido</th><th class="r">Lojas</th></tr></thead><tbody>
+  ${R.map(x=>`<tr><td><b>${esc(x.reg)}</b></td><td>${esc(x.nome||"—")}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${brl(x.venda)}</td><td class="num">${bar(x.p)}${pct(x.p)}</td><td class="r num">${x.lojas.length}</td></tr>`).join("")}</tbody>
+  <tfoot><tr><td colspan="2">Rede</td><td class="r num">${brl(G.meta)}</td><td class="r num">${brl(G.venda)}</td><td class="num">${pct(G.p)}</td><td class="r num">${G.lojas}</td></tr></tfoot></table></div></div>
+  <p class="small muted">Valores em apuração: podem mudar até a aprovação do RH. O resultado das lojas está em Resultados e o das supervisoras em Supervisão e Gestão Comercial.</p>`;
+}
 function tMeuPremioSup(){
+  if(PERFIL&&PERFIL.perfil==="comercial"&&webNaoRH())return tMeuPremioCom();
   if(gerLogin())return tMeuPremioGer();
   const R=apurarSupervisao();
   if(!R.length)return `<div class="card empty">Nenhuma loja da sua carteira está na apuração de ${COMP}.</div>`;
