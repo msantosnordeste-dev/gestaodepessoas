@@ -1691,7 +1691,7 @@ async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
   SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;EQUIPE=[];$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
-  if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
+  if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_RANKVEND","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
   location.hash="";location.reload();
 }
 async function boot(){
@@ -7491,7 +7491,7 @@ async function carregarConf(){
 }
 const gerMulti=()=>UI.view==="gerente"&&gerLogin()&&minhasLojasMod().length>1;
 const escopo=()=>UI.view==="gerente"?(gerMulti()?minhasLojasMod():[MINHA]):LOJAS.map(l=>l.id);
-const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos e complementos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["rankvend","Ranking de Vendedores",()=>true],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos e complementos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"&&!webNaoRH()]];
 const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
 
@@ -7540,7 +7540,7 @@ function pagina(){
     <div class="top-actions">${acts.join("")}</div>
   </div>
   ${apTab?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,rankvend:tRankVend,descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -7974,6 +7974,56 @@ function tMeuPremioGer(){
       <div><span>Faixa atingida</span><b style="white-space:normal">${g.usadas.length?g.usadas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" + "):"Nenhuma"}</b></div><div><span>Prêmio da faixa</span><b>${brl(g.valor)}</b></div><div><span>Acelerador de vendas</span><b>${brl(g.acel)}</b></div><div><span>Total nesta loja</span><b>${brl(g.valor+g.acel)}</b></div></div></div>`}).join("")}
   ${ajustesHTML(tot)}<p class="small muted">Valores em apuração: podem mudar até a aprovação do RH. Para conferir a equipe e aprovar ou pedir correção, use <b>Prêmio da Equipe</b>.</p>`;
 }
+function rankVendLinhas(){
+  const rk=new Map((window.__PREM_RANKVEND||[]).map(r=>[r.vend_id,r]));const ids=new Set(escopo());
+  return VEND.filter(v=>ids.has(v.lojaId)).map(v=>{let meta=0,venda=0;Object.values(v.per||{}).forEach(x=>{meta+=+x.meta||0;venda+=(+x.vl||0)+(+x.vo||0)});
+    const r=rk.get(v.id);const pct=r?+r.pct:(meta>0?venda/meta*100:null);
+    return {id:v.id,nome:v.nome,lojaId:v.lojaId,loja:loja(v.lojaId).nome,num:loja(v.lojaId).num,reg:regDe(v.lojaId),meta,venda,pct,posL:r?r.pos_loja:null,totL:r?r.tot_loja:null,posN:r?r.pos_nac:null,totN:r?r.tot_nac:null,est:r?r.estrelas:0}}).filter(x=>x.pct!=null);
+}
+function rankVendFiltradas(){
+  let L=rankVendLinhas();const regs=[...new Set(L.map(x=>x.reg))].sort();if(UI.rvReg&&!regs.includes(UI.rvReg))UI.rvReg="";
+  L=L.filter(x=>!UI.rvReg||x.reg===UI.rvReg);const lojasF=[...new Map(L.map(x=>[x.lojaId,x])).values()].sort((a,b)=>a.num-b.num);if(UI.rvLoja&&!lojasF.some(x=>x.lojaId===UI.rvLoja))UI.rvLoja="";
+  L=L.filter(x=>!UI.rvLoja||x.lojaId===UI.rvLoja);const q=String(UI.rvBusca||"").trim().toLowerCase();if(q)L=L.filter(x=>x.nome.toLowerCase().includes(q));
+  const ord=UI.rvOrd||"nac";L.sort(ord==="loja"?(a,b)=>a.num-b.num||(a.posL||999)-(b.posL||999):(a,b)=>(a.posN||9999)-(b.posN||9999)||b.pct-a.pct);
+  return {L,regs,lojasF,ord};
+}
+function tRankVend(){
+  const {L,regs,lojasF,ord}=rankVendFiltradas();
+  if(!(window.__PREM_RANKVEND||[]).length&&!L.length)return `<div class="card empty">Ranking de vendedores indisponível para ${COMP}.</div>`;
+  const totN=(window.__PREM_RANKVEND||[]).length,bat=L.filter(x=>x.pct>=100).length;
+  const star=n=>`<span title="${n} de 5 estrelas" style="color:#e0a400;letter-spacing:1px;white-space:nowrap">${"★".repeat(n)}<span style="opacity:.25">${"★".repeat(5-n)}</span></span>`;
+  const med=n=>n===1?"🥇":n===2?"🥈":n===3?"🥉":"";
+  const bar=p=>`<span class="mbar"><i class="${p>=CFG.metaMin?"":"under"}" style="width:${Math.min(p,140)/1.4}%"></i></span>`;
+  const sel=(id,lbl,opts,val)=>`<select class="input" id="${id}" style="width:auto" aria-label="${lbl}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${v===val?"selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  const melhor=L.slice().sort((a,b)=>(a.posN||9999)-(b.posN||9999))[0];
+  let corpo="";
+  if(ord==="loja"){const grupos=[...new Set(L.map(x=>x.lojaId))];
+    corpo=grupos.map(id=>{const G=L.filter(x=>x.lojaId===id);return `<tr><td colspan="9" style="background:var(--surface-2,#f4f4f6);font-weight:600">${esc(loja(id).nome)} · ${esc(regDe(id))} · ${G.length} vendedores</td></tr>`+G.map(x=>linha(x)).join("")}).join("");}
+  else corpo=L.map(x=>linha(x)).join("");
+  function linha(x){return `<tr class="click" data-prvend="${esc(x.id)}"><td class="r num"><b>${x.posL??"–"}º</b> <span class="small muted">de ${x.totL??"–"}</span> ${med(x.posL)}</td><td class="r num"><b>${x.posN??"–"}º</b> <span class="small muted">de ${x.totN??"–"}</span> ${med(x.posN)}</td><td><b>${esc(x.nome)}</b></td><td class="small">${esc(x.loja)}</td><td class="small">${esc(x.reg)}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${brl(x.venda)}</td><td class="r num">${bar(x.pct)} ${pct(x.pct)}</td><td>${star(x.est||0)}</td></tr>`}
+  return `<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Vendedores no ranking · ${COMP}</span><span class="val num">${L.length}</span><span class="sub">de ${totN} no ranking nacional</span></div>
+  <div class="card kpi"><span class="lbl">Bateram a meta</span><span class="val num">${bat}</span><span class="sub">${L.length?pct(bat/L.length*100):"–"} dos listados</span></div>
+  <div class="card kpi"><span class="lbl">Melhor colocado</span><span class="val" style="font-size:1.05rem">${melhor?esc(melhor.nome):"–"}</span><span class="sub">${melhor?`${melhor.posN}º nacional · ${pct(melhor.pct)} · ${esc(melhor.loja)}`:""}</span></div></div>
+  <div class="card"><div class="toolbar" style="flex-wrap:wrap;gap:8px">
+   ${regs.length>1?sel("pr-f-rvreg","Regional",[["","Todas as regionais"],...regs.map(r=>[r,r])],UI.rvReg||""):""}
+   ${lojasF.length>1?sel("pr-f-rvloja","Loja",[["","Todas as lojas"],...lojasF.map(x=>[x.lojaId,x.loja])],UI.rvLoja||""):""}
+   ${sel("pr-f-rvord","Ordenar",[["nac","Ordenar pelo ranking nacional"],["loja","Agrupar por loja (ranking da loja)"]],ord)}
+   <input class="input" id="pr-f-rvbusca" type="search" placeholder="Buscar vendedor" value="${esc(UI.rvBusca||"")}" style="width:auto;min-width:180px">
+   <button class="btn" data-prrvexp="1" style="margin-left:auto">Exportar planilha</button></div>
+  <p class="small muted" style="margin:6px 0 10px">Classificação pelo % da meta do mês atingido (venda ÷ meta) em ${COMP}. A posição nacional considera todos os ${totN} vendedores da rede; a posição na loja considera só os colegas da mesma loja. Clique no nome para ver o detalhe.</p>
+  <div class="table-wrap"><table><thead><tr><th class="r">Ranking loja</th><th class="r">Ranking nacional</th><th>Vendedor</th><th>Loja</th><th>Regional</th><th class="r">Meta</th><th class="r">Venda</th><th class="r">% atingido</th><th>Estrelas</th></tr></thead>
+  <tbody>${corpo||`<tr><td colspan="9" class="muted">Nenhum vendedor com esses filtros.</td></tr>`}</tbody></table></div></div>`;
+}
+async function exportRankVend(){
+  const {L}=rankVendFiltradas();if(!L.length){toast("Nada para exportar");return}
+  if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  const aoa=[["Ranking nacional","Total nacional","Ranking na loja","Total na loja","Vendedor","Loja","Regional","Meta","Venda","% atingido","Estrelas"],...L.map(x=>[x.posN,x.totN,x.posL,x.totL,x.nome,x.loja,x.reg,Math.round(x.meta*100)/100,Math.round(x.venda*100)/100,Math.round(x.pct*100)/10000,x.est])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);for(let r=1;r<aoa.length;r++){[7,8].forEach(c=>{const z=ws[XLSX.utils.encode_cell({r,c})];if(z)z.z="#,##0.00"});const p=ws[XLSX.utils.encode_cell({r,c:9})];if(p)p.z="0.00%"}
+  ws["!cols"]=[{wch:10},{wch:9},{wch:10},{wch:9},{wch:38},{wch:28},{wch:16},{wch:14},{wch:14},{wch:11},{wch:8}];ws["!autofilter"]={ref:"A1:K"+aoa.length};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Ranking vendedores");
+  if(typeof logEvento==="function")logEvento("Premiações · Exportação ranking de vendedores",L.length+" vendedores · "+COMP);
+  await salvarArquivo(XLSX.write(wb,{bookType:"xlsx",type:"array"}),"ranking-vendedores-"+COMP_ISO+".xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
 function tRanking(){
   const rk=window.__PREM_RANKLOJAS||[];if(!rk.length)return `<div class="card empty">Ranking indisponível para ${COMP}.</div>`;
   const regs=[...new Set(rk.map(r=>r.regional).filter(Boolean))].sort();if(UI.rkReg&&!regs.includes(UI.rkReg))UI.rkReg="";
@@ -8146,6 +8196,7 @@ document.addEventListener("click",e=>{
   if(t.hasAttribute("data-close")&&(e.target===t||t.matches("button"))){closeModal();return}
   if(d.prview){UI.view=d.prview;UI.loja="";render();return}
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
+  if(d.prrvexp){exportRankVend();return}
   if(d.prlote){detalheLote(d.prlote);return}
   if(d.prvend){fichaVend(d.prvend);return}
   if(d.prconfok&&typeof SB!=="undefined"&&SB){const L=LOTES.find(x=>x.id===d.prconfok);t.disabled=true;
@@ -8217,6 +8268,10 @@ document.addEventListener("change",e=>{
   if(t.id==="pr-f-reg"){UI.reg=t.value;UI.loja="";setTimeout(render);return}
   if(t.id==="pr-f-hloja"){UI.histLoja=t.value;setTimeout(render);return}
   if(t.id==="pr-f-rkreg"){UI.rkReg=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-rvreg"){UI.rvReg=t.value;UI.rvLoja="";setTimeout(render);return}
+  if(t.id==="pr-f-rvloja"){UI.rvLoja=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-rvord"){UI.rvOrd=t.value;setTimeout(render);return}
+  if(t.id==="pr-f-rvbusca"){UI.rvBusca=t.value;setTimeout(()=>{render();const b=document.getElementById("pr-f-rvbusca");if(b){b.focus();b.setSelectionRange(b.value.length,b.value.length)}});return}
   if(t.id==="pr-f-hreg"){UI.histReg=t.value;UI.histLoja="";setTimeout(render);return}
   if(d.prcfg){const [o,k]=path(CFG,d.prcfg);o[k]=t.type==="checkbox"?t.checked:t.type==="number"?(parseFloat(t.value)||0):t.value;setTimeout(render);return}
   if(d.prsupval){CFG.sup.valores=CFG.sup.valores||{};CFG.sup.valores[d.prsupval]=parseFloat(t.value)||0;setTimeout(render);return}
@@ -8239,6 +8294,7 @@ async function carregarPremData(){
     const sup={};lj.forEach(r=>((r.dados&&r.dados.sup)||[]).forEach(s=>{const x=sup[s.id]=sup[s.id]||{...s,lojas:[]};(s.lojas||[]).forEach(id=>{if(!x.lojas.includes(id))x.lojas.push(id)})}));
     if(ROLE!=="rh"){try{const {data}=await SB.rpc("premiacoes_meus_lancamentos",{p_comp:CMP});window.__PREM_MEULANC=Array.isArray(data)?data:[]}catch(e){window.__PREM_MEULANC=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_lojas",{p_comp:CMP});window.__PREM_RANKLOJAS=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKLOJAS=[]}}
+    if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_vendedores",{p_comp:CMP});window.__PREM_RANKVEND=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKVEND=[]}}
     window.__PREM_PER=(lj.find(r=>r.dados&&r.dados.periodos)||{dados:{}}).dados.periodos||(CMP!=="2026-10"?premPeriodosPadrao(CMP):null);
     window.__PREM_DATA={LOJAS:lj.map(r=>r.dados.loja).sort((x,y)=>x.num-y.num),
       VEND:vd.map(v=>({id:v.vend_id,nome:v.nome,lojaId:v.loja_id,per:Object.fromEntries(Object.entries(v.per||{}).map(([k,x])=>[k,{meta:+x.meta,vl:+x.vl,vo:+(x.vo||0),vi:x.vi!=null?+x.vi:+x.vl,od:x.od||""}]))})),
