@@ -7124,6 +7124,8 @@ const fxMin=(f,P)=>Number(f.min)>0?(P||pct)(f.min):"qualquer resultado";{
 const CACHE=new Map();
 const ACEL=DATA.ACEL||{v:{},g:{}};
 const acelTxt=d=>d?[d.nec?"Necessaire "+brl(d.nec):"",d.bon?"Boné "+brl(d.bon):"",d.cam?"Camiseta "+brl(d.cam):""].filter(Boolean).join(" · "):"";
+function supNomesLista(){const s=new Set((CFG.supNomes||[]).map(nCargo));try{const sv=(typeof ST!=="undefined"&&ST&&ST.supervisores)||[];sv.forEach(x=>{const id=String(x.ref||"").replace(/^e:/,"");const e=((ST&&ST.emps)||[]).find(y=>y.id===id);if(e){s.add(nCargo(e.nome));if(e.nomeCivil)s.add(nCargo(e.nomeCivil))}})}catch(e){}return s}
+const ehSupNome=n=>!!n&&supNomesLista().has(nCargo(n));
 function apurarLoja(id){
   const key=id+JSON.stringify(CFG);if(CACHE.has(key))return CACHE.get(key);
   const fmt=CFG.formato[id],R=CFG.vend[fmt],ps=periodos(fmt);
@@ -7146,7 +7148,7 @@ function apurarLoja(id){
     return {...s,valor};
   });
   const GR=(CFG.gerLoja&&CFG.gerLoja[id])||CFG.ger;const gf=faixasPag(pMes,GR.faixas,GR.acumula,f=>f.base==="meta"?metaMes:vendaMes);
-  const gac=(ACEL.g||{})[id]||null;const ger={...GER[id],acel:gac?gac.total:0,acelD:gac,valor:gf.v,usadas:gf.usadas,regra:GR,propria:GR!==CFG.ger};
+  const gacR=(ACEL.g||{})[id]||null,gSup=ehSupNome((GER[id]||{}).nome),gac=gSup?null:gacR;const ger={...GER[id],supervisora:gSup,acelIgnorado:gSup&&gacR?gacR.total:0,acel:gac?gac.total:0,acelD:gac,valor:gf.v,usadas:gf.usadas,regra:GR,propria:GR!==CFG.ger};
   const tv=vend.reduce((s,v)=>s+v.premio,0),ts=sup.reduce((s,x)=>s+x.valor,0),tav=vend.reduce((s,v)=>s+v.acel,0),tag=ger.acel,ta=tav+tag;
   const r={id,fmt,ps,metaMes,vendaMes,pMes,bateu,vend,ex,sup,ger,tv,ts,tg:ger.valor,tav,tag,ta,total:tv+ts+ger.valor+ta,pessoas:vend.filter(v=>v.total>0).length+sup.filter(s=>s.valor>0).length+(ger.valor+ger.acel>0?1:0)};
   CACHE.set(key,r);return r;
