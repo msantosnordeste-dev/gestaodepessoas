@@ -7349,7 +7349,7 @@ let CONF_OK=false;
 async function carregarConf(){
   try{const {data,error}=await SB.from("premiacoes_conferencia").select("*").eq("comp",COMP_ISO).order("criado_em");if(error)throw error;
     LOTES.forEach(L=>{const n=loja(L.lojaId).num,rs=(data||[]).filter(r=>+r.loja_num===+n);
-      L.correcoes=rs.filter(r=>r.tipo==="correcao").map(r=>({id:r.id,pid:r.pid,nome:r.colaborador,funcao:r.funcao,apurado:+r.apurado,real:+r.valor_real,just:r.justificativa,status:r.status,resposta:r.resposta||"",em:new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),quem:r.autor_nome||""}));
+      L.correcoes=rs.filter(r=>r.tipo==="correcao").map(r=>({id:r.id,pedido:r.pedido||r.id,pid:r.pid,nome:r.colaborador,funcao:r.funcao,apurado:+r.apurado,real:+r.valor_real,just:r.justificativa,status:r.status,resposta:r.resposta||"",em:new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),quem:r.autor_nome||""}));
       const apr=rs.filter(r=>r.tipo==="aprovacao").pop();const ultCorr=rs.filter(r=>r.tipo==="correcao").pop();
       L.conf=apr&&(!ultCorr||apr.criado_em>ultCorr.criado_em)?"aprovado":L.correcoes.length?"correcao":null;
       if(typeof sync==="function")sync(L)});
@@ -7582,14 +7582,33 @@ function confBox(id){
 }
 function pedirCorrecao(lid){
   const L=LOTES.find(x=>x.id===lid),a=apurarLoja(L.lojaId),ps=pessoasLoja(a);
-  modal(`Pedir correção · ${loja(L.lojaId).curto}`,`<form id="pr-f-corr" class="form-grid">
-    <div class="field full"><label for="pr-c-pid">Colaborador</label><select class="input" id="pr-c-pid">${ps.map(x=>`<option value="${x.pid}">${esc(x.nome)} · ${esc(x.funcao)} · apurado ${brl(x.valor)}</option>`).join("")}</select></div>
-    <div class="field"><label>Valor apurado</label><input class="input num" id="pr-c-ap" value="${brl(ps[0].valor)}" disabled></div>
-    <div class="field"><label for="pr-c-real">Valor real (R$)</label><input class="input num" id="pr-c-real" inputmode="decimal" placeholder="0,00" required></div>
-    <div class="field full"><label for="pr-c-just">Justificativa</label><textarea class="input" id="pr-c-just" rows="4" required placeholder="Explique o motivo da correção: venda não considerada, período, loja, documento…"></textarea></div>
-    <p class="small muted full">O RH recebe o pedido e aceita ou recusa. A aprovação da loja fica parada até a resposta.</p></form>`,
-    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-prcorrenviar="${lid}">Enviar pedido de correção</button>`);
-  const sel=$("#pr-c-pid");sel.onchange=()=>{const x=ps.find(y=>y.pid===sel.value);$("#pr-c-ap").value=brl(x.valor)};
+  modal(`Pedir correção · ${loja(L.lojaId).curto}`,`<p class="small muted">Preencha o <b>valor real</b> e a <b>justificativa</b> só de quem precisa de correção. Você pode corrigir várias pessoas no mesmo pedido.</p>
+    <div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real (R$)</th><th>Justificativa</th></tr></thead><tbody>
+    ${ps.map((x,i)=>`<tr><td><b>${esc(x.nome)}</b><br><span class="small muted">${esc(x.funcao)}</span></td><td class="r num">${brl(x.valor)}</td>
+      <td class="r"><input class="input num" style="width:120px" inputmode="decimal" placeholder="0,00" data-pcreal="${i}" aria-label="Valor real de ${esc(x.nome)}"></td>
+      <td style="min-width:260px"><input class="input" data-pcjust="${i}" placeholder="Motivo (mín. 10 caracteres)" aria-label="Justificativa de ${esc(x.nome)}"></td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="field"><label for="pr-c-geral">Justificativa geral (opcional, vale para as linhas sem justificativa)</label><textarea class="input" id="pr-c-geral" rows="2"></textarea></div>
+    <p class="small muted">O RH aceita ou recusa cada linha. A aprovação da loja fica parada até a resposta.</p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-prcorrmulti="${lid}">Enviar pedido de correção</button>`);
+  const m=document.querySelector("#modal-root .modal");if(m)m.style.width="min(1100px,100%)";
+}
+function enviarCorrecoes(lid,btn){
+  const L=LOTES.find(x=>x.id===lid),a=apurarLoja(L.lojaId),ps=pessoasLoja(a),geral=($("#pr-c-geral").value||"").trim();
+  const itens=[];let erro="";
+  ps.forEach((x,i)=>{const rv=(document.querySelector(`[data-pcreal="${i}"]`).value||"").trim();if(!rv)return;const real=numBR(rv);const just=((document.querySelector(`[data-pcjust="${i}"]`).value||"").trim())||geral;
+    if(!(real>=0))erro=erro||`Valor real inválido para ${x.nome}`;else if(just.length<10)erro=erro||`Escreva a justificativa de ${x.nome} (mínimo de 10 caracteres)`;else itens.push({x,real,just})});
+  if(erro){toast(erro);return}if(!itens.length){toast("Informe o valor real de pelo menos uma pessoa");return}
+  const pedido="p"+uid(),resumo=itens.map(i=>`${i.x.nome}: ${brl(i.x.valor)} → ${brl(i.real)}`).join(" · ");
+  const fim=()=>{closeModal();render();toast(`Pedido enviado com ${itens.length} correção(ões)`)};
+  if(typeof SB!=="undefined"&&SB&&typeof COMP_ISO!=="undefined"){btn.disabled=true;
+    SB.from("premiacoes_conferencia").insert(itens.map(i=>({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"correcao",status:"aberta",pedido,pid:i.x.pid,colaborador:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,valor_real:i.real,justificativa:i.just,autor_nome:quem()}))).then(({error})=>{
+      if(error){btn.disabled=false;toast("Não foi possível enviar: "+error.message);return}
+      if(typeof logEvento==="function")logEvento("Premiações · Correção pedida",`${loja(L.lojaId).curto} · ${itens.length} pessoa(s) · ${resumo}`.slice(0,300));
+      if(podeGravar()){L.eventos.push(ev(agora(),quem(),`Pedido de correção (${itens.length}): ${resumo}`));gravar()}
+      carregarConf().then(fim)});return}
+  L.correcoes=L.correcoes||[];itens.forEach(i=>L.correcoes.push({id:"c"+uid(),pedido,pid:i.x.pid,nome:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,real:i.real,just:i.just,status:"aberta",em:agora(),quem:quem()}));L.conf="correcao";
+  registrar(L,`Pedido de correção (${itens.length}): ${resumo}`);gravar();fim();
 }
 const numBR=s=>{s=String(s||"").trim().replace(/[R$\s]/g,"");if(!s)return NaN;if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");return Number(s)};
 function detalheLote(id){
@@ -7814,6 +7833,7 @@ document.addEventListener("click",e=>{
       if(typeof logEvento==="function")logEvento("Premiações · Apuração conferida pelo gerente",loja(L.lojaId).nome+" · "+COMP);if(podeGravar()){L.eventos.push(ev(agora(),quem(),"Apuração conferida e aprovada pelo gerente"));gravar()}carregarConf().then(()=>{render();toast(loja(L.lojaId).curto+": apuração aprovada")})});return}
   if(d.prconfok){const L=LOTES.find(x=>x.id===d.prconfok);L.conf="aprovado";registrar(L,"Apuração conferida e aprovada pelo gerente");gravar();render();toast(loja(L.lojaId).curto+": apuração aprovada pelo gerente");return}
   if(d.prcorr){pedirCorrecao(d.prcorr);return}
+  if(d.prcorrmulti){enviarCorrecoes(d.prcorrmulti,t);return}
   if(d.prcorrenviar){const L=LOTES.find(x=>x.id===d.prcorrenviar),a=apurarLoja(L.lojaId),x=pessoasLoja(a).find(y=>y.pid===$("#pr-c-pid").value);const real=numBR($("#pr-c-real").value),just=($("#pr-c-just").value||"").trim();
     if(!(real>=0)){toast("Informe o valor real em reais");return}if(just.length<10){toast("Escreva a justificativa (mínimo de 10 caracteres)");return}
     if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").insert({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"correcao",status:"aberta",pid:x.pid,colaborador:x.nome,funcao:x.funcao,apurado:x.valor,valor_real:real,justificativa:just,autor_nome:quem()}).then(({error})=>{if(error){t.disabled=false;toast("Não foi possível enviar: "+error.message);return}
@@ -7868,7 +7888,7 @@ return {pagina,subnav,meuPremio};
 })();}
 let PREM_CARREG=false,PREM_ERRO="";
 async function carregarPremData(){
-  if(PREM_CARREG)return;PREM_CARREG=true;PREM_ERRO="";
+  if(PREM_CARREG||PREM)return;PREM_CARREG=true;PREM_ERRO="";
   try{
     let lj=[],vd=[],agg=null;
     if(ROLE==="colaborador"){const {data,error}=await SB.rpc("premiacoes_meu_resultado",{p_comp:"2026-10"});if(error)throw error;vd=(data&&data.vend)||[];lj=(data&&data.lojas)||[];agg=(data&&data.agg)||{}}
