@@ -7331,7 +7331,7 @@ const PERFIS={
   gestora:{t:"Gestora comercial",quem:"Patricia dos Santos Araujo",cargo:"Gestora comercial · visualização",escopo:"Todas as lojas"},
   gerente:{t:"Gerente",quem:"Lucas Marinho da Rocha",cargo:"Gerente · Loja 35",escopo:"Própria loja · histórico só dele"}
 };
-const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["conferir","Conferir a apuração da loja (gerente)"],["verSup","Ver prêmio da supervisão e gestão"],["regras","Editar regras"]];
+const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Importar no Swile"],["verHist","Ver histórico"],["conferir","Conferir a apuração da loja (gerente)"],["verSup","Ver prêmio da supervisão e gestão"],["regras","Editar regras"]];
 const PERM={
   rh:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
   supervisora:{verSup:true,verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
@@ -7341,7 +7341,7 @@ const PERM={
 let MINHA="l35";
 
 /* ================= lotes de aprovação e histórico ================= */
-const ST_L={aguardando:["Aguardando aprovação","c-warn",1],devolvido:["Devolvido para revisão","c-bad",1],aprovado:["Aprovado","c-info",2],folha:["Lançado na folha","c-brand",3],pago:["Pago","c-ok",4]};
+const ST_L={aguardando:["Aguardando aprovação","c-warn",1],devolvido:["Devolvido para revisão","c-bad",1],aprovado:["Aprovado","c-info",2],folha:["Importado no Swile","c-brand",3],pago:["Pago","c-ok",4]};
 const ev=(em,quem,acao)=>({em,quem,acao});
 const LOTES=LOJAS.map(l=>({id:"L"+l.id,comp:COMP,lojaId:l.id,status:"aguardando",eq:false,gr:false,eventos:[ev("09/11 13:00","Sistema","Apuração de Outubro/2026 importada: metas Indeva + vendas Totvs"),ev("09/11 13:01","Sistema","Enviada para aprovação")],congelado:null}));
 const ajL=(L,tipo)=>(L.correcoes||[]).filter(c=>c.status==="aceita"&&(!tipo||(tipo==="gr"?c.pid==="ger":c.pid!=="ger"))).reduce((s,c)=>s+(c.real-c.apurado),0);
@@ -7561,7 +7561,7 @@ function tResultados(){
 }
 
 /* ---------- Aprovações ---------- */
-function steps(st){const n=ST_L[st][2];return `<span class="steps" title="Apurado → RH → Folha → Pago">${[1,2,3,4].map(i=>`<i class="${st==="devolvido"&&i===1?"bad":i<=n?"on":""}"></i>`).join("")}</span>`}
+function steps(st){const n=ST_L[st][2];return `<span class="steps" title="Apurado → RH → Swile → Pago">${[1,2,3,4].map(i=>`<i class="${st==="devolvido"&&i===1?"bad":i<=n?"on":""}"></i>`).join("")}</span>`}
 const ok=(v,txt,falta)=>v?`<span class="chip c-ok">${txt}</span>`:`<span class="chip c-warn">${falta}</span>`;
 function tAprov(){
   const p=P(),ids=escopo();
@@ -7571,7 +7571,7 @@ function tAprov(){
   const podeDev=L=>L.status==="aguardando"&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr));
   return `<div class="card">
     <div class="card-head"><div><h2>${COMP}</h2><p>${papel}</p></div>
-      ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) na folha</button>`:""}</div>
+      ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) no Swile</button>`:""}</div>
     ${ls.length?`<div class="table-wrap"><table>
       <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação supervisora</th><th class="r">Total</th><th>Conferência do gerente</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
       <tbody>${ls.map(L=>{const S=ST_L[L.status],t=lotal(L);return `<tr>
@@ -7582,8 +7582,8 @@ function tAprov(){
         ${p.acompanhar?`<td>${steps(L.status)}</td>`:""}
         <td class="r"><button class="btn btn-sm" data-prlote="${L.id}">Detalhar</button>${podeDev(L)?` <button class="btn btn-sm btn-ghost" data-prdevolver="${L.id}">Devolver</button>`:""}${p.aprovar&&!L.eq&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${p.aprovarGer&&!L.gr&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}</td></tr>`}).join("")}</tbody>
       <tfoot><tr><td>Total</td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).eqv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).gv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).total,0))}</td><td colspan="${p.acompanhar?4:3}"></td></tr></tfoot>
-    </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas lançadas na folha estão em Histórico de Premiações.</div>`}
-    <p class="note" style="margin-top:14px">A loja só vai para a folha quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
+    </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas importadas no Swile estão em Histórico de Premiações.</div>`}
+    <p class="note" style="margin-top:14px">A loja só vai para o Swile quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
   </div>`;
 }
 const odBR=s=>String(s||"").replace(/R\$\s*([\d,]+\.\d{2})/g,(m,n)=>brl(parseFloat(n.replace(/,/g,""))));
@@ -7678,7 +7678,7 @@ function evolEtapas(L){
     {k:"ok",t:"Apuração importada",d:(evs[0]||{}).em||""},
     L.status==="devolvido"?{k:"alerta",t:"Devolvida para revisão",d:ach(/Devolvida/)}:{k:apRH?"ok":"atual",t:apRH?"Aprovada pelo RH":"Aprovação do RH",d:apRH?ach(/aprovad/i):"aguardando o RH"},
     ger,
-    {k:["folha","pago"].includes(L.status)?"ok":apRH?"atual2":"futuro",t:"Lançada na folha",d:ach(/Lançada na folha/)},
+    {k:["folha","pago"].includes(L.status)?"ok":apRH?"atual2":"futuro",t:"Importada no Swile",d:ach(/Lançada na folha|Importada no Swile/)},
     {k:L.status==="pago"?"ok":"futuro",t:"Paga",d:ach(/Pagamento confirmado/)}].map(e=>e.k==="atual2"?{...e,k:"futuro"}:e);
 }
 function evolLinha(L,compacta){
@@ -7698,7 +7698,7 @@ function evolResumo(ids){
   const c={rh:0,ger:0,corr:0,conf:0,folha:0,pago:0};
   Ls.forEach(L=>{if(L.status==="pago")c.pago++;else if(L.status==="folha")c.folha++;else if(!["aprovado"].includes(L.status))c.rh++;else if(corrAbertas(L).length)c.corr++;else if(L.conf==="aprovado")c.conf++;else c.ger++});
   const it=(n,t,cls)=>`<div class="card kpi" style="padding:12px 14px"><span class="lbl">${t}</span><span class="val num" style="font-size:24px${cls?";color:"+cls:""}">${n}</span></div>`;
-  return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">${it(c.rh,"Aguardando RH")}${it(c.ger,"Aguardando gerente")}${it(c.corr,"Correção pedida",c.corr?"#c2410c":"")}${it(c.conf,"Conferidas")}${it(c.folha,"Na folha")}${it(c.pago,"Pagas")}</div>`;
+  return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">${it(c.rh,"Aguardando RH")}${it(c.ger,"Aguardando gerente")}${it(c.corr,"Correção pedida",c.corr?"#c2410c":"")}${it(c.conf,"Conferidas")}${it(c.folha,"No Swile")}${it(c.pago,"Pagas")}</div>`;
 }
 function confChip(L){const ab=corrAbertas(L).length;return ab?`<span class="chip c-bad">${ab} correção(ões) pedida(s)</span>`:L.conf==="aprovado"?'<span class="chip c-ok">Conferida</span>':(L.correcoes||[]).length?'<span class="chip c-info">Correção respondida</span>':'<span class="chip c-mute">Aguardando gerente</span>'}
 function pessoasLoja(a){return [...a.vend.map(v=>({pid:v.id,nome:v.nome,funcao:"Vendedor(a)",valor:v.total})),...a.sup.map(s=>({pid:s.id,nome:s.nome,funcao:s.cargo,valor:s.valor})),{pid:"ger",nome:a.ger.nome||"Gerente",funcao:"Gerente de loja",valor:a.ger.valor+a.ger.acel}]}
@@ -7708,7 +7708,7 @@ function confBox(id){
   const st={aberta:'<span class="chip c-bad">Aguardando RH</span>',aceita:'<span class="chip c-ok">Aceita</span>',recusada:'<span class="chip c-mute">Recusada</span>'};
   return `<div class="ex" style="margin-bottom:16px;gap:10px">
     <div class="ex-row" style="flex-wrap:wrap;gap:10px"><span><b>Conferência do gerente</b> · ${confChip(L)}</span>
-      <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}${p.conferir&&!pode?`<span class="small muted">Conferência encerrada: a apuração desta loja já foi ${({aprovado:"aprovada pelo RH",folha:"lançada na folha",pago:"paga"})[L.status]||L.status}.</span>`:""}</span></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}${p.conferir&&!pode?`<span class="small muted">Conferência encerrada: a apuração desta loja já foi ${({aprovado:"aprovada pelo RH",folha:"importada no Swile",pago:"paga"})[L.status]||L.status}.</span>`:""}</span></div>
     ${cs.length?`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Situação</th>${p.aprovar?"<th></th>":""}</tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${esc(c.em)} · ${esc(c.quem)}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:220px">${esc(c.just)}${c.resposta?`<br><span class="muted">RH: ${esc(c.resposta)}</span>`:""}</td><td>${st[c.status]||""}</td>${p.aprovar?`<td>${c.status==="aberta"?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table></div>`:""}
   </div>`;
 }
@@ -8044,7 +8044,7 @@ document.addEventListener("click",e=>{
     render();toast(novos+" incluído(s) e "+atual+" atualizado(s). Confira e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
-  if(act==="lancar"){let n=0,bloq=0,semGer=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){if(corrAbertas(L).length){bloq++;return}if(L.conf!=="aprovado")semGer++;L.status="folha";registrar(L,"Lançada na folha de Novembro/2026");n++}});if(n)gravar();render();toast(n+" loja(s) lançada(s) na folha de Novembro/2026"+(bloq?" · "+bloq+" com correção do gerente em aberto ficaram de fora":"")+(semGer?" · "+semGer+" sem conferência do gerente":""));return}
+  if(act==="lancar"){let n=0,bloq=0,semGer=0;LOTES.forEach(L=>{if(L.status==="aprovado"&&escopo().includes(L.lojaId)){if(corrAbertas(L).length){bloq++;return}if(L.conf!=="aprovado")semGer++;L.status="folha";registrar(L,"Importada no Swile");n++}});if(n)gravar();render();toast(n+" loja(s) importada(s) no Swile"+(bloq?" · "+bloq+" com correção do gerente em aberto ficaram de fora":"")+(semGer?" · "+semGer+" sem conferência do gerente":""));return}
   if(act==="nova"){novaCampanha();return}
   if(act==="padrao"){CFG=clone(CFG_PADRAO);render();toast("Regras padrão carregadas. Clique em Salvar regras para gravar.");return}
   if(act==="salvar"){if(!podeGravar()){toast("Somente a conta do RH grava regras");return}CFG_SALVO=clone(CFG);LOTES.forEach(sync);if(typeof logEvento==="function")logEvento("Premiações · Regras de apuração salvas",COMP);gravar();render();toast("Regras salvas. As apurações aguardando aprovação foram recalculadas.");return}
