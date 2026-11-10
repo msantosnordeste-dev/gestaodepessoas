@@ -7067,6 +7067,68 @@ function apurarLoja(id){
   CACHE.set(key,r);return r;
 }
 function lojaBateu(id){return apurarLoja(id).bateu}
+/* ---------- PDF do resultado (rede/regional ou loja) ---------- */
+async function salvarPDF(doc,nome){
+  const buf=doc.output("arraybuffer");
+  const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
+  if(dl){try{await dl.save({filename:nome,data:buf});toast("PDF salvo");return}catch(e){if(e&&e.code==="declined")return}}
+  try{const url=URL.createObjectURL(new Blob([buf],{type:"application/pdf"}));const el=document.createElement("a");el.href=url;el.download=nome;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("PDF baixado")}
+  catch(e){toast("Não foi possível gerar o PDF aqui.")}
+}
+function gerarPDF(){
+  const J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast("Gerador de PDF não carregou. Recarregue a página.");return}
+  const doc=new J({orientation:"landscape",unit:"mm",format:"a4"});
+  const VERDE=[11,127,74],W=doc.internal.pageSize.getWidth();
+  const sel=UI.view==="gerente"?MINHA:UI.loja;
+  const quemGerou=((typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH");
+  const agoraTxt=new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  const topo=(titulo,sub)=>{doc.setFillColor(...VERDE);doc.rect(0,0,W,20,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text("Premiações e Incentivos · "+COMP,12,9);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(titulo,12,15);doc.text("Brasileiríssima · ConectaGP",W-12,9,{align:"right"});doc.text(sub,W-12,15,{align:"right"});doc.setTextColor(16,32,26)};
+  const base={theme:"grid",styles:{fontSize:8,cellPadding:1.6,lineColor:[223,232,227],lineWidth:.1,textColor:[16,32,26]},headStyles:{fillColor:VERDE,textColor:255,fontStyle:"bold"},footStyles:{fillColor:[240,250,244],textColor:[16,32,26],fontStyle:"bold"},margin:{left:12,right:12,bottom:14},
+    didDrawPage:()=>{doc.setFontSize(7);doc.setTextColor(91,109,100);doc.text(`Gerado em ${agoraTxt} por ${quemGerou} · metas Indeva, vendas Totvs · valores sem arredondamento, exibidos em centavos`,12,doc.internal.pageSize.getHeight()-6);doc.text("Página "+doc.internal.getNumberOfPages(),W-12,doc.internal.pageSize.getHeight()-6,{align:"right"});doc.setTextColor(16,32,26)}};
+  const R=v=>brl(v),Pc=v=>pct(v);
+  let nome;
+  if(!sel){
+    const aps=escopo().filter(id=>!UI.reg||regDe(id)===UI.reg).map(apurarLoja);
+    topo(UI.reg?"Resultado da regional "+UI.reg:"Resultado da rede · todas as regionais",aps.length+" lojas · "+aps.filter(a=>a.bateu).length+" na meta");
+    const M=aps.reduce((s,a)=>s+a.metaMes,0),V=aps.reduce((s,a)=>s+a.vendaMes,0),T=aps.reduce((s,a)=>s+a.total,0);
+    doc.autoTable({...base,startY:26,
+      head:[["Loja","Regional","Formato","Meta mês","Venda mês","% da meta","Vendedores","Suporte","Gerente","Total","% da venda"]],
+      body:aps.map(a=>[loja(a.id).nome,regDe(a.id),FMT_T[a.fmt],R(a.metaMes),R(a.vendaMes),Pc(a.pMes),R(a.tv),R(a.ts),R(a.tg),R(a.total),Pc(a.vendaMes?a.total/a.vendaMes*100:0)]),
+      foot:[[UI.reg?"Total da regional":"Total da rede","","",R(M),R(V),Pc(M?V/M*100:0),R(aps.reduce((s,a)=>s+a.tv,0)),R(aps.reduce((s,a)=>s+a.ts,0)),R(aps.reduce((s,a)=>s+a.tg,0)),R(T),Pc(V?T/V*100:0)]],
+      columnStyles:{3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"right",fontStyle:"bold"},10:{halign:"right"}},
+      didParseCell:h=>{if(h.section==="body"&&h.column.index===5){const a=aps[h.row.index];h.cell.styles.textColor=a.bateu?VERDE:[184,110,0];h.cell.styles.fontStyle="bold"}}});
+    const regs=[...new Set(aps.map(a=>regDe(a.id)))].sort((x,y)=>x.localeCompare(y));
+    const lin=regs.map(r=>{const as=aps.filter(a=>regDe(a.id)===r),m=as.reduce((s,a)=>s+a.metaMes,0),v=as.reduce((s,a)=>s+a.vendaMes,0),t=as.reduce((s,a)=>s+a.total,0);return [r,as.length,as.filter(a=>a.bateu).length,R(m),R(v),Pc(m?v/m*100:0),R(t),Pc(v?t/v*100:0)]});
+    doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Totais por regional",12,doc.lastAutoTable.finalY+9);doc.setFont("helvetica","normal");
+    doc.autoTable({...base,startY:doc.lastAutoTable.finalY+12,head:[["Regional","Lojas","Na meta","Meta mês","Venda mês","% da meta","Prêmios","% da venda"]],body:lin,
+      foot:lin.length>1?[["Total",aps.length,aps.filter(a=>a.bateu).length,R(M),R(V),Pc(M?V/M*100:0),R(T),Pc(V?T/V*100:0)]]:undefined,
+      columnStyles:{1:{halign:"center"},2:{halign:"center"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"}}});
+    nome="premiacoes-"+COMP.replace("/","-").toLowerCase()+(UI.reg?"-"+UI.reg.replace(/[^A-Za-z]+/g,"-").toLowerCase():"-rede")+".pdf";
+  }else{
+    const a=apurarLoja(sel),L=loja(sel);
+    topo(L.nome+" · "+regDe(sel)+" · "+FMT_T[a.fmt],"Meta "+R(a.metaMes)+" · Venda "+R(a.vendaMes)+" · "+Pc(a.pMes)+(a.bateu?" · bateu":" · não bateu"));
+    doc.setFontSize(10);doc.setFont("helvetica","bold");
+    doc.text(`Total da loja: ${R(a.total)}  (${Pc(a.vendaMes?a.total/a.vendaMes*100:0)} da venda do mês)   ·   Vendedores ${R(a.tv)}   ·   Suporte ${R(a.ts)}   ·   Gerente ${R(a.tg)}`,12,27);doc.setFont("helvetica","normal");
+    const cel=x=>x?`${Pc(x.p)}\n${x.valor?R(x.valor):"sem prêmio"}\n${R(x.venda)}`:"—";
+    doc.autoTable({...base,startY:31,
+      head:[["Vendedor",...a.ps.map(p=>`${p.lbl} · ${String(p.ini).padStart(2,"0")}–${String(p.fim).padStart(2,"0")}/10`),"Meta mês","Bônus do mês","Total"]],
+      body:a.vend.map(v=>[v.nome+"\n"+R(v.vMes)+(v.fora?" · "+R(v.fora)+" em outra loja":""),...v.per.map(cel),Pc(v.pMes),v.mes?R(v.mes):"—",R(v.total)]),
+      foot:[["Total vendido",...a.ps.map((p,i)=>R(a.vend.reduce((s,v)=>s+(v.per[i]?.venda||0),0))),R(a.vend.reduce((s,v)=>s+v.vMes,0)),"",""],
+            ["Prêmios",...a.ps.map((p,i)=>R(a.vend.reduce((s,v)=>s+(v.per[i]?.valor||0),0))),"",R(a.vend.reduce((s,v)=>s+v.mes,0)),R(a.tv)]],
+      styles:{...base.styles,valign:"middle"},
+      columnStyles:Object.fromEntries([...a.ps.map((p,i)=>[i+1,{halign:"center"}]),[a.ps.length+1,{halign:"center"}],[a.ps.length+2,{halign:"right"}],[a.ps.length+3,{halign:"right",fontStyle:"bold"}]]),
+      didParseCell:h=>{if(h.section==="body"&&h.column.index>=1&&h.column.index<=a.ps.length){const x=a.vend[h.row.index].per[h.column.index-1];if(x&&x.valor)h.cell.styles.fillColor=x.n>1?[220,243,230]:[240,250,244]}}});
+    doc.autoTable({...base,startY:doc.lastAutoTable.finalY+6,head:[["Funções de suporte","Função","Situação","Valor"]],
+      body:a.sup.length?a.sup.map(s=>[s.nome,s.cargo,a.bateu?(s.lojas.length>1?"Loja na meta · atende 2 lojas":"Loja na meta"):"Loja abaixo da meta",s.valor?R(s.valor):"—"]):[["Nenhum caixa, estoquista ou auxiliar de loja nesta loja.","","",""]],
+      columnStyles:{3:{halign:"right"}}});
+    doc.autoTable({...base,startY:doc.lastAutoTable.finalY+6,head:[["Gerente","Regra","Faixa aplicada","Valor"]],
+      body:[[a.ger.nome||"—",(a.ger.propria?"Regra própria da loja: ":"")+a.ger.regra.faixas.map(f=>`${Pc(f.min)} -> ${pct2(f.pct)} da ${f.base==="meta"?"meta":"venda"}`).join(" · "),a.ger.usadas.length?a.ger.usadas.map(f=>Pc(f.min)+" -> "+pct2(f.pct)).join(" + "):"Loja abaixo da meta",a.ger.valor?R(a.ger.valor):"—"]],
+      columnStyles:{3:{halign:"right",fontStyle:"bold"}}});
+    nome="premiacoes-"+COMP.replace("/","-").toLowerCase()+"-loja-"+L.num+".pdf";
+  }
+  if(typeof logEvento==="function")logEvento("Premiações · PDF gerado",nome);
+  salvarPDF(doc,nome);
+}
 
 /* ================= perfis e acessos ================= */
 const PERFIS={
@@ -7156,6 +7218,7 @@ function pagina(){
   if(UI.tab==="regras")acts.push(`<button class="btn" data-pract="padrao">Restaurar padrão</button><button class="btn btn-primary" data-pract="salvar">Salvar regras</button>`);
   if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
   if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
+  if(UI.tab==="resultados")acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
   return `<div class="prem-pg">
   <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div></div>
@@ -7442,6 +7505,7 @@ document.addEventListener("click",e=>{
   if(d.prsupdel!==undefined){CFG.sup.pessoas.splice(+d.prsupdel,1);render();return}
   if(d.prgerdel){delete CFG.gerLoja[d.prgerdel];render();toast("Regra da loja removida. Clique em Salvar regras para gravar.");return}
   const act=d.pract;
+  if(act==="pdf"){gerarPDF();return}
   if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
