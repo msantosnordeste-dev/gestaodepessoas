@@ -7025,6 +7025,7 @@ const CFG_PADRAO={
   sup:{valor:100,multi:true,cargos:CARGOS_SUP.slice(),pessoas:DATA.SUP.map(s=>({id:s.id,nome:s.nome,cargo:s.cargo,lojas:s.id==="u7"&&s.lojas.length===1&&s.lojas[0]==="l41"?["l41","l40"]:s.lojas.slice()}))},
   ger:{faixas:[{min:100,pct:1,base:"meta"},{min:120,pct:1.2,base:"venda"}],acumula:false},
   regional:{l10:"Sul/Sudeste",l12:"Sul/Sudeste",l13:"Sul/Sudeste",l16:"Sul/Sudeste",l17:"Sul/Sudeste",l18:"Sul/Sudeste",l19:"Sul/Sudeste",l24:"Sul/Sudeste",l25:"Sul/Sudeste",l31:"Sul/Sudeste",l34:"Sul/Sudeste",l35:"Sul/Sudeste",l36:"Sul/Sudeste",l37:"Sul/Sudeste",l20:"Norte/Nordeste",l21:"Norte/Nordeste",l26:"Norte/Nordeste",l33:"Norte/Nordeste",l39:"Norte/Nordeste",l40:"Norte/Nordeste",l41:"Norte/Nordeste"},
+  supv:{faixas:[{min:0,pct:0.2},{min:100,pct:0.3},{min:130,pct:0.4}]},
   gerLoja:{l20:{faixas:[{min:100,pct:0.3,base:"meta"},{min:120,pct:0.6,base:"venda"}],acumula:false}}
 };
 let CFG=clone(CFG_PADRAO);
@@ -7137,12 +7138,12 @@ const PERFIS={
   gestora:{t:"Gestora comercial",quem:"Patricia dos Santos Araujo",cargo:"Gestora comercial · visualização",escopo:"Todas as lojas"},
   gerente:{t:"Gerente",quem:"Lucas Marinho da Rocha",cargo:"Gerente · Loja 35",escopo:"Própria loja · histórico só dele"}
 };
-const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["regras","Editar regras"]];
+const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Lançar na folha"],["verHist","Ver histórico"],["verSup","Ver prêmio da supervisão"],["regras","Editar regras"]];
 const PERM={
-  rh:{verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
-  supervisora:{verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
-  gestora:{verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
-  gerente:{verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
+  rh:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
+  supervisora:{verSup:true,verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
+  gestora:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
+  gerente:{verSup:false,verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
 };
 const MINHA="l35";
 
@@ -7164,7 +7165,7 @@ function estadoDB(){return {v:1,comp:COMP,atualizado:new Date().toISOString(),cf
 function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
-  if(d.cfg){if(!d.cfg.regional||Object.values(d.cfg.regional).every(v=>["SP","RJ","BA","PR","ES","PE","AM"].includes(v)))d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
+  if(d.cfg){if(!d.cfg.supv)d.cfg.supv=clone(CFG_PADRAO.supv);if(!d.cfg.regional||Object.values(d.cfg.regional).every(v=>["SP","RJ","BA","PR","ES","PE","AM"].includes(v)))d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).filter(c=>CARGOS_SUP.includes(c));d.cfg.sup.cargos=cs.length?cs:CARGOS_SUP.slice()}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
   if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
   (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
@@ -7185,7 +7186,7 @@ const regDe=id=>supReg(id)||normReg((CFG.regional||{})[id])||"Sem regional";
 const regionais=()=>[...new Set(LOJAS.map(l=>regDe(l.id)))].sort((a,b)=>a.localeCompare(b));
 const P=()=>PERM[UI.view];
 const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
-const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["supervisao","Prêmio da Supervisão",p=>p.verSup],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"]];
 const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
 
@@ -7219,6 +7220,7 @@ function pagina(){
   if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
   if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
   if(UI.tab==="resultados")acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
+  if(UI.tab==="supervisao")acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
   return `<div class="prem-pg">
   <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div></div>
@@ -7227,7 +7229,7 @@ function pagina(){
     <div class="top-actions">${acts.join("")}</div>
   </div>
   ${apTab?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,resultados:tResultados,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,resultados:tResultados,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -7376,6 +7378,59 @@ function detalheLote(id){
 }
 
 /* ---------- Histórico ---------- */
+/* ---------- Apuração › Prêmio da Supervisão ---------- */
+function faixaSup(p){let f=null;CFG.supv.faixas.slice().sort((a,b)=>a.min-b.min).forEach(x=>{if(p>=x.min)f=x});return f}
+function supNome(reg){try{const sv=(typeof ST!=="undefined"&&ST&&ST.supervisores)||[];const s=sv.find(x=>normReg(x.regiao)===reg);if(!s)return "";const id=String(s.ref||"").replace(/^e:/,"");const e=((ST&&ST.emps)||[]).find(x=>x.id===id);return (e&&e.nome)||s.nome||""}catch(e){return ""}}
+function apurarSupervisao(){
+  const aps=LOJAS.map(l=>apurarLoja(l.id));
+  const regs=[...new Set(aps.map(a=>regDe(a.id)))].sort((x,y)=>x.localeCompare(y));
+  return regs.map(r=>{const as=aps.filter(a=>regDe(a.id)===r);const meta=as.reduce((s,a)=>s+a.metaMes,0),venda=as.reduce((s,a)=>s+a.vendaMes,0),p=meta?venda/meta*100:0,f=faixaSup(p);
+    return {reg:r,nome:supNome(r),lojas:as,meta,venda,p,faixa:f,valor:f?f.pct/100*venda:0}});
+}
+function tSupervisao(){
+  const R=apurarSupervisao(),T={meta:R.reduce((s,x)=>s+x.meta,0),venda:R.reduce((s,x)=>s+x.venda,0),valor:R.reduce((s,x)=>s+x.valor,0)};
+  const fx=CFG.supv.faixas.slice().sort((a,b)=>a.min-b.min);
+  const regra=fx.map((f,i)=>`${f.min>0?(i===fx.length-1?"a partir de "+pct(f.min):pct(f.min)+" a "+pct(fx[i+1].min-0.01)):"abaixo de "+pct(fx[i+1]?fx[i+1].min:100)}: ${pct2(f.pct)}`).join(" · ");
+  const bar=p=>`<span class="mbar"><i class="${p>=CFG.metaMin?"":"under"}" style="width:${Math.min(p,140)/1.4}%"></i></span>`;
+  return `
+  <div class="grid kpis">${R.map(x=>`<div class="card kpi"><span class="lbl">${esc(x.reg)}${x.nome?` · ${esc(x.nome)}`:""}</span><span class="val num">${brl(x.valor)}</span><span class="sub">${pct(x.p)} da meta · ${x.faixa?pct2(x.faixa.pct):"—"} sobre ${brl(x.venda)}</span></div>`).join("")}
+    <div class="card kpi hero"><span class="lbl">Total da supervisão</span><span class="val num">${brl(T.valor)}</span><span class="sub">${R.length} regionais · ${pct(T.meta?T.venda/T.meta*100:0)} da meta da rede</span></div></div>
+  <div class="card">
+    <div class="card-head"><div><h2>Demonstrativo por regional · loja a loja</h2><p>Faixa pelo % atingido da regional no mês, sobre o faturamento da regional (${regra}). Vale só a maior faixa atingida.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Loja</th><th>Regional</th><th class="r">Meta</th><th class="r">Venda</th><th>% atingido</th></tr></thead>
+    <tbody>${R.map(x=>x.lojas.map(a=>`<tr><td>${esc(loja(a.id).nome)}</td><td class="small">${esc(x.reg)}</td><td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td><td class="num">${bar(a.pMes)}${pct(a.pMes)}</td></tr>`).join("")
+      +`<tr style="background:var(--brand-tint)"><td><b>Total ${esc(x.reg)}</b>${x.nome?`<br><span class="small muted">${esc(x.nome)}</span>`:""}</td><td class="small"><b>Prêmio: ${x.faixa?pct2(x.faixa.pct):"—"} × ${brl(x.venda)}</b></td><td class="r num"><b>${brl(x.meta)}</b></td><td class="r num"><b>${brl(x.venda)}</b></td><td class="num"><b>${bar(x.p)}${pct(x.p)}</b> · <b style="color:var(--brand-ink)">${brl(x.valor)}</b></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td colspan="2">Total da rede</td><td class="r num">${brl(T.meta)}</td><td class="r num">${brl(T.venda)}</td><td class="num">${pct(T.meta?T.venda/T.meta*100:0)} · ${brl(T.valor)}</td></tr></tfoot></table></div>
+  </div>
+  <div class="card"><div class="card-head"><div><h2>Totais por regional</h2></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Regional</th><th>Supervisão</th><th class="c">Lojas</th><th class="r">Meta</th><th class="r">Venda</th><th>% alcançado no mês</th><th>Faixa</th><th class="r">Prêmio</th></tr></thead>
+    <tbody>${R.map(x=>`<tr><td><b>${esc(x.reg)}</b></td><td>${esc(x.nome||"—")}</td><td class="c num">${x.lojas.length}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${brl(x.venda)}</td><td class="num">${bar(x.p)}${pct(x.p)}</td><td>${x.faixa?pct2(x.faixa.pct)+" da venda":"—"}</td><td class="r num"><b>${brl(x.valor)}</b></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td colspan="3">Total</td><td class="r num">${brl(T.meta)}</td><td class="r num">${brl(T.venda)}</td><td class="num">${pct(T.meta?T.venda/T.meta*100:0)}</td><td></td><td class="r num">${brl(T.valor)}</td></tr></tfoot></table></div>
+    <p class="note" style="margin-top:14px">Regional e supervisora vêm do cadastro da supervisão (Lojas › Supervisores). As faixas ficam em Configurações › Regras de Apuração › Supervisão.</p>
+  </div>`;
+}
+function gerarPDFSup(){
+  const J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast("Gerador de PDF não carregou. Recarregue a página.");return}
+  const doc=new J({orientation:"portrait",unit:"mm",format:"a4"}),VERDE=[11,127,74],W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  const quem=((typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH"),quando=new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  const R=apurarSupervisao(),T={meta:R.reduce((s,x)=>s+x.meta,0),venda:R.reduce((s,x)=>s+x.venda,0),valor:R.reduce((s,x)=>s+x.valor,0)};
+  doc.setFillColor(...VERDE);doc.rect(0,0,W,20,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text("Prêmio da Supervisão · "+COMP,12,9);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text("Demonstrativo por regional, loja a loja",12,15);doc.text("Brasileiríssima · ConectaGP",W-12,9,{align:"right"});doc.text("Total "+brl(T.valor),W-12,15,{align:"right"});doc.setTextColor(16,32,26);
+  const base={theme:"grid",styles:{fontSize:8,cellPadding:1.6,lineColor:[223,232,227],lineWidth:.1,textColor:[16,32,26]},headStyles:{fillColor:VERDE,textColor:255,fontStyle:"bold"},footStyles:{fillColor:[240,250,244],textColor:[16,32,26],fontStyle:"bold"},margin:{left:12,right:12,bottom:14},
+    didDrawPage:()=>{doc.setFontSize(7);doc.setTextColor(91,109,100);doc.text(`Gerado em ${quando} por ${quem} · metas Indeva, vendas Totvs · valores sem arredondamento, exibidos em centavos`,12,H-6);doc.text("Página "+doc.internal.getNumberOfPages(),W-12,H-6,{align:"right"});doc.setTextColor(16,32,26)}};
+  const body=[],tot=[];
+  R.forEach(x=>{x.lojas.forEach(a=>body.push([loja(a.id).nome,x.reg,brl(a.metaMes),brl(a.vendaMes),pct(a.pMes)]));tot.push(body.length);body.push(["Total "+x.reg+(x.nome?" · "+x.nome:""),"Prêmio "+(x.faixa?pct2(x.faixa.pct):"—")+" = "+brl(x.valor),brl(x.meta),brl(x.venda),pct(x.p)])});
+  doc.autoTable({...base,startY:26,head:[["Loja","Regional","Meta","Venda","% atingido"]],body,foot:[["Total da rede","Prêmio "+brl(T.valor),brl(T.meta),brl(T.venda),pct(T.meta?T.venda/T.meta*100:0)]],
+    columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"}},
+    didParseCell:h=>{if(h.section==="body"&&tot.includes(h.row.index)){h.cell.styles.fillColor=[220,243,230];h.cell.styles.fontStyle="bold"}}});
+  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Totais por regional",12,doc.lastAutoTable.finalY+9);doc.setFont("helvetica","normal");
+  doc.autoTable({...base,startY:doc.lastAutoTable.finalY+12,head:[["Regional","Supervisão","Meta","Venda","% no mês","Faixa","Prêmio"]],
+    body:R.map(x=>[x.reg,x.nome||"—",brl(x.meta),brl(x.venda),pct(x.p),x.faixa?pct2(x.faixa.pct)+" da venda":"—",brl(x.valor)]),
+    foot:[["Total","",brl(T.meta),brl(T.venda),pct(T.meta?T.venda/T.meta*100:0),"",brl(T.valor)]],
+    columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},6:{halign:"right",fontStyle:"bold"}}});
+  const nome="premio-supervisao-"+COMP.replace("/","-").toLowerCase()+".pdf";
+  if(typeof logEvento==="function")logEvento("Premiações · PDF da supervisão gerado",nome);
+  salvarPDF(doc,nome);
+}
 function tHistGer(){
   const L=LOTES.find(x=>x.lojaId===MINHA),a=apurarLoja(MINHA);
   const sit=L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pela supervisora","c-info"]:["Aguardando supervisora","c-warn"]):ST_L[L.status];
@@ -7459,6 +7514,12 @@ function tRegras(){
         <div class="faixa"><select class="input" id="pr-gerloja" aria-label="Loja"><option value="">Escolha a loja</option>${LOJAS.filter(l=>!(CFG.gerLoja||{})[l.id]).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("")}</select><button class="btn btn-sm" data-pract="geradd">+ Regra para a loja</button></div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-head" style="margin:0"><div><h2>Supervisão</h2><p>Faixa pelo % atingido da regional no mês; o prêmio é sobre o faturamento da regional. Vale só a maior faixa atingida.</p></div></div>
+      <div class="faixas">${CFG.supv.faixas.map((f,i)=>`<div class="faixa"><span>A partir de</span><input class="input num" type="number" step="0.01" min="0" id="sv-${i}-min" data-prcfg="supv.faixas.${i}.min" value="${f.min}" aria-label="Atingimento mínimo da regional"><span>% → ganha</span><input class="input num" type="number" step="0.01" min="0" id="sv-${i}-pct" data-prcfg="supv.faixas.${i}.pct" value="${f.pct}" aria-label="Percentual sobre o faturamento"><span>% do faturamento da regional</span><button class="btn btn-sm btn-ghost x" data-prdel="supv.faixas.${i}" aria-label="Remover faixa">✕</button></div>`).join("")}</div>
+      <button class="btn btn-sm" style="align-self:flex-start" data-pradd="supv.faixas">+ Faixa</button>
+      <p class="small muted">0% vale para quem não bateu a meta da regional.</p>
+    </div>
   </div>`;
 }
 
@@ -7506,6 +7567,7 @@ document.addEventListener("click",e=>{
   if(d.prgerdel){delete CFG.gerLoja[d.prgerdel];render();toast("Regra da loja removida. Clique em Salvar regras para gravar.");return}
   const act=d.pract;
   if(act==="pdf"){gerarPDF();return}
+  if(act==="pdfsup"){gerarPDFSup();return}
   if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
   
