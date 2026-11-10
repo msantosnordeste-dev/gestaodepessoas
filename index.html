@@ -6388,7 +6388,7 @@ function vcResultado(st){
 function vcCliente(real){
   return {
     from:t=>vcQuery(t),
-    rpc:(n,args)=>n in VC.rpc?Promise.resolve({data:JSON.parse(JSON.stringify(VC.rpc[n])),error:null}):n==="chamado_categorias"?real.rpc(n,args):(vcAviso(),Promise.resolve({data:null,error:VC_ERRO})),
+    rpc:(n,args)=>n in VC.rpc?(typeof VC.rpc[n]==="function"?VC.rpc[n](args||{}):Promise.resolve({data:JSON.parse(JSON.stringify(VC.rpc[n])),error:null})):n==="chamado_categorias"?real.rpc(n,args):(vcAviso(),Promise.resolve({data:null,error:VC_ERRO})),
     auth:{getUser:()=>real.auth.getUser(),getSession:()=>real.auth.getSession(),signOut:async()=>{vcSair();return {error:null}},onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
     storage:{from:()=>({createSignedUrl:async()=>(vcAviso(),{data:null,error:VC_ERRO}),download:async()=>(vcAviso(),{data:null,error:VC_ERRO}),upload:async()=>(vcAviso(),{data:null,error:VC_ERRO}),remove:async()=>({data:null,error:VC_ERRO})})},
     functions:{invoke:async()=>(vcAviso(),{data:null,error:VC_ERRO})},
@@ -6449,7 +6449,18 @@ async function vcMontar(id){
     D.chamados=await ler(SB.from("chamados").select("*").eq("colaborador_id",id));
     D.chamados_msgs=D.chamados.length?(await ler(SB.from("chamados_msgs").select("*").in("chamado_id",D.chamados.map(c=>c.id)))).filter(m=>m.tipo!=="interna"):[];
   }
-  return {id,nome:e.nome,P,dados:D,rpc:{meus_dados:meus,minha_equipe_dados:equipe}};
+  const realSB=SB,numsVC=minhas.map(l=>{const m=String(l).match(/^lj-0*(\d+)/);return m?+m[1]:null}).filter(n=>n!=null);
+  if(gestor){
+    D.premiacoes_lojas=numsVC.length?await ler(realSB.from("premiacoes_lojas").select("loja_id,loja_num,dados,comp").in("loja_num",numsVC)):[];
+    D.premiacoes_vendedores=numsVC.length?await ler(realSB.from("premiacoes_vendedores").select("vend_id,loja_id,loja_num,nome,per,acel,comp").in("loja_num",numsVC).limit(5000)):[];
+  }
+  const medidasVC=P.perfil==="gerente"?ST.emps.filter(c=>minhas.includes(c.lojaId)&&(c.medidas||[]).length).map(c=>({id:c.id,medidas:c.medidas.map(({obs,...m})=>m)})):[];
+  const rpcFn=(n,a)=>realSB.rpc(n,a);
+  return {id,nome:e.nome,P,dados:D,rpc:{meus_dados:meus,minha_equipe_dados:equipe,medidas_equipe:medidasVC,
+    premiacoes_meu_resultado:a=>rpcFn("premiacoes_resultado_de",{p_colab:id,p_comp:a.p_comp}),
+    premiacoes_minhas_comps:()=>rpcFn("premiacoes_comps_de",{p_colab:id}),
+    premiacoes_cfg:()=>rpcFn("premiacoes_cfg"),
+    premiacoes_lotes:()=>rpcFn("premiacoes_lotes").then(r=>({data:(r.data||[]).filter(L=>numsVC.includes(+String(L.lojaId||"").replace(/^l0*/,""))),error:r.error}))}};
 }
 /* ---- entrar e sair ---- */
 async function vcEntrar(id){
@@ -6463,7 +6474,7 @@ async function vcEntrar(id){
     VC={...v,real:SB};SB=vcCliente(SB);
     PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
     $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial"||PERFIL.perfil==="supervisor");
-    ST=null;mostrarTela("carregando");
+    ST=null;if(typeof PREM!=="undefined"){PREM=null;window.__PREM_COMP=undefined}mostrarTela("carregando");
     if(ROLE==="colaborador")await carregarColaborador();else await carregarGerente();
     await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
     vcFaixa();mostrarApp();location.hash="";go();
@@ -7626,7 +7637,10 @@ function meuPremio(){
 }
 function prCelebrar(msg){
   const k="prem-cel-"+((typeof SESSION!=="undefined"&&SESSION&&SESSION.login)||"")+"-"+COMP_ISO;
-  try{if(localStorage.getItem(k))return;localStorage.setItem(k,"1")}catch(e){if(window.__PREM_CEL===k)return;window.__PREM_CEL=k}
+  const verComo=typeof VC!=="undefined"&&!!VC;
+  if(!verComo){try{if(localStorage.getItem(k))return;localStorage.setItem(k,"1")}catch(e){if(window.__PREM_CEL===k)return;window.__PREM_CEL=k}}
+  if(document.querySelector(".pr-cel"))return;
+  if(verComo){if(window.__PREM_CEL_VIS)return;window.__PREM_CEL_VIS=true;if(!window.__PREM_CEL_HC){window.__PREM_CEL_HC=1;window.addEventListener("hashchange",()=>{window.__PREM_CEL_VIS=false})}}
   if(!document.getElementById("pr-cel-css")){const st=document.createElement("style");st.id="pr-cel-css";st.textContent=`
 .pr-cel{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(6,77,44,.35);animation:prFade .3s ease}
 .pr-cel-box{background:var(--card,#fff);border-radius:20px;padding:28px 32px;text-align:center;max-width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.25);animation:prPop .5s cubic-bezier(.2,1.4,.4,1)}
