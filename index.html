@@ -419,6 +419,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:0}
 @media (max-width:1100px){.loja-head{grid-template-columns:repeat(2,minmax(0,1fr))}.loja-head>div:first-child{grid-column:1/-1}.loja-head>div+div{border-left:0;padding-left:0}}
 @media (max-width:860px){.nav .sub-label{display:none}.nav .subnav{flex-direction:row;margin:0;padding:0;border:0}}
 .prem-pg{display:flex;flex-direction:column;gap:24px;min-width:0}
+.prem-pg .linkbtn{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}.prem-pg .linkbtn:hover b{color:var(--brand-ink);text-decoration:underline}
 </style>
 </head>
 <body>
@@ -7413,7 +7414,7 @@ function tResultados(){
     <div class="legend"><span><i style="background:var(--surface-2)"></i>abaixo de ${pct(R.faixas[0]?.min||100)}</span><span><i style="background:var(--brand-soft)"></i>1ª faixa</span><span><i style="background:var(--brand)"></i>${R.faixas.length>1?pct(R.faixas[1].min)+" ou mais":"2ª faixa"}</span></div></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Vendedor</th>${a.ps.map(p=>`<th class="c">${p.lbl}<br><span style="text-transform:none;letter-spacing:0;font-weight:500">${String(p.ini).padStart(2,"0")}–${p.fim}/10</span></th>`).join("")}<th class="c">Meta mês<br><span style="text-transform:none;letter-spacing:0;font-weight:500">individual</span></th><th class="r">Bônus do mês<br>(loja + individual)</th><th class="r">Acelerador</th><th class="r">Total</th></tr></thead>
-      <tbody>${a.vend.map(v=>`<tr><td><div class="who"><div class="avatar">${initials(v.nome)}</div><div><b>${esc(v.nome)}</b><span>vendeu ${brl0(v.vMes)}${v.fora?` · ${brl0(v.fora)} em outra loja`:""}</span></div></div></td>
+      <tbody>${a.vend.map(v=>`<tr><td><div class="who"><div class="avatar">${initials(v.nome)}</div><div><button class="linkbtn" data-prvend="${v.id}" title="Abrir a apuração detalhada"><b>${esc(v.nome)}</b></button><span>vendeu ${brl0(v.vMes)}${v.fora?` · ${brl0(v.fora)} em outra loja`:""}</span></div></div></td>
         ${v.per.map(x=>`<td class="c">${cel(x,R.faixas)}</td>`).join("")}
         <td class="c num">${pct(v.pMes)}${CFG.vend[a.fmt].mes.indiv&&a.bateu&&!v.indOk?'<br><span class="small muted">abaixo da meta</span>':""}</td><td class="r num">${v.mes?brl(v.mes):"<span class='muted'>—</span>"}</td><td class="r num" title="${esc(acelTxt(v.acelD))}">${v.acel?brl(v.acel):"<span class='muted'>—</span>"}</td><td class="r num"><b>${brl(v.total)}</b></td></tr>`).join("")}</tbody>
       <tfoot>${(()=>{const pm=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.meta||0),0),pv=i=>a.vend.reduce((s,v)=>s+(v.per[i]?.venda||0),0);const mm=a.vend.reduce((s,v)=>s+v.metaV,0),vm=a.vend.reduce((s,v)=>s+v.vMes,0);
@@ -7460,6 +7461,35 @@ function tAprov(){
     </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas lançadas na folha estão em Histórico de Premiações.</div>`}
     <p class="note" style="margin-top:14px">A loja só vai para a folha quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
   </div>`;
+}
+const odBR=s=>String(s||"").replace(/R\$\s*([\d,]+\.\d{2})/g,(m,n)=>brl(parseFloat(n.replace(/,/g,""))));
+function fichaVend(vid){
+  const v0=VEND.find(x=>x.id===vid);if(!v0)return;const a=apurarLoja(v0.lojaId),v=a.vend.find(x=>x.id===vid),R=CFG.vend[a.fmt];
+  const unid=a.fmt==="semanal"?"Semana":"Quinzena";
+  const faixaTxt=x=>!x?"—":x.n>1?R.faixas.slice(0,x.n).map(f=>pct(f.min)).join(" + "):x.n===1?pct(R.faixas[0].min):"abaixo de "+pct(R.faixas[0].min);
+  const linhas=a.ps.map((p,i)=>{const x=v.per[i];const per=`${p.lbl} · ${String(p.ini).padStart(2,"0")}–${String(p.fim).padStart(2,"0")}/10`;
+    if(!x)return `<tr><td>${per}</td><td colspan="7" class="muted small">Sem meta no Indeva neste período</td></tr>`;
+    return `<tr><td>${per}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${brl(x.vl)}</td><td class="r num">${x.vo?`<b style="color:var(--info)">${brl(x.vo)}</b>`:"—"}</td><td class="r num"><b>${brl(x.venda)}</b></td><td class="r num"><b style="color:${x.p>=R.faixas[0].min?"var(--brand-ink)":"var(--warn)"}">${pct(x.p)}</b></td><td class="small">${faixaTxt(x)}</td><td class="r num">${x.valor?brl(x.valor):"—"}</td></tr>`}).join("");
+  const ok=v.per.filter(Boolean),vl=ok.reduce((s,x)=>s+x.vl,0),vo=ok.reduce((s,x)=>s+x.vo,0),prem=ok.reduce((s,x)=>s+x.valor,0);
+  const mesMotivo=!R.mes.ativo?"bônus do mês desligado":!a.bateu?`loja não bateu a meta do mês (${pct(a.pMes)})`:!v.indOk?`vendedor abaixo de ${pct(CFG.metaMin)} da meta individual do mês`:`${pct2(R.mes.pct)} sobre ${R.mes.base==="loja"?"a venda da loja":"a venda do vendedor no mês"}`;
+  const outras=v.per.map((x,i)=>x&&x.vo?`<li><b>${a.ps[i].lbl}</b>: ${esc(odBR(x.od))||brl(x.vo)}</li>`:"").join("");
+  const divInd=v.per.map((x,i)=>x&&Math.abs(x.vl-x.vi)>0.01?`<li><b>${a.ps[i].lbl}</b>: Totvs ${brl(x.vl)} · Indeva ${brl(x.vi)}</li>`:"").join("");
+  modal(`${v.nome} · ${COMP}`,`
+    <div class="kv"><div><span>Loja</span><b>${esc(loja(v.lojaId).nome)}</b></div><div><span>Apuração</span><b>${FMT_T[a.fmt]}</b></div><div><span>Meta da loja no mês</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div><span>Total do vendedor</span><b>${brl(v.total)}</b></div></div>
+    <div class="table-wrap" style="margin:0"><table>
+      <thead><tr><th>${unid}</th><th class="r">Meta</th><th class="r">Venda na loja</th><th class="r">Outra unidade</th><th class="r">Venda total</th><th class="r">% alcance</th><th>Faixa</th><th class="r">Prêmio</th></tr></thead>
+      <tbody>${linhas}</tbody>
+      <tfoot>
+        <tr><td>Mês</td><td class="r num">${brl(v.metaV)}</td><td class="r num">${brl(vl)}</td><td class="r num">${vo?brl(vo):"—"}</td><td class="r num">${brl(v.vMes)}</td><td class="r num">${pct(v.pMes)}</td><td class="small">${unid==="Semana"?"semanas":"quinzenas"}</td><td class="r num">${brl(prem)}</td></tr>
+        <tr><td colspan="7">Bônus do mês <span class="small muted" style="font-weight:400">· ${mesMotivo}</span></td><td class="r num">${v.mes?brl(v.mes):"—"}</td></tr>
+        <tr><td colspan="7">Acelerador de vendas <span class="small muted" style="font-weight:400">${v.acelD?"· "+(esc(acelTxt(v.acelD))||"sem venda de itens"):"· sem lançamento na planilha"}</span></td><td class="r num">${v.acel?brl(v.acel):"—"}</td></tr>
+        <tr><td colspan="7"><b>Total do vendedor</b></td><td class="r num"><b>${brl(v.total)}</b></td></tr>
+      </tfoot></table></div>
+    ${outras?`<div class="note"><b>Vendas em outras unidades somadas na meta</b><ul style="margin:6px 0 0 18px;padding:0">${outras}</ul><span>Total de ${brl(vo)} no mês. Contam no % de alcance do vendedor na loja de origem dele; no faturamento, contam na loja onde a venda foi feita.</span></div>`:`<p class="small muted">Sem vendas em outras unidades neste mês.</p>`}
+    ${divInd?`<div class="note"><b>Venda diferente entre Totvs e Indeva</b><ul style="margin:6px 0 0 18px;padding:0">${divInd}</ul><span>A apuração usa a venda do Totvs.</span></div>`:""}
+    <p class="small muted">Meta de cada período do Indeva; venda do Totvs. Faixas: ${R.faixas.map(f=>pct(f.min)+" → "+pct2(f.pct)+" da venda do período").join(" · ")}${R.acumula?" (somam)":""}. Valores sem arredondamento, exibidos em centavos.</p>`,
+    `<button class="btn" data-close>Fechar</button>`);
+  const m=document.querySelector("#modal-root .modal");if(m)m.style.width="min(1100px,100%)";
 }
 function detalheLote(id){
   const L=LOTES.find(x=>x.id===id),a=apurarLoja(L.lojaId),p=P();
@@ -7674,6 +7704,7 @@ document.addEventListener("click",e=>{
   if(d.prview){UI.view=d.prview;UI.loja="";render();return}
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
   if(d.prlote){detalheLote(d.prlote);return}
+  if(d.prvend){fichaVend(d.prvend);return}
   if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
   if(d.praprovarger){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovarger);L.gr=true;registrar(L,"Prêmio do gerente aprovado");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": prêmio do gerente aprovado"+(L.eq?"":" · falta o RH aprovar a equipe"));return}
   if(d.prdevolver){const L=LOTES.find(x=>x.id===d.prdevolver);L.status="devolvido";registrar(L,"Devolvida para revisão");gravar();closeModal();render();toast(loja(L.lojaId).curto+": devolvida para revisão");return}
