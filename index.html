@@ -5440,8 +5440,9 @@ R.meusdados=()=>{
    A trilha abre num iframe; o progresso vai para td_progresso pela ponte IB_PONTE. */
 let IB_URL=null;
 const ibLinha=()=>(TDP||[]).find(x=>x.curso==="integracao"&&x.colaborador_id===(MEU&&MEU.id));
-const ibNovo=()=>!!(MEU&&MEU.admissao&&diffDays(MEU.admissao,TODAY)<=90);
-const ibLiberada=()=>!!(ibLinha()||ibNovo());
+const IB_INICIO="2026-11-01";
+const ibNovo=()=>!!(MEU&&MEU.admissao&&MEU.admissao>=IB_INICIO&&diffDays(MEU.admissao,TODAY)<=90);
+const ibLiberada=()=>!!(ibNovo()||(ibLinha()&&MEU&&MEU.admissao>=IB_INICIO));
 function ibUrl(rota){
   if(IB_URL)URL.revokeObjectURL(IB_URL);
   IB_URL=URL.createObjectURL(new Blob([IB_HTML.replace("__IB_ASSETS__",()=>JSON.stringify(IB_ASSETS))],{type:"text/html"}));
@@ -5956,7 +5957,7 @@ R.meuschamados=()=>{
       ${["fechado","cancelado"].includes(c.status)?`<p class="small muted">Chamado ${c.status==="fechado"?"fechado em "+chQuando(c.fechado_em)+(c.nota?" · sua nota: "+"★".repeat(c.nota):""):"cancelado"}. Precisa de mais alguma coisa? Abra um novo chamado.</p>`:""}</div>`;
   }
   const l=CHAMADOS.slice().sort((a,b)=>(CH_ABERTOS.includes(b.status)||b.status==="resolvido")-(CH_ABERTOS.includes(a.status)||a.status==="resolvido")||String(b.atualizado_em).localeCompare(String(a.atualizado_em)));
-  return header("Meu espaço","Chamados",`<button class="btn btn-primary" data-chnovo="1">+ Abrir chamado</button>`)+CH_CSS+`<div class="card">
+  return header("Meu espaço","Chamados",`<button class="btn btn-primary" disabled title="Em implantação">+ Abrir chamado</button>`)+CH_CSS+`<div class="note" style="margin-bottom:14px"><b>Chamados em implantação.</b> Em breve você poderá abrir chamados para o RH por aqui. Até lá, fale com o RH pelos canais de sempre.</div><div class="card">
     <p class="small muted" style="margin:0 0 12px">Dúvidas e pedidos para o RH: folha, férias, ponto, benefícios, documentos. Você acompanha a resposta por aqui.</p>
     <div class="ch-lista">${l.map(c=>`<div class="ch-item" data-chver="${c.id}">${chNovidade(c)?`<span class="ch-dot" title="Resposta nova"></span>`:""}<div style="flex:1;min-width:0"><b>#${c.numero} · ${esc(c.assunto)}</b><span class="small muted" style="display:block">${esc(c.categoria)} · atualizado ${chHa(c.atualizado_em)}</span></div>${chStChip(c.status,true)}</div>`).join("")||`<p class="empty" style="padding:20px 8px"><b>Você ainda não abriu nenhum chamado.</b><br>Use + Abrir chamado.</p>`}</div></div>`;
 };
@@ -6053,7 +6054,7 @@ document.addEventListener("click",async ev=>{
   const d=t.dataset;
   if(d.chanexo){chAbrirAnexo(d.chanexo);return}
   if(ROLE==="colaborador"){
-    if(d.chnovo){chNovoForm();return}
+    if(d.chnovo){if(ROLE==="colaborador"){toast("Chamados em implantação. Em breve você poderá abrir por aqui.");return}chNovoForm();return}
     if(d.chabrir){chAbrir();return}
     if(d.chver){UI.chAberto=d.chver;UI.chNota=0;render();window.scrollTo(0,0);return}
     if(d.chvoltar){UI.chAberto=null;render();return}
