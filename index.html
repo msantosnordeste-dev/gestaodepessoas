@@ -8154,7 +8154,7 @@ function tRegrasRec(){
   const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
   const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma as faixas)":" (vale a maior faixa)");
   const card=(tp,quem,quando,crit,onde)=>`<div>${arBadge(tp,58)}<h3>${AR_T[tp].t}</h3><dl><dt>Quem ganha</dt><dd>${quem}</dd><dt>Quando</dt><dd>${quando}</dd><dt>Critério</dt><dd>${crit}</dd><dt>Onde aparece</dt><dd>${onde}</dd></dl></div>`;
-  return AR_CSS+`<div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor da Premiação Swile: são reconhecimento.</p></div></div>
+  return AR_CSS+`<div class="note" style="margin-bottom:14px"><b>Regras válidas para ${COMP}.</b> As regras de reconhecimento e de premiação são passíveis de alteração a cada período de apuração. Antes de cada período, confira esta página.</div><div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor da Premiação Swile: são reconhecimento.</p></div></div>
   <div class="ar-rc">
    ${card("faturamento","O 1º lugar de toda a rede no Ranking por Faturamento.","Todo mês, no fechamento da apuração.","Maior valor vendido no mês (R$), somando todas as lojas em que vendeu.","Portal do vendedor (Meu prêmio e Meus dados) e Arena de Conquistas.")}
    ${card("alcance","O 1º lugar de toda a rede no Ranking de Vendedores.","Todo mês, no fechamento da apuração.","Maior % da meta atingido no mês (venda ÷ meta).","Portal do vendedor, Ranking de Vendedores (selo 🎯) e Arena de Conquistas.")}
@@ -8182,13 +8182,13 @@ function tRegrasRec(){
    <li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>
    <li><b>Fluxo:</b> o RH aprova a apuração; em seguida o gerente da loja aprova ou pede correção; depois o valor é importado no Swile.</li>
   </ul></div>
-  <div class="card"><div class="card-head"><div><h2>Quem vê o quê</h2></div></div><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Vê</th></tr></thead><tbody>
+  ${webNaoRH()||UI.view!=="rh"?"":`<div class="card"><div class="card-head"><div><h2>Quem vê o quê</h2><p>Visível só para o RH.</p></div></div><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Vê</th></tr></thead><tbody>
    <tr><td><b>Vendedor</b></td><td>Seu prêmio, sua posição na loja e no Brasil, estrelas, e as próprias medalhas e troféus (Meu prêmio e Meus dados).</td></tr>
    <tr><td><b>Gerente de loja</b></td><td>Arena de Conquistas, Ranking de Vendedores e Prêmio da Equipe das suas lojas.</td></tr>
    <tr><td><b>Supervisão</b></td><td>O mesmo para as lojas da sua regional.</td></tr>
    <tr><td><b>Gestão comercial</b></td><td>O mesmo para as duas regionais.</td></tr>
    <tr><td><b>RH</b></td><td>Toda a rede, inclusive o Ranking por Faturamento.</td></tr>
-  </tbody></table></div></div>`;
+  </tbody></table></div></div>`}`;
 }
 function tRanking(){
   const rk=window.__PREM_RANKLOJAS||[];if(!rk.length)return `<div class="card empty">Ranking indisponível para ${COMP}.</div>`;
