@@ -644,6 +644,26 @@ function medalhaMesHTML(comp){
   const cont=tp=>M.filter(m=>mdTipo(m)===tp).length;
   return MEDALHA_CSS+MD_CSS2+doMes.sort((a,b)=>(a.tipo==="tri"?0:1)-(b.tipo==="tri"?0:1)).map(m=>{const tp=mdTipo(m),T=MEDTP[tp];if(tp==="tri")return `<div class="card md-tri-hero"><div class="md-wrap"><div class="md-medal md-tri" aria-hidden="true" style="width:78px;height:78px;font-size:42px">🏆</div><div><div style="font-weight:800;font-size:1.25rem">Troféu TRI · ${triMd(m.tri)}</div><div class="small">Você foi o ${T.frase(m)}. Uma conquista rara: parabéns!</div><div class="small muted" style="margin-top:4px">Você tem ${cont(tp)} ${cont(tp)===1?"Troféu TRI":"Troféus TRI"} nos últimos 12 meses.</div></div></div></div>`;return `<div class="card md-hero"><div class="md-wrap"><div class="md-medal ${T.cls}" aria-hidden="true">${T.ic}</div><div><div style="font-weight:700;font-size:1.1rem">Medalha de reconhecimento · ${T.t}</div><div class="small">Você foi o ${T.frase(m)} em ${compMd(comp)}, na ${esc(m.loja_nome||"")}. Parabéns!</div><div class="small muted" style="margin-top:4px">Você tem ${cont(tp)} ${cont(tp)===1?"medalha":"medalhas"} de ${T.t.toLowerCase()} nos últimos 12 meses.</div></div></div></div>`}).join("");
 }
+function premStatusHTML(comp){
+  window.__PREM_STATUS=window.__PREM_STATUS||{};const S=window.__PREM_STATUS;
+  if(!(comp in S)){S[comp]=null;Promise.resolve(SB.rpc("premiacoes_meu_status",{p_comp:comp})).then(r=>{S[comp]=(r&&r.data)||{disponivel:false};render()}).catch(()=>{S[comp]={disponivel:false}});}
+  const st=S[comp];
+  const nota=`<p class="small" style="margin:10px 0 0">Até o envio ao Swile, o valor ainda pode ter correções. Ele pode ser considerado <b>validado depois da aprovação da liderança</b>. Dúvidas? Fale com o gerente da sua loja.</p>`;
+  const CSS=`<style>.ps-line{display:flex;align-items:flex-start;gap:0;margin-top:6px}.ps-step{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;min-width:0}.ps-step:not(:last-child)::after{content:"";position:absolute;top:15px;left:calc(50% + 18px);right:calc(-50% + 18px);height:3px;border-radius:2px;background:var(--line,#dfe8e3)}.ps-step.ok:not(:last-child)::after{background:#1b8a5a}.ps-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:var(--surface-2,#eef2f0);color:var(--muted,#667);border:2px solid var(--line,#dfe8e3);z-index:1}.ps-step.ok .ps-dot{background:#1b8a5a;border-color:#1b8a5a;color:#fff}.ps-step.cur .ps-dot{background:#fff8dc;border-color:#e0b43a;color:#8a6a0c}.ps-step.alert .ps-dot{background:#fdecea;border-color:#c0392b;color:#c0392b}.ps-t{font-weight:600;font-size:.9rem;margin-top:6px}.ps-s{font-size:.78rem;color:var(--muted,#667)}</style>`;
+  if(st===null)return `<div class="card"><p class="small muted">Carregando a situação do seu prêmio…</p></div>`;
+  if(!st.disponivel||!(st.lotes||[]).length)return `<div class="card">${CSS}<div class="card-head"><div><h2>Situação do seu prêmio</h2></div></div>${!st.disponivel?`<p class="small muted">A linha de evolução fica disponível para a apuração em andamento.</p>`:`<p class="small muted">Sua loja ainda não entrou na apuração deste mês.</p>`}${nota}</div>`;
+  const L=st.lotes,todos=f=>L.every(f),algum=f=>L.some(f);
+  const imp=true,lider=todos(l=>l.conf==="aprovado"),corr=algum(l=>l.conf==="correcao"),swile=todos(l=>l.status==="folha"||l.status==="pago");
+  const dt=k=>{const v=L.map(l=>l[k]).filter(Boolean).sort().pop();return v?String(v).split(" ")[0]:""};
+  const steps=[
+    {t:"Importado",s:dt("importado")?"em "+dt("importado"):"apuração carregada",ok:imp},
+    {t:"Aprovação do líder",s:lider?(dt("lider")?"em "+dt("lider"):"aprovado"):corr?"correção solicitada":"aguardando o gerente",ok:lider,alert:!lider&&corr},
+    {t:"Enviado ao Swile",s:swile?(dt("swile")?"em "+dt("swile"):"enviado"):"aguardando",ok:swile}];
+  const cur=steps.findIndex(x=>!x.ok);
+  const fase=swile?"Prêmio enviado ao Swile.":lider?"Prêmio validado pela liderança. Falta o envio ao Swile.":corr?"Há uma correção em análise. O valor pode mudar.":"Prêmio em conferência. O valor pode mudar até a aprovação da liderança.";
+  return `<div class="card">${CSS}<div class="card-head"><div><h2>Situação do seu prêmio</h2><p>${fase}</p></div>${lider?`<span class="chip c-ok">Validado</span>`:`<span class="chip c-warn">Em apuração</span>`}</div>
+   <div class="ps-line" role="list">${steps.map((x,i)=>`<div class="ps-step ${x.ok?"ok":""} ${i===cur?(x.alert?"alert":"cur"):""}" role="listitem" aria-label="${x.t}: ${x.ok?"concluído":"pendente"}"><span class="ps-dot">${x.ok?"✓":i+1}</span><span class="ps-t">${x.t}</span><span class="ps-s">${esc(x.s)}</span></div>`).join("")}</div>${L.length>1?`<p class="small muted" style="margin:8px 0 0">Você recebe por ${L.length} lojas; cada etapa só fica concluída quando todas avançam.</p>`:""}${nota}</div>`;
+}
 function normalize(o){
   if(o.cfg&&o.cfg.irrf)o.cfg.irrf.forEach(f=>{if(f[0]===null)f[0]=Infinity});
   o.emps.forEach(e=>{if(!e.avaliacoes)e.avaliacoes=[];if(!e.ferias)e.ferias=[]});
@@ -6557,6 +6577,7 @@ async function vcMontar(id,Pf){
     premiacoes_ranking_faturamento:a=>rpcFn("premiacoes_ranking_faturamento",a),
     premiacoes_minhas_medalhas:()=>rpcFn("premiacoes_medalhas_de",{p_colab:P.colaborador_id||id}),
     premiacoes_conquistas:()=>rpcFn("premiacoes_conquistas"),
+    premiacoes_meu_status:a=>rpcFn("premiacoes_status_de",{p_colab:P.colaborador_id||id,p_comp:a&&a.p_comp}),
     premiacoes_evolucao:()=>rpcFn("premiacoes_evolucao"),
     premiacoes_pessoas:a=>rpcFn("premiacoes_pessoas",a),
     premiacoes_meus_lancamentos:a=>rpcFn("premiacoes_lancamentos_de",{p_colab:P.colaborador_id||id,p_comp:a.p_comp}),
@@ -6574,7 +6595,7 @@ async function vcEntrar(id,Pf){
     VC={...v,real:SB};SB=vcCliente(SB);
     PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
     $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial"||PERFIL.perfil==="supervisor");
-    ST=null;window.__MEDALHAS=undefined;if(typeof PREM!=="undefined"){PREM=null;window.__PREM_COMP=undefined}mostrarTela("carregando");
+    ST=null;window.__MEDALHAS=undefined;window.__PREM_STATUS=undefined;if(typeof PREM!=="undefined"){PREM=null;window.__PREM_COMP=undefined}mostrarTela("carregando");
     if(ROLE==="colaborador")await carregarColaborador();else await carregarGerente();
     await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
     vcFaixa();mostrarApp();location.hash="";go();
@@ -7798,7 +7819,7 @@ function meuPremio(){
   if(bateuV||bateuS)setTimeout(()=>prCelebrar(bateuV?"Você bateu a sua meta de "+COMP+"!":"Sua loja bateu a meta de "+COMP+"!"),250);
   const vazio=`<div class="card empty">Você não tem apuração de premiação em ${COMP}. Se acha que deveria ter, fale com o gerente da sua loja.</div>`;
   const ajH=ajustesHTML(totV+totS);
-  return `<style>.pr-rank{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pr-rank-i{border:1px solid var(--line,#dfe8e3);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}.pr-rank-i>span{font-size:12px;color:var(--muted,#5b6d64);text-transform:uppercase;letter-spacing:.04em}.pr-rank-i b{font-size:22px}.pr-rank-i b small,.pr-rank-i>small{font-size:13px;font-weight:500;color:var(--muted,#5b6d64)}.pr-stars span{color:var(--line,#cfd8d3);font-size:22px;letter-spacing:1px}.pr-stars span.on{color:#F8A31B}</style><div class="prem-pg"><div class="topbar"><div><div class="eyebrow">Premiações e Incentivos</div><h1>Meu prêmio · ${COMP}</h1></div><div class="top-actions">${selMes}</div></div><div class="banner"><span>Valores em apuração: podem mudar até a aprovação do RH. Dúvidas? Fale com o gerente da sua loja.</span></div>${typeof medalhaMesHTML==="function"?medalhaMesHTML(COMP_ISO):""}${resumo}${typeof medalhasCard==="function"?medalhasCard():""}${ajH}${corpoV}${supCards}${!corpoV&&!supCards&&!ajH?vazio:""}</div>`;
+  return `<style>.pr-rank{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pr-rank-i{border:1px solid var(--line,#dfe8e3);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}.pr-rank-i>span{font-size:12px;color:var(--muted,#5b6d64);text-transform:uppercase;letter-spacing:.04em}.pr-rank-i b{font-size:22px}.pr-rank-i b small,.pr-rank-i>small{font-size:13px;font-weight:500;color:var(--muted,#5b6d64)}.pr-stars span{color:var(--line,#cfd8d3);font-size:22px;letter-spacing:1px}.pr-stars span.on{color:#F8A31B}</style><div class="prem-pg"><div class="topbar"><div><div class="eyebrow">Premiações e Incentivos</div><h1>Meu prêmio · ${COMP}</h1></div><div class="top-actions">${selMes}</div></div>${typeof premStatusHTML==="function"?premStatusHTML(COMP_ISO):""}${typeof medalhaMesHTML==="function"?medalhaMesHTML(COMP_ISO):""}${resumo}${typeof medalhasCard==="function"?medalhasCard():""}${ajH}${corpoV}${supCards}${!corpoV&&!supCards&&!ajH?vazio:""}</div>`;
 }
 function prCelebrar(msg){
   const k="prem-cel-"+((typeof SESSION!=="undefined"&&SESSION&&SESSION.login)||"")+"-"+COMP_ISO;
