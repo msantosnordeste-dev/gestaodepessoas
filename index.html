@@ -8172,12 +8172,13 @@ function tArena(){
    <div class="ar-cnt">${["faturamento","alcance","tri"].map(tp=>`<div>${arBadge(tp,40)}<span><b>${cnt(tp)}</b><br><small>${AR_T[tp].t}</small></span></div>`).join("")}</div></div>`+dest+quadro+evol;
 }
 function tRegrasRec(){
+  const souRH0=!webNaoRH()&&UI.view==="rh",souSup0=supLogin()||(!webNaoRH()&&UI.view==="supervisora");
   const v=CFG.vend.semanal,q=CFG.vend.quinzenal;
   const fx=R=>R.faixas.map(f=>`${pct(f.min)} → ${pct2(f.pct)} da venda`).join(" · ")+(R.acumula?" (soma as faixas)":" (vale a maior faixa)");
   const card=(tp,quem,quando,crit,onde)=>`<div>${arBadge(tp,58)}<h3>${AR_T[tp].t}</h3><dl><dt>Quem ganha</dt><dd>${quem}</dd><dt>Quando</dt><dd>${quando}</dd><dt>Critério</dt><dd>${crit}</dd><dt>Onde aparece</dt><dd>${onde}</dd></dl></div>`;
   return AR_CSS+`<div class="note" style="margin-bottom:14px"><b>Regras válidas para ${COMP}.</b> As regras de reconhecimento e de premiação são passíveis de alteração a cada período de apuração. Antes de cada período, confira esta página.</div><div class="card"><div class="card-head"><div><h2>Medalhas e troféu</h2><p>Reconhecimento dos vendedores que se destacam em toda a rede. As conquistas não mudam o valor da Premiação Swile: são reconhecimento.</p></div></div>
   <div class="ar-rc">
-   ${card("faturamento","O 1º lugar de toda a rede no Ranking por Faturamento.","Todo mês, no fechamento da apuração.","Maior valor vendido no mês (R$), somando todas as lojas em que vendeu.","Portal do vendedor (Meu prêmio e Meus dados) e Arena de Conquistas.")}
+   ${card("faturamento",souRH0?"O 1º lugar de toda a rede no Ranking por Faturamento.":"O vendedor com o maior faturamento de toda a rede no mês.","Todo mês, no fechamento da apuração.","Maior valor vendido no mês (R$), somando todas as lojas em que vendeu.","Portal do vendedor (Meu prêmio e Meus dados) e Arena de Conquistas.")}
    ${card("alcance","O 1º lugar de toda a rede no Ranking de Vendedores.","Todo mês, no fechamento da apuração.","Maior % da meta atingido no mês (venda ÷ meta).","Portal do vendedor, Ranking de Vendedores (selo 🎯) e Arena de Conquistas.")}
    ${card("tri","Quem for o 1º lugar da rede em % da meta nos 3 meses do trimestre, sempre acima de 100%.","Por trimestre do calendário (jan–mar, abr–jun, jul–set, out–dez), no fechamento do último mês.","Os 3 meses precisam ser do mesmo vendedor, todos em 1º lugar e acima de 100% da meta. Se não houver, ninguém ganha.","Portal do vendedor (destaque dourado no mês que fecha o trimestre) e Arena de Conquistas.")}
   </div></div>
@@ -8193,7 +8194,7 @@ function tRegrasRec(){
    <li><b>Ranking de Vendedores:</b> classifica pelo % da meta do mês (venda ÷ meta). Mostra a posição na loja e a posição nacional, entre todos os vendedores da rede.</li>
    <li><b>Estrelas (1 a 5):</b> mostram a posição do vendedor entre os colegas da mesma loja: 5 Destaque da loja, 4 Acima da maioria, 3 Na média da loja, 2 Abaixo da média, 1 Pode crescer.</li>
    <li><b>Ranking Nacional de Lojas:</b> classifica as lojas pelo % da meta do mês atingido pela loja, com a posição na regional e na rede.</li>
-   <li><b>Ranking por Faturamento:</b> classifica pelo valor vendido (R$). É exclusivo do RH; os demais perfis veem só a medalha de quem ganhou.</li>
+   ${souRH0?`<li><b>Ranking por Faturamento:</b> classifica pelo valor vendido (R$). É exclusivo do RH; os demais perfis veem só a medalha de quem ganhou.</li>`:""}
   </ul></div>
   ${(()=>{const souRH=!webNaoRH()&&UI.view==="rh";const ids=escopo().slice().sort((a,b)=>loja(a).num-loja(b).num);
    const vRegra=fm=>{const R=CFG.vend[fm];if(!R)return "–";return fx(R)+(R.mes&&R.mes.ativo?` · loja${R.mes.indiv?" e vendedor":""} na meta do mês: +${pct2(R.mes.pct)}`:"")};
@@ -8206,7 +8207,7 @@ function tRegrasRec(){
    </tbody></table></div>
    <ul class="ar-ul" style="margin-top:12px">
     <li><b>Funções de apoio:</b> ${(CFG.sup.cargos||[]).map(c=>esc(c)+" "+brl(supValor(c))).join(" · ")} por loja que bater ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?"; quem atende mais de uma loja recebe por cada loja que bater":""}.</li>
-    ${UI.view==="gerente"&&!souRH?"":`<li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>`}
+    ${!(souRH||souSup0)?"":`<li><b>Supervisão:</b> recebe pelo resultado das lojas da sua carteira, sem acelerador de vendas.</li>`}
     <li><b>Fluxo:</b> o RH aprova a apuração; em seguida o gerente da loja aprova ou pede correção; depois o valor é enviado ao Swile.</li>
    </ul></div>`})()}
   ${webNaoRH()||UI.view!=="rh"?"":`<div class="card"><div class="card-head"><div><h2>Quem vê o quê</h2><p>Visível só para o RH.</p></div></div><div class="table-wrap"><table><thead><tr><th>Perfil</th><th>Vê</th></tr></thead><tbody>
