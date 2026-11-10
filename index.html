@@ -950,7 +950,7 @@ function alertas(){
     if(dAso<0) a.push({sev:0,c:"c-bad",ic:"AS",t:e.nome+" · ASO periódico vencido",d:"Venceu em "+fdate(e.aso)+" · "+s.nome,id:e.id});
     else if(dAso<=30) a.push({sev:2,c:"c-warn",ic:"AS",t:e.nome+" · ASO vence em "+dAso+" dias",d:s.nome,id:e.id});
     const dx=diffDays(e.admissao,TODAY);
-    if(dx<=100&&!e.efetivado) marcos(e).forEach(mc=>{if(mc.pend) a.push({sev:mc.dias<0?0:1,c:mc.dias<0?"c-bad":"c-brand",ic:String(mc.m),t:e.nome+" · avaliação de "+mc.m+" dias",d:(mc.dias<0?"Prazo era ":"Fazer até ")+fdate(mc.prazo)+" · "+s.nome,id:e.id,av:e.id+"|"+mc.m})});
+    if(dx<=90&&!e.efetivado) marcos(e).forEach(mc=>{if(mc.pend) a.push({sev:mc.dias<0?0:1,c:mc.dias<0?"c-bad":"c-brand",ic:String(mc.m),t:e.nome+" · avaliação de "+mc.m+" dias",d:(mc.dias<0?"Prazo era ":"Fazer até ")+fdate(mc.prazo)+" · "+s.nome,id:e.id,av:e.id+"|"+mc.m})});
     const fa=sf.programada||feriasEmCurso(e);
     if(fa&&!fa.assinado&&!fa.assinadoPend) a.push({sev:1,c:"c-warn",ic:"AV",t:e.nome+" · colher assinatura do aviso de férias",d:"Férias a partir de "+fdate(fa.inicio)+" · baixe o PDF e colha a assinatura",id:e.id,pdf:e.id+"|"+fa.inicio});
     if(e.banco>2000) a.push({sev:2,c:"c-info",ic:"BH",t:e.nome+" · banco de horas alto",d:"Saldo de "+hm(e.banco)+" · compensar antes do vencimento",id:e.id});
@@ -1044,7 +1044,7 @@ let AV=null;
 function renderNav(){
   const pend=ST.eventos.filter(e=>e.status==="Pendente").length;
   const nAl=alertas().filter(a=>a.sev===0).length+(ROLE==="rh"?listaPendentes().length:0);
-  const nXp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).reduce((s,e)=>s+marcos(e).filter(m=>m.pend).length,0)+(ROLE==="rh"?listaPendentes().filter(x=>x.m.tipo==="avaliacao").length:0);
+  const nXp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=90).reduce((s,e)=>s+marcos(e).filter(m=>m.pend).length,0)+(ROLE==="rh"?listaPendentes().filter(x=>x.m.tipo==="avaliacao").length:0);
   const nG=ROLE==="rh"?pendRH():0;
   const nS=G()?MOVS.filter(m=>m.status==="pendente").length:0;
   const nC=correioNaoLidas().length;correioAvisar(nC);
@@ -1493,7 +1493,7 @@ R.beneficios=()=>{
 };
 
 R.experiencia=()=>{
-  const acomp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).sort((a,b)=>a.admissao.localeCompare(b.admissao));
+  const acomp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=90).sort((a,b)=>a.admissao.localeCompare(b.admissao));
   const all=acomp.flatMap(e=>marcos(e));
   const hist=ST.emps.flatMap(e=>(e.avaliacoes||[]).map(a=>({e,a}))).sort((x,y)=>y.a.data.localeCompare(x.a.data));
   const fin=hist.filter(h=>(h.a.marco===90||h.a.parecer!=="prorrogar")&&diffDays(h.a.data,TODAY)<=365);
@@ -2299,7 +2299,7 @@ function relatorioExperiencia(){
       arquivo:"avaliacoes-experiencia-"+TODAY+".pdf",log:["Relatório de experiência emitido",hist.length+" avaliações"]});
     return;
   }
-  const acomp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100&&passa(e)).sort((a,b)=>a.admissao.localeCompare(b.admissao));
+  const acomp=ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=90&&passa(e)).sort((a,b)=>a.admissao.localeCompare(b.admissao));
   const ms=acomp.map(e=>marcos(e));
   pdfTabela({titulo:"Período de experiência",filtros:filtrosTexto(UI.xBusca,UI.xLoja,"Em acompanhamento")+" · Situação em "+fdate(TODAY),
     resumo:[["Em acompanhamento",acomp.length],["Avaliações nos próximos 10 dias",ms.flat().filter(m=>m.pend&&m.dias>=0).length],["Avaliações atrasadas",ms.flat().filter(m=>m.pend&&m.dias<0).length]],
@@ -3196,7 +3196,7 @@ function mdExcel(){
   salvarXLSX(wb,"medidas-disciplinares-"+TODAY+".xlsx").then(ok=>{if(ok)logEvento("Medidas disciplinares exportadas (Excel)",l.length+" registros · "+mdFiltroTexto())});
 }
 /* ============ experiência: chamado SULTS para o líder da unidade ============ */
-const xpAcomp=()=>ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=100).sort((a,b)=>a.admissao.localeCompare(b.admissao));
+const xpAcomp=()=>ativos().filter(e=>!e.efetivado&&diffDays(e.admissao,TODAY)<=90).sort((a,b)=>a.admissao.localeCompare(b.admissao));
 function xpLider(lojaId){
   const us=(USUARIOS||[]).filter(u=>u.perfil==="gerente"&&u.ativo!==false&&(u.lojas||[]).includes(lojaId)).map(u=>u.nome);
   if(us.length)return us.join(" / ");
