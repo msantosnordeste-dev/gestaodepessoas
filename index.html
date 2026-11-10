@@ -698,6 +698,7 @@ async function carregarGerente(){
     emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
+  try{const {data}=await SB.rpc("meus_dados");window.__ORIGEM=(data&&data.loja_id)||null}catch(e){window.__ORIGEM=null}
   if(PERFIL&&PERFIL.perfil==="gerente"){try{const {data}=await SB.rpc("medidas_equipe");(Array.isArray(data)?data:[]).forEach(x=>{const e=BASE_G.emps.find(y=>y.id===x.id);if(e)e.medidas=x.medidas||[]})}catch(e){}}
   await Promise.all([carregarSolicitacoes(),carregarMensagens()]);
   montarGerente();
@@ -4262,7 +4263,7 @@ function orgNivel(cargo){
   if(/gerente|diretor|socio|coordenador|head/.test(n))return 1;
   return 3;
 }
-function orgUnidadePadrao(){const ls=ST.stores.filter(lojaTemGente);const sel=(UI.hcLojas||[]).find(id=>ls.some(s=>s.id===id));return UI.orgLoja&&ls.some(s=>s.id===UI.orgLoja)?UI.orgLoja:sel||(ls[0]||{}).id}
+function orgUnidadePadrao(){const ls=ST.stores.filter(lojaTemGente);const sel=(UI.hcLojas||[]).find(id=>ls.some(s=>s.id===id));return UI.orgLoja&&ls.some(s=>s.id===UI.orgLoja)?UI.orgLoja:sel||(G()&&window.__ORIGEM&&ls.some(s=>s.id===window.__ORIGEM)?window.__ORIGEM:(ls[0]||{}).id)}
 function orgDados(lojaId){
   const pessoas=ativos().filter(e=>e.lojaId===lojaId&&ccOk(e)).sort((a,b)=>a.nome.localeCompare(b.nome));
   const niv={1:[],2:[],3:[]};pessoas.forEach(e=>niv[orgNivel(e.cargo)].push(e));
@@ -4285,7 +4286,7 @@ function orgPagina(){
   const nAus=d.pessoas.filter(e=>["ferias","afastado"].includes(status(e).k)).length;
   return header(G()?"Minha loja":"Visão geral","Headcount",`<button class="btn" data-act="orgPdf">Baixar PDF</button>`)+orgAbas()+`
   <div class="card" style="padding:14px 18px"><div class="toolbar" style="margin:0;flex-wrap:wrap;gap:10px">
-    <select class="input" id="f-orgloja" aria-label="Unidade" style="max-width:420px">${lojas.map(x=>`<option value="${esc(x.id)}" ${x.id===lojaId?"selected":""}>${esc(x.nome)}</option>`).join("")}</select>
+    <select class="input" id="f-orgloja" aria-label="Unidade" style="max-width:420px">${lojas.map(x=>`<option value="${esc(x.id)}" ${x.id===lojaId?"selected":""}>${esc(x.nome)}${G()&&x.id===window.__ORIGEM?" · sua unidade de origem":""}</option>`).join("")}</select>
     <span class="chip c-info">${d.pessoas.length} pessoa${d.pessoas.length===1?"":"s"}${quadro?" de "+quadro+" no quadro":""}</span>${d.vagas.length?`<span class="chip c-warn">${d.vagas.reduce((t,v)=>t+v.qtd,0)} vaga(s) aberta(s)</span>`:""}${d.adm.length?`<span class="chip c-brand">${d.adm.length} em admissão</span>`:""}${nAus?`<span class="chip c-mute">${nAus} de férias ou afastado(s)</span>`:""}
     ${s.centroCusto?`<span class="small muted">Centro de custo: ${esc(s.centroCusto)}</span>`:""}</div></div>
   <style>.org{overflow-x:auto}.org-topo{text-align:center;margin-bottom:14px}.org-topo b{display:block;font-size:1.1rem}.org-topo span{color:var(--muted);font-size:.8rem}.org-nivel{display:flex;flex-direction:column;align-items:center;gap:8px}.org-rot{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.org-linha{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.org-con{width:2px;height:22px;background:var(--line);margin:6px auto}.org-p{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1.5px solid var(--brand);border-radius:12px;background:var(--surface);min-width:190px;max-width:240px;cursor:pointer;text-align:left}.org-p:hover{background:var(--brand-tint)}.org-p b{display:block;font-size:.85rem}.org-p span{display:block;font-size:.72rem;color:var(--muted)}.org-p.peq{min-width:0;max-width:none;border-width:1px;padding:6px 8px;margin-top:6px}.org-p.peq .avatar{width:26px;height:26px;font-size:.65rem}.org-p.vaga{border-style:dotted;border-color:var(--warn);cursor:default;background:transparent}.org-p.adm{border-style:dashed;border-color:var(--info,#3b82f6);cursor:default}.org-grupos{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:flex-start}.org-grupo{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:200px;background:var(--surface-2)}.org-gh{display:flex;justify-content:space-between;gap:8px;align-items:center}@media print{.side,.topbar .top-actions,.tabs-inline,details.card{display:none!important}}</style>
@@ -6420,7 +6421,7 @@ async function vcMontar(id,Pf){
     :{id,nome:e.nome,cargo:e.cargo,admissao:e.admissao,loja_id:e.lojaId,loja_nome:loja.nome,cidade:loja.cidade};
   // lojas inteiras do gestor: as do login (sem o Núcleo) ou a carteira do supervisor
   let minhas=[];
-  if(gestor){minhas=P.perfil==="comercial"?ST.stores.map(s=>s.id):P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):(P.lojas||[]);minhas=minhas.filter(l=>!nuc.has(l))}
+  if(gestor){minhas=P.perfil==="comercial"?ST.stores.map(s=>s.id):P.perfil==="supervisor"?((supervisores().find(s=>s.id===P.supervisor_id)||{}).lojas||[]):[...new Set([...(P.lojas||[]),...(emp(id)&&emp(id).lojaId?[emp(id).lojaId]:[])])];minhas=minhas.filter(l=>!nuc.has(l)&&ST.stores.some(s=>s.id===l))}
   const lojasVis=new Set([...minhas,...(gestor?membros.map(x=>(emp(x[0])||{}).lojaId):[])].filter(Boolean));
   const visiveis=gestor?new Set([...ativos().filter(c=>minhas.includes(c.lojaId)).map(c=>c.id),...equipeIds]):new Set([id,...equipeIds]);
   const D={};
