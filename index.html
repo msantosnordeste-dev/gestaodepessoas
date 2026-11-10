@@ -7079,7 +7079,9 @@ async function salvarPDF(doc,nome){
 }
 function carregarPptx(){
   if(window.PptxGenJS)return Promise.resolve(window.PptxGenJS);
-  return new Promise((ok,erro)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";s.onload=()=>window.PptxGenJS?ok(window.PptxGenJS):erro();s.onerror=erro;document.head.appendChild(s)});
+  const fontes=["https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js","https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"];
+  const tenta=i=>new Promise((ok,erro)=>{if(i>=fontes.length)return erro();const s=document.createElement("script");s.src=fontes[i];s.onload=()=>window.PptxGenJS?ok(window.PptxGenJS):tenta(i+1).then(ok,erro);s.onerror=()=>{s.remove();tenta(i+1).then(ok,erro)};document.head.appendChild(s)});
+  return tenta(0);
 }
 async function salvarArquivo(buf,nome,mime){
   const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
