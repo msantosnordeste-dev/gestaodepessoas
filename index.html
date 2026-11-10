@@ -713,7 +713,7 @@ async function carregarGerente(){
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
   try{const {data}=await SB.rpc("meus_dados");window.__ORIGEM=(data&&data.loja_id)||null;
     if(data&&data.id){MEU=data;const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);window.__MEU_TDP=td.error?[]:(td.data||[]);const r=await SB.rpc("integracao_liberada");window.__IB_LIB=r.data===true}}catch(e){window.__ORIGEM=null}
-  if(PERFIL&&PERFIL.perfil==="gerente"){try{const {data}=await SB.rpc("medidas_equipe");(Array.isArray(data)?data:[]).forEach(x=>{const e=BASE_G.emps.find(y=>y.id===x.id);if(e)e.medidas=x.medidas||[]})}catch(e){}}
+  if(PERFIL&&(PERFIL.perfil==="gerente"||PERFIL.perfil==="supervisor")){try{const {data}=await SB.rpc("medidas_equipe");(Array.isArray(data)?data:[]).forEach(x=>{const e=BASE_G.emps.find(y=>y.id===x.id);if(e)e.medidas=x.medidas||[]})}catch(e){}}
   await Promise.all([carregarSolicitacoes(),carregarMensagens()]);
   montarGerente();
 }
@@ -1060,7 +1060,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&p.id==="experiencia")||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
 const pages=()=>{const b=pagesBase();if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
@@ -3004,7 +3004,15 @@ R.medidas=()=>{
       <select class="input" id="f-mloja" aria-label="Unidade">${lojaOpts(UI.mLoja||"")}</select>
       ${tab==="registros"?`<select class="input" id="f-mtipo" aria-label="Tipo de medida"><option value="">Todas as medidas</option>${Object.entries(MD_TIPOS).map(([k,t])=>`<option value="${k}" ${UI.mTipo===k?"selected":""}>${t.t}</option>`).join("")}<option value="pendentes" ${UI.mTipo==="pendentes"?"selected":""}>Ciência pendente</option><option value="anuladas" ${UI.mTipo==="anuladas"?"selected":""}>Anuladas</option></select>`:""}`;
   let corpo;
-  if(tab==="registros"){
+  if(tab==="solic"&&G()){
+    const n=semAcento(UI.mBusca||"");
+    const S=(MOVS||[]).filter(m=>m.tipo==="medida"&&m.md).map(m=>({m,e:emp(m.eid)})).filter(({m,e})=>(!UI.mLoja||m.loja===UI.mLoja||(e&&e.lojaId===UI.mLoja))&&(!n||semAcento([e?e.nome:"",m.md.motivo,m.md.registradoPor].join(" ")).includes(n))).sort((a,b)=>String(b.m.em).localeCompare(String(a.m.em)));
+    const ST_S={pendente:["Aguardando RH","c-warn"],aprovado:["Aprovada e aplicada","c-ok"],recusado:["Recusada pelo RH","c-bad"]};
+    const cont=k=>S.filter(x=>x.m.status===k).length;
+    corpo=`<div class="toolbar"><input class="input search" id="f-mbusca" type="search" placeholder="Buscar por nome, motivo ou quem pediu" value="${esc(UI.mBusca||"")}" aria-label="Buscar"><select class="input" id="f-mloja" aria-label="Unidade">${lojaOpts(UI.mLoja||"")}</select><span class="muted small">${S.length} solicitação(ões) · ${cont("pendente")} aguardando · ${cont("aprovado")} aplicadas · ${cont("recusado")} recusadas</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Pedido em</th><th>Colaborador</th><th>Unidade</th><th>Medida</th><th>Motivo</th><th>Pedida por</th><th>Situação</th></tr></thead><tbody>
+    ${S.map(({m,e})=>{const s=ST_S[m.status]||[m.status,"c-mute"];return `<tr><td class="num">${fdate(String(m.em||"").slice(0,10))}</td><td>${e?whoCell(e):"—"}</td><td>${esc(store((e&&e.lojaId)||m.loja).nome)}</td><td><span class="chip ${(MD_TIPOS[m.md.tipo]||{}).c||""}">${esc((MD_TIPOS[m.md.tipo]||{}).t||"")}${m.md.tipo==="suspensao"?" · "+m.md.dias+"d":""}</span><br><span class="small muted">fato em ${fdate(m.md.dataFato)}</span></td><td>${esc(m.md.motivo||"")}</td><td class="small">${esc(m.md.registradoPor||"Gerente")}</td><td><span class="chip ${s[1]}">${s[0]}</span>${m.decididoEm?`<br><span class="small muted">em ${fdate(String(m.decididoEm).slice(0,10))}</span>`:""}${m.status==="recusado"&&m.motivo?`<br><span class="small">${esc(m.motivo)}</span>`:""}</td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Nenhuma solicitação de medida disciplinar.</td></tr>`}</tbody></table></div>`;
+  }else if(tab==="registros"){
     const l=mdLista();
     corpo=`${ferr}<span class="muted small">${l.length} registro${l.length===1?"":"s"}</span></div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th>Colaborador</th><th>Unidade</th><th>Medida</th><th>Motivo</th><th>Ciência</th></tr></thead>
@@ -3026,7 +3034,7 @@ R.medidas=()=>{
     <div class="card kpi"><span class="lbl">Reincidentes</span><span class="val num" style="color:${reinc?"var(--bad)":"inherit"}">${reinc}</span><span class="sub">ativos com 3+ medidas em 12 meses</span></div>
   </div>
   <div class="card">
-    <div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${tab==="registros"?"on":""}" data-mdtab="registros">Registros</button><button class="pill ${tab==="prontuario"?"on":""}" data-mdtab="prontuario">Prontuário por colaborador</button></div>
+    <div class="tabs-inline" style="margin-bottom:12px"><button class="pill ${tab==="registros"?"on":""}" data-mdtab="registros">Registros</button><button class="pill ${tab==="prontuario"?"on":""}" data-mdtab="prontuario">Prontuário por colaborador</button>${G()?`<button class="pill ${tab==="solic"?"on":""}" data-mdtab="solic">Solicitações ao RH</button>`:""}</div>
     ${corpo}
   </div>`;
 };
@@ -6280,7 +6288,7 @@ const perfilGestor=p=>p==="supervisor"||p==="comercial"?"gerente":p;
 const usrCarteira=u=>{const s=supervisores().find(x=>x.id===u.supervisor_id);if(!s)return `<span class="chip c-warn">Supervisor não encontrado</span>`;
   const r=refPessoa(s.ref);return `Carteira de ${esc(r?r.nome:"supervisor")}: ${(s.lojas||[]).map(id=>esc(store(id).nome)).join(", ")||"nenhuma loja"}`};
 // só consulta: nada é enviado ao RH, e os botões de registrar somem
-document.head.insertAdjacentHTML("beforeend",`<style>.app.consulta :is([data-avaliar],[data-aso],[data-banco],[data-assinou],[data-panovo],[data-paeditar],[data-paencerrar],[data-pacancelar],[data-pareabrir],[data-pastat],[data-paconf],[data-padev],[data-pacom],.pa-com,.anx-enviar){display:none!important}</style>`);
+document.head.insertAdjacentHTML("beforeend",`<style>.app.consulta :is([data-mdnovo],[data-avaliar],[data-aso],[data-banco],[data-assinou],[data-panovo],[data-paeditar],[data-paencerrar],[data-pacancelar],[data-pareabrir],[data-pastat],[data-paconf],[data-padev],[data-pacom],.pa-com,.anx-enviar){display:none!important}</style>`);
 const AVISO_CONSULTA="Seu perfil é de consulta. Alterações são feitas pelo RH ou pelo gerente da loja.";
 const enviarMovBase=enviarMov;
 enviarMov=async function(m,msg){if(soConsulta()){toast(AVISO_CONSULTA);montarGerente();renderSafe();return}return enviarMovBase(m,msg)};
@@ -6478,7 +6486,7 @@ async function vcMontar(id,Pf){
     D.premiacoes_lojas=numsVC.length?await ler(realSB.from("premiacoes_lojas").select("loja_id,loja_num,dados,comp").in("loja_num",numsVC)):[];
     D.premiacoes_vendedores=numsVC.length?await ler(realSB.from("premiacoes_vendedores").select("vend_id,loja_id,loja_num,nome,per,acel,comp").in("loja_num",numsVC).limit(5000)):[];
   }
-  const medidasVC=P.perfil==="gerente"?ST.emps.filter(c=>minhas.includes(c.lojaId)&&(c.medidas||[]).length).map(c=>({id:c.id,medidas:c.medidas.map(({obs,...m})=>m)})):[];
+  const medidasVC=(P.perfil==="gerente"||P.perfil==="supervisor")?ST.emps.filter(c=>minhas.includes(c.lojaId)&&(c.medidas||[]).length).map(c=>({id:c.id,medidas:c.medidas.map(({obs,...m})=>m)})):[];
   const rpcFn=(n,a)=>realSB.rpc(n,a);
   return {id,nome:e.nome,P,dados:D,rpc:{meus_dados:meus,minha_equipe_dados:equipe,medidas_equipe:medidasVC,
     premiacoes_meu_resultado:a=>rpcFn("premiacoes_resultado_de",{p_colab:id,p_comp:a.p_comp}),
