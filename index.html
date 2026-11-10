@@ -7748,7 +7748,7 @@ function meuPremio(){
       <tfoot><tr><td>Mês</td><td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td><td class="r num">${pct(a.pMes)}</td></tr></tfoot></table></div>
       <p class="small muted">${esc(s?s.cargo:"Função de apoio")} recebe ${brl(s?supValor(s.cargo):CFG.sup.valor)} por loja atendida que bate ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?", somando todas as lojas em que atuam":", valendo só uma loja"}. O resultado por ${a.fmt==="semanal"?"semana":"quinzena"} é informativo: o que conta é o mês.</p></div>`}).join("");
   const totV=VEND.reduce((t,v)=>t+(apurarLoja(v.lojaId).vend.find(x=>x.id===v.id)||{total:0}).total,0),totS=lojasSup.reduce((t,id)=>{const s=apurarLoja(id).sup.find(x=>ids.has(x.id));return t+(s?s.valor:0)},0);
-  const resumo=(VEND.length||lojasSup.length)?`<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Seu prêmio em ${COMP}</span><span class="val num">${brl(totV+totS)}</span><span class="sub">${VEND.length?"vendas":""}${VEND.length&&lojasSup.length?" + ":""}${lojasSup.length?"função de apoio":""}</span></div></div>`:"";
+  const resumo=(VEND.length||lojasSup.length)?`<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Seu prêmio em ${COMP}</span><span class="val num">${brl(totV+totS)}</span>${lojasSup.length&&!VEND.length?`<span class="sub">função de apoio</span>`:""}</div></div>`:"";
   const ordinal=n=>n+"º";
   const estrelas=n=>`<span class="pr-stars" role="img" aria-label="${n} de 5 estrelas">${[1,2,3,4,5].map(i=>`<span class="${i<=n?"on":""}">★</span>`).join("")}</span>`;
   const ESTR_TXT={5:"Destaque da loja",4:"Acima da maioria",3:"Na média da loja",2:"Abaixo da média",1:"Pode crescer"};
