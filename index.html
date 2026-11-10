@@ -7077,6 +7077,96 @@ async function salvarPDF(doc,nome){
   try{const url=URL.createObjectURL(new Blob([buf],{type:"application/pdf"}));const el=document.createElement("a");el.href=url;el.download=nome;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("PDF baixado")}
   catch(e){toast("Não foi possível gerar o PDF aqui.")}
 }
+function carregarPptx(){
+  if(window.PptxGenJS)return Promise.resolve(window.PptxGenJS);
+  return new Promise((ok,erro)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";s.onload=()=>window.PptxGenJS?ok(window.PptxGenJS):erro();s.onerror=erro;document.head.appendChild(s)});
+}
+async function salvarArquivo(buf,nome,mime){
+  const dl=window.claude&&window.claude.use?await window.claude.use("downloads").catch(()=>null):null;
+  if(dl){try{await dl.save({filename:nome,data:buf});toast("Arquivo salvo");return}catch(e){if(e&&e.code==="declined")return}}
+  try{const url=URL.createObjectURL(new Blob([buf],{type:mime}));const el=document.createElement("a");el.href=url;el.download=nome;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("Arquivo baixado")}
+  catch(e){toast("Não foi possível salvar o arquivo aqui.")}
+}
+async function gerarPPT(){
+  toast("Montando o PowerPoint…");
+  let P;try{P=await carregarPptx()}catch(e){toast("Não foi possível carregar o gerador de PowerPoint. Verifique a conexão.");return}
+  const ppt=new P();ppt.layout="LAYOUT_WIDE";ppt.title="Premiações e Incentivos · "+COMP;ppt.company="Brasileiríssima";
+  const V="0B7F4A",VI="075E36",VS="DCF3E6",VT="F0FAF4",INK="10201A",MU="5B6D64",AM="B86E00",F="Calibri";
+  const quem=((typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"RH"),quando=new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+  const sel=UI.tab==="resultados"?(UI.view==="gerente"?MINHA:UI.loja):"";
+  const novo=(titulo,sub)=>{const s=ppt.addSlide();s.background={color:"FFFFFF"};s.addShape(ppt.ShapeType.rect,{x:0,y:0,w:13.333,h:0.9,fill:{color:V}});
+    s.addText(titulo,{x:0.5,y:0.12,w:9.5,h:0.66,fontFace:F,fontSize:22,bold:true,color:"FFFFFF",valign:"middle"});
+    s.addText("Premiações e Incentivos · "+COMP,{x:9.2,y:0.12,w:3.7,h:0.66,fontFace:F,fontSize:11,color:"FFFFFF",align:"right",valign:"middle"});
+    if(sub)s.addText(sub,{x:0.5,y:1.0,w:12.3,h:0.4,fontFace:F,fontSize:12,color:MU});
+    s.addText(`Metas Indeva · vendas Totvs · valores sem arredondamento, em centavos · gerado em ${quando} por ${quem}`,{x:0.5,y:7.05,w:12.3,h:0.3,fontFace:F,fontSize:8,color:MU});return s};
+  const H=t=>({text:t,options:{bold:true,color:"FFFFFF",fill:{color:V},align:/^(Meta|Venda|Faturamento|Prêmio|Total|Vendedores|Suporte|Gerente|%|Lojas|Na meta)/.test(t)?"right":"left"}});
+  const C=(t,o={})=>({text:String(t),options:o});
+  const tabela=(s,head,rows,opt={})=>s.addTable([head.map(H),...rows],{x:0.5,y:opt.y||1.5,w:12.33,colW:opt.colW,fontFace:F,fontSize:opt.fs||10,color:INK,border:{type:"solid",pt:0.5,color:"DFE8E3"},valign:"middle",rowH:opt.rowH||0.3,margin:0.05});
+  const kpi=(s,x,y,w,lbl,val,sub,hero)=>{s.addShape(ppt.ShapeType.roundRect,{x,y,w,h:1.35,rectRadius:0.12,fill:{color:hero?V:VT},line:{color:hero?V:"DFE8E3"}});
+    s.addText(lbl,{x:x+0.2,y:y+0.1,w:w-0.4,h:0.3,fontFace:F,fontSize:11,color:hero?"FFFFFF":MU});
+    s.addText(val,{x:x+0.2,y:y+0.4,w:w-0.4,h:0.55,fontFace:F,fontSize:24,bold:true,color:hero?"FFFFFF":INK});
+    if(sub)s.addText(sub,{x:x+0.2,y:y+0.93,w:w-0.4,h:0.3,fontFace:F,fontSize:9.5,color:hero?"FFFFFF":MU})};
+  const capa=(sub)=>{const s=ppt.addSlide();s.background={color:V};
+    s.addText("Premiações e Incentivos",{x:0.8,y:2.2,w:11.7,h:1,fontFace:F,fontSize:40,bold:true,color:"FFFFFF"});
+    s.addText(COMP+" · "+sub,{x:0.8,y:3.2,w:11.7,h:0.6,fontFace:F,fontSize:20,color:"FFFFFF"});
+    s.addText("Brasileiríssima · ConectaGP",{x:0.8,y:6.3,w:11.7,h:0.4,fontFace:F,fontSize:12,color:VS});
+    s.addText("Gerado em "+quando+" por "+quem,{x:0.8,y:6.7,w:11.7,h:0.4,fontFace:F,fontSize:10,color:VS})};
+  const corP=a=>a.bateu?V:AM;
+  const partes=(arr,n)=>{const out=[];for(let i=0;i<arr.length;i+=n)out.push(arr.slice(i,i+n));return out.length?out:[[]]};
+  let nome;
+  if(UI.tab==="supervisao"){
+    const R=apurarSupervisao(),G=apurarGestao(),T={meta:R.reduce((s,x)=>s+x.meta,0),venda:R.reduce((s,x)=>s+x.venda,0),valor:R.reduce((s,x)=>s+x.valor,0)};
+    capa("Supervisão e Gestão Comercial");
+    let s=novo("Resumo","Supervisão: faixa pelo % atingido da regional sobre o faturamento da regional · Gestão: "+regraTxt(CFG.gest.faixas)+" do faturamento da rede");
+    const w=(12.33-0.3*(R.length+1))/(R.length+2);
+    R.forEach((x,i)=>kpi(s,0.5+i*(w+0.3),1.6,w,x.reg+(x.nome?" · "+x.nome:""),brl(x.valor),pct(x.p)+" da meta · "+(x.faixa?pct2(x.faixa.pct):"—")+" sobre "+brl(x.venda)));
+    kpi(s,0.5+R.length*(w+0.3),1.6,w,"Gestão Comercial · "+G.nome,brl(G.valor),(G.faixa?pct2(G.faixa.pct):"—")+" sobre "+brl(G.venda));
+    kpi(s,0.5+(R.length+1)*(w+0.3),1.6,w,"Total supervisão + gestão",brl(T.valor+G.valor),"Supervisão "+brl(T.valor)+" · Gestão "+brl(G.valor),true);
+    tabela(s,["Regional","Supervisão","Lojas","Meta","Venda","% no mês","Faixa","Prêmio"],[...R.map(x=>[C(x.reg,{bold:true}),C(x.nome||"—"),C(x.lojas.length,{align:"right"}),C(brl(x.meta),{align:"right"}),C(brl(x.venda),{align:"right"}),C(pct(x.p),{align:"right",bold:true,color:x.p>=CFG.metaMin?V:AM}),C(x.faixa?pct2(x.faixa.pct):"—"),C(brl(x.valor),{align:"right",bold:true})]),
+      [C("Gestão Comercial",{bold:true}),C(G.nome),C(G.lojas,{align:"right"}),C(brl(G.meta),{align:"right"}),C(brl(G.venda),{align:"right"}),C(pct(G.p),{align:"right",bold:true}),C(G.faixa?pct2(G.faixa.pct):"—"),C(brl(G.valor),{align:"right",bold:true})],
+      [C("Total",{bold:true,fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}}),C(brl(T.valor+G.valor),{align:"right",bold:true,fill:{color:VS}})]],{y:3.3,colW:[1.9,2.6,0.7,1.6,1.6,1.1,1.1,1.73]});
+    R.forEach(x=>{partes(x.lojas,14).forEach((lj,pi,arr)=>{const s2=novo("Supervisão "+x.reg+(arr.length>1?` (${pi+1}/${arr.length})`:""),(x.nome?x.nome+" · ":"")+"Prêmio "+(x.faixa?pct2(x.faixa.pct):"—")+" × "+brl(x.venda)+" = "+brl(x.valor));
+      const rows=lj.map(a=>[C(loja(a.id).nome),C(brl(a.metaMes),{align:"right"}),C(brl(a.vendaMes),{align:"right"}),C(pct(a.pMes),{align:"right",bold:true,color:corP(a)})]);
+      if(pi===arr.length-1)rows.push([C("Total "+x.reg,{bold:true,fill:{color:VS}}),C(brl(x.meta),{align:"right",bold:true,fill:{color:VS}}),C(brl(x.venda),{align:"right",bold:true,fill:{color:VS}}),C(pct(x.p)+" · "+brl(x.valor),{align:"right",bold:true,fill:{color:VS}})]);
+      tabela(s2,["Loja","Meta","Venda","% atingido"],rows,{colW:[5.53,2.2,2.2,2.4]})})});
+    nome="premio-supervisao-gestao-"+COMP.replace("/","-").toLowerCase()+".pptx";
+  }else if(!sel){
+    const aps=escopo().filter(id=>!UI.reg||regDe(id)===UI.reg).map(apurarLoja);
+    const M=aps.reduce((s,a)=>s+a.metaMes,0),Vd=aps.reduce((s,a)=>s+a.vendaMes,0),T=aps.reduce((s,a)=>s+a.total,0);
+    capa(UI.reg?"Regional "+UI.reg:"Resultado da rede");
+    let s=novo("Resumo do mês",UI.reg?"Regional "+UI.reg:"Todas as regionais");
+    kpi(s,0.5,1.6,2.85,"Meta do mês",brl(M),aps.length+" lojas");kpi(s,3.65,1.6,2.85,"Venda do mês",brl(Vd),pct(M?Vd/M*100:0)+" da meta");
+    kpi(s,6.8,1.6,2.85,"Lojas na meta",aps.filter(a=>a.bateu).length+" de "+aps.length,aps.filter(a=>a.bateu).map(a=>loja(a.id).curto).join(", ")||"nenhuma");
+    kpi(s,9.95,1.6,2.88,"Prêmios apurados",brl(T),pct(Vd?T/Vd*100:0)+" da venda",true);
+    const regs=[...new Set(aps.map(a=>regDe(a.id)))].sort((x,y)=>x.localeCompare(y));
+    const lin=regs.map(r=>{const as=aps.filter(a=>regDe(a.id)===r),m=as.reduce((q,a)=>q+a.metaMes,0),v=as.reduce((q,a)=>q+a.vendaMes,0),t=as.reduce((q,a)=>q+a.total,0);return [C(r,{bold:true}),C(as.length,{align:"right"}),C(as.filter(a=>a.bateu).length,{align:"right"}),C(brl(m),{align:"right"}),C(brl(v),{align:"right"}),C(pct(m?v/m*100:0),{align:"right",bold:true}),C(brl(t),{align:"right"}),C(pct(v?t/v*100:0),{align:"right"})]});
+    if(regs.length>1)lin.push(["Total",aps.length,aps.filter(a=>a.bateu).length,brl(M),brl(Vd),pct(M?Vd/M*100:0),brl(T),pct(Vd?T/Vd*100:0)].map((t,i)=>C(t,{bold:true,fill:{color:VS},align:i?"right":"left"})));
+    s.addText("Totais por regional",{x:0.5,y:3.15,w:6,h:0.35,fontFace:F,fontSize:14,bold:true,color:INK});
+    tabela(s,["Regional","Lojas","Na meta","Meta mês","Venda mês","% da meta","Prêmios","% da venda"],lin,{y:3.55,colW:[2.4,0.9,1.0,1.8,1.8,1.3,1.73,1.4]});
+    partes(aps,12).forEach((grp,pi,arr)=>{const s2=novo("Resultado por loja"+(arr.length>1?` (${pi+1}/${arr.length})`:""),"Meta e venda do mês, % atingido e prêmios por função");
+      const rows=grp.map(a=>[C(loja(a.id).nome),C(regDe(a.id)),C(brl(a.metaMes),{align:"right"}),C(brl(a.vendaMes),{align:"right"}),C(pct(a.pMes),{align:"right",bold:true,color:corP(a)}),C(brl(a.tv),{align:"right"}),C(brl(a.ts),{align:"right"}),C(brl(a.tg),{align:"right"}),C(brl(a.total),{align:"right",bold:true}),C(pct(a.vendaMes?a.total/a.vendaMes*100:0),{align:"right"})]);
+      if(pi===arr.length-1)rows.push([UI.reg?"Total da regional":"Total da rede","",brl(M),brl(Vd),pct(M?Vd/M*100:0),brl(aps.reduce((q,a)=>q+a.tv,0)),brl(aps.reduce((q,a)=>q+a.ts,0)),brl(aps.reduce((q,a)=>q+a.tg,0)),brl(T),pct(Vd?T/Vd*100:0)].map((t,i)=>C(t,{bold:true,fill:{color:VS},align:i>1?"right":"left"})));
+      tabela(s2,["Loja","Regional","Meta mês","Venda mês","% da meta","Vendedores","Suporte","Gerente","Total","% venda"],rows,{fs:9.5,colW:[2.6,1.3,1.35,1.35,0.95,1.15,0.9,1.05,1.0,0.68]})});
+    nome="premiacoes-"+COMP.replace("/","-").toLowerCase()+(UI.reg?"-"+UI.reg.replace(/[^A-Za-z]+/g,"-").toLowerCase():"-rede")+".pptx";
+  }else{
+    const a=apurarLoja(sel),L=loja(sel);
+    capa(L.nome);
+    let s=novo(L.nome,regDe(sel)+" · "+FMT_T[a.fmt]+(a.ger.nome?" · gerente "+a.ger.nome:""));
+    kpi(s,0.5,1.6,2.85,"Meta do mês",brl(a.metaMes),"");kpi(s,3.65,1.6,2.85,"Venda do mês",brl(a.vendaMes),pct(a.pMes)+(a.bateu?" · bateu":" · não bateu"));
+    kpi(s,6.8,1.6,2.85,"Vendedores · suporte · gerente",brl(a.tv),"Suporte "+brl(a.ts)+" · Gerente "+brl(a.tg));kpi(s,9.95,1.6,2.88,"Total da loja",brl(a.total),pct(a.vendaMes?a.total/a.vendaMes*100:0)+" da venda",true);
+    tabela(s,["Função","Nome","Situação","Prêmio"],[...a.sup.map(x=>[C(x.cargo),C(x.nome),C(a.bateu?(x.lojas.length>1?"Loja na meta · atende 2 lojas":"Loja na meta"):"Loja abaixo da meta"),C(x.valor?brl(x.valor):"—",{align:"right"})]),
+      [C("Gerente",{bold:true}),C(a.ger.nome||"—"),C(a.ger.usadas.length?a.ger.usadas.map(f=>pct(f.min)+" -> "+pct2(f.pct)+" da "+(f.base==="meta"?"meta":"venda")).join(" + "):"Loja abaixo da meta"),C(a.ger.valor?brl(a.ger.valor):"—",{align:"right",bold:true})]],{y:3.3,colW:[2.4,4.2,4.0,1.73]});
+    const pc=a.ps.length,colW=[3.2,...a.ps.map(()=>(12.33-3.2-3.1)/pc),1.0,1.0,1.1];
+    partes(a.vend,8).forEach((grp,pi,arr)=>{const s2=novo("Vendedores · "+L.curto+(arr.length>1?` (${pi+1}/${arr.length})`:""),"% atingido, prêmio e valor vendido por "+(a.fmt==="semanal"?"semana":"quinzena"));
+      const rows=grp.map(v=>[C(v.nome+"\n"+brl(v.vMes)),...v.per.map(x=>x?C(`${pct(x.p)}\n${x.valor?brl(x.valor):"sem prêmio"}\n${brl(x.venda)}`,{align:"center",fill:{color:x.valor?(x.n>1?VS:VT):"FFFFFF"}}):C("—",{align:"center"})),C(pct(v.pMes),{align:"right"}),C(v.mes?brl(v.mes):"—",{align:"right"}),C(brl(v.total),{align:"right",bold:true})]);
+      if(pi===arr.length-1){rows.push([C("Total vendido",{bold:true,fill:{color:VS}}),...a.ps.map((p,i)=>C(brl(a.vend.reduce((q,v)=>q+(v.per[i]?.venda||0),0)),{bold:true,align:"center",fill:{color:VS}})),C(brl(a.vend.reduce((q,v)=>q+v.vMes,0)),{bold:true,align:"right",fill:{color:VS}}),C("",{fill:{color:VS}}),C("",{fill:{color:VS}})]);
+        rows.push([C("Prêmios",{bold:true,fill:{color:VS}}),...a.ps.map((p,i)=>C(brl(a.vend.reduce((q,v)=>q+(v.per[i]?.valor||0),0)),{bold:true,align:"center",fill:{color:VS}})),C("",{fill:{color:VS}}),C(brl(a.vend.reduce((q,v)=>q+v.mes,0)),{bold:true,align:"right",fill:{color:VS}}),C(brl(a.tv),{bold:true,align:"right",fill:{color:VS}})])}
+      tabela(s2,["Vendedor",...a.ps.map(p=>`${p.lbl} ${String(p.ini).padStart(2,"0")}–${String(p.fim).padStart(2,"0")}/10`),"Meta mês","Bônus mês","Total"],rows,{fs:8.5,colW,rowH:0.45})});
+    nome="premiacoes-"+COMP.replace("/","-").toLowerCase()+"-loja-"+L.num+".pptx";
+  }
+  try{const buf=await ppt.write({outputType:"arraybuffer"});if(typeof logEvento==="function")logEvento("Premiações · PowerPoint gerado",nome);await salvarArquivo(buf,nome,"application/vnd.openxmlformats-officedocument.presentationml.presentation")}
+  catch(e){toast("Não foi possível gerar o PowerPoint.")}
+}
 function gerarPDF(){
   const J=window.jspdf&&window.jspdf.jsPDF;if(!J){toast("Gerador de PDF não carregou. Recarregue a página.");return}
   const doc=new J({orientation:"landscape",unit:"mm",format:"a4"});
@@ -7220,6 +7310,7 @@ function pagina(){
   if(UI.tab==="regras")acts.push(`<button class="btn" data-pract="padrao">Restaurar padrão</button><button class="btn btn-primary" data-pract="salvar">Salvar regras</button>`);
   if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
   if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
+  if(UI.tab==="resultados"||UI.tab==="supervisao")acts.push(`<button class="btn" data-pract="ppt">Gerar PowerPoint</button>`);
   if(UI.tab==="resultados")acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
   if(UI.tab==="supervisao")acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
   return `<div class="prem-pg">
@@ -7586,6 +7677,7 @@ document.addEventListener("click",e=>{
   if(d.prgerdel){delete CFG.gerLoja[d.prgerdel];render();toast("Regra da loja removida. Clique em Salvar regras para gravar.");return}
   const act=d.pract;
   if(act==="pdf"){gerarPDF();return}
+  if(act==="ppt"){gerarPPT();return}
   if(act==="pdfsup"){gerarPDFSup();return}
   if(act==="geradd"){const l=$("#pr-gerloja").value;if(!l){toast("Escolha a loja");return}CFG.gerLoja=CFG.gerLoja||{};CFG.gerLoja[l]=clone(CFG.ger);render();toast("Regra criada com os valores gerais. Ajuste e clique em Salvar regras.");return}
   if(act==="supadd"){const nome=($("#pr-sup-nome").value||"").trim();if(!nome){toast("Digite o nome do colaborador");return}const l1=$("#pr-sup-l1").value,l2=$("#pr-sup-l2").value;CFG.sup.pessoas.push({id:"n"+uid(),nome,cargo:$("#pr-sup-cargo").value,lojas:[...new Set([l1,l2].filter(Boolean))]});render();toast("Incluído. Clique em Salvar regras para gravar.");return}
