@@ -698,6 +698,7 @@ async function carregarGerente(){
     emps:co.map(r=>({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
+  if(PERFIL&&PERFIL.perfil==="gerente"){try{const {data}=await SB.rpc("medidas_equipe");(Array.isArray(data)?data:[]).forEach(x=>{const e=BASE_G.emps.find(y=>y.id===x.id);if(e)e.medidas=x.medidas||[]})}catch(e){}}
   await Promise.all([carregarSolicitacoes(),carregarMensagens()]);
   montarGerente();
 }
@@ -742,6 +743,14 @@ function aplicarMov(m,lojaId,local){
   if(m.tipo==="banco"){const v=Number(m.min);if(!isFinite(v)||Math.abs(v)>720)return "Lançamento inválido";e.banco+=v;return null}
   if(m.tipo==="aso"){if(!/^\d{4}-\d{2}-\d{2}$/.test(m.data||""))return "Data inválida";e.aso=m.data;return null}
   if(m.tipo==="ferias_assinada"){const f=e.ferias.find(x=>x.inicio===m.ini);if(!f)return "Férias não encontradas";if(local)f.assinadoPend=true;else{f.assinado=String(m.em||TODAY).slice(0,10);delete f.assinadoPend}return null}
+  if(m.tipo==="medida"){const x=m.md||{};const dt=/^\d{4}-\d{2}-\d{2}$/;
+    if(!MD_TIPOS[x.tipo])return "Medida inválida";if(!dt.test(x.data||"")||!dt.test(x.dataFato||""))return "Datas inválidas";if(String(x.fato||"").trim().length<15)return "Descrição do fato muito curta";
+    const t=v=>String(v||"").slice(0,500);
+    const md={id:x.id||uid(),tipo:x.tipo,motivo:t(x.motivo),data:x.data,dataFato:x.dataFato,fato:String(x.fato).slice(0,2000),norma:t(x.norma),solicitante:t(x.solicitante),obs:t(x.obs),testemunhas:(Array.isArray(x.testemunhas)?x.testemunhas:[]).slice(0,2).map(t),
+      ciencia:x.tipo==="orientacao"?"nao_exige":"pendente",registradoPor:t(x.registradoPor),registradoEm:x.registradoEm||new Date().toISOString()};
+    if(x.tipo==="suspensao"){const dias=Math.round(Number(x.dias));if(!(dias>=1&&dias<=30)||!dt.test(x.inicioSusp||""))return "Suspensão inválida";md.dias=dias;md.inicioSusp=x.inicioSusp;md.fimSusp=addDays(x.inicioSusp,dias-1)}
+    e.medidas=e.medidas||[];if(e.medidas.some(y=>y.id===md.id))return local?null:"Esta medida já foi registrada";
+    if(local)md.pendente=true;else md.aprovadoRH=TODAY;e.medidas.push(md);return null}
   return "Tipo de registro desconhecido";
 }
 function aplicarAvaliacao(e,a){
@@ -761,13 +770,14 @@ async function enviarMov(m,msg){
   logEvento("Solicitação enviada",descMov(m));toast(msg||"Enviado ao RH para aprovação");
   await carregarSolicitacoes();montarGerente();renderSafe();
 }
-const TIPO_MOV={avaliacao:"Avaliação de experiência",escala:"Escala",banco:"Banco de horas",aso:"ASO",ferias_assinada:"Aviso de férias"};
+const TIPO_MOV={medida:"Medida disciplinar",avaliacao:"Avaliação de experiência",escala:"Escala",banco:"Banco de horas",aso:"ASO",ferias_assinada:"Aviso de férias"};
 function descMov(m){
   if(m.tipo==="avaliacao"&&m.av)return "Avaliação de "+m.av.marco+" dias · "+((PARECER[m.av.parecer]||{}).t||"")+" · nota "+mediaNotas(m.av.notas||{}).toLocaleString("pt-BR");
   if(m.tipo==="escala")return "Escala da semana de "+fdate(String(m.key||"").split("|")[1]||TODAY)+": folga "+(m.dias||[]).map((x,i)=>x==="F"?["dom","seg","ter","qua","qui","sex","sáb"][i]:null).filter(Boolean).join(", ");
   if(m.tipo==="banco")return (m.min>0?"Crédito de ":"Débito de ")+hm(Math.abs(m.min))+" no banco de horas";
   if(m.tipo==="aso")return "ASO periódico renovado, novo vencimento "+fdate(m.data);
   if(m.tipo==="ferias_assinada")return "Aviso de férias assinado pelo colaborador · férias a partir de "+fdate(m.ini);
+  if(m.tipo==="medida"&&m.md)return ((MD_TIPOS[m.md.tipo]||{}).t||"Medida")+(m.md.tipo==="suspensao"?" de "+m.md.dias+" dia(s)":"")+" · "+m.md.motivo+" · aplicada em "+fdate(m.md.data);
   return "Registro";
 }
 async function decidirMov(id,aprovar){
@@ -1035,7 +1045,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
@@ -1115,7 +1125,7 @@ R.usuarios=()=>{
     const ug=id=>USUARIOS.find(u=>u.user_id===id);
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead>
     <tbody>${SOLIC.map(m=>{const e=emp(m.eid);const u=ug(m.autor);return `<tr><td class="num">${quando(m.em)}</td><td><b>${esc(u?u.nome:"—")}</b><br><span class="small muted">${esc(store(m.loja).nome)}</span></td><td>${e?whoCell(e):"—"}</td><td style="white-space:normal;min-width:240px">${esc(descMov(m))}</td>
-      <td><div class="tabs-inline">${m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(m.id)}">Ver</button>`:""}<button class="btn btn-sm" data-recusar="${esc(m.id)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(m.id)}">Aprovar</button></div></td></tr>`}).join("")||`<tr><td colspan="5" class="empty">Nenhuma solicitação esperando aprovação.</td></tr>`}</tbody></table></div></div>`;
+      <td><div class="tabs-inline">${m.tipo==="avaliacao"||m.tipo==="medida"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(m.id)}">Ver</button>`:""}<button class="btn btn-sm" data-recusar="${esc(m.id)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(m.id)}">Aprovar</button></div></td></tr>`}).join("")||`<tr><td colspan="5" class="empty">Nenhuma solicitação esperando aprovação.</td></tr>`}</tbody></table></div></div>`;
   } else {
     if(LOGV===null)carregarLog();
     const f=(UI.logBusca||"").toLowerCase();
@@ -2981,7 +2991,7 @@ R.medidas=()=>{
     const l=mdLista();
     corpo=`${ferr}<span class="muted small">${l.length} registro${l.length===1?"":"s"}</span></div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th>Colaborador</th><th>Unidade</th><th>Medida</th><th>Motivo</th><th>Ciência</th></tr></thead>
-    <tbody>${l.slice(0,400).map(({e,m})=>`<tr class="click" data-mdver="${e.id}|${m.id}" style="${m.anulada?"opacity:.6":""}"><td class="num">${fdate(m.data)}</td><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td><span class="chip ${m.anulada?"c-mute":MD_TIPOS[m.tipo].c}">${esc(mdDescTipo(m))}${m.anulada?" · anulada":""}</span></td><td style="white-space:normal;min-width:180px">${esc(m.motivo)}</td><td>${m.tipo==="orientacao"?`<span class="small muted">Não exige</span>`:`<span class="chip ${MD_CIENCIA[m.ciencia||"pendente"].c}">${MD_CIENCIA[m.ciencia||"pendente"].t}</span>`}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">${mdTodas().length?"Nenhuma medida com esses filtros.":"Nenhuma medida disciplinar registrada."}</td></tr>`}</tbody></table></div>`;
+    <tbody>${l.slice(0,400).map(({e,m})=>`<tr class="click" data-mdver="${e.id}|${m.id}" style="${m.anulada?"opacity:.6":""}"><td class="num">${fdate(m.data)}</td><td>${whoCell(e)}</td><td>${esc(store(e.lojaId).nome)}</td><td><span class="chip ${m.anulada?"c-mute":MD_TIPOS[m.tipo].c}">${esc(mdDescTipo(m))}${m.anulada?" · anulada":""}</span>${m.pendente?` <span class="chip c-warn">Aguardando RH</span>`:""}</td><td style="white-space:normal;min-width:180px">${esc(m.motivo)}</td><td>${m.tipo==="orientacao"?`<span class="small muted">Não exige</span>`:`<span class="chip ${MD_CIENCIA[m.ciencia||"pendente"].c}">${MD_CIENCIA[m.ciencia||"pendente"].t}</span>`}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">${mdTodas().length?"Nenhuma medida com esses filtros.":"Nenhuma medida disciplinar registrada."}</td></tr>`}</tbody></table></div>`;
   }else{
     const n=semAcento(UI.mBusca||""),dg=soDig(UI.mBusca||"");
     const ps=ST.emps.filter(e=>(e.medidas||[]).length&&(!UI.mLoja||e.lojaId===UI.mLoja)&&(!n||semAcento([e.nome,e.cargo,store(e.lojaId).nome].join(" ")).includes(n)||(dg.length>=3&&soDig(e.cpf).includes(dg))))
@@ -3056,6 +3066,7 @@ function mdSalvar(){
   const m={id:uid(),tipo,motivo:v("motivo"),data,dataFato,fato:fato.slice(0,2000),norma:v("norma").slice(0,300),solicitante:v("solic").slice(0,120),obs:v("obs").slice(0,500),
     testemunhas:[v("test1"),v("test2")].filter(Boolean),ciencia:tipo==="orientacao"?"nao_exige":"pendente",registradoPor:SESSION?SESSION.nome:"",registradoEm:new Date().toISOString()};
   if(tipo==="suspensao"){const dias=Math.round(Number(v("dias")));if(!(dias>=1&&dias<=30))return err("A suspensão deve ter de 1 a 30 dias.");const ini=v("inisusp");if(!ini)return err("Informe o início da suspensão.");m.dias=dias;m.inicioSusp=ini;m.fimSusp=addDays(ini,dias-1)}
+  if(G()){m.registradoPor=SESSION?SESSION.nome:"";closeModal();enviarMov({tipo:"medida",eid:e.id,md:m},MD_TIPOS[tipo].t+" enviada ao RH para aprovação");return}
   e.medidas=[...(e.medidas||[]),m];
   logEvento("Medida disciplinar registrada",e.nome+" · "+mdDescTipo(m)+" · "+m.motivo);
   closeModal();commit(MD_TIPOS[tipo].t+" registrada");
@@ -3073,12 +3084,12 @@ function mdVer(eid,mid){
     m.tipo!=="orientacao"?["Ciência",MD_CIENCIA[m.ciencia||"pendente"].t+(m.cienciaEm?" em "+fdate(m.cienciaEm):"")]:null,m.obs?["Observações internas",m.obs]:null].filter(Boolean);
   modal(t.t+" · "+e.nome,`
     <div class="who"><div class="avatar">${esc(initials(e.nome))}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo)} · ${esc(store(e.lojaId).nome)}</span></div><span class="chip ${m.anulada?"c-mute":t.c}" style="margin-left:auto">${m.anulada?"Anulada":esc(mdDescTipo(m))}</span></div>
-    ${m.anulada?`<div class="note"><b>Medida anulada em ${fdate(m.anulada.data)}</b>${m.anulada.por?" por "+esc(m.anulada.por):""}. ${esc(m.anulada.motivo)}</div>`:""}
+    ${m.pendente?`<div class="note"><b>Aguardando aprovação do RH.</b> A medida só passa a valer no prontuário depois que o RH aprovar.</div>`:""}${m.anulada?`<div class="note"><b>Medida anulada em ${fdate(m.anulada.data)}</b>${m.anulada.por?" por "+esc(m.anulada.por):""}. ${esc(m.anulada.motivo)}</div>`:""}
     <div class="kv">${kv.map(([a,b])=>`<div><span>${esc(a)}</span><b style="white-space:normal">${esc(b)}</b></div>`).join("")}</div>
     <div class="field"><label>Descrição do fato</label><div class="note" style="white-space:pre-wrap">${esc(m.fato)}</div></div>`,
-    (m.anulada?`<button class="btn btn-ghost" data-mdexcluir="${e.id}|${m.id}" style="color:var(--bad)">Excluir registro</button>`:`<button class="btn btn-ghost" data-mdanular="${e.id}|${m.id}">Anular</button>`)+
+    (G()?"":m.anulada?`<button class="btn btn-ghost" data-mdexcluir="${e.id}|${m.id}" style="color:var(--bad)">Excluir registro</button>`:`<button class="btn btn-ghost" data-mdanular="${e.id}|${m.id}">Anular</button>`)+
     `<button class="btn" data-mdpront="${e.id}">Ver prontuário</button><button class="btn" data-mdpdf="${e.id}|${m.id}">Documento PDF</button>`+
-    (!m.anulada&&m.tipo!=="orientacao"&&m.ciencia==="pendente"?`<button class="btn btn-primary" data-mdciencia="${e.id}|${m.id}">Registrar ciência</button>`:`<button class="btn btn-primary" data-close>Fechar</button>`));
+    (!G()&&!m.anulada&&m.tipo!=="orientacao"&&m.ciencia==="pendente"?`<button class="btn btn-primary" data-mdciencia="${e.id}|${m.id}">Registrar ciência</button>`:`<button class="btn btn-primary" data-close>Fechar</button>`));
 }
 function mdCienciaModal(eid,mid){
   const {e,m}=mdAchar(eid,mid);
@@ -3352,7 +3363,7 @@ function aprovCard(tipo){
   return `<div class="card" style="border:1.5px solid var(--warn)"><div class="card-head"><div><h2>${titulo} <span class="chip c-warn">${l.length}</span></h2><p>Só entram na base oficial depois de aprovadas. Abra a avaliação para conferir as notas e o parecer.</p></div>${l.length>1?`<button class="btn btn-sm" data-act="aprovarTodas">Aprovar todas (${l.length})</button>`:""}</div>
   <div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead><tbody>${l.map(({m,k})=>{const e=emp(m.eid);
     return `<tr><td class="num">${m.em?new Date(m.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—"}</td><td>${esc(autorMov(m))}</td><td>${e?whoCell(e):"—"}<span class="small muted">${e?esc(store(e.lojaId).nome):""}</span></td><td style="white-space:normal;min-width:200px">${esc(descMov(m))}</td>
-    <td><div class="tabs-inline" style="flex-wrap:nowrap">${m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(k)}">Ver avaliação</button>`:""}<button class="btn btn-sm" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(k)}">Aprovar</button></div></td></tr>`}).join("")}</tbody></table></div></div>`;
+    <td><div class="tabs-inline" style="flex-wrap:nowrap">${m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(k)}">Ver avaliação</button>`:m.tipo==="medida"?`<button class="btn btn-sm btn-ghost" data-vermov="${esc(k)}">Ver</button>`:""}<button class="btn btn-sm" data-recusar="${esc(k)}">Recusar</button><button class="btn btn-sm btn-primary" data-aprovar="${esc(k)}">Aprovar</button></div></td></tr>`}).join("")}</tbody></table></div></div>`;
 }
 /* ============ zerar a base para começar do zero ============ */
 function zerarModal(){
@@ -6332,6 +6343,7 @@ orgPublicadaSync=async function(){
 };
 async function carregarMatrizPub(){const {data,error}=await SB.from("matriz_comunicacao").select("dados").eq("id",1).maybeSingle();MC_PUB=!error&&data&&Array.isArray(data.dados.u)?data.dados.u:[]}
 PAGES_G.push({id:"matriz",t:"Contatos da Rede"});
+PAGES_G.splice(PAGES_G.findIndex(p=>p.id==="experiencia")+1,0,{id:"medidas",t:"Medidas disciplinares"});
 PAGES_C.push({id:"matriz",t:"Contatos da Rede",lid:1});
 const carregarGerenteSemMatriz=carregarGerente;
 carregarGerente=async function(){await carregarMatrizPub();return carregarGerenteSemMatriz()};
@@ -6801,6 +6813,11 @@ document.addEventListener("click",ev=>{
     if(G()){enviarMov({tipo:"ferias_assinada",eid,ini},"Assinatura registrada e enviada ao RH");return}
     const e=emp(eid);const f=e&&e.ferias.find(x=>x.inicio===ini);if(f){f.assinado=TODAY;logEvento("Aviso de férias assinado",e.nome+" · férias de "+fdate(ini));commit("Assinatura registrada")}return}
   if(d.aprovar||d.recusar){closeModal();t.disabled=true;decidirMov(d.aprovar||d.recusar,!!d.aprovar).then(msg=>commit(msg));return}
+  if(d.vermov&&(SOLIC.find(x=>x.id===d.vermov)||{}).tipo==="medida"){const m=SOLIC.find(x=>x.id===d.vermov);const e=emp(m.eid);const x=m.md||{};const aut=USUARIOS.find(u=>u.user_id===m.autor);
+    modal("Medida disciplinar solicitada",`<div class="who"><div class="avatar">${esc(initials(e?e.nome:"?"))}</div><div><b>${esc(e?e.nome:"Colaborador")}</b><span>${esc(e?e.cargo+" · "+store(e.lojaId).nome:"")}</span></div><span class="chip ${(MD_TIPOS[x.tipo]||{}).c||""}" style="margin-left:auto">${esc((MD_TIPOS[x.tipo]||{}).t||"")}</span></div>
+    <div class="kv">${[["Pedida por",aut?aut.nome:(x.registradoPor||"Gerente")],["Motivo",x.motivo],["Data do fato",fdate(x.dataFato)],["Data de aplicação",fdate(x.data)],x.tipo==="suspensao"?["Suspensão",x.dias+" dia(s) a partir de "+fdate(x.inicioSusp)]:null,x.norma?["Norma descumprida",x.norma]:null,x.solicitante?["Solicitada por",x.solicitante]:null,(x.testemunhas||[]).length?["Testemunhas",x.testemunhas.join(" · ")]:null,x.obs?["Observações",x.obs]:null].filter(Boolean).map(([a,b])=>`<div><span>${esc(a)}</span><b style="white-space:normal">${esc(b)}</b></div>`).join("")}</div>
+    ${e?`<div class="note"><span class="chip ${mdSugestao(e).c}">Histórico</span> ${esc(mdSugestao(e).t)}</div>`:""}
+    <div class="field"><label>Descrição do fato</label><div class="note" style="white-space:pre-wrap">${esc(x.fato)}</div></div>`,`<button class="btn" data-recusar="${esc(m.id)}">Recusar</button><button class="btn btn-primary" data-aprovar="${esc(m.id)}">Aprovar e registrar</button>`);return}
   if(d.vermov){const id=d.vermov;const m=SOLIC.find(x=>x.id===id);const e=m&&emp(m.eid);if(e&&m.av)mostrarAv(e,{...m.av,media:mediaNotas(m.av.notas||{})},`<button class="btn" data-recusar="${esc(id)}">Recusar</button><button class="btn btn-primary" data-aprovar="${esc(id)}">Aprovar</button>`);return}
   if(d.holerite){holeriteModal(d.holerite);return}
   if(d.ficha){fichaModal(d.ficha);return}
