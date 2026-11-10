@@ -7513,7 +7513,7 @@ async function carregarConf(){
 }
 const gerMulti=()=>UI.view==="gerente"&&gerLogin()&&minhasLojasMod().length>1;
 const escopo=()=>UI.view==="gerente"?(gerMulti()?minhasLojasMod():[MINHA]):LOJAS.map(l=>l.id);
-const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["rankvend","Ranking de Vendedores",()=>true],["rankfat","Ranking por Faturamento",()=>!(gerLogin()||UI.view==="gerente")],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos e complementos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["ranking","Ranking Nacional",()=>true],["rankvend","Ranking de Vendedores",()=>true],["rankfat","Ranking por Faturamento",()=>!webNaoRH()&&UI.view==="rh"],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["descontos","Descontos e complementos",()=>!webNaoRH()&&UI.view==="rh"],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"&&!webNaoRH()]];
 const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
 
