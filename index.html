@@ -7340,7 +7340,10 @@ const regionais=()=>[...new Set(LOJAS.map(l=>regDe(l.id)))].sort((a,b)=>a.locale
 const PERFIL_W=()=>(typeof PERFIL!=="undefined"&&PERFIL&&PERFIL.perfil)||"";
 const webNaoRH=()=>typeof ROLE!=="undefined"&&(ROLE==="gerente"||ROLE==="colaborador");
 const gerLogin=()=>webNaoRH()&&PERFIL_W()==="gerente";
-const P=()=>{const p=PERM[UI.view];if(!webNaoRH())return p;return {...p,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,regras:false,verSup:!gerLogin()&&p.verSup,conferir:gerLogin()}};
+const supLogin=()=>webNaoRH()&&PERFIL_W()==="supervisor";
+const P=()=>{const p=PERM[UI.view];if(!webNaoRH())return {...p,verMeu:false};const base={...p,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,regras:false,conferir:gerLogin(),verMeu:false};
+  if(supLogin())return {...base,verRes:true,verSup:false,verHist:false,verMeu:true};
+  return {...base,verSup:!gerLogin()&&p.verSup}};
 const numLoja=s=>{const m=String(s&&s.id||"").match(/^lj-0*(\d+)/)||String(s&&s.nome||"").match(/Loja\s*0*(\d+)/i);return m?m[1]:null};
 const minhasLojasMod=()=>((typeof ST!=="undefined"&&ST&&ST.stores)||[]).map(s=>numLoja(s)).filter(Boolean).map(n=>"l"+n).filter(id=>LOJAS.some(l=>l.id===id));
 const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined"&&ST&&ST.stores)||[]).find(x=>numLoja(x)===n);return s?s.id:"lj-"+n};
@@ -7356,7 +7359,7 @@ async function carregarConf(){
     CONF_OK=true}catch(e){toast("Não foi possível ler as conferências dos gerentes.")}
 }
 const escopo=()=>UI.view==="gerente"?[MINHA]:LOJAS.map(l=>l.id);
-const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["resultados","Resultados",p=>p.verRes],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["historico","Histórico de Premiações",p=>p.verHist]];
+const SUB_AP=[["acoes","Ações de Incentivo",()=>true],["aprovacoes","Aprovações",p=>p.verAprov],["meupremio","Meu Prêmio",p=>p.verMeu],["resultados","Resultados",p=>p.verRes],["supervisao","Supervisão e Gestão Comercial",p=>p.verSup],["historico","Histórico de Premiações",p=>p.verHist]];
 const SUB_CF=[["regras","Regras de Apuração",p=>p.regras],["acessos","Perfis e Acessos",()=>UI.view==="rh"]];
 const TITULO=Object.fromEntries([...SUB_AP,...SUB_CF].map(x=>[x[0],x[1]]));
 
@@ -7379,6 +7382,7 @@ function subnav(){
   return `<div class="subnav">${sub("Apuração",SUB_AP)}${sub("Configurações",SUB_CF)}</div>`;
 }
 function pagina(){
+  if(supLogin()){const r=SUB_AP.find(x=>x[0]==="resultados");if(r)r[1]="Prêmio da Equipe";TITULO.resultados="Prêmio da Equipe";if(!UI.supIni){UI.supIni=1;UI.tab="meupremio"}}
   if(webNaoRH()){UI.view=gerLogin()?"gerente":"gestora";if(gerLogin()){const ms=minhasLojasMod();if(!ms.length)return `<div class="prem-pg"><div class="card empty">Sua loja ainda não está na apuração de ${COMP}. Fale com o RH.</div></div>`;if(!ms.includes(MINHA))MINHA=ms[0]}}
   carregar();
   if(!CARREGADO)return `<div class="prem-pg"><div class="card empty">Carregando premiações salvas…</div></div>`;
@@ -7391,8 +7395,8 @@ function pagina(){
   if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
   if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
   if((UI.tab==="aprovacoes"||UI.tab==="resultados")&&podeGravar()&&UI.view==="rh")acts.push(`<button class="btn" data-pract="swile">Exportar Swile (CSV)</button>`);
-  if(UI.tab==="resultados"||UI.tab==="supervisao")acts.push(`<button class="btn" data-pract="ppt">Gerar PowerPoint</button>`);
-  if(UI.tab==="resultados")acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
+  if(supLogin())acts.length=0;else if(UI.tab==="resultados"||UI.tab==="supervisao")acts.push(`<button class="btn" data-pract="ppt">Gerar PowerPoint</button>`);
+  if(UI.tab==="resultados"&&!supLogin())acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
   if(UI.tab==="supervisao")acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
   return `<div class="prem-pg">
   <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:gerLogin()?"Confira a apuração da sua loja. Se algum valor estiver errado, use <b>Pedir correção</b> com o valor real e a justificativa; o RH responde por aqui.":webNaoRH()?"Somente consulta.":podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
@@ -7402,7 +7406,7 @@ function pagina(){
     <div class="top-actions">${acts.join("")}</div>
   </div>
   ${apTab?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,resultados:tResultados,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:tMeuPremioSup,resultados:tResultados,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -7694,6 +7698,20 @@ function gerarPDFSup(){
   const nome="premio-supervisao-gestao-"+COMP.replace("/","-").toLowerCase()+".pdf";
   if(typeof logEvento==="function")logEvento("Premiações · PDF da supervisão e gestão gerado",nome);
   salvarPDF(doc,nome);
+}
+function tMeuPremioSup(){
+  const R=apurarSupervisao();
+  if(!R.length)return `<div class="card empty">Nenhuma loja da sua carteira está na apuração de ${COMP}.</div>`;
+  const bar=p=>`<span class="mbar"><i class="${p>=CFG.metaMin?"":"under"}" style="width:${Math.min(p,140)/1.4}%"></i></span>`;
+  return R.map(x=>`<div class="grid kpis">
+      <div class="card kpi hero"><span class="lbl">Meu prêmio · ${esc(x.reg)}</span><span class="val num">${brl(x.valor)}</span><span class="sub">${x.faixa?pct2(x.faixa.pct):"—"} sobre ${brl(x.venda)} de faturamento da regional</span></div>
+      <div class="card kpi"><span class="lbl">Meta da regional</span><span class="val num">${brl(x.meta)}</span><span class="sub">${x.lojas.length} lojas</span></div>
+      <div class="card kpi"><span class="lbl">Venda da regional</span><span class="val num">${brl(x.venda)}</span><span class="sub">${pct(x.p)} da meta no mês</span></div></div>
+    <div class="card"><div class="card-head"><div><h2>Demonstrativo · loja a loja</h2><p>Faixa pelo % atingido da regional no mês, sobre o faturamento da regional (${regraTxt(CFG.supv.faixas)}). Vale só a maior faixa atingida.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Loja</th><th class="r">Meta</th><th class="r">Venda</th><th>% atingido</th></tr></thead>
+      <tbody>${x.lojas.map(a=>`<tr><td>${esc(loja(a.id).nome)}</td><td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td><td class="num">${bar(a.pMes)}${pct(a.pMes)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Total ${esc(x.reg)}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${brl(x.venda)}</td><td class="num">${pct(x.p)} · ${brl(x.valor)}</td></tr></tfoot></table></div>
+      <p class="note" style="margin-top:14px">Valores em apuração; o prêmio é confirmado pelo RH. O detalhe de cada loja está em <b>Prêmio da Equipe</b>.</p></div>`).join("");
 }
 function tHistGer(){
   const L=LOTES.find(x=>x.lojaId===MINHA),a=apurarLoja(MINHA);
