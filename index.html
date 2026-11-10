@@ -7166,6 +7166,26 @@ async function salvarArquivo(buf,nome,mime){
   try{const url=URL.createObjectURL(new Blob([buf],{type:mime}));const el=document.createElement("a");el.href=url;el.download=nome;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("Arquivo baixado")}
   catch(e){toast("Não foi possível salvar o arquivo aqui.")}
 }
+function exportarFechamento(){
+  if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
+  let ids=gerLogin()?minhasLojasMod():escopo().filter(id=>(!UI.reg||regDe(id)===UI.reg)&&(!UI.loja||UI.loja===id));
+  if(!ids.length){toast("Nenhuma loja para exportar");return}
+  const aps=ids.map(apurarLoja),sit=L=>L?(ST_L[L.status]||[L.status])[0]:"",confT=L=>!L?"":corrAbertas(L).length?"Correção pedida":L.conf==="aprovado"?"Conferida":(L.correcoes||[]).length?"Correção respondida":"Aguardando gerente";
+  const evd=(L,re)=>{const e=L&&[...(L.eventos||[])].reverse().find(x=>re.test(x.acao));return e?e.em:""};
+  const resumo=aps.map(a=>{const L=LOTES.find(x=>x.lojaId===a.id);return {"Loja":loja(a.id).nome,"Regional":regDe(a.id),"Formato":FMT_T[a.fmt],"Meta mês (R$)":a.metaMes,"Venda mês (R$)":a.vendaMes,"% da meta":a.pMes/100,"Bateu a meta":a.bateu?"Sim":"Não",
+    "Vendedores (R$)":a.tv,"Apoio (R$)":a.ts,"Gerente (R$)":a.tg,"Aceleradores (R$)":a.ta,"Total apurado (R$)":a.total,"Valor aprovado (R$)":L&&L.congelado?L.congelado.total:"","% sobre a venda":a.vendaMes?a.total/a.vendaMes:0,"Pessoas premiadas":a.pessoas,
+    "Situação":sit(L),"Aprovação do RH":evd(L,/aprovad/i),"Conferência do gerente":confT(L),"Importada no Swile":evd(L,/Lançada na folha|Importada no Swile/),"Paga":evd(L,/Pagamento confirmado/)}});
+  const pessoas=[];aps.forEach(a=>{const n=loja(a.id).nome;
+    a.vend.forEach(v=>pessoas.push({"Loja":n,"Nome":v.nome,"Função":"Vendedor(a)","Meta individual (R$)":v.metaV,"Venda (R$)":v.vMes,"% da meta":v.pMes/100,"Prêmio dos períodos (R$)":v.premio-v.mes,"Bônus do mês (R$)":v.mes,"Acelerador (R$)":v.acel,"Total (R$)":v.total}));
+    a.sup.forEach(s=>pessoas.push({"Loja":n,"Nome":s.nome,"Função":s.cargo,"Meta individual (R$)":"","Venda (R$)":"","% da meta":"","Prêmio dos períodos (R$)":"","Bônus do mês (R$)":s.valor,"Acelerador (R$)":0,"Total (R$)":s.valor}));
+    pessoas.push({"Loja":n,"Nome":a.ger.nome||"Gerente","Função":"Gerente de loja","Meta individual (R$)":"","Venda (R$)":"","% da meta":"","Prêmio dos períodos (R$)":"","Bônus do mês (R$)":a.ger.valor,"Acelerador (R$)":a.ger.acel,"Total (R$)":a.ger.valor+a.ger.acel})});
+  const fmt=(ws,moeda,pct)=>{const r=XLSX.utils.decode_range(ws["!ref"]);for(let C=r.s.c;C<=r.e.c;C++){const h=(ws[XLSX.utils.encode_cell({r:0,c:C})]||{}).v||"";const z=/\(R\$\)/.test(h)?"#,##0.00":/^%/.test(h)?"0.00%":null;if(!z)continue;for(let R=1;R<=r.e.r;R++){const c=ws[XLSX.utils.encode_cell({r:R,c:C})];if(c&&typeof c.v==="number")c.z=z}}
+    ws["!cols"]=Object.keys((ws["!ref"]&&XLSX.utils.sheet_to_json(ws,{header:1})[0])||[]).map((_,i)=>({wch:i<2?34:18}))};
+  const wb=XLSX.utils.book_new();const w1=XLSX.utils.json_to_sheet(resumo),w2=XLSX.utils.json_to_sheet(pessoas);fmt(w1);fmt(w2);
+  XLSX.utils.book_append_sheet(wb,w1,"Fechamento por loja");XLSX.utils.book_append_sheet(wb,w2,"Prêmio por pessoa");
+  XLSX.writeFile(wb,"Fechamento premiacoes "+COMP.replace("/","-")+(ids.length===1?" - "+loja(ids[0]).curto:"")+".xlsx");
+  if(typeof logEvento==="function")logEvento("Premiações · fechamento exportado",ids.length+" loja(s) · "+COMP);
+}
 async function exportSwile(){
   if(!podeGravar()){toast("A exportação é só para o RH");return}
   const {data:cp,error}=await SB.from("premiacoes_cpf").select("pessoa_id,nome_completo,cpf").eq("comp",COMP_ISO);if(error){toast("Não foi possível ler os CPFs: "+error.message);return}
@@ -7441,9 +7461,10 @@ function pagina(){
   if(UI.tab==="regras"&&regrasPendentes())acts.unshift(`<span class="chip c-warn">Alterações não salvas</span>`);
   if(UI.tab==="resultados"||UI.tab==="historico")acts.push(`<button class="btn" data-pract="exportar">Exportar planilha</button>`);
   if((UI.tab==="aprovacoes"||UI.tab==="resultados")&&podeGravar()&&UI.view==="rh")acts.push(`<button class="btn" data-pract="swile">Exportar Swile (CSV)</button>`);
-  if(supLogin())acts.length=0;else if(UI.tab==="resultados"||UI.tab==="supervisao")acts.push(`<button class="btn" data-pract="ppt">Gerar PowerPoint</button>`);
-  if(UI.tab==="resultados"&&!supLogin())acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
-  if(UI.tab==="supervisao")acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
+  if(webNaoRH()){acts.length=0;if(["resultados","historico","meupremio"].includes(UI.tab))acts.push(`<button class="btn btn-primary" data-pract="exportar">Exportar planilha</button>`)}
+  else if(UI.tab==="resultados"||UI.tab==="supervisao")acts.push(`<button class="btn" data-pract="ppt">Gerar PowerPoint</button>`);
+  if(UI.tab==="resultados"&&!webNaoRH())acts.push(`<button class="btn btn-primary" data-pract="pdf">Gerar PDF</button>`);
+  if(UI.tab==="supervisao"&&!webNaoRH())acts.push(`<button class="btn btn-primary" data-pract="pdfsup">Gerar PDF</button>`);
   return `<div class="prem-pg">
   <div class="banner"><span><b>Outubro/2026 · dados reais</b> metas do Indeva e vendas do Totvs. ${ERRO_DB?`<b style="color:var(--bad)">${esc(ERRO_DB)}</b>`:gerLogin()?"Confira a apuração da sua loja. Se algum valor estiver errado, use <b>Pedir correção</b> com o valor real e a justificativa; o RH responde por aqui.":webNaoRH()?"Somente consulta.":podeGravar()?"Aprovações, lançamentos, regras e acessos ficam salvos no banco do ConectaGP. Na pré-visualização de outro perfil, o que você aprovar fica registrado em seu nome.":"Somente leitura."}</span>
     ${webNaoRH()?(gerLogin()&&minhasLojasMod().length>1?`<select class="input" id="pr-f-minha" style="width:auto" aria-label="Sua loja">${minhasLojasMod().map(id=>`<option value="${id}" ${id===MINHA?"selected":""}>${esc(loja(id).nome)}</option>`).join("")}</select>`:""):`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="small muted">Pré-visualizar como</span><div class="seg" role="group" aria-label="Ver como">${Object.entries(PERFIS).map(([k,v])=>`<button data-prview="${k}" class="${UI.view===k?"on":""}">${v.t}</button>`).join("")}</div></div>`}</div>
@@ -8048,7 +8069,7 @@ document.addEventListener("click",e=>{
   if(act==="nova"){novaCampanha();return}
   if(act==="padrao"){CFG=clone(CFG_PADRAO);render();toast("Regras padrão carregadas. Clique em Salvar regras para gravar.");return}
   if(act==="salvar"){if(!podeGravar()){toast("Somente a conta do RH grava regras");return}CFG_SALVO=clone(CFG);LOTES.forEach(sync);if(typeof logEvento==="function")logEvento("Premiações · Regras de apuração salvas",COMP);gravar();render();toast("Regras salvas. As apurações aguardando aprovação foram recalculadas.");return}
-  if(act==="exportar"){toast("No projeto, gera a planilha da apuração para a folha");return}
+  if(act==="exportar"){exportarFechamento();return}
 });
 document.addEventListener("change",e=>{
   if(page!=="premiacoes")return;
