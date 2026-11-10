@@ -613,6 +613,25 @@ document.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev
 (()=>{const s=document.createElement("style");s.textContent=".pn-kpi{cursor:pointer;transition:box-shadow .15s,transform .15s}.pn-kpi:hover,.pn-kpi:focus-visible{box-shadow:0 0 0 2px var(--brand);transform:translateY(-1px)}";document.head.appendChild(s)})();
 function nomeSocialAplicar(e){const s=String(e.nomeSocial||"").trim();if(s){if(!e.nomeCivil)e.nomeCivil=e.nome;e.nome=s}else if(e.nomeCivil){e.nome=e.nomeCivil;delete e.nomeCivil}return e}
 const nomeRegistro=e=>e?(e.nomeCivil||e.nome):"";
+function medalhasCarregar(){
+  if(window.__MEDALHAS!==undefined)return window.__MEDALHAS;window.__MEDALHAS=null;
+  Promise.resolve(SB.rpc("premiacoes_minhas_medalhas")).then(r=>{window.__MEDALHAS=Array.isArray(r&&r.data)?r.data:[];render()}).catch(()=>{window.__MEDALHAS=[]});
+  return null}
+const MESES_MD=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const compMd=c=>MESES_MD[+String(c).slice(5,7)-1]+"/"+String(c).slice(0,4);
+const brlMd=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const MEDALHA_CSS=`<style>.md-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.md-medal{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:34px;background:radial-gradient(circle at 35% 30%,#fff6c8,#f3c74a 55%,#c9971c);box-shadow:0 4px 14px rgba(201,151,28,.35),inset 0 -3px 0 rgba(0,0,0,.12);flex:none}.md-medal.off{filter:grayscale(1);opacity:.35}.md-count{font-size:2rem;font-weight:700;line-height:1}.md-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.md-item{border:1px solid var(--line,#dfe8e3);border-radius:10px;padding:8px 12px;font-size:.88rem}.md-hero{background:linear-gradient(135deg,#fff8dc,#fdeeb5);border:1px solid #f0d47a}</style>`;
+function medalhasCard(){
+  const M=medalhasCarregar();if(M===null)return `<div class="card"><p class="small muted">Carregando medalhas…</p></div>`;
+  const n=M.length;
+  return MEDALHA_CSS+`<div class="card ${n?"md-hero":""}"><div class="card-head"><div><h2>Medalhas de reconhecimento</h2><p>Maior faturamento da rede no mês · últimos 12 meses</p></div></div>
+  <div class="md-wrap"><div class="md-medal ${n?"":"off"}" aria-hidden="true">🏅</div><div><div class="md-count">${n}</div><div class="small muted">${n===1?"medalha recebida":"medalhas recebidas"} nos últimos 12 meses</div></div></div>
+  ${n?`<div class="md-list">${M.slice().sort((a,b)=>String(b.comp).localeCompare(String(a.comp))).map(m=>`<div class="md-item">🏅 <b>${compMd(m.comp)}</b> · ${esc(m.loja_nome||"")} · ${brlMd(m.venda)}</div>`).join("")}</div>`:`<p class="small muted" style="margin-top:10px">A medalha vai para quem tem o maior faturamento de toda a rede no mês. Continue vendendo: a próxima pode ser sua!</p>`}</div>`;
+}
+function medalhaMesHTML(comp){
+  const M=medalhasCarregar();if(!M)return "";const m=M.find(x=>x.comp===comp);if(!m)return "";
+  return MEDALHA_CSS+`<div class="card md-hero"><div class="md-wrap"><div class="md-medal" aria-hidden="true">🏅</div><div><div style="font-weight:700;font-size:1.1rem">Medalha de reconhecimento · Maior faturamento da rede</div><div class="small">Você foi o 1º lugar em faturamento entre os ${m.tot_nac||""} vendedores de toda a rede em ${compMd(comp)}, com ${brlMd(m.venda)} vendidos na ${esc(m.loja_nome||"")}. Parabéns!</div><div class="small muted" style="margin-top:4px">Você tem ${M.length} ${M.length===1?"medalha":"medalhas"} nos últimos 12 meses.</div></div></div></div>`;
+}
 function normalize(o){
   if(o.cfg&&o.cfg.irrf)o.cfg.irrf.forEach(f=>{if(f[0]===null)f[0]=Infinity});
   o.emps.forEach(e=>{if(!e.avaliacoes)e.avaliacoes=[];if(!e.ferias)e.ferias=[]});
@@ -1675,7 +1694,7 @@ async function iniciarSessao(novoLogin){
   if(!user){mostrarTela("login");return}
   const {data:p}=await SB.from("perfis").select("*").eq("user_id",user.id).maybeSingle();
   if(!p||!p.ativo){await SB.auth.signOut();mostrarTela("login","Este usuário não tem acesso ativo ao portal. Fale com o RH.");return}
-  PERFIL=p;ROLE=perfilGestor(p.perfil);if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";window.__PREM_COMP=undefined;window.__PREM_DATA=undefined}$(".app").classList.toggle("consulta",p.perfil==="comercial"||p.perfil==="supervisor");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
+  PERFIL=p;ROLE=perfilGestor(p.perfil);window.__MEDALHAS=undefined;if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";window.__PREM_COMP=undefined;window.__PREM_DATA=undefined}$(".app").classList.toggle("consulta",p.perfil==="comercial"||p.perfil==="supervisor");SESSION={login:p.login,nome:p.nome,perfil:p.perfil};
   if(novoLogin){SB.rpc("registrar_acesso").then(()=>{},()=>{});logEvento("Login","Acesso ao portal")}
   mostrarTela("carregando");
   try{
@@ -5462,7 +5481,7 @@ R.meustd=()=>{
 R.meusdados=()=>{
   const m=MEU||{};
   const itens=[["Nome",m.nome],["Cargo",m.cargo],["Unidade",m.loja_nome],["Cidade",m.cidade],["Admissão",m.admissao?fdate(m.admissao):""],["Tempo de casa",m.admissao?tempoCasa(m.admissao):""],["Login","CPF "+fmtCPF(SESSION?SESSION.login:"")]];
-  return header("Meu espaço","Meus dados")+`<div class="card"><div class="form-grid">${itens.map(([k,v])=>`<div class="field"><label>${k}</label><b>${esc(v||"—")}</b></div>`).join("")}</div>
+  return header("Meu espaço","Meus dados")+medalhasCard()+`<div class="card"><div class="form-grid">${itens.map(([k,v])=>`<div class="field"><label>${k}</label><b>${esc(v||"—")}</b></div>`).join("")}</div>
   <div class="note" style="margin-top:14px">Algum dado errado? Fale com o RH. Por segurança, salário, documentos e dados pessoais não aparecem aqui.</div>${PERFIL&&PERFIL.termo_aceito_em?`<div style="margin-top:12px"><button class="btn btn-sm" data-bvpdf="eu">Baixar meu termo de aceite (PDF)</button></div>`:""}</div>`;
 };
 
@@ -6495,6 +6514,9 @@ async function vcMontar(id,Pf){
     premiacoes_cfg:()=>rpcFn("premiacoes_cfg"),
     integracao_liberada:()=>realSB.from("td_progresso").select("liberado_rh,colaborador_id,curso").eq("colaborador_id",P.colaborador_id||id).eq("curso","integracao").then(r=>({data:!!(r.data||[]).some(x=>x.liberado_rh)||(emp(id)&&emp(id).admissao>="2026-11-01"&&diffDays(emp(id).admissao,TODAY)<=90),error:null})),
     premiacoes_ranking_lojas:a=>rpcFn("premiacoes_ranking_lojas",a),
+    premiacoes_ranking_vendedores:a=>rpcFn("premiacoes_ranking_vendedores",a),
+    premiacoes_ranking_faturamento:a=>rpcFn("premiacoes_ranking_faturamento",a),
+    premiacoes_minhas_medalhas:()=>rpcFn("premiacoes_medalhas_de",{p_colab:P.colaborador_id||id}),
     premiacoes_meus_lancamentos:a=>rpcFn("premiacoes_lancamentos_de",{p_colab:P.colaborador_id||id,p_comp:a.p_comp}),
     premiacoes_lotes:()=>rpcFn("premiacoes_lotes").then(r=>({data:(r.data||[]).filter(L=>numsVC.includes(+String(L.lojaId||"").replace(/^l0*/,""))),error:r.error}))}};
 }
@@ -6510,7 +6532,7 @@ async function vcEntrar(id,Pf){
     VC={...v,real:SB};SB=vcCliente(SB);
     PERFIL={...v.P,nome:v.P.nome||v.nome};ROLE=perfilGestor(PERFIL.perfil);SESSION={login:PERFIL.login||"",nome:PERFIL.nome,perfil:PERFIL.perfil};
     $(".app").classList.toggle("consulta",PERFIL.perfil==="comercial"||PERFIL.perfil==="supervisor");
-    ST=null;if(typeof PREM!=="undefined"){PREM=null;window.__PREM_COMP=undefined}mostrarTela("carregando");
+    ST=null;window.__MEDALHAS=undefined;if(typeof PREM!=="undefined"){PREM=null;window.__PREM_COMP=undefined}mostrarTela("carregando");
     if(ROLE==="colaborador")await carregarColaborador();else await carregarGerente();
     await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
     vcFaixa();mostrarApp();location.hash="";go();
@@ -7731,7 +7753,7 @@ function meuPremio(){
   if(bateuV||bateuS)setTimeout(()=>prCelebrar(bateuV?"Você bateu a sua meta de "+COMP+"!":"Sua loja bateu a meta de "+COMP+"!"),250);
   const vazio=`<div class="card empty">Você não tem apuração de premiação em ${COMP}. Se acha que deveria ter, fale com o gerente da sua loja.</div>`;
   const ajH=ajustesHTML(totV+totS);
-  return `<style>.pr-rank{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pr-rank-i{border:1px solid var(--line,#dfe8e3);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}.pr-rank-i>span{font-size:12px;color:var(--muted,#5b6d64);text-transform:uppercase;letter-spacing:.04em}.pr-rank-i b{font-size:22px}.pr-rank-i b small,.pr-rank-i>small{font-size:13px;font-weight:500;color:var(--muted,#5b6d64)}.pr-stars span{color:var(--line,#cfd8d3);font-size:22px;letter-spacing:1px}.pr-stars span.on{color:#F8A31B}</style><div class="prem-pg"><div class="topbar"><div><div class="eyebrow">Premiações e Incentivos</div><h1>Meu prêmio · ${COMP}</h1></div><div class="top-actions">${selMes}</div></div><div class="banner"><span>Valores em apuração: podem mudar até a aprovação do RH. Dúvidas? Fale com o gerente da sua loja.</span></div>${resumo}${ajH}${corpoV}${supCards}${!corpoV&&!supCards&&!ajH?vazio:""}</div>`;
+  return `<style>.pr-rank{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.pr-rank-i{border:1px solid var(--line,#dfe8e3);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}.pr-rank-i>span{font-size:12px;color:var(--muted,#5b6d64);text-transform:uppercase;letter-spacing:.04em}.pr-rank-i b{font-size:22px}.pr-rank-i b small,.pr-rank-i>small{font-size:13px;font-weight:500;color:var(--muted,#5b6d64)}.pr-stars span{color:var(--line,#cfd8d3);font-size:22px;letter-spacing:1px}.pr-stars span.on{color:#F8A31B}</style><div class="prem-pg"><div class="topbar"><div><div class="eyebrow">Premiações e Incentivos</div><h1>Meu prêmio · ${COMP}</h1></div><div class="top-actions">${selMes}</div></div><div class="banner"><span>Valores em apuração: podem mudar até a aprovação do RH. Dúvidas? Fale com o gerente da sua loja.</span></div>${typeof medalhaMesHTML==="function"?medalhaMesHTML(COMP_ISO):""}${resumo}${ajH}${corpoV}${supCards}${!corpoV&&!supCards&&!ajH?vazio:""}</div>`;
 }
 function prCelebrar(msg){
   const k="prem-cel-"+((typeof SESSION!=="undefined"&&SESSION&&SESSION.login)||"")+"-"+COMP_ISO;
@@ -8001,7 +8023,7 @@ function tRankVend(modo){
   if(ord==="loja"){const grupos=[...new Set(L.map(x=>x.lojaId))];
     corpo=grupos.map(id=>{const G=L.filter(x=>x.lojaId===id);return `<tr><td colspan="9" style="background:var(--surface-2,#f4f4f6);font-weight:600">${esc(loja(id).nome)} · ${esc(regDe(id))} · ${G.length} vendedores</td></tr>`+G.map(x=>linha(x)).join("")}).join("");}
   else corpo=L.map(x=>linha(x)).join("");
-  function linha(x){return `<tr class="click" data-prvend="${esc(x.id)}"><td class="r num"><b>${x.posL??"–"}º</b> <span class="small muted">de ${x.totL??"–"}</span> ${med(x.posL)}</td><td class="r num"><b>${x.posN??"–"}º</b> <span class="small muted">de ${x.totN??"–"}</span> ${med(x.posN)}</td><td><b>${esc(x.nome)}</b></td><td class="small">${esc(x.loja)}</td><td class="small">${esc(x.reg)}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${fat?`<b>${brl(x.venda)}</b>`:brl(x.venda)}</td><td class="r num">${x.pct!=null?bar(x.pct)+" "+pct(x.pct):"–"}</td><td>${star(x.est||0)}</td></tr>`}
+  function linha(x){return `<tr class="click" data-prvend="${esc(x.id)}"><td class="r num"><b>${x.posL??"–"}º</b> <span class="small muted">de ${x.totL??"–"}</span> ${med(x.posL)}</td><td class="r num"><b>${x.posN??"–"}º</b> <span class="small muted">de ${x.totN??"–"}</span> ${med(x.posN)}</td><td><b>${esc(x.nome)}</b>${fat&&x.posN===1?` <span class="chip c-brand" title="Medalha de reconhecimento do mês">🏅 Maior faturamento do mês</span>`:""}</td><td class="small">${esc(x.loja)}</td><td class="small">${esc(x.reg)}</td><td class="r num">${brl(x.meta)}</td><td class="r num">${fat?`<b>${brl(x.venda)}</b>`:brl(x.venda)}</td><td class="r num">${x.pct!=null?bar(x.pct)+" "+pct(x.pct):"–"}</td><td>${star(x.est||0)}</td></tr>`}
   return `<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Vendedores no ranking · ${COMP}</span><span class="val num">${L.length}</span><span class="sub">de ${totN} no ranking nacional</span></div>
   ${fat?`<div class="card kpi"><span class="lbl">Faturamento dos listados</span><span class="val num">${brl(totV)}</span><span class="sub">média ${brl(L.length?totV/L.length:0)} por vendedor</span></div>`:`<div class="card kpi"><span class="lbl">Bateram a meta</span><span class="val num">${bat}</span><span class="sub">${L.length?pct(bat/L.length*100):"–"} dos listados</span></div>`}
   <div class="card kpi"><span class="lbl">${fat?"Maior faturamento":"Melhor colocado"}</span><span class="val" style="font-size:1.05rem">${melhor?esc(melhor.nome):"–"}</span><span class="sub">${melhor?`${melhor.posN}º nacional · ${fat?brl(melhor.venda):pct(melhor.pct)} · ${esc(melhor.loja)}`:""}</span></div></div>
