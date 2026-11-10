@@ -7567,6 +7567,19 @@ const minhasLojasMod=()=>((typeof ST!=="undefined"&&ST&&ST.stores)||[]).map(s=>n
 const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined"&&ST&&ST.stores)||[]).find(x=>numLoja(x)===n);return s?s.id:"lj-"+n};
 const COMP_ISO=COMP_ISO_W;
 let CONF_OK=false;
+const periodoEncerrado=()=>!!(window.__PREM_PERIODO&&window.__PREM_PERIODO.encerrado);
+const pad2=n=>String(n).padStart(2,"0"),fmtEv=d=>pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+// lote aprovado pelo RH + aprovado pelo gerente, sem correção aberta: "Importada no Swile" 15 min depois da aprovação do gerente
+function swileAuto(){
+  if(periodoEncerrado())return;let mudou=0,prox=Infinity;
+  LOTES.forEach(L=>{if(L.status!=="aprovado"||L.conf!=="aprovado"||!L.confEm)return;if((L.correcoes||[]).some(c=>c.status==="aberta"))return;
+    const t=new Date(new Date(L.confEm).getTime()+15*60e3);L.swilePrev=t;
+    if(Date.now()>=t.getTime()){L.status="folha";L.swileAuto=true;L.eventos=L.eventos||[];L.eventos.push(ev(fmtEv(t),"Sistema","Importada no Swile · automático, 15 min após a aprovação do gerente"));mudou++}
+    else prox=Math.min(prox,t.getTime())});
+  if(mudou&&podeGravar())gravar();
+  clearTimeout(window.__SWILE_T);if(prox<Infinity)window.__SWILE_T=setTimeout(()=>{if(page==="premiacoes"){swileAuto();render()}},Math.max(5e3,prox-Date.now()+2e3));
+  return mudou;
+}
 async function carregarConf(){
   try{const {data,error}=await SB.from("premiacoes_conferencia").select("*").eq("comp",COMP_ISO).order("criado_em");if(error)throw error;
     LOTES.forEach(L=>{const n=loja(L.lojaId).num,rs=(data||[]).filter(r=>+r.loja_num===+n);
@@ -7574,6 +7587,7 @@ async function carregarConf(){
       const apr=rs.filter(r=>r.tipo==="aprovacao").pop();const ultCorr=rs.filter(r=>r.tipo==="correcao").pop();
       L.conf=apr&&(!ultCorr||apr.criado_em>ultCorr.criado_em)?"aprovado":L.correcoes.length?"correcao":null;L.confEm=L.conf==="aprovado"?apr.criado_em:null;L.confQuem=L.conf==="aprovado"?(apr.autor_nome||""):"";
       if(typeof sync==="function")sync(L)});
+    swileAuto();
     CONF_OK=true}catch(e){toast("Não foi possível ler as conferências dos gerentes.")}
 }
 const gerMulti=()=>UI.view==="gerente"&&gerLogin()&&minhasLojasMod().length>1;
@@ -7627,8 +7641,9 @@ function pagina(){
     <div><div class="eyebrow">Premiações e Incentivos · ${grupo}</div><h1>${TITULO[UI.tab]}</h1></div>
     <div class="top-actions">${acts.join("")}</div>
   </div>
+  ${periodoEncerrado()?`<div class="banner" style="background:#fdecea;border-color:#e6b0aa"><span><b>Período ${COMP} encerrado</b>${window.__PREM_PERIODO.encerrado_por?" por "+esc(window.__PREM_PERIODO.encerrado_por):""}${window.__PREM_PERIODO.encerrado_em?" em "+new Date(window.__PREM_PERIODO.encerrado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""}. Apuração finalizada: somente consulta.</span></div>`:""}
   ${apTab&&(!(webNaoRH()||UI.view!=="rh")||UI.tab==="resultados")?kpis():""}
-  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:tAprov,meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,arena:tArena,reconhecimento:tRegrasRec,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
+  <div id="pr-tab">${({acoes:tAcoes,aprovacoes:()=>periodoBar()+tAprov(),meupremio:()=>{const h=tMeuPremioSup();return supLogin()&&!gerLogin()&&!(PERFIL&&PERFIL.perfil==="comercial")?h+ajustesHTML(apurarSupervisao().filter(x=>x.lojas.length).reduce((s,x)=>s+x.valor,0)):h},resultados:tResultados,ranking:tRanking,arena:tArena,reconhecimento:tRegrasRec,rankvend:()=>tRankVend("pct"),rankfat:()=>tRankVend("fat"),descontos:tDescontos,supervisao:tSupervisao,historico:tHist,regras:tRegras,acessos:tAcessos})[UI.tab]()}</div></div>`;
 }
 function kpis(){
   const p=P(),ids=escopo(),aps=ids.map(apurarLoja);
@@ -8218,6 +8233,33 @@ function tRegrasRec(){
    <tr><td><b>RH</b></td><td>Toda a rede, inclusive o Ranking por Faturamento.</td></tr>
   </tbody></table></div></div>`}`;
 }
+function periodoBar(){
+  const souRH=!webNaoRH()&&UI.view==="rh",P0=window.__PREM_PERIODO||{},enc=!!P0.encerrado;
+  const ls=LOTES,sw=ls.filter(L=>["folha","pago"].includes(L.status)).length,prev=ls.filter(L=>L.status==="aprovado"&&L.conf==="aprovado"&&L.swilePrev);
+  const ult=(P0.eventos||[]).slice(-1)[0];
+  if(!souRH)return "";
+  return `<div class="card" style="${enc?"border-color:#e6b0aa;background:#fff7f6":""}"><div class="card-head"><div><h2>Período ${COMP} · ${enc?"encerrado":"aberto"}</h2>
+   <p>${enc?`Encerrado${P0.encerrado_por?" por "+esc(P0.encerrado_por):""}${P0.encerrado_em?" em "+new Date(P0.encerrado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):""}. Ninguém aprova, pede correção ou muda status enquanto estiver encerrado.`:`${sw} de ${ls.length} loja(s) já enviadas ao Swile${prev.length?` · ${prev.length} seguem sozinhas para o Swile 15 min após a aprovação do gerente`:""}. Encerre quando a operação do mês estiver finalizada.`}</p>
+   ${ult&&ult.motivo?`<p class="small muted">Último registro: ${esc(ult.acao)} · ${esc(ult.quem||"")} · ${esc(ult.motivo)}</p>`:""}</div>
+   ${enc?`<button class="btn" data-prperabre="1">Reabrir período</button>`:`<button class="btn btn-danger" data-prperfecha="1">Encerrar período</button>`}</div></div>`;
+}
+function periodoModal(encerrar){
+  const pend=LOTES.filter(L=>!["folha","pago"].includes(L.status)),corr=LOTES.filter(L=>(L.correcoes||[]).some(c=>c.status==="aberta"));
+  modal(encerrar?`Encerrar período ${COMP}`:`Reabrir período ${COMP}`,encerrar?`<p>Encerrar finaliza a operação de <b>${COMP}</b>: aprovações, pedidos de correção e mudanças de status ficam bloqueados para todos, inclusive gerentes. Os dados continuam disponíveis para consulta e exportação.</p>
+   ${pend.length?`<div class="note" style="margin:10px 0"><b>${pend.length} loja(s) ainda não foram enviadas ao Swile:</b> ${pend.map(L=>esc(loja(L.lojaId).curto||loja(L.lojaId).nome)).join(", ")}.</div>`:`<p class="small" style="color:#1b8a5a">Todas as lojas já foram enviadas ao Swile.</p>`}
+   ${corr.length?`<div class="note" style="margin:10px 0;border-color:#e6b0aa"><b>Há correção em aberto</b> em: ${corr.map(L=>esc(loja(L.lojaId).curto||loja(L.lojaId).nome)).join(", ")}.</div>`:""}
+   <div class="field"><label for="pr-per-mot">Observação (opcional)</label><input class="input" id="pr-per-mot" maxlength="300"></div>`
+   :`<p>Reabrir libera de novo aprovações, pedidos de correção e mudanças de status de <b>${COMP}</b>.</p><div class="field"><label for="pr-per-mot">Motivo da reabertura (obrigatório)</label><input class="input" id="pr-per-mot" maxlength="300" placeholder="Ex.: correção de venda da Loja 20"></div>`,
+   `<button class="btn" data-close>Cancelar</button><button class="btn ${encerrar?"btn-danger":"btn-primary"}" data-prperok="${encerrar?1:0}">${encerrar?"Encerrar período":"Reabrir período"}</button>`);
+}
+async function periodoSalvar(encerrar,btn){
+  const mot=(($("#pr-per-mot")||{}).value||"").trim();if(!encerrar&&mot.length<5){toast("Escreva o motivo da reabertura");return}
+  if(btn)btn.disabled=true;
+  const {data,error}=await SB.rpc("premiacoes_periodo_definir",{p_comp:COMP_ISO,p_encerrar:encerrar,p_motivo:mot});
+  if(error){if(btn)btn.disabled=false;toast(error.message||"Não foi possível salvar");return}
+  window.__PREM_PERIODO=data;if(encerrar)clearTimeout(window.__SWILE_T);else swileAuto();
+  closeModal();render();toast(encerrar?`Período ${COMP} encerrado`:`Período ${COMP} reaberto`);
+}
 function tRanking(){
   const rk=window.__PREM_RANKLOJAS||[];if(!rk.length)return `<div class="card empty">Ranking indisponível para ${COMP}.</div>`;
   const regs=[...new Set(rk.map(r=>r.regional).filter(Boolean))].sort();if(UI.rkReg&&!regs.includes(UI.rkReg))UI.rkReg="";
@@ -8390,6 +8432,10 @@ document.addEventListener("click",e=>{
   if(t.hasAttribute("data-close")&&(e.target===t||t.matches("button"))){closeModal();return}
   if(d.prview){UI.view=d.prview;UI.loja="";render();return}
   if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
+  if(periodoEncerrado()&&["praprovar","praprovarger","prcaceita","prconfok","prcorr","prcorrenviar","prcorrmulti","prdevolver","prpago","prreabrir"].some(k=>d[k]!==undefined)){toast("Período "+COMP+" encerrado pelo RH. Para alterar, o RH precisa reabrir.");return}
+  if(d.prperfecha){periodoModal(true);return}
+  if(d.prperabre){periodoModal(false);return}
+  if(d.prperok!==undefined){periodoSalvar(d.prperok==="1",t);return}
   if(d.prrvexp){exportRankVend(d.prrvexp);return}
   if(d.prlote){detalheLote(d.prlote);return}
   if(d.prvend){fichaVend(d.prvend);return}
@@ -8493,6 +8539,7 @@ async function carregarPremData(){
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_lojas",{p_comp:CMP});window.__PREM_RANKLOJAS=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKLOJAS=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_vendedores",{p_comp:CMP});window.__PREM_RANKVEND=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKVEND=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_faturamento",{p_comp:CMP});window.__PREM_RANKFAT=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKFAT=[]}}
+    try{const {data}=await SB.from("premiacoes_periodos").select("*").eq("comp",CMP).limit(1);window.__PREM_PERIODO=(data&&data[0])||{comp:CMP,encerrado:false}}catch(e){window.__PREM_PERIODO={comp:CMP,encerrado:false}}
     if(ROLE!=="colaborador"){try{const [cq,ev,ps]=await Promise.all([SB.rpc("premiacoes_conquistas"),SB.rpc("premiacoes_evolucao"),SB.rpc("premiacoes_pessoas",{p_comp:CMP})]);window.__PREM_CONQ=Array.isArray(cq&&cq.data)?cq.data:[];window.__PREM_EVOL=Array.isArray(ev&&ev.data)?ev.data:[];window.__PREM_PESSOAS=(ps&&ps.data)||{}}catch(e){window.__PREM_CONQ=[];window.__PREM_EVOL=[];window.__PREM_PESSOAS={}}}
     window.__PREM_PER=(lj.find(r=>r.dados&&r.dados.periodos)||{dados:{}}).dados.periodos||(CMP!=="2026-10"?premPeriodosPadrao(CMP):null);
     window.__PREM_DATA={LOJAS:lj.map(r=>r.dados.loja).sort((x,y)=>x.num-y.num),
