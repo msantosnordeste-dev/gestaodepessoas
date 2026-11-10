@@ -711,7 +711,8 @@ async function carregarGerente(){
     emps:co.map(r=>nomeSocialAplicar({id:r.id,...r.dados,lojaId:r.loja_id})),
     esc:Object.fromEntries(es.map(r=>[r.chave,r.dias])),
     adm:ad.map(r=>({...r.dados,id:r.id,lojaId:r.loja_id}))};
-  try{const {data}=await SB.rpc("meus_dados");window.__ORIGEM=(data&&data.loja_id)||null}catch(e){window.__ORIGEM=null}
+  try{const {data}=await SB.rpc("meus_dados");window.__ORIGEM=(data&&data.loja_id)||null;
+    if(data&&data.id){MEU=data;const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);window.__MEU_TDP=td.error?[]:(td.data||[]);const r=await SB.rpc("integracao_liberada");window.__IB_LIB=r.data===true}}catch(e){window.__ORIGEM=null}
   if(PERFIL&&PERFIL.perfil==="gerente"){try{const {data}=await SB.rpc("medidas_equipe");(Array.isArray(data)?data:[]).forEach(x=>{const e=BASE_G.emps.find(y=>y.id===x.id);if(e)e.medidas=x.medidas||[]})}catch(e){}}
   await Promise.all([carregarSolicitacoes(),carregarMensagens()]);
   montarGerente();
@@ -1059,7 +1060,8 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pages=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&p.id==="experiencia")||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].includes(p.id)||(PERFIL.perfil==="supervisor"&&p.id==="experiencia")||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz"].concat(["experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pages=()=>{const b=pagesBase();if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
@@ -5424,6 +5426,7 @@ async function carregarColaborador(){
   MEU_ORG=org.error||!org.data?null:org.data.dados;
   const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);
   TDP=td.error?[]:td.data;
+  try{const r=await SB.rpc("integracao_liberada");window.__IB_LIB=r.data===true}catch(e){window.__IB_LIB=false}
   ST=normalize({exemplo:false,stores:[{id:data.loja_id,nome:data.loja_nome||"",cidade:data.cidade||"",tipo:"",quadro:0}],emps:[],admissoes:[],escalaOverrides:{},cfg:clone(DEFAULT_CFG)});
   await carregarEquipe();
 }
@@ -5433,16 +5436,19 @@ function tempoCasa(adm){
   return a?a+" ano"+(a>1?"s":"")+(r?" e "+mes(r):""):mes(r);
 }
 R.meustd=()=>{
-  const ig=ibLinha(),novo=ibNovo();
+  const ig=ibLinha(),novo=ibNovo()||!!window.__IB_LIB;
   const total=9,par=ig?ig.paradas:0;
+  const ini=ig&&ig.liberado_rh&&ig.iniciado_em?String(ig.iniciado_em).slice(0,10):(MEU&&MEU.admissao)||TODAY,limite=addDays(ini,30),rest=diffDays(TODAY,limite),feito=!!(ig&&ig.aprovado_em);
+  const prazoChip=feito?"":rest>=0?`<span class="chip c-ok">Dentro do prazo · até ${fdate(limite)} (${rest===0?"vence hoje":"faltam "+rest+" dia"+(rest===1?"":"s")})</span>`:`<span class="chip c-bad">Fora do prazo · venceu em ${fdate(limite)} (há ${-rest} dia${rest===-1?"":"s"})</span>`;
+  const resumoTd=(ig||novo)&&!feito?`<div class="grid kpis"><div class="card kpi"><span class="lbl">Pendentes</span><span class="val num">1</span><span class="sub">treinamento para fazer</span></div><div class="card kpi"><span class="lbl">Dentro do prazo</span><span class="val num">${rest>=0?1:0}</span><span class="sub">até 30 dias da liberação</span></div><div class="card kpi"><span class="lbl">Fora do prazo</span><span class="val num" style="${rest<0?"color:var(--bad)":""}">${rest<0?1:0}</span><span class="sub">passou de 30 dias</span></div></div>`:"";
   const card=ig||novo?`<div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
     <img src="${IB_ASSETS["assets/bia-rosto.webp"]}" alt="" width="72" height="72" style="border-radius:50%;background:var(--brand-tint);flex:0 0 auto">
-    <div style="flex:1;min-width:220px"><div class="tabs-inline" style="margin-bottom:6px">${ig&&ig.aprovado_em?`<span class="chip c-ok">Aprovado(a) em ${fdate(ig.aprovado_em)}${ig.nota?" · nota "+ig.nota:""}</span>`:ig&&par?`<span class="chip c-info">Em andamento</span>`:`<span class="chip c-warn">Para fazer</span>`}<span class="chip c-mute">~40 min</span></div>
+    <div style="flex:1;min-width:220px"><div class="tabs-inline" style="margin-bottom:6px">${ig&&ig.aprovado_em?`<span class="chip c-ok">Aprovado(a) em ${fdate(ig.aprovado_em)}${ig.nota?" · nota "+ig.nota:""}</span>`:ig&&par?`<span class="chip c-info">Em andamento</span>`:`<span class="chip c-warn">Para fazer</span>`}<span class="chip c-mute">~40 min</span>${prazoChip}</div>
       <h3 style="margin:0 0 4px">Integração Brasileirissima</h3><p class="small muted" style="margin:0 0 10px">Trilha com a Bia e o Caio Brasil: nossa história, valores, lojas, direitos, regras e benefícios. Junte pontos, carimbe o passaporte e conquiste o seu certificado.</p>
       <div class="bar" style="height:8px;border-radius:8px;background:var(--surface-2);overflow:hidden"><span style="display:block;height:100%;width:${Math.round(par/total*100)}%;background:var(--brand)"></span></div>
       <p class="small muted" style="margin:6px 0 0">${par} de ${total} paradas${ig&&ig.pontos?" · "+ig.pontos+" pontos":""}</p></div>
     <button class="btn btn-primary" data-ibabrir="${ig&&ig.aprovado_em?"passaporte":"inicio"}">${ig&&ig.aprovado_em?"Ver passaporte e certificado":par?"Continuar":"Começar"}</button></div>`:"";
-  return header("Meu espaço","Meus treinamentos")+(card||`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum treinamento por aqui ainda.</b><br>Quando o RH publicar cursos para você, eles aparecem nesta página.</p></div>`);
+  return header("Meu espaço","Meus treinamentos")+resumoTd+(card||`<div class="card"><p class="empty" style="padding:28px 12px"><b>Nenhum treinamento por aqui ainda.</b><br>Quando o RH publicar cursos para você, eles aparecem nesta página.</p></div>`);
 };
 R.meusdados=()=>{
   const m=MEU||{};
@@ -5454,10 +5460,10 @@ R.meusdados=()=>{
 /* ---- Integração Brasileirissima dentro do portal (IB_HTML e IB_ASSETS vêm de montar-integracao.pl) ----
    A trilha abre num iframe; o progresso vai para td_progresso pela ponte IB_PONTE. */
 let IB_URL=null;
-const ibLinha=()=>(TDP||[]).find(x=>x.curso==="integracao"&&x.colaborador_id===(MEU&&MEU.id));
+const ibLinha=()=>(TDP||[]).find(x=>x.curso==="integracao"&&x.colaborador_id===(MEU&&MEU.id))||(window.__MEU_TDP||[]).find(x=>x.curso==="integracao"&&x.colaborador_id===(MEU&&MEU.id));
 const IB_INICIO="2026-11-01";
 const ibNovo=()=>!!(MEU&&MEU.admissao&&MEU.admissao>=IB_INICIO&&diffDays(MEU.admissao,TODAY)<=90);
-const ibLiberada=()=>!!(ibNovo()||(ibLinha()&&MEU&&MEU.admissao>=IB_INICIO));
+const ibLiberada=()=>!!(window.__IB_LIB||ibNovo()||(ibLinha()&&MEU&&MEU.admissao>=IB_INICIO));
 function ibUrl(rota){
   if(IB_URL)URL.revokeObjectURL(IB_URL);
   IB_URL=URL.createObjectURL(new Blob([IB_HTML.replace("__IB_ASSETS__",()=>JSON.stringify(IB_ASSETS))],{type:"text/html"}));
@@ -5881,7 +5887,7 @@ document.addEventListener("click",async ev=>{
     logEvento("Integração reiniciada",e.nome);await carregarPlanos();closeModal();render();toast("Trilha reiniciada para "+e.nome.split(" ")[0]);return}
   if(d.igliberarok&&ROLE==="rh"){const n=semAcento($("#ig-pessoa").value.trim());const e=ativos().find(x=>semAcento(x.nome)===n);const err=m=>{const el=$("#ig-err");el.hidden=false;el.textContent=m};
     if(!e)return err("Escolha um nome da lista.");if(TDP.some(x=>x.colaborador_id===e.id&&x.curso==="integracao"))return err("Essa pessoa já tem a integração liberada.");
-    t.disabled=true;const {error}=await SB.from("td_progresso").insert({colaborador_id:e.id,curso:"integracao"});t.disabled=false;
+    t.disabled=true;const {error}=await SB.from("td_progresso").insert({colaborador_id:e.id,curso:"integracao",liberado_rh:true});t.disabled=false;
     if(error)return err("Não foi possível liberar: "+error.message);
     logEvento("Integração liberada",e.nome);await carregarPlanos();closeModal();render();toast("Integração liberada para "+e.nome.split(" ")[0]);return}
 });
@@ -6478,6 +6484,7 @@ async function vcMontar(id,Pf){
     premiacoes_meu_resultado:a=>rpcFn("premiacoes_resultado_de",{p_colab:id,p_comp:a.p_comp}),
     premiacoes_minhas_comps:()=>rpcFn("premiacoes_comps_de",{p_colab:id}),
     premiacoes_cfg:()=>rpcFn("premiacoes_cfg"),
+    integracao_liberada:()=>realSB.from("td_progresso").select("liberado_rh,colaborador_id,curso").eq("colaborador_id",P.colaborador_id||id).eq("curso","integracao").then(r=>({data:!!(r.data||[]).some(x=>x.liberado_rh)||(emp(id)&&emp(id).admissao>="2026-11-01"&&diffDays(emp(id).admissao,TODAY)<=90),error:null})),
     premiacoes_ranking_lojas:a=>rpcFn("premiacoes_ranking_lojas",a),
     premiacoes_meus_lancamentos:a=>rpcFn("premiacoes_lancamentos_de",{p_colab:P.colaborador_id||id,p_comp:a.p_comp}),
     premiacoes_lotes:()=>rpcFn("premiacoes_lotes").then(r=>({data:(r.data||[]).filter(L=>numsVC.includes(+String(L.lojaId||"").replace(/^l0*/,""))),error:r.error}))}};
