@@ -1182,14 +1182,14 @@ function painelLoja(){
     "")+`
   ${G()?"":correioCard()}
   <div class="grid kpis">
-    <div class="card kpi hero pn-kpi" data-pnlista="ativos" role="button" tabindex="0" title="Ver a lista"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}<span style="font-size:1rem;opacity:.8"> / ${quadro}</span></span><span class="sub">${quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":"quadro completo"}</span></div>
+    <div class="card kpi hero pn-kpi" data-pnlista="ativos" role="button" tabindex="0" title="Ver a lista"><span class="lbl">Equipe ativa${varias?" · "+ST.stores.length+" lojas":""}</span><span class="val num">${at.length}${G()?"":`<span style="font-size:1rem;opacity:.8"> / ${quadro}</span>`}</span><span class="sub">${G()?"ver lista":quadro>at.length?"faltam "+(quadro-at.length)+" para o quadro ideal":quadro<at.length?(at.length-quadro)+" acima do quadro ideal":"quadro completo"}</span></div>
     <div class="card kpi pn-kpi" data-pnlista="exp" role="button" tabindex="0" title="Ver quem está em experiência"><span class="lbl">Em experiência</span><span class="val num">${at.filter(emExperiencia).length}</span><span class="sub">avaliação no 45º e no 90º dia · ver lista</span></div>
     <div class="card kpi pn-kpi" data-pnlista="ferias" role="button" tabindex="0" title="Ver quem está em férias"><span class="lbl">Em férias hoje</span><span class="val num">${at.filter(e=>feriasEmCurso(e)).length}</span><span class="sub">fora da escala · ver lista</span></div>
     <div class="card kpi pn-kpi" data-pnlista="afast" role="button" tabindex="0" title="Ver quem está afastado"><span class="lbl">Afastados</span><span class="val num">${at.filter(e=>e.afastado).length}</span><span class="sub">fora da escala · ver lista</span></div>
     ${visaoGestora()?"":`<div class="card kpi"><span class="lbl">Aguardando o RH</span><span class="val num">${pend}</span><span class="sub">registros enviados por você</span></div>`}
   </div>
-  ${varias?`<div class="card"><div class="card-head"><div><h2>Quadro por loja</h2><p>Ativos em relação ao quadro ideal</p></div></div>
-    <div class="bars">${ST.stores.filter(lojaTemGente).map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div></div>`:""}
+  ${varias?`<div class="card"><div class="card-head"><div><h2>Quadro por loja</h2><p>${G()?"Ativos por loja":"Ativos em relação ao quadro ideal"}</p></div></div>
+    <div class="bars">${ST.stores.filter(lojaTemGente).map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${!G()&&n<s.quadro?"under":""}" style="width:${n/max*100}%"></div>${G()?"":`<div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div>`}</div><span class="num small"><b>${n}</b>${G()?"":" / "+s.quadro}</span></div>`}).join("")}</div></div>`:""}
   <div class="grid two">
     ${G()&&!xpLib()?"":`<div class="card"><div class="card-head"><div><h2>Pendências ${varias?"das lojas":"da loja"}</h2><p>${al.length} itens · os mais urgentes primeiro</p></div></div>
       <div class="alerts">${al.slice(0,9).map(a=>`<div class="alert"><div class="dot ${a.c}">${a.ic}</div><div style="min-width:0"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div>${a.av?`<button class="btn btn-sm btn-primary" data-avaliar="${a.av}">Avaliar</button>`:a.pdf?`<button class="btn btn-sm btn-primary" data-pdfferias="${a.pdf}">PDF</button>`:a.pj?`<button class="btn btn-sm" data-pjficha="${a.pj}">Abrir</button>`:a.ch?`<button class="btn btn-sm" data-go="chamados">Abrir</button>`:a.pa?`<button class="btn btn-sm" data-paabrir="${a.pa}">Abrir</button>`:a.md?`<button class="btn btn-sm" data-mdver="${a.md}">Abrir</button>`:`<button class="btn btn-sm" data-ficha="${a.id}">Abrir</button>`}</div>`).join("")||`<div class="empty">Nenhuma pendência. Tudo em dia.</div>`}</div></div>`}
@@ -1258,7 +1258,7 @@ R.headcount=()=>{
   return header(G()?"Minha loja":"Visão geral","Headcount por função",`<button class="btn" data-act="hcExcel">Baixar Excel</button>`)+`
   <div class="card" style="padding:16px 22px">${filtro}<p class="small muted" style="margin-top:10px">Mostrando ${escopo}. Toque nas unidades para combinar; "Todas" volta à visão completa.</p></div>
   <div class="grid kpis">
-    <div class="card kpi hero"><span class="lbl">Headcount ativo</span><span class="val num">${at.length}</span><span class="sub">quadro ideal ${quadro} · ${quadro>at.length?"faltam "+(quadro-at.length):quadro<at.length?(at.length-quadro)+" acima":"completo"}</span></div>
+    <div class="card kpi hero"><span class="lbl">Headcount ativo</span><span class="val num">${at.length}</span><span class="sub">${G()?"colaboradores ativos":`quadro ideal ${quadro} · ${quadro>at.length?"faltam "+(quadro-at.length):quadro<at.length?(at.length-quadro)+" acima":"completo"}`}</span></div>
     <div class="card kpi"><span class="lbl">Funções</span><span class="val num">${linhas.length}</span><span class="sub">maior: ${linhas[0]?esc(linhas[0].cargo)+" ("+linhas[0].total+")":"—"}</span></div>
     <div class="card kpi"><span class="lbl">Em experiência</span><span class="val num">${st.experiencia}</span><span class="sub">${at.length?pct(st.experiencia/at.length*100):"0%"} do headcount</span></div>
     <div class="card kpi"><span class="lbl">Ausentes hoje</span><span class="val num">${st.ferias+st.afastado}</span><span class="sub">${st.ferias} em férias · ${st.afastado} afastado${st.afastado===1?"":"s"}</span></div>
@@ -1269,7 +1269,7 @@ R.headcount=()=>{
     <div class="table-wrap"><table class="hc-matriz"><thead><tr><th>Função</th>${lojas.map(s=>`<th class="r" title="${esc(s.nome)}">${esc(curto(s.nome))}</th>`).join("")}<th class="r">Total</th><th class="r">Experiência</th><th class="r">Férias</th><th class="r">Afastados</th></tr></thead>
     <tbody>${linhas.map(l=>`<tr><td><b>${esc(l.cargo)}</b></td>${lojas.map(s=>{const v=l.porLoja[s.id]||0;return `<td class="r num hc-cel" style="--a:${v?Math.round(8+40*v/maxCel):0}%" title="${esc(l.cargo)} · ${esc(s.nome)}: ${v}">${v||"—"}</td>`}).join("")}<td class="r num"><b>${l.total}</b></td><td class="r num">${l.exp||"—"}</td><td class="r num">${l.ferias||"—"}</td><td class="r num">${l.afast||"—"}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Total</td>${lojas.map(s=>`<td class="r num">${at.filter(e=>e.lojaId===s.id).length}</td>`).join("")}<td class="r num">${at.length}</td><td class="r num">${linhas.reduce((t,l)=>t+l.exp,0)}</td><td class="r num">${linhas.reduce((t,l)=>t+l.ferias,0)}</td><td class="r num">${linhas.reduce((t,l)=>t+l.afast,0)}</td></tr>
-    <tr class="muted"><td>Quadro ideal</td>${lojas.map(s=>`<td class="r num">${s.quadro}</td>`).join("")}<td class="r num">${quadro}</td><td colspan="3"></td></tr></tfoot></table></div></div>`:""}`;
+    ${G()?"":`<tr class="muted"><td>Quadro ideal</td>${lojas.map(s=>`<td class="r num">${s.quadro}</td>`).join("")}<td class="r num">${quadro}</td><td colspan="3"></td></tr>`}</tfoot></table></div></div>`:""}`;
 };
 function exportarHeadcount(){
   if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
@@ -1277,7 +1277,7 @@ function exportarHeadcount(){
   const aoa=[["Função",...lojas.map(s=>s.nome),"Total","Experiência","Férias","Afastados"],
     ...linhas.map(l=>[l.cargo,...lojas.map(s=>l.porLoja[s.id]||0),l.total,l.exp,l.ferias,l.afast]),
     ["Total",...lojas.map(s=>at.filter(e=>e.lojaId===s.id).length),at.length,linhas.reduce((t,l)=>t+l.exp,0),linhas.reduce((t,l)=>t+l.ferias,0),linhas.reduce((t,l)=>t+l.afast,0)],
-    ["Quadro ideal",...lojas.map(s=>s.quadro),lojas.reduce((t,s)=>t+(Number(s.quadro)||0),0)]];
+    ...(G()?[]:[["Quadro ideal",...lojas.map(s=>s.quadro),lojas.reduce((t,s)=>t+(Number(s.quadro)||0),0)]])];
   const ws=XLSX.utils.aoa_to_sheet([["Headcount por função · "+fdate(TODAY)],[],...aoa]);
   ws["!cols"]=[{wch:26},...lojas.map(()=>({wch:16})),{wch:8},{wch:12},{wch:8},{wch:10}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Headcount");
@@ -1411,7 +1411,7 @@ R.painel=()=>{
     <div class="card">
       <div class="card-head"><div><h2>Quadro por unidade</h2><p>Ativos em relação ao quadro ideal de cada loja</p></div>
       <div class="legend"><span><i style="background:var(--brand)"></i>Completo</span><span><i style="background:var(--warn)"></i>Abaixo do ideal</span><span><i style="background:var(--ink);width:3px"></i>Quadro ideal</span></div></div>
-      <div class="bars">${ST.stores.map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${n<s.quadro?"under":""}" style="width:${n/max*100}%"></div><div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div></div><span class="num small"><b>${n}</b> / ${s.quadro}</span></div>`}).join("")}</div>
+      <div class="bars">${ST.stores.map(s=>{const n=at.filter(e=>e.lojaId===s.id).length;return `<div class="bar-row"><span class="name" title="${esc(s.nome)}">${esc(s.nome.replace(/^Brasileiríssima /,""))}</span><div class="bar-track"><div class="bar-fill ${!G()&&n<s.quadro?"under":""}" style="width:${n/max*100}%"></div>${G()?"":`<div class="bar-mark" style="left:calc(${s.quadro/max*100}% - 1px)"></div>`}</div><span class="num small"><b>${n}</b>${G()?"":" / "+s.quadro}</span></div>`}).join("")}</div>
     </div>
     <div class="card">
       <div class="card-head"><div><h2>Movimentação</h2><p>Admissões e desligamentos nos últimos 6 meses</p></div>
@@ -4512,7 +4512,7 @@ orgPdf=function(){
     (T.filhos[e.id]||[]).forEach(x=>add(x.e,prof+1,x.auto))};
   T.raizes.forEach(e=>add(e,0));Object.entries(T.externos).forEach(([gid,l])=>{const g=emp(gid);linhas.push(g.pj?[g.nome,g.cargo,ORG_NIVEIS[orgNivel(g.cargo)],"","",""]:[g.nome+" (outra unidade)",g.cargo,"",store(g.lojaId).nome,"",""]);l.forEach(x=>add(x.e,1,false))});
   pdfTabela({titulo:"Organograma · "+s.nome,filtros:[s.cidade,s.cnpj?"CNPJ "+s.cnpj:"",s.centroCusto?"CC "+s.centroCusto:"","posição em "+fdate(TODAY)].filter(Boolean).join(" · "),
-    resumo:[["Pessoas",T.pessoas.length],["Quadro ideal",s.quadro||"—"],["Com gestor informado",T.pessoas.filter(e=>e.gestorId).length]],
+    resumo:[["Pessoas",T.pessoas.length],...(G()?[]:[["Quadro ideal",s.quadro||"—"]]),["Com gestor informado",T.pessoas.filter(e=>e.gestorId).length]],
     colunas:["Nome (hierarquia)","Cargo","Nível","Reporta a","Situação","Admissão"],larguras:[78,48,40,62,24,0],linhas,fonte:8,
     arquivo:"organograma-"+slugCC(s.nome)+"-"+TODAY+".pdf",log:["Organograma emitido",s.nome]});
 };
