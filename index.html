@@ -7629,7 +7629,7 @@ function swileAuto(){
 async function carregarConf(){
   try{const {data,error}=await SB.from("premiacoes_conferencia").select("*").eq("comp",COMP_ISO).order("criado_em");if(error)throw error;
     LOTES.forEach(L=>{const n=loja(L.lojaId).num,rs=(data||[]).filter(r=>+r.loja_num===+n);
-      L.correcoes=rs.filter(r=>r.tipo==="correcao").map(r=>({id:r.id,pedido:r.pedido||r.id,pid:r.pid,nome:r.colaborador,funcao:r.funcao,apurado:+r.apurado,real:+r.valor_real,just:r.justificativa,status:r.status,resposta:r.resposta||"",em:new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),quem:r.autor_nome||""}));
+      L.correcoes=rs.filter(r=>r.tipo==="correcao").map(r=>({id:r.id,pedido:r.pedido||r.id,pid:r.pid,nome:r.colaborador,funcao:r.funcao,apurado:+r.apurado,real:+r.valor_real,just:r.justificativa,status:r.status,resposta:r.resposta||"",em:new Date(r.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}),quem:r.autor_nome||"",cat:r.categoria||"",catAp:+r.cat_apurado||0,catReal:+r.cat_real||0}));
       const apr=rs.filter(r=>r.tipo==="aprovacao").pop();const ultCorr=rs.filter(r=>r.tipo==="correcao").pop();
       L.conf=apr&&(!ultCorr||apr.criado_em>ultCorr.criado_em)?"aprovado":L.correcoes.length?"correcao":null;L.confEm=L.conf==="aprovado"?apr.criado_em:null;L.confQuem=L.conf==="aprovado"?(apr.autor_nome||""):"";
       if(typeof sync==="function")sync(L)});
@@ -7828,6 +7828,7 @@ function tAprov(){
 const odBR=s=>String(s||"").replace(/R\$\s*([\d,]+\.\d{2})/g,(m,n)=>brl(parseFloat(n.replace(/,/g,""))));
 function fichaHTML(vid){
   const v0=VEND.find(x=>x.id===vid);if(!v0)return "";const a=apurarLoja(v0.lojaId),v=a.vend.find(x=>x.id===vid),R=CFG.vend[a.fmt];
+  const CR=corrDe(vid,v0.lojaId),TOT=CR?CR.real:v.total,cv=(k,x,vazio)=>CR&&CR.cat===k?`<b style="color:var(--brand-ink)">${brl(CR.catReal)}</b><br><span class="small muted">apurado ${brl(x)} · corrigido</span>`:(vazio&&!x?"—":brl(x));
   const unid=a.fmt==="semanal"?"Semana":"Quinzena";
   const faixaTxt=x=>!x?"—":x.n>1?R.faixas.slice(0,x.n).map(f=>pct(f.min)).join(" + "):x.n===1?pct(R.faixas[0].min):"abaixo de "+pct(R.faixas[0].min);
   const linhas=a.ps.map((p,i)=>{const x=v.per[i];const per=`${p.lbl} · ${String(p.ini).padStart(2,"0")}–${String(p.fim).padStart(2,"0")}/${MM}`;
@@ -7838,16 +7839,17 @@ function fichaHTML(vid){
   const outras=v.per.map((x,i)=>x&&x.vo?`<li><b>${a.ps[i].lbl}</b>: ${esc(odBR(x.od))||brl(x.vo)}</li>`:"").join("");
   const divInd=v.per.map((x,i)=>x&&Math.abs(x.vl-x.vi)>0.01?`<li><b>${a.ps[i].lbl}</b>: Totvs ${brl(x.vl)} · Indeva ${brl(x.vi)}</li>`:"").join("");
   return `
-    <div class="kv"><div><span>Loja</span><b>${esc(loja(v.lojaId).nome)}</b></div><div><span>Apuração</span><b>${FMT_T[a.fmt]}</b></div><div><span>Meta da loja no mês</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div><span>Total do vendedor</span><b>${brl(v.total)}</b></div></div>
+    <div class="kv"><div><span>Loja</span><b>${esc(loja(v.lojaId).nome)}</b></div><div><span>Apuração</span><b>${FMT_T[a.fmt]}</b></div><div><span>Meta da loja no mês</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div><span>Total do vendedor</span><b>${brl(TOT)}${CR?" · corrigido":""}</b></div></div>
     <div class="table-wrap" style="margin:0"><table>
       <thead><tr><th>${unid}</th><th class="r">Meta</th><th class="r">Venda na loja</th><th class="r">Outra unidade</th><th class="r">Venda total</th><th class="r">% alcance</th><th>Faixa</th><th class="r">Prêmio</th></tr></thead>
       <tbody>${linhas}</tbody>
       <tfoot>
-        <tr><td>Mês</td><td class="r num">${brl(v.metaV)}</td><td class="r num">${brl(vl)}</td><td class="r num">${vo?brl(vo):"—"}</td><td class="r num">${brl(v.vMes)}</td><td class="r num">${pct(v.pMes)}</td><td class="small">${unid==="Semana"?"semanas":"quinzenas"}</td><td class="r num">${brl(prem)}</td></tr>
-        <tr><td colspan="7">Bônus do mês <span class="small muted" style="font-weight:400">· ${mesMotivo}</span></td><td class="r num">${v.mes?brl(v.mes):"—"}</td></tr>
-        <tr><td colspan="7">Acelerador de vendas <span class="small muted" style="font-weight:400">${v.acelD?"· "+(esc(acelTxt(v.acelD))||"sem venda de itens"):"· sem lançamento na planilha"}</span></td><td class="r num">${v.acel?brl(v.acel):"—"}</td></tr>
-        <tr><td colspan="7"><b>Total do vendedor</b></td><td class="r num"><b>${brl(v.total)}</b></td></tr>
+        <tr><td>Mês</td><td class="r num">${brl(v.metaV)}</td><td class="r num">${brl(vl)}</td><td class="r num">${vo?brl(vo):"—"}</td><td class="r num">${brl(v.vMes)}</td><td class="r num">${pct(v.pMes)}</td><td class="small">${unid==="Semana"?"semanas":"quinzenas"}</td><td class="r num">${cv("faixas",prem)}</td></tr>
+        <tr><td colspan="7">Bônus do mês <span class="small muted" style="font-weight:400">· ${mesMotivo}</span></td><td class="r num">${cv("mes",v.mes,1)}</td></tr>
+        <tr><td colspan="7">Acelerador de vendas <span class="small muted" style="font-weight:400">${v.acelD?"· "+(esc(acelTxt(v.acelD))||"sem venda de itens"):"· sem lançamento na planilha"}</span></td><td class="r num">${cv("acel",v.acel,1)}</td></tr>
+        ${CR&&(!CR.cat||CR.cat==="total")?`<tr><td colspan="7">Correção aprovada pelo RH</td><td class="r num">${(TOT-v.total>=0?"+ ":"− ")+brl(Math.abs(TOT-v.total))}</td></tr>`:""}<tr><td colspan="7"><b>Total do vendedor</b></td><td class="r num"><b>${brl(TOT)}</b></td></tr>
       </tfoot></table></div>
+    ${CR?`<div class="note"><b>Correção aprovada pelo RH</b> · ${esc(CORR_CAT[CR.cat||"total"]||"")}: ${esc(CR.just)}</div>`:""}
     ${outras?`<div class="note"><b>Vendas em outras unidades somadas na meta</b><ul style="margin:6px 0 0 18px;padding:0">${outras}</ul><span>Total de ${brl(vo)} no mês. Contam no % de alcance do vendedor na loja de origem dele; no faturamento, contam na loja onde a venda foi feita.</span></div>`:`<p class="small muted">Sem vendas em outras unidades neste mês.</p>`}
     ${divInd?`<div class="note"><b>Venda diferente entre Totvs e Indeva</b><ul style="margin:6px 0 0 18px;padding:0">${divInd}</ul><span>A apuração usa a venda do Totvs.</span></div>`:""}
     <p class="small muted">Meta de cada período do Indeva; venda do Totvs. Faixas: ${R.faixas.map(f=>pct(f.min)+" → "+pct2(f.pct)+" da venda do período").join(" · ")}${R.acumula?" (somam)":""}. Valores sem arredondamento, exibidos em centavos.</p>`;
@@ -7867,7 +7869,7 @@ function meuPremio(){
       <div class="table-wrap" style="margin:0"><table><thead><tr><th>${a.fmt==="semanal"?"Semana":"Quinzena"}</th><th class="r">Meta da loja</th><th class="r">Venda da loja</th><th class="r">% alcance</th></tr></thead><tbody>${linhas}</tbody>
       <tfoot><tr><td>Mês</td><td class="r num">${brl(a.metaMes)}</td><td class="r num">${brl(a.vendaMes)}</td><td class="r num">${pct(a.pMes)}</td></tr></tfoot></table></div>
       <p class="small muted">${esc(s?s.cargo:"Função de apoio")} recebe ${brl(s?supValor(s.cargo):CFG.sup.valor)} por loja atendida que bate ${pct(CFG.metaMin)} da meta do mês${CFG.sup.multi?", somando todas as lojas em que atuam":", valendo só uma loja"}. O resultado por ${a.fmt==="semanal"?"semana":"quinzena"} é informativo: o que conta é o mês.</p></div>`}).join("");
-  const totV=VEND.reduce((t,v)=>t+(apurarLoja(v.lojaId).vend.find(x=>x.id===v.id)||{total:0}).total,0),totS=lojasSup.reduce((t,id)=>{const s=apurarLoja(id).sup.find(x=>ids.has(x.id));return t+(s?s.valor:0)},0);
+  const totV=VEND.reduce((t,v)=>{const c=corrDe(v.id,v.lojaId);return t+(c?c.real:(apurarLoja(v.lojaId).vend.find(x=>x.id===v.id)||{total:0}).total)},0),totS=lojasSup.reduce((t,id)=>{const s=apurarLoja(id).sup.find(x=>ids.has(x.id));const c=s&&corrDe(s.id,id);return t+(c?c.real:s?s.valor:0)},0);
   const fechL=(window.__PREM_MEULANC||[]),fechMC=fechL.filter(l=>l.tipo==="complemento").reduce((s,l)=>s+(+l.valor||0),0),fechMD=fechL.filter(l=>l.tipo==="desconto").reduce((s,l)=>s+(+l.valor||0),0);
   const resumo=fechMC?`<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Seu valor em ${COMP}</span><span class="val num">${brl(lancLiq(0,fechMC,fechMD))}</span><span class="sub">Valor fechado pelo RH</span></div></div>`:(VEND.length||lojasSup.length)?`<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Seu prêmio em ${COMP}</span><span class="val num">${brl(totV+totS)}</span>${lojasSup.length&&!VEND.length?`<span class="sub">função de apoio</span>`:""}</div></div>`:"";
   const ordinal=n=>n+"º";
@@ -7950,13 +7952,25 @@ function evolResumo(ids){
   const it=(n,t,cls)=>`<div class="card kpi" style="padding:12px 14px"><span class="lbl">${t}</span><span class="val num" style="font-size:24px${cls?";color:"+cls:""}">${n}</span></div>`;
   return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">${it(c.rh,"Aguardando RH")}${it(c.ger,"Aguardando gerente")}${it(c.corr,"Correção pedida",c.corr?"#c2410c":"")}${it(c.conf,"Conferidas")}${it(c.folha,"No Swile")}${it(c.pago,"Pagas")}</div>`;
 }
+const CORR_CAT={total:"Total do prêmio",faixas:"Prêmio por faixas (metas)",mes:"Bônus do mês",acel:"Acelerador de vendas",faixa:"Prêmio da faixa do gerente",valor:"Prêmio de supervisão"};
+function catsPessoa(lojaId,pid){const a=apurarLoja(lojaId);
+  if(pid==="ger")return [["faixa",a.ger.valor],["acel",a.ger.acel],["total",a.ger.valor+a.ger.acel]];
+  const v=a.vend.find(x=>x.id===pid);if(v)return [["acel",v.acel],["faixas",v.premio-v.mes],["mes",v.mes],["total",v.total]];
+  const s=a.sup.find(x=>x.id===pid);if(s)return [["valor",s.valor],["total",s.valor]];return [["total",0]]}
+const corrCatTxt=c=>c&&c.cat&&c.cat!=="total"?`<br><span class="chip c-info" style="margin-top:4px">${esc(CORR_CAT[c.cat]||c.cat)}</span> <span class="small">${brl(c.catAp)} → <b>${brl(c.catReal)}</b></span>`:"";
+function corrDe(pid,lojaId){
+  const L=LOTES.find(x=>x.lojaId===lojaId),a=((L&&L.correcoes)||[]).filter(c=>c.status==="aceita"&&c.pid===pid);
+  if(a.length){const c=a[a.length-1];return {real:+c.real,apurado:+c.apurado,cat:c.cat||"",catAp:+c.catAp||0,catReal:+c.catReal||0,just:c.just||""}}
+  const n=+loja(lojaId).num,b=(window.__PREM_CORR||[]).filter(x=>x.pid===pid&&+x.loja_num===n);
+  if(b.length){const c=b[b.length-1];return {real:+c.valor_real,apurado:+c.apurado,cat:c.categoria||"",catAp:+c.cat_apurado||0,catReal:+c.cat_real||0,just:c.justificativa||""}}
+  return null}
 function corrPendHTML(){
   const p=P();if(!p.aprovar&&!p.aprovarGer)return "";const ids=escopo();
   const it=[];LOTES.filter(L=>ids.includes(L.lojaId)).forEach(L=>corrAbertas(L).forEach(c=>it.push({L,c})));
   if(!it.length)return "";
   return `<div class="card" style="border:2px solid #c2410c"><div class="card-head"><div><h2>Correções pedidas pelos gerentes · ${it.length}</h2><p>Confira e responda. Ao aceitar, o valor real passa a valer no total da pessoa; ao recusar, fica o valor apurado. Enquanto houver correção aberta, a loja não segue para o Swile.</p></div></div>
   <div class="table-wrap" style="margin:0"><table><thead><tr><th>Loja</th><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Pedido por</th><th></th></tr></thead><tbody>
-  ${it.map(({L,c})=>{const pode=c.pid==="ger"?p.aprovarGer||p.aprovar:p.aprovar;return `<tr><td><b>${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}</b></td><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num" style="color:${c.real<c.apurado?"var(--bad)":"var(--brand-ink)"}">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:200px">${esc(c.just||"")}</td><td class="small">${esc(c.quem||"")}<br>${esc(c.em||"")}</td>
+  ${it.map(({L,c})=>{const pode=c.pid==="ger"?p.aprovarGer||p.aprovar:p.aprovar;return `<tr><td><b>${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}</b></td><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")}</span>${corrCatTxt(c)}</td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num" style="color:${c.real<c.apurado?"var(--bad)":"var(--brand-ink)"}">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:200px">${esc(c.just||"")}</td><td class="small">${esc(c.quem||"")}<br>${esc(c.em||"")}</td>
   <td style="white-space:nowrap">${pode?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm" data-prcedit="${L.id}|${c.id}">Editar valor</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button> `:""}<button class="btn btn-sm btn-ghost" data-prloja="${L.lojaId}" data-prres="1">Ver na loja</button></td></tr>`}).join("")}</tbody></table></div></div>`;
 }
 setInterval(()=>{try{if(typeof page!=="undefined"&&page==="premiacoes"&&CARREGADO&&typeof SB!=="undefined"&&SB&&!document.hidden){const antes=JSON.stringify(LOTES.map(L=>[L.conf,(L.correcoes||[]).map(c=>c.id+c.status)]));carregarConf().then(()=>{const dep=JSON.stringify(LOTES.map(L=>[L.conf,(L.correcoes||[]).map(c=>c.id+c.status)]));if(dep!==antes&&!$("#modal-root").innerHTML&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render()})}}catch(e){}},60000);
@@ -7969,14 +7983,15 @@ function confBox(id){
   return `<div class="ex" style="margin-bottom:16px;gap:10px">
     <div class="ex-row" style="flex-wrap:wrap;gap:10px"><span><b>Conferência do gerente</b> · ${confChip(L)}</span>
       <span style="display:flex;gap:8px;flex-wrap:wrap">${pode&&L.conf!=="aprovado"&&!corrAbertas(L).length?`<button class="btn btn-sm btn-primary" data-prconfok="${L.id}">Aprovar apuração</button>`:""}${pode?`<button class="btn btn-sm" data-prcorr="${L.id}">Pedir correção</button>`:""}${p.conferir&&!pode?`<span class="small muted">Conferência encerrada: a apuração desta loja já foi ${({aprovado:"aprovada pelo RH",folha:"importada no Swile",pago:"paga"})[L.status]||L.status}.</span>`:""}</span></div>
-    ${cs.length?`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Situação</th>${p.aprovar?"<th></th>":""}</tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${esc(c.em)} · ${esc(c.quem)}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:220px">${esc(c.just)}${c.resposta?`<br><span class="muted">RH: ${esc(c.resposta)}</span>`:""}</td><td>${st[c.status]||""}</td>${p.aprovar?`<td>${c.status==="aberta"?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm" data-prcedit="${L.id}|${c.id}">Editar valor</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table></div>`:""}
+    ${cs.length?`<div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Situação</th>${p.aprovar?"<th></th>":""}</tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${esc(c.em)} · ${esc(c.quem)}</span>${corrCatTxt(c)}</td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:220px">${esc(c.just)}${c.resposta?`<br><span class="muted">RH: ${esc(c.resposta)}</span>`:""}</td><td>${st[c.status]||""}</td>${p.aprovar?`<td>${c.status==="aberta"?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm" data-prcedit="${L.id}|${c.id}">Editar valor</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button>`:""}</td>`:""}</tr>`).join("")}</tbody></table></div>`:""}
   </div>`;
 }
 function pedirCorrecao(lid){
   const L=LOTES.find(x=>x.id===lid),a=apurarLoja(L.lojaId),ps=pessoasLoja(a);
-  modal(`Pedir correção · ${loja(L.lojaId).curto}`,`<p class="small muted">Preencha o <b>valor real</b> e a <b>justificativa</b> só de quem precisa de correção. Você pode corrigir várias pessoas no mesmo pedido.</p>
-    <div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real (R$)</th><th>Justificativa</th></tr></thead><tbody>
+  modal(`Pedir correção · ${loja(L.lojaId).curto}`,`<p class="small muted">Escolha <b>o que corrigir</b> (acelerador, prêmio por faixas, bônus do mês ou o total), informe o <b>valor correto daquela categoria</b> e a <b>justificativa</b>, só de quem precisa de correção. Você pode corrigir várias pessoas no mesmo pedido.</p>
+    <div class="table-wrap" style="margin:0"><table><thead><tr><th>Colaborador</th><th class="r">Apurado</th><th>O que corrigir</th><th class="r">Valor correto (R$)</th><th>Justificativa</th></tr></thead><tbody>
     ${ps.map((x,i)=>`<tr><td><b>${esc(x.nome)}</b><br><span class="small muted">${esc(x.funcao)}</span></td><td class="r num">${brl(x.valor)}</td>
+      <td><select class="input" style="min-width:190px" data-pccat="${i}" aria-label="O que corrigir de ${esc(x.nome)}">${catsPessoa(L.lojaId,x.pid).map(([k,v])=>`<option value="${k}">${esc(CORR_CAT[k])} · ${brl(v)}</option>`).join("")}</select></td>
       <td class="r"><input class="input num" style="width:120px" inputmode="decimal" placeholder="0,00" data-pcreal="${i}" aria-label="Valor real de ${esc(x.nome)}"></td>
       <td style="min-width:260px"><input class="input" data-pcjust="${i}" placeholder="Motivo (mín. 10 caracteres)" aria-label="Justificativa de ${esc(x.nome)}"></td></tr>`).join("")}
     </tbody></table></div>
@@ -7989,17 +8004,17 @@ function enviarCorrecoes(lid,btn){
   const L=LOTES.find(x=>x.id===lid),a=apurarLoja(L.lojaId),ps=pessoasLoja(a),geral=($("#pr-c-geral").value||"").trim();
   const itens=[];let erro="";
   ps.forEach((x,i)=>{const rv=(document.querySelector(`[data-pcreal="${i}"]`).value||"").trim();if(!rv)return;const real=numBR(rv);const just=((document.querySelector(`[data-pcjust="${i}"]`).value||"").trim())||geral;
-    if(!(real>=0))erro=erro||`Valor real inválido para ${x.nome}`;else if(just.length<10)erro=erro||`Escreva a justificativa de ${x.nome} (mínimo de 10 caracteres)`;else itens.push({x,real,just})});
+    if(!(real>=0))erro=erro||`Valor real inválido para ${x.nome}`;else if(just.length<10)erro=erro||`Escreva a justificativa de ${x.nome} (mínimo de 10 caracteres)`;else{const ce=document.querySelector(`[data-pccat="${i}"]`),cat=ce?ce.value:"total",catAp=((catsPessoa(L.lojaId,x.pid).find(c=>c[0]===cat)||[0,x.valor])[1]);itens.push({x,cat,catAp,catReal:real,real:cat==="total"?real:Math.max(0,x.valor-catAp+real),just})}});
   if(erro){toast(erro);return}if(!itens.length){toast("Informe o valor real de pelo menos uma pessoa");return}
-  const pedido="p"+uid(),resumo=itens.map(i=>`${i.x.nome}: ${brl(i.x.valor)} → ${brl(i.real)}`).join(" · ");
+  const pedido="p"+uid(),resumo=itens.map(i=>i.cat==="total"?`${i.x.nome}: ${brl(i.x.valor)} → ${brl(i.real)}`:`${i.x.nome}: ${CORR_CAT[i.cat]} ${brl(i.catAp)} → ${brl(i.catReal)} (total ${brl(i.real)})`).join(" · ");
   const fim=()=>{closeModal();render();toast(`Pedido enviado com ${itens.length} correção(ões)`)};
   if(typeof SB!=="undefined"&&SB&&typeof COMP_ISO!=="undefined"){btn.disabled=true;
-    SB.from("premiacoes_conferencia").insert(itens.map(i=>({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"correcao",status:"aberta",pedido,pid:i.x.pid,colaborador:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,valor_real:i.real,justificativa:i.just,autor_nome:quem()}))).then(({error})=>{
+    SB.from("premiacoes_conferencia").insert(itens.map(i=>({comp:COMP_ISO,loja_id:lojaCGP(L.lojaId),loja_num:+loja(L.lojaId).num,tipo:"correcao",status:"aberta",pedido,pid:i.x.pid,colaborador:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,valor_real:i.real,categoria:i.cat,cat_apurado:i.catAp,cat_real:i.catReal,justificativa:i.just,autor_nome:quem()}))).then(({error})=>{
       if(error){btn.disabled=false;toast("Não foi possível enviar: "+error.message);return}
       if(typeof logEvento==="function")logEvento("Premiações · Correção pedida",`${loja(L.lojaId).curto} · ${itens.length} pessoa(s) · ${resumo}`.slice(0,300));
       if(podeGravar()){L.eventos.push(ev(agora(),quem(),`Pedido de correção (${itens.length}): ${resumo}`));gravar()}
       carregarConf().then(fim)});return}
-  L.correcoes=L.correcoes||[];itens.forEach(i=>L.correcoes.push({id:"c"+uid(),pedido,pid:i.x.pid,nome:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,real:i.real,just:i.just,status:"aberta",em:agora(),quem:quem()}));L.conf="correcao";
+  L.correcoes=L.correcoes||[];itens.forEach(i=>L.correcoes.push({id:"c"+uid(),pedido,pid:i.x.pid,nome:i.x.nome,funcao:i.x.funcao,apurado:i.x.valor,real:i.real,cat:i.cat,catAp:i.catAp,catReal:i.catReal,just:i.just,status:"aberta",em:agora(),quem:quem()}));L.conf="correcao";
   registrar(L,`Pedido de correção (${itens.length}): ${resumo}`);gravar();fim();
 }
 const numBR=s=>{s=String(s||"").trim().replace(/[R$\s]/g,"");if(!s)return NaN;if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");return Number(s)};
@@ -8135,13 +8150,13 @@ function lancResumoHTML(){
 }
 function tMeuPremioGer(){
   const ids=minhasLojasMod();if(!ids.length)return `<div class="card empty">Sua loja não está na apuração de ${COMP}.</div>`;
-  const aps=ids.map(apurarLoja),tot=aps.reduce((t,a)=>t+a.ger.valor+a.ger.acel,0);
+  const aps=ids.map(apurarLoja),tot=aps.reduce((t,a)=>{const c=corrDe("ger",a.id);return t+(c?c.real:a.ger.valor+a.ger.acel)},0);
   const bar=p=>`<span class="mbar"><i class="${p>=CFG.metaMin?"":"under"}" style="width:${Math.min(p,140)/1.4}%"></i></span>`;
   const rk=window.__PREM_RANKLOJAS||[];
   return `<div class="grid kpis"><div class="card kpi hero"><span class="lbl">Meu prêmio · ${COMP}</span><span class="val num">${brl(tot)}</span><span class="sub">${ids.length>1?ids.length+" lojas sob sua gestão":"gerente de loja"}</span></div></div>
-  ${aps.map(a=>{const r=rk.find(x=>x.loja_id===a.id),g=a.ger;return `<div class="card"><div class="card-head"><div><h2>${esc(loja(a.id).nome)}</h2><p>${g.propria?"Regra própria da loja":"Regra geral de gerente"}: ${g.regra.faixas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" · ")}${g.regra.acumula?" (faixas somam)":" (vale a maior faixa)"}</p></div><span class="chip ${a.bateu?"c-ok":"c-mute"}">${a.bateu?"Loja bateu a meta":"Loja abaixo da meta"}</span></div>
+  ${aps.map(a=>{const r=rk.find(x=>x.loja_id===a.id),g=a.ger,cg=corrDe("ger",a.id),gv=k=>cg&&cg.cat===k?`${brl(cg.catReal)} <span class="small muted">(apurado ${brl(k==="faixa"?g.valor:g.acel)} · corrigido)</span>`:brl(k==="faixa"?g.valor:g.acel);return `<div class="card"><div class="card-head"><div><h2>${esc(loja(a.id).nome)}</h2><p>${g.propria?"Regra própria da loja":"Regra geral de gerente"}: ${g.regra.faixas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" · ")}${g.regra.acumula?" (faixas somam)":" (vale a maior faixa)"}</p></div><span class="chip ${a.bateu?"c-ok":"c-mute"}">${a.bateu?"Loja bateu a meta":"Loja abaixo da meta"}</span></div>
     <div class="kv"><div><span>Meta do mês</span><b>${brl(a.metaMes)}</b></div><div><span>Venda do mês</span><b>${brl(a.vendaMes)}</b></div><div><span>% atingido</span><b>${bar(a.pMes)}${pct(a.pMes)}</b></div>${r?`<div><span>Ranking nacional de lojas</span><b>${r.pos}º de ${r.tot}</b></div>`:""}
-      <div><span>Faixa atingida</span><b style="white-space:normal">${g.usadas.length?g.usadas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" + "):"Nenhuma"}</b></div><div><span>Prêmio da faixa</span><b>${brl(g.valor)}</b></div><div><span>Acelerador de vendas</span><b>${brl(g.acel)}</b></div><div><span>Total nesta loja</span><b>${brl(g.valor+g.acel)}</b></div></div></div>`}).join("")}
+      <div><span>Faixa atingida</span><b style="white-space:normal">${g.usadas.length?g.usadas.map(f=>`${fxMin(f)} → ${fxG(f)}`).join(" + "):"Nenhuma"}</b></div><div><span>Prêmio da faixa</span><b>${gv("faixa")}</b></div><div><span>Acelerador de vendas</span><b>${gv("acel")}</b></div><div><span>Total nesta loja</span><b>${brl(cg?cg.real:g.valor+g.acel)}${cg?" · corrigido":""}</b></div>${cg?`<div style="grid-column:1/-1"><span>Correção aprovada pelo RH</span><b style="white-space:normal;font-weight:500">${esc(CORR_CAT[cg.cat||"total"]||"")}: ${esc(cg.just)}</b></div>`:""}</div></div>`}).join("")}
   ${ajustesHTML(tot)}<p class="small muted">Valores em apuração: podem mudar até a aprovação do RH. Para conferir a equipe e aprovar ou pedir correção, use <b>Prêmio da Equipe</b>.</p>`;
 }
 function rankVendLinhas(modo){
@@ -8577,21 +8592,24 @@ document.addEventListener("click",e=>{
     registrar(L,`Correção pedida: ${x.nome} · apurado ${brl(x.valor)} → real ${brl(real)}`);gravar();closeModal();render();toast("Pedido de correção enviado ao RH");return}
   if(d.prcedit){const [lid,cid]=d.prcedit.split("|"),L=LOTES.find(x=>x.id===lid),c=L&&(L.correcoes||[]).find(y=>y.id===cid);if(!c||c.status!=="aberta"){toast("Esta correção já foi respondida");return}
     modal(`Editar valor da correção · ${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}`,`<p><b>${esc(c.nome)}</b> · ${esc(c.funcao||"")}</p>
-      <div class="kv" style="margin:10px 0"><div><span>Apurado</span><b class="num">${brl(c.apurado)}</b></div><div><span>Valor lançado pelo gerente</span><b class="num">${brl(c.real)}</b></div></div>
+      <div class="kv" style="margin:10px 0"><div><span>Total apurado</span><b class="num">${brl(c.apurado)}</b></div><div><span>Lançado pelo gerente</span><b class="num">${c.cat&&c.cat!=="total"?esc(CORR_CAT[c.cat])+": "+brl(c.catReal):brl(c.real)}</b></div></div>
       <p class="small muted">Justificativa do gerente: ${esc(c.just||"—")}</p>
-      <div class="form-grid"><div class="field"><label for="pr-ce-v">Valor correto (R$)</label><input class="input num" id="pr-ce-v" type="number" step="0.01" min="0" value="${(+c.real).toFixed(2)}"></div>
+      <div class="form-grid"><div class="field"><label for="pr-ce-c">O que corrigir</label><select class="input" id="pr-ce-c">${catsPessoa(L.lojaId,c.pid).map(([k,v])=>`<option value="${k}" data-ap="${v}" ${k===(c.cat||"total")?"selected":""}>${esc(CORR_CAT[k])} · apurado ${brl(v)}</option>`).join("")}</select></div>
+      <div class="field"><label for="pr-ce-v">Valor correto da categoria (R$)</label><input class="input num" id="pr-ce-v" type="number" step="0.01" min="0" value="${(+(c.cat&&c.cat!=="total"?c.catReal:c.real)).toFixed(2)}"></div>
+      <p class="full small muted">Ex.: acelerador apurado R$ 2,00 e o correto é R$ 6,00 → escolha <b>Acelerador de vendas</b> e informe 6,00. O total da pessoa é recalculado.</p>
       <div class="field full"><label for="pr-ce-m">Motivo da alteração</label><input class="input" id="pr-ce-m" maxlength="200" placeholder="Ex.: gerente digitou errado; valor conferido com a venda"></div></div>`,
       `<button class="btn" data-close>Cancelar</button><button class="btn" data-prceditok="${L.id}|${c.id}|0">Salvar valor</button><button class="btn btn-primary" data-prceditok="${L.id}|${c.id}|1">Salvar e aceitar</button>`);return}
   if(d.prceditok){const [lid,cid,ac]=d.prceditok.split("|"),L=LOTES.find(x=>x.id===lid),c=L&&(L.correcoes||[]).find(y=>y.id===cid);if(!c)return;
     const v=Math.round(parseFloat($("#pr-ce-v").value)*100)/100,m=($("#pr-ce-m").value||"").trim();
     if(!(v>=0)||$("#pr-ce-v").value===""){toast("Informe o valor correto");return}if(m.length<3){toast("Escreva o motivo da alteração");return}
-    const de=c.real,nota=` · RH alterou de ${brl(de)} para ${brl(v)} (${m}) · ${quem()}`;
-    const fim=()=>{{const c2=(L.correcoes||[]).find(y=>y.id===cid);if(c2&&c2.real!==v){c2.real=v;c2.just=(c.just||"")+nota}}registrar(L,`Correção editada pelo RH: ${c.nome} · ${brl(de)} → ${brl(v)} · ${m}`);closeModal();
+    const cat=$("#pr-ce-c").value,catAp=+($("#pr-ce-c").selectedOptions[0].dataset.ap)||0,tot=cat==="total"?v:Math.max(0,Math.round((c.apurado-catAp+v)*1000)/1000);
+    const de=c.cat&&c.cat!=="total"?c.catReal:c.real,nota=` · RH ajustou ${CORR_CAT[cat]}${cat==="total"?"":" (apurado "+brl(catAp)+")"} de ${brl(de)} para ${brl(v)}${cat==="total"?"":", total "+brl(tot)} (${m}) · ${quem()}`;
+    const fim=()=>{{const c2=(L.correcoes||[]).find(y=>y.id===cid);if(c2&&c2.real!==tot){c2.real=tot;c2.cat=cat;c2.catAp=catAp;c2.catReal=v;c2.just=(c.just||"")+nota}}registrar(L,`Correção editada pelo RH: ${c.nome} · ${CORR_CAT[cat]} ${brl(de)} → ${brl(v)}${cat==="total"?"":" · total "+brl(tot)} · ${m}`);closeModal();
       if(ac==="1"){const b=document.createElement("button");b.dataset.prcaceita=lid+"|"+cid;b.hidden=true;document.body.appendChild(b);b.click();b.remove()}else{sync(L);gravar();render();toast("Valor da correção alterado. Falta aceitar.")}};
-    if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").update({valor_real:v,justificativa:(c.just||"")+nota}).eq("id",c.id).eq("status","aberta").select("id").then(({data,error})=>{
+    if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").update({valor_real:tot,categoria:cat,cat_apurado:catAp,cat_real:v,justificativa:(c.just||"")+nota}).eq("id",c.id).eq("status","aberta").select("id").then(({data,error})=>{
       if(error||!(data||[]).length){t.disabled=false;toast(error?"Não foi possível salvar: "+error.message:"Esta correção já foi respondida");return}
       carregarConf().then(fim)});return}
-    c.real=v;c.just=(c.just||"")+nota;fim();return}
+    c.real=tot;c.cat=cat;c.catAp=catAp;c.catReal=v;c.just=(c.just||"")+nota;fim();return}
   if(d.prcaceita||d.prcrecusa){const [lid,cid]=(d.prcaceita||d.prcrecusa).split("|"),L=LOTES.find(x=>x.id===lid),c=L.correcoes.find(y=>y.id===cid);const aceita=!!d.prcaceita;
     if(typeof SB!=="undefined"&&SB){t.disabled=true;SB.from("premiacoes_conferencia").update({status:aceita?"aceita":"recusada",resposta:aceita?"Correção aceita":"Correção recusada",respondido_nome:quem(),respondido_em:new Date().toISOString()}).eq("id",c.id).then(({error})=>{if(error){t.disabled=false;toast("Não foi possível responder: "+error.message);return}
       registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);carregarConf().then(()=>{sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada")})});return}
@@ -8672,7 +8690,7 @@ async function carregarPremData(){
   try{
     let lj=[],vd=[],agg=null;
     const CMP=window.__PREM_COMP||"2026-10";
-    if(ROLE==="colaborador"){const [rr,rc]=await Promise.all([SB.rpc("premiacoes_meu_resultado",{p_comp:CMP}),SB.rpc("premiacoes_minhas_comps")]);const {data,error}=rr;if(error)throw error;window.__PREM_COMPS=Array.isArray(rc&&rc.data)&&rc.data.length?rc.data:[CMP];window.__PREM_MEUSUP=(data&&data.sup)||[];window.__PREM_RANK=(data&&data.rank)||[];vd=(data&&data.vend)||[];lj=(data&&data.lojas)||[];agg=(data&&data.agg)||{}}
+    if(ROLE==="colaborador"){const [rr,rc]=await Promise.all([SB.rpc("premiacoes_meu_resultado",{p_comp:CMP}),SB.rpc("premiacoes_minhas_comps")]);const {data,error}=rr;if(error)throw error;window.__PREM_COMPS=Array.isArray(rc&&rc.data)&&rc.data.length?rc.data:[CMP];window.__PREM_MEUSUP=(data&&data.sup)||[];window.__PREM_RANK=(data&&data.rank)||[];window.__PREM_CORR=(data&&data.corr)||[];vd=(data&&data.vend)||[];lj=(data&&data.lojas)||[];agg=(data&&data.agg)||{}}
     else{const [a,b]=await Promise.all([SB.from("premiacoes_lojas").select("loja_id,loja_num,dados").eq("comp",CMP),SB.from("premiacoes_vendedores").select("vend_id,loja_id,loja_num,nome,per,acel").eq("comp",CMP).limit(5000)]);if(a.error)throw a.error;if(b.error)throw b.error;lj=a.data||[];vd=b.data||[]}
     const sup={};lj.forEach(r=>((r.dados&&r.dados.sup)||[]).forEach(s=>{const x=sup[s.id]=sup[s.id]||{...s,lojas:[]};(s.lojas||[]).forEach(id=>{if(!x.lojas.includes(id))x.lojas.push(id)})}));
     if(ROLE!=="rh"){try{const {data}=await SB.rpc("premiacoes_meus_lancamentos",{p_comp:CMP});window.__PREM_MEULANC=Array.isArray(data)?data:[]}catch(e){window.__PREM_MEULANC=[]}}
