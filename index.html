@@ -7534,8 +7534,8 @@ const PERFIS={
 };
 const ACOES=[["verRes","Ver resultados"],["verAprov","Ver aprovações"],["acompanhar","Acompanhar andamento"],["aprovar","Aprovar equipe"],["aprovarGer","Aprovar gerente"],["lancar","Importar no Swile"],["verHist","Ver histórico"],["conferir","Conferir a apuração da loja (gerente)"],["verSup","Ver prêmio da supervisão e gestão"],["regras","Editar regras"]];
 const PERM={
-  rh:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:false,lancar:true,verHist:true,regras:true},
-  supervisora:{verSup:true,verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:true,lancar:false,verHist:false,regras:false},
+  rh:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:true,aprovarGer:true,lancar:true,verHist:true,regras:true},
+  supervisora:{verSup:true,verRes:false,verAprov:true,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:false,regras:false},
   gestora:{verSup:true,verRes:true,verAprov:true,acompanhar:true,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false},
   gerente:{conferir:true,verSup:false,verRes:true,verAprov:false,acompanhar:false,aprovar:false,aprovarGer:false,lancar:false,verHist:true,regras:false}
 };
@@ -7573,7 +7573,7 @@ function gravar(){if(!podeGravar())return;ST.premiacoes=estadoDB();persist()}
 function aplicarDB(d){
   if(!d||d.comp!==COMP)return;
   if(d.cfg){if(!d.cfg.gest)d.cfg.gest=clone(CFG_PADRAO.gest);if(!d.cfg.supv)d.cfg.supv=clone(CFG_PADRAO.supv);if(!d.cfg.regional||Object.values(d.cfg.regional).every(v=>["SP","RJ","BA","PR","ES","PE","AM"].includes(v)))d.cfg.regional=clone(CFG_PADRAO.regional);if(!d.cfg.gerLoja)d.cfg.gerLoja=clone(CFG_PADRAO.gerLoja);if(d.cfg.sup){const cs=(d.cfg.sup.cargos||[]).map(c=>nCargo(c)==="auxiliar de loja"?"Auxiliar de Loja":c);d.cfg.sup.cargos=cs.length?[...new Set(cs)]:CARGOS_SUP.slice();if(!d.cfg.sup.valores||typeof d.cfg.sup.valores!=="object")d.cfg.sup.valores={};d.cfg.sup.cargos.forEach(c=>{if(d.cfg.sup.valores[c]==null)d.cfg.sup.valores[c]=+d.cfg.sup.valor||100})}if(d.cfg.sup&&!Array.isArray(d.cfg.sup.pessoas))d.cfg.sup.pessoas=clone(CFG_PADRAO.sup.pessoas);CFG_SALVO=d.cfg;CFG=clone(d.cfg)}
-  if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});
+  if(d.perm)Object.keys(PERM).forEach(k=>{if(d.perm[k])Object.assign(PERM[k],d.perm[k])});PERM.rh.aprovarGer=true;PERM.supervisora.aprovarGer=false;
   (d.lotes||[]).forEach(x=>{const L=LOTES.find(y=>y.id===x.id);if(!L)return;L.status=x.status;L.eq=!!x.eq;L.gr=!!x.gr;if(Array.isArray(x.eventos))L.eventos=x.eventos;L.conf=x.conf||null;L.correcoes=Array.isArray(x.correcoes)?x.correcoes:[];if(x.congelado)L.congelado=x.congelado;else delete L.congelado});
 }
 function carregar(){
@@ -7806,13 +7806,13 @@ function tAprov(){
   const p=P(),ids=escopo();
   const ls=LOTES.filter(L=>ids.includes(L.lojaId)&&["aguardando","devolvido","aprovado"].includes(L.status));
   const aprov=ls.filter(L=>L.status==="aprovado");
-  const papel=p.aprovar&&p.aprovarGer?"Você aprova a equipe e o prêmio do gerente.":p.aprovar?"Você aprova vendedores e funções de suporte. O prêmio do gerente é aprovado pela supervisora.":p.aprovarGer?"Você aprova o prêmio do gerente de cada loja. Vendedores e suporte são aprovados pelo RH.":"Visualização das apurações e do andamento das aprovações.";
+  const papel=p.aprovar&&p.aprovarGer?"Você aprova a equipe e o prêmio do gerente.":p.aprovar?"Você aprova vendedores e funções de suporte. ":p.aprovarGer?"Você aprova o prêmio do gerente de cada loja. Vendedores e suporte são aprovados pelo RH.":"Visualização das apurações e do andamento das aprovações.";
   const podeDev=L=>L.status==="aguardando"&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr));
   return `${corrPendHTML()}<div class="card">
     <div class="card-head"><div><h2>${COMP}</h2><p>${papel}</p></div>
       ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) no Swile</button>`:""}</div>
     ${ls.length?`<div class="table-wrap"><table>
-      <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação supervisora</th><th class="r">Total</th><th>Conferência do gerente</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
+      <thead><tr><th>Loja</th><th class="r">Equipe</th><th>Aprovação RH</th><th class="r">Gerente</th><th>Aprovação do gerente (RH)</th><th class="r">Total</th><th>Conferência do gerente</th><th>Situação</th>${p.acompanhar?"<th>Andamento</th>":""}<th></th></tr></thead>
       <tbody>${ls.map(L=>{const S=ST_L[L.status],t=lotal(L);return `<tr>
         <td><b>${loja(L.lojaId).curto}</b><br><span class="small muted">${FMT_T[CFG.formato[L.lojaId]]} · ${t.pessoas} ${t.pessoas===1?"pessoa":"pessoas"}</span></td>
         <td class="r num">${brl(t.eqv)}</td><td>${ok(L.eq,"Aprovada","Falta RH")}</td>
@@ -7822,7 +7822,7 @@ function tAprov(){
         <td class="r"><button class="btn btn-sm" data-prlote="${L.id}">Detalhar</button>${podeDev(L)?` <button class="btn btn-sm btn-ghost" data-prdevolver="${L.id}">Devolver</button>`:""}${p.aprovar&&!L.eq&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${p.aprovarGer&&!L.gr&&L.status==="aguardando"?` <button class="btn btn-sm btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}</td></tr>`}).join("")}</tbody>
       <tfoot><tr><td>Total</td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).eqv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).gv,0))}</td><td></td><td class="r num">${brl(ls.reduce((s,L)=>s+lotal(L).total,0))}</td><td colspan="${p.acompanhar?4:3}"></td></tr></tfoot>
     </table></div>`:`<div class="empty">Nenhuma apuração aguardando. As lojas importadas no Swile estão em Histórico de Premiações.</div>`}
-    <p class="note" style="margin-top:14px">A loja só vai para o Swile quando o RH aprova a equipe e a supervisora aprova o gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
+    <p class="note" style="margin-top:14px">A loja só vai para o Swile quando o RH aprova a equipe e o prêmio do gerente. Até lá, o valor acompanha as regras atuais; depois, fica congelado.</p>
   </div>`;
 }
 const odBR=s=>String(s||"").replace(/R\$\s*([\d,]+\.\d{2})/g,(m,n)=>brl(parseFloat(n.replace(/,/g,""))));
@@ -8030,7 +8030,7 @@ function detalheLote(id){
     <div class="ex"><div class="ex-row"><span>Meta do mês da loja</span><b>${pct(a.pMes)} ${a.bateu?"· bateu":"· não bateu"}</b></div><div class="ex-row"><span>Total da apuração</span><b>${brl(lotal(L).total)}</b></div></div>
     ${confBox(L.lojaId)}
     <div class="card-head" style="margin:0"><h3>Equipe · aprovação do RH</h3>${ok(L.eq,"Aprovada","Falta RH")}</div>${tab(linhas)}
-    <div class="card-head" style="margin:0"><h3>Gerente · aprovação da supervisora</h3>${ok(L.gr,"Aprovado","Falta supervisora")}</div>${tab([g])}
+    <div class="card-head" style="margin:0"><h3>Gerente · aprovação do RH</h3>${ok(L.gr,"Aprovado","Falta o RH aprovar")}</div>${tab([g])}
     ${p.acompanhar?`<h3>Andamento</h3><div class="timeline">${L.eventos.map(e=>`<div class="tl"><b>${esc(e.acao)}</b><span>${e.em} · ${esc(e.quem)}</span></div>`).join("")}</div>`:""}`,
     `${pend&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr))?`<button class="btn btn-danger" data-prdevolver="${L.id}">Devolver</button>`:""}${L.status==="devolvido"&&p.aprovar?`<button class="btn btn-primary" data-prreabrir="${L.id}">Reabrir para aprovação</button>`:""}${pend&&p.aprovar&&!L.eq?`<button class="btn btn-primary" data-praprovar="${L.id}">Aprovar equipe</button>`:""}${pend&&p.aprovarGer&&!L.gr?`<button class="btn btn-primary" data-praprovarger="${L.id}">Aprovar gerente</button>`:""}<button class="btn" data-close>Fechar</button>`);
   const m=document.querySelector("#modal-root .modal");if(m)m.style.width="min(1100px,100%)";
@@ -8433,7 +8433,7 @@ function tMeuPremioSup(){
 }
 function tHistGer(){
   const L=LOTES.find(x=>x.lojaId===MINHA),a=apurarLoja(MINHA);
-  const sit=gerLogin()?["Em aprovação","c-warn"]:L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pela supervisora","c-info"]:["Aguardando supervisora","c-warn"]):ST_L[L.status];
+  const sit=gerLogin()?["Em aprovação","c-warn"]:L.status==="aguardando"||L.status==="devolvido"?(L.gr?["Aprovado pelo RH","c-info"]:["Aguardando o RH","c-warn"]):ST_L[L.status];
   const rows=[{comp:COMP,p:a.pMes,faixa:a.ger.usadas.map(x=>pct(x.min)+" → "+pct2(x.pct)+" da "+(x.base==="meta"?"meta":"venda")).join(" + ")||"Abaixo da meta",valor:L.congelado?L.congelado.gv:a.tg,st:sit},...HIST_GER.slice().reverse().map(h=>({...h,st:ST_L.pago}))];
   return `<div class="card"><div class="card-head"><div><h2>Meus prêmios</h2><p>${esc(GER[MINHA].nome)} · Gerente da ${loja(MINHA).nome}. Seu prêmio é aprovado pela supervisora.</p></div></div>
     <div class="table-wrap"><table><thead><tr><th>Competência</th><th>Meta da loja</th><th>Faixa aplicada</th><th class="r">Valor</th><th>Situação</th></tr></thead>
@@ -8537,7 +8537,7 @@ function tAcessos(){
   return `<div class="card"><div class="card-head"><div><h2>Quem vê e quem faz o quê</h2><p>Marque as ações de cada perfil. Troque o “Ver como” no topo para conferir como cada um enxerga o módulo.</p></div></div>
     <div class="table-wrap"><table class="perm"><thead><tr><th>Perfil</th><th>Lojas</th>${ACOES.map(a=>`<th class="c">${a[1]}</th>`).join("")}</tr></thead>
     <tbody>${Object.entries(PERFIS).map(([k,pf])=>`<tr><td><b>${pf.t}</b></td><td class="small" style="text-align:left">${pf.escopo}</td>${ACOES.map(([a,t])=>`<td><input type="checkbox" id="perm-${k}-${a}" data-prperm="${k}.${a}" aria-label="${pf.t}: ${t}" ${PERM[k][a]?"checked":""} ${k==="rh"&&a==="regras"?"disabled":""}></td>`).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note" style="margin-top:14px">O RH aprova vendedores e funções de suporte e não perde o acesso às regras. A supervisora vê as aprovações e aprova o prêmio dos gerentes. A gestora comercial visualiza tudo, sem ações. O gerente vê os resultados da loja e o próprio histórico de premiações.</p></div>`;
+    <p class="note" style="margin-top:14px">O RH aprova vendedores e funções de suporte e não perde o acesso às regras. O RH também aprova o prêmio dos gerentes; a supervisora só acompanha as aprovações. A gestora comercial visualiza tudo, sem ações. O gerente vê os resultados da loja e o próprio histórico de premiações.</p></div>`;
 }
 
 /* ---------- modais ---------- */
@@ -8615,7 +8615,7 @@ document.addEventListener("click",e=>{
       registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);carregarConf().then(()=>{sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada")})});return}
     c.status=aceita?"aceita":"recusada";c.resposta=aceita?"Correção aceita":"Correção recusada";c.respEm=agora();c.respQuem=quem();
     registrar(L,`Correção ${aceita?"aceita":"recusada"}: ${c.nome} · ${aceita?"novo valor "+brl(c.real):"mantido "+brl(c.apurado)}`);sync(L);gravar();if($("#modal-root .modal"))detalheLote(L.id);render();toast(aceita?"Correção aceita: o valor real entra no total da loja":"Correção recusada");return}
-  if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);if(corrAbertas(L,"eq").length){toast("Responda antes a correção pedida pelo gerente");return}L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta a supervisora aprovar o gerente"));return}
+  if(d.praprovar){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovar);if(corrAbertas(L,"eq").length){toast("Responda antes a correção pedida pelo gerente");return}L.eq=true;registrar(L,"Equipe aprovada");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": equipe aprovada"+(L.gr?"":" · falta aprovar o prêmio do gerente"));return}
   if(d.praprovarger){if(bloqueadoPorRegras())return;const L=LOTES.find(x=>x.id===d.praprovarger);if(corrAbertas(L,"gr").length){toast("Responda antes a correção pedida pelo gerente");return}L.gr=true;registrar(L,"Prêmio do gerente aprovado");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": prêmio do gerente aprovado"+(L.eq?"":" · falta o RH aprovar a equipe"));return}
   if(d.prdevolver){const L=LOTES.find(x=>x.id===d.prdevolver);L.status="devolvido";registrar(L,"Devolvida para revisão");gravar();closeModal();render();toast(loja(L.lojaId).curto+": devolvida para revisão");return}
   if(d.prreabrir){const L=LOTES.find(x=>x.id===d.prreabrir);L.status="aguardando";L.eq=false;L.gr=false;delete L.congelado;registrar(L,"Reaberta para aprovação");sync(L);gravar();closeModal();render();toast(loja(L.lojaId).curto+": reaberta para aprovação");return}
