@@ -6715,7 +6715,7 @@ function fichaModal(id){
     ${mdSecaoFicha(e)}
     ${typeof anexosSecao==="function"?anexosSecao(e):""}
     ${fichaSecao(e)}`,
-    e.desligado?`<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn" data-close>Fechar</button>`:
+    e.desligado?`<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn" data-dsdesfazer="${e.id}">Desfazer desligamento</button><button class="btn" data-dsalterar="${e.id}">Alterar desligamento</button><button class="btn btn-primary" data-editcolab="${e.id}">Editar</button>`:
     `<button class="btn" data-fichaform="${e.id}">Ficha de registro</button><button class="btn btn-danger" data-rescisao="${e.id}">Desligar</button><button class="btn" data-mdnovo="${e.id}">Medida disciplinar</button>${e.afastado?`<button class="btn" data-retorno="${e.id}">Registrar retorno</button>`:`<button class="btn" data-afastar="${e.id}">Afastar</button>`}<button class="btn" data-progferias="${e.id}">Férias</button><button class="btn" data-aso="${e.id}">Renovar ASO</button><button class="btn" data-holerite="${e.id}">Holerite</button><button class="btn btn-primary" data-editcolab="${e.id}">Editar</button>`);
 }
 function colabForm(e){
@@ -6814,6 +6814,28 @@ function filtrarRsEmp(q){
   $("#rs-cont").textContent=l.length===RS_OPTS.length?RS_OPTS.length+" colaboradores":l.length+" de "+RS_OPTS.length+" colaboradores";
   if(sel!==atual)rescisaoCalc();
 }
+function desligarModal(id){
+  const e=emp(id);if(!e)return;const x=e.desligado||{};const ed=!!e.desligado;
+  modal(ed?"Alterar desligamento":"Desligar colaborador",`<div class="who" style="margin-bottom:12px"><div class="avatar">${esc(initials(e.nome))}</div><div><b>${esc(e.nome)}</b><span>${esc(e.cargo||"")} · ${esc(store(e.lojaId).nome)}</span></div></div>
+  <form class="form-grid" onsubmit="return false">
+    <div class="field"><label for="ds-data">Data do desligamento (último dia trabalhado)</label><input class="input" id="ds-data" type="date" value="${esc(x.data||TODAY)}"></div>
+    <div class="field"><label for="ds-tipo">Motivo do desligamento</label><select class="input" id="ds-tipo"><option value="">Selecione…</option>${Object.entries(TIPOS).map(([k,t])=>`<option value="${k}" ${k===x.tipo?"selected":""}>${esc(t)}</option>`).join("")}</select></div>
+    <p class="full small" id="ds-err" style="color:var(--bad)" hidden></p></form>
+  <div class="note">O acesso ao portal é bloqueado automaticamente a partir dessa data.${ed?" Alterar a data ou o motivo não muda mais nada no cadastro.":""}</div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn ${ed?"btn-primary":"btn-danger"}" data-dsok="${esc(e.id)}">${ed?"Salvar alteração":"Confirmar desligamento"}</button>`);
+}
+function desligarSalvar(id,btn){
+  const e=emp(id);if(!e)return;const data=$("#ds-data").value,tipo=$("#ds-tipo").value;const err=m=>{const el=$("#ds-err");el.hidden=false;el.textContent=m};
+  if(!data)return err("Informe a data do desligamento.");if(!tipo)return err("Escolha o motivo do desligamento.");
+  if(data<e.admissao)return err("A data do desligamento não pode ser antes da admissão ("+fdate(e.admissao)+").");
+  const ant=e.desligado;
+  if(!ant&&btn.dataset.confirm!=="1"){btn.dataset.confirm="1";btn.textContent="Toque de novo para confirmar";return}
+  e.desligado={...(ant||{}),data,tipo};if(!ant)e.afastado=false;
+  const ev=(ST.eventos||[]).find(x=>x.codigo==="S-2299"&&x.ref===e.nome&&ant&&x.data===ant.data);
+  if(ev){ev.data=data}else if(!ant){ST.eventos.push({id:uid(),codigo:"S-2299",desc:"Desligamento",ref:e.nome,data,status:"Pendente"})}
+  if(typeof logEvento==="function")logEvento(ant?"Desligamento alterado":"Colaborador desligado",e.nome+" · "+fdate(data)+" · "+(TIPOS[tipo]||tipo)+(ant?" (antes "+fdate(ant.data)+" · "+(TIPOS[ant.tipo]||ant.tipo)+")":""));
+  closeModal();commit(ant?"Desligamento alterado":e.nome.split(" ")[0]+" desligado(a)");
+}
 function rescisaoModal(id){
   const opts=RS_OPTS=ativos().sort((a,b)=>a.nome.localeCompare(b.nome));const sel=id||opts[0]?.id;
   modal("Desligamento",`<form class="form-grid">
@@ -6849,7 +6871,7 @@ function admForm(pref={}){
 
 /* ============ eventos ============ */
 document.addEventListener("click",ev=>{
-  const t=ev.target.closest("[data-xpchamado],[data-cfiltro],[data-veravmov],[data-cmtodas],[data-mdver],[data-mdtab],[data-mdper],[data-mdnovo],[data-mdpdf],[data-mdciencia],[data-mdcienciaok],[data-mdcopt],[data-mdanular],[data-mdanularok],[data-mdexcluir],[data-mdpront],[data-mdprontpdf],[data-pjficha],[data-pjsit],[data-pjeditar],[data-pjencerrar],[data-pjencerrarok],[data-pjrenovar],[data-pjreativar],[data-pjexcluir],[data-pjrmben],[data-pjrmfx],[data-pjexpesc],[data-pjexppreset],[data-dpver],[data-dppdf],[data-dpdecidir],[data-dpregistrar],[data-dpefetivar],[data-dpcancelar],[data-dpalterar],[data-dptab],[data-dpreenviar],[data-dpreenviarok],[data-dpexcluir],[data-dper],[data-dloja],[data-expesc],[data-exppreset],[data-expgrupo],[data-fichaform],[data-rmdep],[data-aprovar],[data-recusar],[data-vermov],[data-editusr],[data-usracesso],[data-usracessook],[data-usrtab],[data-hcloja],[data-rtloja],[data-pdfferias],[data-assinou],[data-act],[data-go],[data-ficha],[data-close],[data-close-overlay],[data-savecolab],[data-editcolab],[data-holerite],[data-progferias],[data-rescisao],[data-adm-next],[data-adm-back],[data-cell],[data-banco],[data-ffiltro],[data-transmitir],[data-vaga-adm],[data-loja-colab],[data-loja-escala],[data-editloja],[data-aso],[data-afastar],[data-retorno],[data-saveloja],[data-avaliar],[data-rate],[data-parecer],[data-verav],[data-xptab]");
+  const t=ev.target.closest("[data-xpchamado],[data-cfiltro],[data-veravmov],[data-cmtodas],[data-mdver],[data-mdtab],[data-mdper],[data-mdnovo],[data-mdpdf],[data-mdciencia],[data-mdcienciaok],[data-mdcopt],[data-mdanular],[data-mdanularok],[data-mdexcluir],[data-mdpront],[data-mdprontpdf],[data-pjficha],[data-pjsit],[data-pjeditar],[data-pjencerrar],[data-pjencerrarok],[data-pjrenovar],[data-pjreativar],[data-pjexcluir],[data-pjrmben],[data-pjrmfx],[data-pjexpesc],[data-pjexppreset],[data-dpver],[data-dppdf],[data-dpdecidir],[data-dpregistrar],[data-dpefetivar],[data-dpcancelar],[data-dpalterar],[data-dptab],[data-dpreenviar],[data-dpreenviarok],[data-dpexcluir],[data-dper],[data-dloja],[data-expesc],[data-exppreset],[data-expgrupo],[data-fichaform],[data-rmdep],[data-aprovar],[data-recusar],[data-vermov],[data-editusr],[data-usracesso],[data-usracessook],[data-usrtab],[data-hcloja],[data-rtloja],[data-pdfferias],[data-assinou],[data-act],[data-go],[data-ficha],[data-close],[data-close-overlay],[data-savecolab],[data-editcolab],[data-holerite],[data-progferias],[data-rescisao],[data-dsalterar],[data-dsok],[data-dsdesfazer],[data-adm-next],[data-adm-back],[data-cell],[data-banco],[data-ffiltro],[data-transmitir],[data-vaga-adm],[data-loja-colab],[data-loja-escala],[data-editloja],[data-aso],[data-afastar],[data-retorno],[data-saveloja],[data-avaliar],[data-rate],[data-parecer],[data-verav],[data-xptab]");
   if(!t)return;
   const d=t.dataset;
   if(d.closeOverlay!==undefined){if(ev.target===t)closeModal();return}
@@ -6970,7 +6992,12 @@ document.addEventListener("click",ev=>{
   if(d.editcolab){colabForm(emp(d.editcolab));return}
   if(d.savecolab!==undefined){saveColab(d.savecolab);return}
   if(d.progferias){feriasModal(d.progferias);return}
-  if(d.rescisao){rescisaoModal(d.rescisao);return}
+  if(d.rescisao){desligarModal(d.rescisao);return}
+  if(d.dsalterar){desligarModal(d.dsalterar);return}
+  if(d.dsok){desligarSalvar(d.dsok,t);return}
+  if(d.dsdesfazer){const e=emp(d.dsdesfazer);if(!e||!e.desligado)return;if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toque de novo para desfazer";return}
+    const ant=e.desligado;e.desligado=null;ST.eventos=(ST.eventos||[]).filter(x=>!(x.codigo==="S-2299"&&x.ref===e.nome&&x.data===ant.data&&x.status==="Pendente"));
+    if(typeof logEvento==="function")logEvento("Desligamento desfeito",e.nome+" · era "+fdate(ant.data)+" · "+(TIPOS[ant.tipo]||ant.tipo));closeModal();commit("Desligamento de "+e.nome.split(" ")[0]+" desfeito");return}
   if(d.aso&&G()){closeModal();enviarMov({tipo:"aso",eid:d.aso,data:addMonths(TODAY,12)},"Renovação de ASO enviada ao RH");return}
   if(d.aso){const e=emp(d.aso);e.aso=addMonths(TODAY,12);closeModal();commit("ASO de "+e.nome.split(" ")[0]+" renovado até "+fdate(e.aso));return}
   if(d.afastar){const e=emp(d.afastar);e.afastado=true;ST.eventos.push({id:uid(),codigo:"S-2230",desc:"Afastamento temporário",ref:e.nome,data:TODAY,status:"Pendente"});closeModal();commit(e.nome.split(" ")[0]+" afastado(a)");return}
