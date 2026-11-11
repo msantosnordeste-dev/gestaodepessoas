@@ -658,9 +658,9 @@ function premStatusHTML(comp){
   const steps=[
     {t:"Importado",s:dt("importado")?"em "+dt("importado"):"apuração carregada",ok:imp},
     {t:"Aprovação do líder",s:lider?(dt("lider")?"em "+dt("lider"):"aprovado"):corr?"correção solicitada":"aguardando o gerente",ok:lider,alert:!lider&&corr},
-    {t:"Enviado ao Swile",s:swile?(dt("swile")?"em "+dt("swile"):"enviado"):"aguardando",ok:swile}];
+    {t:"Enviado ao Swile",s:swile?(dt("swile")?"em "+dt("swile"):"enviado"):L.some(l=>l.swile_prev)?"previsto "+String(L.map(l=>l.swile_prev).filter(Boolean).sort().pop()).split(" ").join(" às "):lider?"em instantes":"após a aprovação do líder",ok:swile}];
   const cur=steps.findIndex(x=>!x.ok);
-  const fase=swile?"Prêmio enviado ao Swile.":lider?"Prêmio validado pela liderança. Falta o envio ao Swile.":corr?"Há uma correção em análise. O valor pode mudar.":"Prêmio em conferência. O valor pode mudar até a aprovação da liderança.";
+  const enc=todos(l=>l.encerrada);const fase=enc&&swile?"Prêmio enviado ao Swile e apuração da loja encerrada.":enc?"Apuração da loja encerrada.":swile?"Prêmio enviado ao Swile.":lider?"Prêmio validado pela liderança. Falta o envio ao Swile.":corr?"Há uma correção em análise. O valor pode mudar.":"Prêmio em conferência. O valor pode mudar até a aprovação da liderança.";
   return `<div class="card">${CSS}<div class="card-head"><div><h2>Situação do seu prêmio</h2><p>${fase}</p></div>${lider?`<span class="chip c-ok">Validado</span>`:`<span class="chip c-warn">Em apuração</span>`}</div>
    <div class="ps-line" role="list">${steps.map((x,i)=>`<div class="ps-step ${x.ok?"ok":""} ${i===cur?(x.alert?"alert":"cur"):""}" role="listitem" aria-label="${x.t}: ${x.ok?"concluído":"pendente"}"><span class="ps-dot">${x.ok?"✓":i+1}</span><span class="ps-t">${x.t}</span><span class="ps-s">${esc(x.s)}</span></div>`).join("")}</div>${L.length>1?`<p class="small muted" style="margin:8px 0 0">Você recebe por ${L.length} lojas; cada etapa só fica concluída quando todas avançam.</p>`:""}${nota}</div>`;
 }
@@ -7298,7 +7298,7 @@ function exportarFechamento(){
   const evd=(L,re)=>{const e=L&&[...(L.eventos||[])].reverse().find(x=>re.test(x.acao));return e?e.em:""};
   const resumo=aps.map(a=>{const L=LOTES.find(x=>x.lojaId===a.id);return {"Loja":loja(a.id).nome,"Regional":regDe(a.id),"Formato":FMT_T[a.fmt],"Meta mês (R$)":a.metaMes,"Venda mês (R$)":a.vendaMes,"% da meta":a.pMes/100,"Bateu a meta":a.bateu?"Sim":"Não",
     "Vendedores (R$)":a.tv,"Apoio (R$)":a.ts,"Gerente (R$)":a.tg,"Aceleradores (R$)":a.ta,"Total apurado (R$)":a.total,"Valor aprovado (R$)":L&&L.congelado?L.congelado.total:"","% sobre a venda":a.vendaMes?a.total/a.vendaMes:0,"Pessoas premiadas":a.pessoas,
-    "Situação":sit(L),"Aprovação do RH":evd(L,/aprovad/i),"Conferência do gerente":confT(L),"Importada no Swile":evd(L,/Lançada na folha|Importada no Swile/),"Paga":evd(L,/Pagamento confirmado/)}});
+    "Situação":sit(L),"Aprovação do RH":evd(L,/aprovad/i),"Conferência do gerente":confT(L),"Importada no Swile":L&&["folha","pago"].includes(L.status)?evd(L,/^(Lançada na folha|Importada no Swile)/):"","Paga":evd(L,/Pagamento confirmado/),"Encerrada":L&&lojaEncerrada(L.lojaId)?((lojaPer(L.lojaId)||{}).automatico?"Sim · automático":"Sim"):"Não"}});
   const pessoas=[];aps.forEach(a=>{const n=loja(a.id).nome;
     a.vend.forEach(v=>pessoas.push({"Loja":n,"Nome":v.nome,"Função":"Vendedor(a)","Meta individual (R$)":v.metaV,"Venda (R$)":v.vMes,"% da meta":v.pMes/100,"Prêmio dos períodos (R$)":v.premio-v.mes,"Bônus do mês (R$)":v.mes,"Acelerador (R$)":v.acel,"Total (R$)":v.total}));
     a.sup.forEach(s=>pessoas.push({"Loja":n,"Nome":s.nome,"Função":s.cargo,"Meta individual (R$)":"","Venda (R$)":"","% da meta":"","Prêmio dos períodos (R$)":"","Bônus do mês (R$)":s.valor,"Acelerador (R$)":0,"Total (R$)":s.valor}));
@@ -7879,17 +7879,22 @@ function evolEtapas(L){
   const ger=L.conf==="aprovado"?{k:"ok",t:"Conferida pelo gerente",d:L.confEm?fmtD(L.confEm):""}:ab?{k:"alerta",t:ab+" correção(ões) pedida(s)",d:"aguardando o RH"}:resp?{k:"atual",t:"Correção respondida",d:"aguardando o gerente aprovar"}:["folha","pago"].includes(L.status)?{k:"futuro",t:"Conferência do gerente",d:"não registrada"}:{k:apRH?"atual":"futuro",t:"Conferência do gerente",d:apRH?"aguardando o gerente":""};
   return [
     {k:"ok",t:"Apuração importada",d:(evs[0]||{}).em||""},
-    L.status==="devolvido"?{k:"alerta",t:"Devolvida para revisão",d:ach(/Devolvida/)}:{k:apRH?"ok":"atual",t:apRH?"Aprovada pelo RH":"Aprovação do RH",d:apRH?ach(/aprovad/i):"aguardando o RH"},
+    L.status==="devolvido"?{k:"alerta",t:"Devolvida para revisão",d:ach(/Devolvida/)}:{k:apRH?"ok":"atual",t:apRH?"Aprovada pelo RH":"Aprovação do RH",d:apRH?ach(/^(Equipe aprovada|Prêmio do gerente aprovado)/):"aguardando o RH"},
     ger,
-    {k:["folha","pago"].includes(L.status)?"ok":apRH?"atual2":"futuro",t:"Importada no Swile",d:ach(/Lançada na folha|Importada no Swile/)},
-    {k:L.status==="pago"?"ok":"futuro",t:"Paga",d:ach(/Pagamento confirmado/)}].map(e=>e.k==="atual2"?{...e,k:"futuro"}:e);
+    (()=>{const sw=["folha","pago"].includes(L.status);if(sw){const d=ach(/^(Lançada na folha|Importada no Swile)/);return {k:"ok",t:"Importada no Swile",d:d+(L.swileAuto||/automático/.test(([...evs].reverse().find(x=>/^Importada no Swile/.test(x.acao))||{}).acao||"")?" · automático":"")}}
+      if(semPremio(L))return {k:"futuro",t:"Importada no Swile",d:"sem prêmio no mês"};
+      if(L.conf==="aprovado"&&L.swilePrev&&!corrAbertas(L).length)return {k:"atual",t:"Importada no Swile",d:"automático às "+fmtD(L.swilePrev)};
+      return {k:"futuro",t:"Importada no Swile",d:apRH?"após a conferência do gerente":""}})(),
+    {k:L.status==="pago"?"ok":"futuro",t:"Paga",d:ach(/Pagamento confirmado/)},
+    (()=>{const lp=lojaPer(L.lojaId);if(lojaEncerrada(L.lojaId))return {k:"ok",t:"Encerrada",d:periodoEncerrado()?"período encerrado":(lp&&lp.encerrado_em?fmtD(lp.encerrado_em):"")+(lp&&lp.automatico?" · automático":" · pelo RH")};
+      const fa=fechaAuto(L);return {k:"futuro",t:"Encerrada",d:fa?"automático em "+fmtD(fa):semPremio(L)&&apRH?"automático 48 h após o RH":podeFinalizar(L)?"":"após a conferência do gerente"}})()].map(e=>e.k==="atual2"?{...e,k:"futuro"}:e);
 }
 function evolLinha(L,compacta){
   const E=evolEtapas(L);const atual=E.find(e=>e.k==="alerta")||E.find(e=>e.k==="atual")||[...E].reverse().find(e=>e.k==="ok");
   if(compacta)return `<div class="evo c" title="${E.map(e=>(e.k==="ok"?"✓ ":e.k==="alerta"?"! ":e.k==="atual"?"→ ":"· ")+e.t+(e.d?" ("+e.d+")":"")).join("\n")}"><div class="evo-l">${E.map(e=>`<i class="${e.k}"></i>`).join("<b></b>")}</div><span>${esc(atual.k==="atual"&&atual.d?atual.d.replace(/^./,c=>c.toUpperCase()):atual.t)}</span></div>`;
   return `<div class="evo"><div class="evo-h"><b>Linha de evolução da aprovação</b></div><ol>${E.map((e,i)=>`<li class="${e.k}"><i>${e.k==="ok"?"✓":e.k==="alerta"?"!":i+1}</i><div><b>${esc(e.t)}</b><span>${esc(e.d||(e.k==="futuro"?"pendente":""))}</span></div></li>`).join("")}</ol></div>`;
 }
-const EVO_CSS=`<style>.evo{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}.evo-h{margin-bottom:10px}.evo ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;position:relative}
+const EVO_CSS=`<style>.evo{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}.evo-h{margin-bottom:10px}.evo ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;position:relative}
 .evo li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;position:relative}.evo li::before{content:"";position:absolute;top:13px;left:-50%;right:50%;height:2px;background:var(--line);z-index:0}.evo li:first-child::before{display:none}.evo li.ok::before,.evo li.atual::before,.evo li.alerta::before{background:var(--brand)}
 .evo li>i{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:13px;background:var(--card,#fff);border:2px solid var(--line);color:var(--muted)}
 .evo li.ok>i{background:var(--brand);border-color:var(--brand);color:#fff}.evo li.atual>i{border-color:var(--brand);color:var(--brand);box-shadow:0 0 0 4px var(--brand-tint,#e7f4ec)}.evo li.alerta>i{background:#F8A31B;border-color:#F8A31B;color:#fff}
