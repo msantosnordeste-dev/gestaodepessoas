@@ -7339,7 +7339,7 @@ async function exportSwile(){
   if(!podeGravar()){toast("A exportação é só para o RH");return}
   const R=await premiadosLista();if(!R)return;const {pes,falta}=R;const dig=s=>String(s||"").replace(/\D/g,"");
   const todos={...pes};lancAtivos().filter(l=>l.tipo==="complemento"&&!todos[l.key]).forEach(l=>{todos[l.key]={nome:l.nome,cpf:/^\d{11}$/.test(l.key)?l.key:"",valor:0,origem:["Valor complementar"],key:l.key};if(!/^\d{11}$/.test(l.key)&&!falta.includes(l.nome))falta.push(l.nome)});
-  const linhas=Object.values(todos).map(p=>{const c=lancSoma(p.key,"complemento"),d=lancSoma(p.key,"desconto");return {...p,bruto:p.valor,comp:c,desc:d,valor:Math.max(0,p.valor+c-d)}}).filter(p=>p.valor>0).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const linhas=Object.values(todos).map(p=>{const c=lancSoma(p.key,"complemento"),d=lancSoma(p.key,"desconto");return {...p,bruto:p.valor,comp:c,desc:d,valor:lancLiq(p.valor,c,d)}}).filter(p=>p.valor>0).sort((a,b)=>a.nome.localeCompare(b.nome));
   const fmtC=c=>String(c||"").replace(/\D/g,"");
   if(!window.XLSX){toast("O gerador de planilhas não carregou. Recarregue a página.");return}
   const aoa=[["Nome completo","CPF","Saldo Livre"],...linhas.map(p=>[p.nome,fmtC(p.cpf).padStart(11,"0"),Math.round(p.valor*100)/100])];
@@ -7530,6 +7530,7 @@ const lancMes=l=>mesesEntre(l.inicio,COMP_ISO);
 const lancAtivo=l=>{const m=lancMes(l);return m>=0&&m<(+l.meses||1)};
 const lancAtivos=()=>LANC().filter(lancAtivo);
 const lancSoma=(k,tipo)=>lancAtivos().filter(l=>l.key===k&&l.tipo===tipo).reduce((s,l)=>s+(+l.valor||0),0);
+const lancLiq=(base,c,d)=>Math.max(0,(c>0?c:(+base||0))-d);
 function estadoDB(){LANC();return {v:1,comp:COMP,atualizado:new Date().toISOString(),cfg:CFG_SALVO,perm:PERM,
   lotes:[...LOTES.map(L=>({id:L.id,lojaId:L.lojaId,status:L.status,eq:!!L.eq,gr:!!L.gr,conf:L.conf||null,correcoes:L.correcoes||[],eventos:L.eventos,congelado:L.congelado||null})),
     ...((typeof ST!=="undefined"&&ST&&ST.premiacoes&&ST.premiacoes.comp===COMP&&Array.isArray(ST.premiacoes.lotes))?ST.premiacoes.lotes.filter(x=>!LOTES.some(L=>L.id===x.id)):[])]}}
@@ -8047,12 +8048,12 @@ function tDescontos(){
   const fun=p=>[...new Set(p.origem.map(o=>/gerente/.test(o)?"Gerente":/Supervisão/.test(o)?"Supervisão":/Gestão/.test(o)?"Gestão comercial":/complementar/.test(o)?"Só valor complementar":"Loja "+o.replace(/^Loja /,"")))].join(" · ");
   const emps=((ST&&ST.emps)||[]).filter(e=>!e.desligado&&/^\d{11}$/.test(String(e.cpf||"").replace(/\D/g,""))&&!pes[String(e.cpf).replace(/\D/g,"")]).sort((a,b)=>a.nome.localeCompare(b.nome));
   const A=lancAtivos(),bruto=L.reduce((s,p)=>s+p.valor,0),tc=A.filter(l=>l.tipo==="complemento").reduce((s,l)=>s+(+l.valor||0),0),td=A.filter(l=>l.tipo==="desconto").reduce((s,l)=>s+(+l.valor||0),0);
-  const liq=k=>{const p=pes[k];return Math.max(0,(p?p.valor:0)+lancSoma(k,"complemento")-lancSoma(k,"desconto"))};
+  const liq=k=>{const p=pes[k];return lancLiq(p?p.valor:0,lancSoma(k,"complemento"),lancSoma(k,"desconto"))};
   const keys=[...new Set([...L.map(p=>p.key),...A.map(l=>l.key)])];
   const rec=l=>(+l.meses||1)>1?`${lancMes(l)+1}º de ${l.meses} meses<br><span class="small muted">${compLbl(l.inicio)} a ${compLbl(addMesISO(l.inicio,(+l.meses||1)-1))}</span>`:"Só este mês";
   return `<div class="grid kpis"><div class="card kpi"><span class="lbl">Premiação bruta</span><span class="val num">${brl(bruto)}</span><span class="sub">${L.length} pessoas</span></div><div class="card kpi"><span class="lbl">Valores complementares</span><span class="val num" style="color:var(--brand-ink)">+ ${brl(tc)}</span><span class="sub">${A.filter(l=>l.tipo==="complemento").length} lançamento(s) no mês</span></div><div class="card kpi"><span class="lbl">Descontos</span><span class="val num" style="color:var(--bad)">− ${brl(td)}</span><span class="sub">${A.filter(l=>l.tipo==="desconto").length} lançamento(s) no mês</span></div><div class="card kpi hero"><span class="lbl">Líquido para o Swile</span><span class="val num">${brl(keys.reduce((s,k)=>s+liq(k),0))}</span><span class="sub">${COMP}</span></div></div>
-  <div class="card"><div class="card-head"><div><h2>Incluir lançamento</h2><p>Desconto abate e valor complementar soma no total da pessoa na exportação Swile. Vale para qualquer função.</p></div></div>
-    <div class="form-grid"><div class="field"><label for="pr-dc-t">Tipo</label><select class="input" id="pr-dc-t"><option value="desconto">Desconto (−)</option><option value="complemento">Valor complementar (+)</option></select></div>
+  <div class="card"><div class="card-head"><div><h2>Incluir lançamento</h2><p>Valor complementar é valor fechado: a pessoa recebe exatamente o valor lançado, que substitui o prêmio e o acelerador do mês. Desconto abate do total. Vale para qualquer função.</p></div></div>
+    <div class="form-grid"><div class="field"><label for="pr-dc-t">Tipo</label><select class="input" id="pr-dc-t"><option value="desconto">Desconto (−)</option><option value="complemento">Valor complementar (valor fechado)</option></select></div>
     <div class="field"><label for="pr-dc-v">Valor (R$)</label><input class="input num" id="pr-dc-v" type="number" step="0.01" min="0.01" placeholder="0,00"></div>
     <div class="field full"><label for="pr-dc-p">Pessoa</label><select class="input" id="pr-dc-p"><option value="">Selecione…</option><optgroup label="Com premiação em ${COMP}">${L.map(p=>`<option value="${esc(p.key)}">${esc(p.nome)} · ${esc(fun(p))} · ${brl(p.valor)}</option>`).join("")}</optgroup>${emps.length?`<optgroup label="Outros colaboradores (só para valor complementar)">${emps.map(e=>`<option value="${esc(String(e.cpf).replace(/\D/g,""))}" data-nome="${esc(e.nomeCivil||e.nome)}">${esc(e.nome)} · ${esc(e.cargo||"")}</option>`).join("")}</optgroup>`:""}</select></div>
     <div class="field full"><label for="pr-dc-d">Descrição (a que se refere)</label><input class="input" id="pr-dc-d" maxlength="200" placeholder="Ex.: compras no bazar, ajuda de custo, ajuste do mês anterior"></div>
@@ -8060,17 +8061,17 @@ function tDescontos(){
     <div class="field"><label for="pr-dc-m">Quantos meses (contando ${COMP})</label><input class="input num" id="pr-dc-m" type="number" min="2" max="36" step="1" value="2"></div></div>
     <div style="margin-top:10px"><button class="btn btn-primary" data-pract="dcadd">Incluir lançamento</button></div></div>
   <div class="card"><div class="card-head"><div><h2>Lançamentos de ${COMP}</h2><p>Os recorrentes aparecem em todos os meses do período.</p></div></div>${A.length?`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Pessoa</th><th>Descrição</th><th class="r">Valor</th><th>Recorrência</th><th class="r">Prêmio</th><th class="r">Líquido</th><th>Lançado por</th><th></th></tr></thead><tbody>
-    ${A.map(l=>{const p=pes[l.key],dsc=l.tipo==="desconto";return `<tr><td><span class="chip ${dsc?"c-bad":"c-ok"}">${dsc?"Desconto":"Complementar"}</span></td><td><b>${esc(l.nome)}</b><br><span class="small muted">${esc(p?fun(p):"sem premiação no mês")}</span></td><td>${esc(l.descricao)}</td><td class="r num" style="color:${dsc?"var(--bad)":"var(--brand-ink)"}">${dsc?"−":"+"} ${brl(+l.valor)}</td><td class="small">${rec(l)}</td><td class="r num">${p?brl(p.valor):"—"}</td><td class="r num"><b>${brl(liq(l.key))}</b></td><td class="small">${esc(l.por||"")}<br>${esc(l.em||"")}</td>
+    ${A.map(l=>{const p=pes[l.key],dsc=l.tipo==="desconto";return `<tr><td><span class="chip ${dsc?"c-bad":"c-ok"}">${dsc?"Desconto":"Valor fechado"}</span></td><td><b>${esc(l.nome)}</b><br><span class="small muted">${esc(p?fun(p):"sem premiação no mês")}</span></td><td>${esc(l.descricao)}</td><td class="r num" style="color:${dsc?"var(--bad)":"var(--brand-ink)"}">${dsc?"−":"+"} ${brl(+l.valor)}</td><td class="small">${rec(l)}</td><td class="r num">${p?brl(p.valor):"—"}</td><td class="r num"><b>${brl(liq(l.key))}</b></td><td class="small">${esc(l.por||"")}<br>${esc(l.em||"")}</td>
       <td style="white-space:nowrap">${(+l.meses||1)>1&&lancMes(l)<(+l.meses)-1?`<button class="btn btn-sm btn-ghost" data-prdcfim="${esc(l.id)}" title="Para de repetir depois de ${COMP}">Encerrar</button>`:""}<button class="btn btn-sm btn-ghost" data-prdcdel="${esc(l.id)}">Excluir</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Nenhum lançamento em ${COMP}.</div>`}</div>`;
 }
 const addMesISO=(c,n)=>{const d=new Date(+c.slice(0,4),+c.slice(5,7)-1+n,1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
 function ajustesHTML(base){
   const A=window.__PREM_MEULANC||[];if(!A.length)return "";
   const c=A.filter(l=>l.tipo==="complemento").reduce((s,l)=>s+(+l.valor||0),0),d=A.filter(l=>l.tipo==="desconto").reduce((s,l)=>s+(+l.valor||0),0);
-  return `<div class="card"><div class="card-head"><div><h2>Ajustes do RH em ${COMP}</h2><p>Valores lançados pelo RH que entram no seu total a receber.</p></div></div>
+  return `<div class="card"><div class="card-head"><div><h2>Ajustes do RH em ${COMP}</h2><p>${c?"O RH lançou um valor fechado: você recebe exatamente esse valor, que substitui o prêmio apurado e o acelerador do mês.":"Valores lançados pelo RH que entram no seu total a receber."}</p></div></div>
   <div class="table-wrap" style="margin:0"><table><thead><tr><th>Tipo</th><th>Descrição</th><th>Recorrência</th><th class="r">Valor</th></tr></thead><tbody>
   ${A.map(l=>{const ds=l.tipo==="desconto";return `<tr><td><span class="chip ${ds?"c-bad":"c-ok"}">${ds?"Desconto":"Valor complementar"}</span></td><td>${esc(l.descricao||"")}</td><td class="small">${(+l.meses||1)>1?l.mes+"º de "+l.meses+" meses":"Só este mês"}</td><td class="r num" style="color:${ds?"var(--bad)":"var(--brand-ink)"}">${ds?"−":"+"} ${brl(+l.valor)}</td></tr>`}).join("")}</tbody>
-  <tfoot><tr><td colspan="3">Prêmio apurado</td><td class="r num">${brl(base)}</td></tr>${c?`<tr><td colspan="3">Valores complementares</td><td class="r num">+ ${brl(c)}</td></tr>`:""}${d?`<tr><td colspan="3">Descontos</td><td class="r num">− ${brl(d)}</td></tr>`:""}<tr><td colspan="3"><b>Total a receber</b></td><td class="r num"><b>${brl(Math.max(0,base+c-d))}</b></td></tr></tfoot></table></div></div>`;
+  <tfoot><tr><td colspan="3">Prêmio apurado</td><td class="r num">${brl(base)}</td></tr>${c?`<tr><td colspan="3">Valor fechado pelo RH (substitui o prêmio apurado)</td><td class="r num">${brl(c)}</td></tr>`:""}${d?`<tr><td colspan="3">Descontos</td><td class="r num">− ${brl(d)}</td></tr>`:""}<tr><td colspan="3"><b>Total a receber</b></td><td class="r num"><b>${brl(lancLiq(base,c,d))}</b></td></tr></tfoot></table></div></div>`;
 }
 function lancPessoasLoja(id){const a=apurarLoja(id),n=s=>nCargo(s);const nomes=new Set([...a.vend.map(v=>n(v.nome)),...a.sup.map(s=>n(s.nome)),n(a.ger.nome||"")]);
   const emps=((typeof ST!=="undefined"&&ST&&ST.emps)||[]);
@@ -8079,7 +8080,7 @@ function lancLojaHTML(id){
   const A=lancPessoasLoja(id);if(!A.length)return "";
   return `<div class="card" style="margin-bottom:16px"><div class="card-head"><div><h2>Descontos e complementos do RH nesta loja</h2><p>Lançamentos manuais do mês que mudam o valor a receber destas pessoas. Edite na aba Descontos e complementos.</p></div><button class="btn btn-sm" data-prtab="descontos">Abrir lançamentos</button></div>
   <div class="table-wrap" style="margin:0"><table><thead><tr><th>Pessoa</th><th>Tipo</th><th>Descrição</th><th>Recorrência</th><th class="r">Valor</th></tr></thead><tbody>
-  ${A.map(l=>{const ds=l.tipo==="desconto";return `<tr><td><b>${esc(l.nome)}</b></td><td><span class="chip ${ds?"c-bad":"c-ok"}">${ds?"Desconto":"Complementar"}</span></td><td>${esc(l.descricao)}</td><td class="small">${(+l.meses||1)>1?(lancMes(l)+1)+"º de "+l.meses+" meses":"Só este mês"}</td><td class="r num" style="color:${ds?"var(--bad)":"var(--brand-ink)"}">${ds?"−":"+"} ${brl(+l.valor)}</td></tr>`}).join("")}</tbody></table></div></div>`;
+  ${A.map(l=>{const ds=l.tipo==="desconto";return `<tr><td><b>${esc(l.nome)}</b></td><td><span class="chip ${ds?"c-bad":"c-ok"}">${ds?"Desconto":"Valor fechado"}</span></td><td>${esc(l.descricao)}</td><td class="small">${(+l.meses||1)>1?(lancMes(l)+1)+"º de "+l.meses+" meses":"Só este mês"}</td><td class="r num" style="color:${ds?"var(--bad)":"var(--brand-ink)"}">${ds?"−":"+"} ${brl(+l.valor)}</td></tr>`}).join("")}</tbody></table></div></div>`;
 }
 function lancResumoHTML(){
   const A=lancAtivos();if(!A.length)return "";
@@ -8555,7 +8556,7 @@ document.addEventListener("click",e=>{
     const p=PREMIADOS&&PREMIADOS.pes[k],opt=sel.selectedOptions[0],nome=p?p.nome:(opt&&opt.dataset.nome)||"";
     if(!k||!nome){toast("Escolha a pessoa");return}if(!(v>0)){toast("Informe o valor");return}if(d.length<3){toast("Descreva a que se refere");return}
     if(rc&&!(ms>=2&&ms<=36)){toast("Recorrência: de 2 a 36 meses");return}
-    if(tp==="desconto"){if(!p){toast("Desconto só para quem tem premiação no mês");return}const lim=p.valor+lancSoma(k,"complemento")-lancSoma(k,"desconto");if(v>lim+0.001){toast("O desconto passa do valor da pessoa no mês ("+brl(lim)+")");return}}
+    if(tp==="desconto"){if(!p){toast("Desconto só para quem tem premiação no mês");return}const lim=lancLiq(p.valor,lancSoma(k,"complemento"),0)-lancSoma(k,"desconto");if(v>lim+0.001){toast("O desconto passa do valor da pessoa no mês ("+brl(lim)+")");return}}
     const agora=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).replace(",","");
     LANC().push({id:"d"+Date.now().toString(36),tipo:tp,key:k,nome,funcao:p?p.origem.join(", "):"Valor complementar",valor:Math.round(v*100)/100,descricao:d,inicio:COMP_ISO,meses:ms,por:(SESSION&&SESSION.nome)||"RH",em:agora});
     persist();if(typeof logEvento==="function")logEvento("Premiações · "+(tp==="desconto"?"desconto":"valor complementar")+" incluído",nome+" · "+brl(v)+(ms>1?" · "+ms+" meses":"")+" · "+d);render();toast((tp==="desconto"?"Desconto":"Valor complementar")+" incluído"+(ms>1?" por "+ms+" meses":""));return}
