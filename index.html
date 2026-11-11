@@ -7808,7 +7808,7 @@ function tAprov(){
   const aprov=ls.filter(L=>L.status==="aprovado");
   const papel=p.aprovar&&p.aprovarGer?"Você aprova a equipe e o prêmio do gerente.":p.aprovar?"Você aprova vendedores e funções de suporte. O prêmio do gerente é aprovado pela supervisora.":p.aprovarGer?"Você aprova o prêmio do gerente de cada loja. Vendedores e suporte são aprovados pelo RH.":"Visualização das apurações e do andamento das aprovações.";
   const podeDev=L=>L.status==="aguardando"&&((p.aprovar&&!L.eq)||(p.aprovarGer&&!L.gr));
-  return `<div class="card">
+  return `${corrPendHTML()}<div class="card">
     <div class="card-head"><div><h2>${COMP}</h2><p>${papel}</p></div>
       ${p.lancar&&aprov.length?`<button class="btn btn-primary btn-sm" data-pract="lancar">Lançar ${aprov.length} loja(s) aprovada(s) no Swile</button>`:""}</div>
     ${ls.length?`<div class="table-wrap"><table>
@@ -7950,6 +7950,16 @@ function evolResumo(ids){
   const it=(n,t,cls)=>`<div class="card kpi" style="padding:12px 14px"><span class="lbl">${t}</span><span class="val num" style="font-size:24px${cls?";color:"+cls:""}">${n}</span></div>`;
   return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">${it(c.rh,"Aguardando RH")}${it(c.ger,"Aguardando gerente")}${it(c.corr,"Correção pedida",c.corr?"#c2410c":"")}${it(c.conf,"Conferidas")}${it(c.folha,"No Swile")}${it(c.pago,"Pagas")}</div>`;
 }
+function corrPendHTML(){
+  const p=P();if(!p.aprovar&&!p.aprovarGer)return "";const ids=escopo();
+  const it=[];LOTES.filter(L=>ids.includes(L.lojaId)).forEach(L=>corrAbertas(L).forEach(c=>it.push({L,c})));
+  if(!it.length)return "";
+  return `<div class="card" style="border:2px solid #c2410c"><div class="card-head"><div><h2>Correções pedidas pelos gerentes · ${it.length}</h2><p>Confira e responda. Ao aceitar, o valor real passa a valer no total da pessoa; ao recusar, fica o valor apurado. Enquanto houver correção aberta, a loja não segue para o Swile.</p></div></div>
+  <div class="table-wrap" style="margin:0"><table><thead><tr><th>Loja</th><th>Colaborador</th><th class="r">Apurado</th><th class="r">Valor real</th><th class="r">Diferença</th><th>Justificativa</th><th>Pedido por</th><th></th></tr></thead><tbody>
+  ${it.map(({L,c})=>{const pode=c.pid==="ger"?p.aprovarGer||p.aprovar:p.aprovar;return `<tr><td><b>${esc(loja(L.lojaId).curto||loja(L.lojaId).nome)}</b></td><td><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")}</span></td><td class="r num">${brl(c.apurado)}</td><td class="r num"><b>${brl(c.real)}</b></td><td class="r num" style="color:${c.real<c.apurado?"var(--bad)":"var(--brand-ink)"}">${(c.real-c.apurado>=0?"+":"")+brl(c.real-c.apurado)}</td><td class="small" style="white-space:normal;min-width:200px">${esc(c.just||"")}</td><td class="small">${esc(c.quem||"")}<br>${esc(c.em||"")}</td>
+  <td style="white-space:nowrap">${pode?`<button class="btn btn-sm btn-primary" data-prcaceita="${L.id}|${c.id}">Aceitar</button> <button class="btn btn-sm btn-ghost" data-prcrecusa="${L.id}|${c.id}">Recusar</button> `:""}<button class="btn btn-sm btn-ghost" data-prloja="${L.lojaId}" data-prres="1">Ver na loja</button></td></tr>`}).join("")}</tbody></table></div></div>`;
+}
+setInterval(()=>{try{if(typeof page!=="undefined"&&page==="premiacoes"&&CARREGADO&&typeof SB!=="undefined"&&SB&&!document.hidden){const antes=JSON.stringify(LOTES.map(L=>[L.conf,(L.correcoes||[]).map(c=>c.id+c.status)]));carregarConf().then(()=>{const dep=JSON.stringify(LOTES.map(L=>[L.conf,(L.correcoes||[]).map(c=>c.id+c.status)]));if(dep!==antes&&!$("#modal-root").innerHTML&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render()})}}catch(e){}},60000);
 function confChip(L){const ab=corrAbertas(L).length;return ab?`<span class="chip c-bad">${ab} correção(ões) pedida(s)</span>`:L.conf==="aprovado"?'<span class="chip c-ok">Conferida</span>':(L.correcoes||[]).length?'<span class="chip c-info">Correção respondida</span>':'<span class="chip c-mute">Aguardando gerente</span>'}
 function pessoasLoja(a){return [...a.vend.map(v=>({pid:v.id,nome:v.nome,funcao:"Vendedor(a)",valor:v.total})),...a.sup.map(s=>({pid:s.id,nome:s.nome,funcao:s.cargo,valor:s.valor})),{pid:"ger",nome:a.ger.nome||"Gerente",funcao:"Gerente de loja",valor:a.ger.valor+a.ger.acel}]}
 function confBox(id){
@@ -8539,7 +8549,7 @@ document.addEventListener("click",e=>{
   if(d.prtab){e.preventDefault();closeModal();UI.tab=d.prtab;render();window.scrollTo(0,0);return}
   if(t.hasAttribute("data-close")&&(e.target===t||t.matches("button"))){closeModal();return}
   if(d.prview){UI.view=d.prview;UI.loja="";render();return}
-  if(d.prloja){UI.loja=d.prloja;render();window.scrollTo(0,0);return}
+  if(d.prloja){UI.loja=d.prloja;if(d.prres){UI.tab="resultados";UI.reg=""}render();window.scrollTo(0,0);return}
   {const lid=d.praprovar||d.praprovarger||d.prdevolver||d.prpago||d.prreabrir||d.prconfok||d.prcorr||d.prcorrmulti||d.prcorrenviar;const Lx=lid&&LOTES.find(x=>x.id===lid);
    if(Lx&&!periodoEncerrado()&&lojaEncerrada(Lx.lojaId)){toast((loja(Lx.lojaId).curto||loja(Lx.lojaId).nome)+" está encerrada em "+COMP+". Para alterar, o RH precisa reabrir a loja.");return}}
   if(d.prlojafecha){lojaPerModal(d.prlojafecha,true);return}
