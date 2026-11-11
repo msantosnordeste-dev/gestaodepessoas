@@ -652,15 +652,15 @@ function premStatusHTML(comp){
   const CSS=`<style>.ps-line{display:flex;align-items:flex-start;gap:0;margin-top:6px}.ps-step{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;min-width:0}.ps-step:not(:last-child)::after{content:"";position:absolute;top:15px;left:calc(50% + 18px);right:calc(-50% + 18px);height:3px;border-radius:2px;background:var(--line,#dfe8e3)}.ps-step.ok:not(:last-child)::after{background:#1b8a5a}.ps-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:var(--surface-2,#eef2f0);color:var(--muted,#667);border:2px solid var(--line,#dfe8e3);z-index:1}.ps-step.ok .ps-dot{background:#1b8a5a;border-color:#1b8a5a;color:#fff}.ps-step.cur .ps-dot{background:#fff8dc;border-color:#e0b43a;color:#8a6a0c}.ps-step.alert .ps-dot{background:#fdecea;border-color:#c0392b;color:#c0392b}.ps-t{font-weight:600;font-size:.9rem;margin-top:6px}.ps-s{font-size:.78rem;color:var(--muted,#667)}</style>`;
   if(st===null)return `<div class="card"><p class="small muted">Carregando a situação do seu prêmio…</p></div>`;
   if(!st.disponivel||!(st.lotes||[]).length)return `<div class="card">${CSS}<div class="card-head"><div><h2>Situação do seu prêmio</h2></div></div>${!st.disponivel?`<p class="small muted">A linha de evolução fica disponível para a apuração em andamento.</p>`:`<p class="small muted">Sua loja ainda não entrou na apuração deste mês.</p>`}${nota}</div>`;
-  const L=st.lotes,todos=f=>L.every(f),algum=f=>L.some(f);
-  const imp=true,lider=todos(l=>l.conf==="aprovado"||l.sem_premio),corr=algum(l=>l.conf==="correcao"),swile=todos(l=>l.status==="folha"||l.status==="pago"||l.sem_premio);const semP=todos(l=>l.sem_premio);
+  const L=st.lotes.map(l=>(l.encerrada||st.encerrado)?{...l,fimEnc:true}:l),todos=f=>L.every(f),algum=f=>L.some(f);
+  const imp=true,lider=todos(l=>l.conf==="aprovado"||l.sem_premio||l.fimEnc),corr=algum(l=>l.conf==="correcao"&&!l.fimEnc),swile=todos(l=>l.status==="folha"||l.status==="pago"||l.sem_premio||l.fimEnc);const semP=todos(l=>l.sem_premio);
   const dt=k=>{const v=L.map(l=>l[k]).filter(Boolean).sort().pop();return v?String(v).split(" ")[0]:""};
   const steps=[
     {t:"Importado",s:dt("importado")?"em "+dt("importado"):"apuração carregada",ok:imp},
-    {t:"Aprovação do líder",s:lider?(semP?"dispensada · loja sem prêmio":dt("lider")?"em "+dt("lider"):"aprovado"):corr?"correção solicitada":"aguardando o gerente",ok:lider,alert:!lider&&corr},
-    {t:"Enviado ao Swile",s:swile?(semP?"sem valor a enviar":dt("swile")?"em "+dt("swile"):"enviado"):L.some(l=>l.swile_prev)?"previsto "+String(L.map(l=>l.swile_prev).filter(Boolean).sort().pop()).split(" ").join(" às "):lider?"em instantes":"após a aprovação do líder",ok:swile}];
+    {t:"Aprovação do líder",s:lider?(semP?"dispensada · loja sem prêmio":dt("lider")?"em "+dt("lider"):todos(l=>l.fimEnc)?"concluída no encerramento":"aprovado"):corr?"correção solicitada":"aguardando o gerente",ok:lider,alert:!lider&&corr},
+    {t:"Enviado ao Swile",s:swile?(semP?"sem valor a enviar":dt("swile")?"em "+dt("swile"):todos(l=>l.fimEnc)?"concluído no encerramento":"enviado"):L.some(l=>l.swile_prev)?"previsto "+String(L.map(l=>l.swile_prev).filter(Boolean).sort().pop()).split(" ").join(" às "):lider?"em instantes":"após a aprovação do líder",ok:swile}];
   const cur=steps.findIndex(x=>!x.ok);
-  const enc=todos(l=>l.encerrada);const fase=enc&&swile?"Prêmio enviado ao Swile e apuração da loja encerrada.":enc?"Apuração da loja encerrada.":swile?"Prêmio enviado ao Swile.":lider?"Prêmio validado pela liderança. Falta o envio ao Swile.":corr?"Há uma correção em análise. O valor pode mudar.":"Prêmio em conferência. O valor pode mudar até a aprovação da liderança.";
+  const enc=todos(l=>l.fimEnc);const swReal=todos(l=>l.status==="folha"||l.status==="pago"||l.sem_premio);const fase=enc&&swReal?"Prêmio enviado ao Swile e apuração da loja encerrada.":enc?"Apuração da loja encerrada · prêmio finalizado.":swile?"Prêmio enviado ao Swile.":lider?"Prêmio validado pela liderança. Falta o envio ao Swile.":corr?"Há uma correção em análise. O valor pode mudar.":"Prêmio em conferência. O valor pode mudar até a aprovação da liderança.";
   return `<div class="card">${CSS}<div class="card-head"><div><h2>Situação do seu prêmio</h2><p>${fase}</p></div>${lider?`<span class="chip c-ok">Validado</span>`:`<span class="chip c-warn">Em apuração</span>`}</div>
    <div class="ps-line" role="list">${steps.map((x,i)=>`<div class="ps-step ${x.ok?"ok":""} ${i===cur?(x.alert?"alert":"cur"):""}" role="listitem" aria-label="${x.t}: ${x.ok?"concluído":"pendente"}"><span class="ps-dot">${x.ok?"✓":i+1}</span><span class="ps-t">${x.t}</span><span class="ps-s">${esc(x.s)}</span></div>`).join("")}</div>${L.length>1?`<p class="small muted" style="margin:8px 0 0">Você recebe por ${L.length} lojas; cada etapa só fica concluída quando todas avançam.</p>`:""}${nota}</div>`;
 }
@@ -7872,6 +7872,10 @@ function meuPremioAntigo(){
   return `<div class="prem-pg"><div class="topbar"><div><div class="eyebrow">Premiações e Incentivos</div><h1>Meu prêmio · ${COMP}</h1></div></div><div class="banner"><span>Valores em apuração: podem mudar até a aprovação do RH. Dúvidas? Fale com o gerente da sua loja.</span></div>${corpo}</div>`;
 }
 const verEvol=()=>!gerLogin()&&(P().verAprov||webNaoRH());
+function evolEtapasFim(L){
+  const E=evolEtapas(L);if(!lojaEncerrada(L.lojaId))return E;
+  return E.map(e=>e.k==="ok"?e:{k:"ok",t:e.t.replace(/^Aprovação do RH$/,"Aprovada pelo RH").replace(/^Conferência do gerente$/,"Conferência do gerente"),d:"concluída no encerramento"});
+}
 function evolEtapas(L){
   const evs=L.eventos||[],ach=re=>{const e=[...evs].reverse().find(x=>re.test(x.acao));return e?e.em:""};
   const fmtD=s=>{try{return new Date(s).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).replace(",","")}catch(e){return ""}};
@@ -7890,7 +7894,7 @@ function evolEtapas(L){
       const fa=fechaAuto(L);return {k:"futuro",t:"Encerrada",d:fa?"automático em "+fmtD(fa):semPremio(L)&&apRH?"automático 48 h após o RH":podeFinalizar(L)?"":"após a conferência do gerente"}})()].map(e=>e.k==="atual2"?{...e,k:"futuro"}:e);
 }
 function evolLinha(L,compacta){
-  const E=evolEtapas(L);const atual=E.find(e=>e.k==="alerta")||E.find(e=>e.k==="atual")||[...E].reverse().find(e=>e.k==="ok");
+  const E=evolEtapasFim(L);const atual=E.find(e=>e.k==="alerta")||E.find(e=>e.k==="atual")||[...E].reverse().find(e=>e.k==="ok");
   if(compacta)return `<div class="evo c" title="${E.map(e=>(e.k==="ok"?"✓ ":e.k==="alerta"?"! ":e.k==="atual"?"→ ":"· ")+e.t+(e.d?" ("+e.d+")":"")).join("\n")}"><div class="evo-l">${E.map(e=>`<i class="${e.k}"></i>`).join("<b></b>")}</div><span>${esc(atual.k==="atual"&&atual.d?atual.d.replace(/^./,c=>c.toUpperCase()):atual.t)}</span></div>`;
   return `<div class="evo"><div class="evo-h"><b>Linha de evolução da aprovação</b></div><ol>${E.map((e,i)=>`<li class="${e.k}"><i>${e.k==="ok"?"✓":e.k==="alerta"?"!":i+1}</i><div><b>${esc(e.t)}</b><span>${esc(e.d||(e.k==="futuro"?"pendente":""))}</span></div></li>`).join("")}</ol></div>`;
 }
@@ -8251,8 +8255,9 @@ function tRegrasRec(){
 function gestorStatusHTML(){
   if(!webNaoRH()&&UI.view==="rh")return "";
   const ids=escopo(),Ls=LOTES.filter(L=>ids.includes(L.lojaId));if(!Ls.length)return "";
-  const n=Ls.length,apRH=Ls.filter(L=>["aprovado","folha","pago"].includes(L.status)).length,conf=Ls.filter(L=>podeFinalizar(L)).length,corr=Ls.filter(L=>corrAbertas(L).length).length,
-    sw=Ls.filter(L=>["folha","pago"].includes(L.status)||semPremio(L)).length,enc=Ls.filter(L=>lojaEncerrada(L.lojaId)).length;
+  const fim=L=>lojaEncerrada(L.lojaId);
+  const n=Ls.length,apRH=Ls.filter(L=>fim(L)||["aprovado","folha","pago"].includes(L.status)).length,conf=Ls.filter(L=>fim(L)||podeFinalizar(L)).length,corr=Ls.filter(L=>!fim(L)&&corrAbertas(L).length).length,
+    sw=Ls.filter(L=>fim(L)||["folha","pago"].includes(L.status)||semPremio(L)).length,enc=Ls.filter(L=>fim(L)).length;
   const souSup=supLogin()||UI.view==="supervisora";
   const falta=(arr)=>arr.map(L=>esc(loja(L.lojaId).curto||loja(L.lojaId).nome)).join(", ");
   const steps=[
@@ -8262,7 +8267,7 @@ function gestorStatusHTML(){
     {t:"Enviado ao Swile",s:sw===n?"todas as lojas":sw+" de "+n+" lojas",ok:sw===n},
     {t:"Encerrado",s:enc===n?"todas as lojas":enc+" de "+n+" lojas",ok:enc===n}];
   const cur=steps.findIndex(x=>!x.ok);
-  const pendConf=Ls.filter(L=>!podeFinalizar(L));
+  const pendConf=Ls.filter(L=>!fim(L)&&!podeFinalizar(L));
   const CSS=`<style>.gs-line{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:6px}.gs-step{display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}.gs-step:not(:last-child)::after{content:"";position:absolute;top:15px;left:calc(50% + 18px);right:calc(-50% + 18px);height:3px;border-radius:2px;background:var(--line,#dfe8e3)}.gs-step.ok:not(:last-child)::after{background:#1b8a5a}.gs-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--surface-2,#eef2f0);color:var(--muted,#667);border:2px solid var(--line,#dfe8e3);z-index:1}.gs-step.ok .gs-dot{background:#1b8a5a;border-color:#1b8a5a;color:#fff}.gs-step.cur .gs-dot{background:#fff8dc;border-color:#e0b43a;color:#8a6a0c}.gs-step.alert .gs-dot{background:#fdecea;border-color:#c0392b;color:#c0392b}.gs-t{font-weight:600;font-size:.88rem;margin-top:6px}.gs-s{font-size:.78rem;color:var(--muted,#667)}</style>`;
   const valid=conf===n;
   return CSS+`<div class="card"><div class="card-head"><div><h2>Situação do seu prêmio</h2><p>${souSup?"Seu prêmio depende das "+n+" lojas da sua carteira.":n>1?"Seu prêmio depende das suas "+n+" lojas.":"Situação da apuração da sua loja."}</p></div>${valid?`<span class="chip c-ok">Validado</span>`:`<span class="chip c-warn">Em apuração</span>`}</div>
