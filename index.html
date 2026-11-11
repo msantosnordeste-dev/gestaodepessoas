@@ -6578,6 +6578,7 @@ async function vcMontar(id,Pf){
     premiacoes_ranking_faturamento:a=>rpcFn("premiacoes_ranking_faturamento",a),
     premiacoes_minhas_medalhas:()=>rpcFn("premiacoes_medalhas_de",{p_colab:P.colaborador_id||id}),
     premiacoes_conquistas:()=>rpcFn("premiacoes_conquistas"),
+    premiacoes_lojas_sem_premio:()=>rpcFn("premiacoes_lojas_sem_premio"),
     premiacoes_meu_status:a=>rpcFn("premiacoes_status_de",{p_colab:P.colaborador_id||id,p_comp:a&&a.p_comp}),
     premiacoes_evolucao:()=>rpcFn("premiacoes_evolucao"),
     premiacoes_pessoas:a=>rpcFn("premiacoes_pessoas",a),
@@ -7569,7 +7570,7 @@ const lojaCGP=id=>{const n=String(loja(id).num);const s=((typeof ST!=="undefined
 const COMP_ISO=COMP_ISO_W;
 let CONF_OK=false;
 const periodoEncerrado=()=>!!(window.__PREM_PERIODO&&window.__PREM_PERIODO.encerrado);
-const semPremio=L=>{const t=L&&L.congelado&&L.congelado.total!=null?+L.congelado.total:(L?lotal(L).total:0);return (+t||0)<=0.005};
+const semPremio=L=>{if(L&&Array.isArray(window.__PREM_SEMPREMIO))return window.__PREM_SEMPREMIO.includes(L.lojaId);if(L&&L.congelado&&(+L.congelado.acel||0)>0.005)return false;const t=L&&L.congelado&&L.congelado.total!=null?+L.congelado.total:(L?lotal(L).total:0);return (+t||0)<=0.005};
 const gerConferiu=L=>!!L&&L.conf==="aprovado"&&!(L.correcoes||[]).some(c=>c.status==="aberta");
 const podeFinalizar=L=>gerConferiu(L)||semPremio(L);
 const lojaPer=id=>(window.__PREM_LOJAS_PER||[]).find(r=>+r.loja_num===+loja(id).num)||null;
@@ -8615,6 +8616,7 @@ async function carregarPremData(){
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_vendedores",{p_comp:CMP});window.__PREM_RANKVEND=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKVEND=[]}}
     if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_ranking_faturamento",{p_comp:CMP});window.__PREM_RANKFAT=Array.isArray(data)?data:[]}catch(e){window.__PREM_RANKFAT=[]}}
     try{const {data}=await SB.from("premiacoes_periodos").select("*").eq("comp",CMP).limit(1);window.__PREM_PERIODO=(data&&data[0])||{comp:CMP,encerrado:false}}catch(e){window.__PREM_PERIODO={comp:CMP,encerrado:false}}
+    if(ROLE!=="colaborador"){try{const {data}=await SB.rpc("premiacoes_lojas_sem_premio");window.__PREM_SEMPREMIO=Array.isArray(data)?data:null}catch(e){window.__PREM_SEMPREMIO=null}}
     try{const {data}=await SB.from("premiacoes_lojas_periodo").select("*").eq("comp",CMP);window.__PREM_LOJAS_PER=data||[]}catch(e){window.__PREM_LOJAS_PER=[]}
     if(ROLE!=="colaborador"){try{const [cq,ev,ps]=await Promise.all([SB.rpc("premiacoes_conquistas"),SB.rpc("premiacoes_evolucao"),SB.rpc("premiacoes_pessoas",{p_comp:CMP})]);window.__PREM_CONQ=Array.isArray(cq&&cq.data)?cq.data:[];window.__PREM_EVOL=Array.isArray(ev&&ev.data)?ev.data:[];window.__PREM_PESSOAS=(ps&&ps.data)||{}}catch(e){window.__PREM_CONQ=[];window.__PREM_EVOL=[];window.__PREM_PESSOAS={}}}
     window.__PREM_PER=(lj.find(r=>r.dados&&r.dados.periodos)||{dados:{}}).dados.periodos||(CMP!=="2026-10"?premPeriodosPadrao(CMP):null);
