@@ -7582,7 +7582,7 @@ const pad2=n=>String(n).padStart(2,"0"),fmtEv=d=>pad2(d.getDate())+"/"+pad2(d.ge
 // lote aprovado pelo RH + aprovado pelo gerente, sem correção aberta: "Importada no Swile" 15 min depois da aprovação do gerente
 function swileAuto(){
   if(periodoEncerrado())return;let mudou=0,prox=Infinity;
-  LOTES.forEach(L=>{if(L.status!=="aprovado"||L.conf!=="aprovado"||!L.confEm||lojaEncerrada(L.lojaId))return;if((L.correcoes||[]).some(c=>c.status==="aberta"))return;
+  LOTES.forEach(L=>{if(L.status!=="aprovado"||L.conf!=="aprovado"||!L.confEm)return;if((L.correcoes||[]).some(c=>c.status==="aberta"))return;
     const t=new Date(new Date(L.confEm).getTime()+15*60e3);L.swilePrev=t;
     if(Date.now()>=t.getTime()){L.status="folha";L.swileAuto=true;L.eventos=L.eventos||[];L.eventos.push(ev(fmtEv(t),"Sistema","Importada no Swile · automático, 15 min após a aprovação do gerente"));mudou++}
     else prox=Math.min(prox,t.getTime())});
