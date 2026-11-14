@@ -327,7 +327,7 @@ tr.child>td:first-child{padding-left:42px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=6"></script>
+<script src="ponte.js?v=7"></script>
 </head>
 <body>
 
@@ -1669,11 +1669,11 @@ function entrarDemo(){toast('Montando a demonstração…');setTimeout(()=>{if(!
 let tvs={busy:false,ultima:null,msg:'',status:null,fora:[]};
 const rpcT=async(acao,arg)=>{const{data,error}=await PAINEL.sb.rpc('painel_totvs',{acao,arg:arg||{}});if(error)throw error;return data};
 function tvsBtn(){const b=$('#btnTotvs');if(!b)return;b.hidden=!(isAdmin&&!demo);b.classList.toggle('busy',tvs.busy);b.style.borderColor=tvsLogin(tvs.status)?'var(--bad)':'';b.disabled=tvs.busy;
-  const h=tvs.ultima?tvs.ultima.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';$('#totvsLbl').textContent=tvs.busy?'Atualizando…':(h?'Atualizado '+h:'Atualizar vendas');b.title=tvs.msg||'Buscar vendas novas do TOTVS agora'}
+  const h=tvs.ultima?tvs.ultima.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';$('#totvsLbl').textContent=tvs.busy?'Atualizando…':(tvs.status&&tvs.status.pausa&&tvs.status.pausa.pausado)?'API pausada':(h?'Atualizado '+h:'Atualizar vendas');b.title=tvs.msg||'Buscar vendas novas do TOTVS agora'}
 function tvsErro(e){return (e&&e.message)?('Erro: '+e.message):'Não consegui falar com o servidor agora. Tente de novo em instantes.'}
 const tvsLogin=st=>{const u=st&&st.ultimo;return !!(u&&!u.ok&&/^LOGIN:/.test(u.mensagem||''))};
 const tvsMsg=m=>String(m||'').replace(/^LOGIN:\s*/,'');
-async function tvsStatus(){if(!isAdmin||demo)return;try{tvs.status=await rpcT('status');tvs.fora=(tvs.status&&tvs.status.fora)||[]}catch(e){}scheduleRender()}
+async function tvsStatus(){if(!isAdmin||demo)return;try{tvs.status=await rpcT('status');tvs.fora=(tvs.status&&tvs.status.fora)||[]}catch(e){}tvsBtn();scheduleRender()}
 async function tvsAguardar(ant){for(let i=0;i<24;i++){await new Promise(r=>setTimeout(r,5000));const l=await rpcT('log_desde',{id:ant});if(l)return l}return null}
 async function totvsSync(manual){if(tvs.busy||!isAdmin||demo)return;tvs.busy=true;tvsBtn();
   try{const ant=(tvs.status&&tvs.status.ultimo_id)||(await rpcT('status')).ultimo_id||0;
@@ -1683,7 +1683,9 @@ async function totvsSync(manual){if(tvs.busy||!isAdmin||demo)return;tvs.busy=tru
     const n=(r&&r.dias)||0;if(manual)toast(n?`Vendas atualizadas (${n} dia(s) de loja recalculados${r.pendentes?`, ${r.pendentes} para validação`:''}${r.lojas?`, ${r.lojas} loja(s) nova(s)`:''}${r.vendedores?`, ${r.vendedores} vendedor(es) novo(s)`:''}).`:'Nenhuma venda nova no TOTVS.')}
   catch(e){tvs.msg=tvsErro(e);if(manual)toast(tvs.msg)}
   finally{tvs.busy=false;tvsBtn();await tvsStatus();if(tvsLogin(tvs.status)&&!tvs.avisou){tvs.avisou=true;tvs.msg='Sem acesso ao TOTVS: atualize usuário e senha em Cadastros › Importar vendas.';toast(tvs.msg);tvsBtn()}}}
-ACT.totvsAtualizar=()=>totvsSync(true);
+ACT.totvsAtualizar=()=>{if(tvs.status&&tvs.status.pausa&&tvs.status.pausa.pausado){toast('A API do TOTVS está pausada. Retome em Cadastros › Importar vendas.');return}totvsSync(true)};
+ACT.tvsPausar=async el=>{const p=el.dataset.v==='1';el.disabled=true;
+  try{tvs.status=await rpcT('pausar',{pausado:p});toast(p?'API do TOTVS pausada: nenhuma busca até você retomar.':'API do TOTVS retomada: a busca automática volta a cada 10 minutos.');if(!p)totvsSync(false)}catch(e){toast(tvsErro(e))}el.disabled=false;tvsBtn();scheduleRender()};
 ACT.tvsIncluirFil=async el=>{const c=el.dataset.v;if(tvs.busy)return;el.disabled=true;
   try{await rpcT('incluir_filial',{codigo:c});toast('Loja incluída. Vendedores e vendas dela entram em seguida.');rpcT('disparar',{cadastros:true}).catch(()=>{})}catch(e){el.disabled=false;toast(tvsErro(e))}await tvsStatus()};
 const nz=c=>String(c??'').trim().replace(/^0+/,'')||String(c??'').trim();
@@ -1693,9 +1695,11 @@ function cardTotvs(){const d=dis();
   
   const st=tvs.status,cf=st&&st.configurado||{},tem=['base_url','client_id','client_secret','usuario','senha'].every(k=>cf[k]),u=st&&st.ultimo,semAcesso=!tem||tvsLogin(st),abre=semAcesso||tvs.form;
   const quando=x=>x?new Date(x).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
-  const pill=!st?'<span class="pill">carregando…</span>':!tem?'<span class="pill warn">Acesso não cadastrado</span>':tvsLogin(st)?'<span class="pill bad">Sem acesso ao TOTVS</span>':u&&!u.ok?'<span class="pill warn">Erro na última busca</span>':'<span class="pill ok">Conectado</span>';
+  const pausado=!!(st&&st.pausa&&st.pausa.pausado);
+  const pill=!st?'<span class="pill">carregando…</span>':pausado?'<span class="pill warn">API pausada</span>':!tem?'<span class="pill warn">Acesso não cadastrado</span>':tvsLogin(st)?'<span class="pill bad">Sem acesso ao TOTVS</span>':u&&!u.ok?'<span class="pill warn">Erro na última busca</span>':'<span class="pill ok">Conectado</span>';
   let h=`<div class="card"><div class="hd"><h3>${svg('exp')}Integração automática TOTVS Moda</h3>${pill}</div>
   <p class="muted sm" style="margin:0">As vendas são buscadas no TOTVS a cada 10 minutos e entram aqui sozinhas. Empresas (lojas) e vendedores do TOTVS são cadastrados automaticamente; venda de vendedor que não for encontrado vai para Validação.</p>`;
+  if(pausado)h+=`<div class="card" style="background:var(--sunk);gap:6px"><p class="sm" style="margin:0"><b>A busca no TOTVS está pausada</b> desde ${esc(quando(st.pausa.em))}. Nada é buscado (nem automático, nem pelo botão) até você retomar. As vendas já importadas continuam no painel.</p></div>`;
   if(st)h+=`<div class="row" style="gap:18px;flex-wrap:wrap" class="sm"><span class="sm"><b>Última busca:</b> ${esc(quando(u&&u.em))}${u?` · ${esc(u.ok?u.mensagem:tvsMsg(u.mensagem)).slice(0,160)}`:''}</span><span class="sm"><b>Último sucesso:</b> ${esc(quando(st.ultimo_ok))}</span><span class="sm"><b>Aguardando entrar:</b> ${+st.aguardando||0}</span>${tem?`<span class="sm"><b>Usuário:</b> ${esc(st.usuario||'')}</span><span class="sm"><b>Filiais:</b> ${esc(st.filiais||'todas')}</span>`:''}</div>`;
   if(tvs.fora&&tvs.fora.length)h+=`<div class="card" style="background:var(--sunk);gap:8px"><p class="sm" style="margin:0"><b>Filiais no TOTVS que ainda não estão no painel (${tvs.fora.length}).</b> Inclua quando for uma nova unidade; ela passa a ter vendas, vendedores e metas aqui.</p>
     ${tvs.fora.map(f=>`<div class="row" style="justify-content:space-between;gap:8px"><span class="sm">${esc(f.nome)} <span class="muted">· código ${esc(f.codigo)}</span></span><button class="btn sm pri" data-act="tvsIncluirFil" data-v="${esc(f.codigo)}" ${d}>Incluir loja</button></div>`).join('')}</div>`;
@@ -1709,7 +1713,7 @@ function cardTotvs(){const d=dis();
     <label class="f">Client ID<input id="tvCid" type="text" spellcheck="false" autocapitalize="off" placeholder="${ph('client_id')}" autocomplete="off" data-lpignore="true" ${d}></label>
     <label class="f">Client Secret<input id="tvCsec" type="text" spellcheck="false" autocapitalize="off" style="-webkit-text-security:disc" placeholder="${ph('client_secret')}" autocomplete="off" data-lpignore="true" ${d}></label></div></div>`:`<button class="btn sm" style="justify-self:start" data-act="tvsTec" ${d}>Mostrar configuração técnica</button>`}
     <div class="row" style="justify-content:flex-end;gap:8px">${!semAcesso?`<button class="btn" data-act="tvsForm" ${d}>Cancelar</button>`:''}<button class="btn pri" data-act="tvsSalvar" ${tvs.busy?'disabled':''} ${d}>${tvs.busy?'Testando…':'Salvar e testar acesso'}</button></div>`}
-  else h+=`<div class="row" style="justify-content:flex-end;gap:8px"><button class="btn" data-act="tvsForm" ${d}>Alterar usuário e senha</button><button class="btn pri" data-act="totvsAtualizar" ${tvs.busy?'disabled':''} ${d}>${tvs.busy?'Atualizando…':'Atualizar vendas agora'}</button></div>`;
+  else h+=`<div class="row" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">${st?`<button class="btn ${pausado?'pri':''}" data-act="tvsPausar" data-v="${pausado?'0':'1'}" ${d}>${pausado?'▶ Retomar API':'⏸ Pausar API'}</button>`:''}<button class="btn" data-act="tvsForm" ${d}>Alterar usuário e senha</button><button class="btn pri" data-act="totvsAtualizar" ${tvs.busy||pausado?'disabled':''} ${d}>${tvs.busy?'Atualizando…':'Atualizar vendas agora'}</button></div>`;
   return h+'</div>'}
 ACT.tvsForm=()=>{tvs.form=!tvs.form;tvs.tec=false;render()};ACT.tvsTec=()=>{tvs.tec=true;render()};
 ACT.tvsSalvar=async()=>{if(tvs.busy)return;const v=id=>($('#'+id)?.value||'').trim(),o={usuario:v('tvUser'),senha:v('tvSenha')};if($('#tvBase')){o.base_url=v('tvBase');o.client_id=v('tvCid');o.client_secret=v('tvCsec');o.filiais=v('tvFil')}
