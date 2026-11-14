@@ -281,15 +281,26 @@ tr.child>td:first-child{padding-left:42px}
 .q-cols{display:grid;grid-template-columns:1.1fr 1.1fr .9fr;gap:16px}
 @media (max-width:1100px){.q-cols{grid-template-columns:1fr 1fr}}
 @media (max-width:700px){.q-cols{grid-template-columns:1fr}}
-.qcol{display:grid;gap:8px;align-content:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-width:0}
-.qcard{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;background:var(--surface)}
-.qcard .nm{font-weight:600;flex:1;min-width:120px;display:grid;gap:1px}
-.qcard .nm small{font-weight:400;color:var(--muted);font-size:12.5px}
-.qcard.vez{border-color:var(--accent);background:var(--accent-soft)}
-.qcard.dim{background:var(--sunk);border-color:transparent}
-.pos{font-weight:700;width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--sunk);color:var(--muted);font-size:13px}
-.qcard.vez .pos{background:var(--accent);color:#FFFFFF}
-.live{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none;animation:pulse 1.6s ease-in-out infinite}
+.qcol{display:grid;gap:10px;align-content:start;background:var(--surface);border:0;border-top:5px solid var(--qc);border-radius:18px;padding:16px;min-width:0;box-shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px -12px rgba(16,24,40,.14)}
+.qcol.q-vez{--qc:#7A2BD8;--qcb:#F1EAFD}.qcol.q-at{--qc:#12B76A;--qcb:#E3F8EE}.qcol.q-pa{--qc:#F79009;--qcb:#FEF0DC}
+.qcol h3{display:flex;align-items:center;gap:8px;font-size:15px;margin:0}.qdot{width:10px;height:10px;border-radius:50%;background:var(--qc);flex:none}
+.qn{margin-left:auto;background:var(--qcb);color:var(--qc);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700}
+.qsec{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin:8px 0 0}
+.qcard{border:0;border-radius:14px;padding:12px;display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;background:var(--sunk)}
+.qcard .av{width:46px;height:46px;font-size:14px;border:3px solid var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.qcard .nm{font-weight:700;font-size:15px;flex:1;min-width:110px;display:grid;gap:2px}
+.qcard .nm small{font-weight:500;color:var(--muted);font-size:12.5px}
+.qcard.vez{background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(135deg,#F2306D,#7A2BD8) border-box;border:2px solid transparent;padding:14px;box-shadow:0 10px 24px -12px rgba(122,43,216,.5)}
+.qcard.dim{opacity:.8}
+.pos{font-weight:800;width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;background:#EAE6F7;color:#5B3FBF;font-size:13px}
+.qcard.vez .pos{background:linear-gradient(135deg,#F2306D,#7A2BD8);color:#FFFFFF;width:34px;height:34px;font-size:15px}
+.qbadge{justify-self:start;background:#FFE5EE;color:#D61F5B;font-size:11px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:6px}
+.btn.q-atender{border:0;background:linear-gradient(135deg,#F2306D,#7A2BD8);color:#FFFFFF;padding:12px 22px;font-size:15px;font-weight:700;border-radius:10px;box-shadow:0 6px 16px -8px rgba(242,48,109,.7)}
+.btn.q-fim{background:#12B76A;border-color:#12B76A;color:#FFFFFF}
+.qcard .t{color:#12B76A;font-weight:800;font-variant-numeric:tabular-nums}
+.live{width:10px;height:10px;border-radius:50%;background:#12B76A;flex:none;box-shadow:0 0 0 5px rgba(18,183,106,.2);animation:pulse 1.6s ease-in-out infinite}
+.qrel{background:var(--surface);border-radius:14px;padding:8px 16px;text-align:right;box-shadow:0 1px 3px rgba(16,24,40,.08);display:grid}
+.qrel b{font-size:22px;font-variant-numeric:tabular-nums;line-height:1.2}.qrel span{font-size:12px;color:var(--muted)}
 @keyframes pulse{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.live{animation:none}}
 .mural td.c{text-align:center}
@@ -711,7 +722,7 @@ const mHd=t=>`<div class="hd"><h2>${t}</h2><button class="x" data-act="mFechar" 
 function abrir(m){ui.modal=m;renderModal()}
 function fechar_(){ui.modal=null;renderModal()}
 let tt;function toast(msg){const h=$('#toastHost');h.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;clearTimeout(tt);tt=setTimeout(()=>h.innerHTML='',3600)}
-function tick(){const n=Date.now();$$('.cron').forEach(s=>{s.textContent=relog(n-(+s.dataset.t))})}
+function tick(){const n=Date.now();$$('.cron').forEach(s=>{s.textContent=relog(n-(+s.dataset.t))});const r=document.getElementById('qRel');if(r)r.textContent=new Date(n).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 setInterval(tick,1000);
 
 /* nomes de quem fez feedbacks e campanhas: guardamos só o id e resolvemos o nome ao exibir */
@@ -1383,18 +1394,18 @@ function vLista(){const ls=lojasAtivas();if(!ls.length)return semLojas();if(!S.l
   const lid=ui.lojaOp,f=fila(lid),vs=vendLoja(lid),h=hoje(),t=stats(h,h,[lid]),md=metaAtual(lid,h),d=dis();
   const ordem=f.ordem.filter(id=>S.vend[id]),at=Object.entries(f.atendendo).filter(([id])=>S.vend[id]).sort((a,b)=>a[1].inicio-b[1].inicio),pa=Object.entries(f.fora).filter(([id])=>S.vend[id]),fora=vs.filter(([id])=>!ordem.includes(id)&&!f.atendendo[id]&&!f.fora[id]);
   const rks=Object.values(S.rank).filter(r=>r.tablet!==false&&rkStatus(r)==='atual'&&(r.lojas||[]).includes(lid)).slice(0,2);
-  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${DOW[dow(h)]}, ${fmtD(h)} · tela para o tablet da loja</div></div><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">${isAdmin||papelEu()==='gerente'?`<button class="btn" data-act="fotosEquipe" data-v="${esc(lid)}">📷 Fotos da equipe</button>`:''}<button class="btn-metas" data-act="meuAbrir" title="O colaborador entra com CPF e senha e vê só os próprios números"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg></span><span>Minhas metas<small>Toque e entre com seu CPF</small></span></button><label class="f" style="min-width:240px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label></div></div>
+  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${esc(nomeLoja(lid))} · ${DOW[dow(h)].toLowerCase()}, ${fmtD(h).slice(0,5)}</div></div><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">${isAdmin||papelEu()==='gerente'?`<button class="btn" data-act="fotosEquipe" data-v="${esc(lid)}">📷 Fotos da equipe</button>`:''}<button class="btn-metas" data-act="meuAbrir" title="O colaborador entra com CPF e senha e vê só os próprios números"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg></span><span>Minhas metas<small>Toque e entre com seu CPF</small></span></button>${ls.length>1?`<label class="f" style="min-width:220px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label>`:''}<div class="qrel"><b id="qRel">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</b><span>${ordem.length} na vez · ${at.length} atendendo</span></div></div></div>
   ${soLista()?'':`<div class="row" style="gap:12px;align-items:stretch">${[['Vendas hoje',brl(t.valor),fin(md)?`Meta do dia ${brl0(md)} · ${pct(md?t.valor/md:NaN,0)}`:'Sem meta cadastrada'],['Atendimentos',int(t.atend),`${t.conv} com venda · ${t.perdas} sem venda`],['Conversão',pct(t.cv),'vendas ÷ oportunidades'],['Ticket médio',brl(t.ticket),fin(t.pa)?num(t.pa)+' peças por venda':'']].map(([a,b,c])=>`<div class="card" style="flex:1;min-width:170px;gap:2px"><span class="muted sm">${a}</span><span class="big">${b}</span><span class="muted sm">${c}</span></div>`).join('')}</div>`}
   ${rks.length?`<div class="row">${rks.map(r=>{const c=rkCalc(r);return`<div class="card" style="flex:1;min-width:260px;gap:6px"><b>${esc(r.emoji||'🏆')} ${esc(r.nome)}</b><span class="muted sm">${indNome(r.indicador)} · até ${fmtD(r.fim)}${r.premio?' · Prêmio: '+esc(r.premio):''}</span>${c.lista.slice(0,3).map((x,i)=>`<span class="sm">${i+1}º ${esc(x.nome)} · <b>${indFmt(r.indicador,x.val)}</b></span>`).join('')||'<span class="muted sm">Sem dados ainda.</span>'}</div>`}).join('')}</div>`:''}
   ${!vs.length?vazio('Esta loja ainda não tem vendedores ativos.'):`<div class="q-cols">
-  <section class="qcol"><div class="row" style="justify-content:space-between"><h3>Na vez</h3><span class="muted sm">${ordem.length} na fila</span></div>
-    ${ordem.length?ordem.map((id,i)=>`<div class="qcard${i===0?' vez':''}"><span class="pos">${i+1}</span>${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}${i===0?'<small>Próximo cliente é dele(a)</small>':''}</span><span class="row"><button class="btn sm pri" data-act="qAtender" data-v="${esc(id)}" ${d}>Atender</button><button class="btn sm" data-act="qPausa" data-v="${esc(id)}" ${d}>Pausa</button></span></div>`).join(''):'<div class="empty" style="padding:14px">Ninguém na fila. Coloque os vendedores na vez pela coluna ao lado.</div>'}</section>
-  <section class="qcol"><div class="row" style="justify-content:space-between"><h3>Em atendimento</h3><span class="muted sm">${at.length} agora</span></div>
-    ${at.length?at.map(([id,a])=>`<div class="qcard"><span class="live" aria-hidden="true"></span>${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}<small>${a.foraDaVez?'<span class="pill bad">fora da vez</span> ':''}há <span class="cron" data-t="${a.inicio}"></span></small></span><span class="row"><button class="btn sm pri" data-act="qFinalizar" data-v="${esc(id)}" ${d}>Finalizar</button><button class="btn sm" data-act="qDesfazer" data-v="${esc(id)}" title="Devolve ao primeiro lugar da fila sem registrar" ${d}>Desfazer</button></span></div>`).join(''):'<div class="empty" style="padding:14px">Nenhum atendimento em andamento.</div>'}</section>
-  <section class="qcol"><div class="row" style="justify-content:space-between"><h3>Em pausa</h3><span class="muted sm">${pa.length}</span></div>
-    ${pa.map(([id,p])=>`<div class="qcard">${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}<small>${esc(p.motivo)} · há <span class="cron" data-t="${p.desde}"></span></small></span><button class="btn sm" data-act="qEntrar" data-v="${esc(id)}" ${d}>Voltar à vez</button></div>`).join('')||'<span class="muted sm">Ninguém em pausa.</span>'}
-    <div class="row" style="justify-content:space-between;margin-top:8px"><h3>Fora do expediente</h3><span class="muted sm">${fora.length}</span></div>
-    ${fora.map(([id,v])=>`<div class="qcard dim">${av(v.nome,id)}<span class="nm">${esc(v.nome)}</span><button class="btn sm" data-act="qEntrar" data-v="${esc(id)}" ${d}>Entrar na vez</button></div>`).join('')||'<span class="muted sm">Toda a equipe está no salão.</span>'}
+  <section class="qcol q-vez"><h3><span class="qdot"></span>Na vez<span class="qn">${ordem.length}</span></h3>
+    ${ordem.length?ordem.map((id,i)=>`<div class="qcard${i===0?' vez':''}"><span class="pos">${i+1}</span>${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}${i===0?'<span class="qbadge">PRÓXIMO CLIENTE</span>':''}</span><span class="row">${i===0?`<button class="btn q-atender" data-act="qAtender" data-v="${esc(id)}" ${d}>Atender</button>`:`<button class="btn sm" data-act="qAtender" data-v="${esc(id)}" title="Atender fora da vez" ${d}>Atender</button>`}<button class="btn sm" data-act="qPausa" data-v="${esc(id)}" ${d}>Pausa</button></span></div>`).join(''):'<div class="empty" style="padding:14px">Ninguém na fila. Coloque os vendedores na vez pela coluna ao lado.</div>'}</section>
+  <section class="qcol q-at"><h3><span class="live" aria-hidden="true"></span>Em atendimento<span class="qn">${at.length}</span></h3>
+    ${at.length?at.map(([id,a])=>`<div class="qcard">${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}<small>${a.foraDaVez?'<span class="pill bad">fora da vez</span> ':''}<span class="cron t" data-t="${a.inicio}"></span> atendendo</small></span><span class="row"><button class="btn q-fim" data-act="qFinalizar" data-v="${esc(id)}" ${d}>Finalizar</button><button class="btn sm" data-act="qDesfazer" data-v="${esc(id)}" title="Devolve ao primeiro lugar da fila sem registrar" ${d}>Desfazer</button></span></div>`).join(''):'<div class="empty" style="padding:14px">Nenhum atendimento em andamento.</div>'}</section>
+  <section class="qcol q-pa"><h3><span class="qdot"></span>Em pausa<span class="qn">${pa.length}</span></h3>
+    ${pa.map(([id,p])=>`<div class="qcard">${av(nomeV(id),id)}<span class="nm">${esc(nomeV(id))}<small>☕ ${esc(p.motivo)} · <span class="cron" data-t="${p.desde}"></span></small></span><button class="btn sm" data-act="qEntrar" data-v="${esc(id)}" ${d}>Voltar</button></div>`).join('')||'<span class="muted sm">Ninguém em pausa.</span>'}
+    <div class="qsec">Fora do expediente · ${fora.length}</div>
+    ${fora.map(([id,v])=>`<div class="qcard dim">${av(v.nome,id)}<span class="nm">${esc(v.nome)}</span><button class="btn sm" data-act="qEntrar" data-v="${esc(id)}" ${d}>Entrar</button></div>`).join('')||'<span class="muted sm">Toda a equipe está no salão.</span>'}
     ${fora.length>1?`<button class="btn link" data-act="qTodos" ${d}>Colocar todos na vez</button>`:''}</section></div>`}`}
 function finalizarModal(vid){const f=fila(ui.lojaOp),a=f.atendendo[vid]||{};abrir({vid,res:'venda',valor:'',pecas:'1',motivo:'',pref:false,fv:!!a.foraDaVez,foco:null,render(){const r=this.res;
   return`<div class="hd"><div><span class="lbl">Finalizar atendimento</span><h2>${esc(nomeV(this.vid))}</h2></div><button class="x" data-act="mFechar" aria-label="Fechar">${svg('x')}</button></div>
