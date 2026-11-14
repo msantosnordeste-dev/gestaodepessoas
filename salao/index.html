@@ -322,13 +322,13 @@ tr.child>td:first-child{padding-left:42px}
 #pLogin input:focus{outline:2px solid #1A56DB33;border-color:#1A56DB}
 #pLogin button{width:100%;padding:11px;border:0;border-radius:8px;background:#1A56DB;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit}
 #pLogin button:disabled{opacity:.6}#pLogin .pl-msg{min-height:18px;color:#B42318;font-size:13px;margin:0 0 10px}#pLogin .pl-ajuda{color:#667085;font-size:12.5px;margin:14px 0 0;text-align:center}
-#meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}
+#meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}body.modo-loja .shell{grid-template-columns:1fr}body.modo-loja #side,body.modo-loja [data-act=menu],body.modo-loja #btnFiltros{display:none!important}
 #verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
 #pInstalar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9000;display:flex;gap:8px;align-items:center;background:#17418F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.25);cursor:pointer}#pInstalar span{opacity:.8;font-weight:500}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=10"></script>
+<script src="ponte.js?v=11"></script>
 </head>
 <body>
 
@@ -621,7 +621,7 @@ const R={
   ajuda:{t:'Ajuda',f:[]}
 };
 const GRP={rel:{t:'Relatórios',ic:'rel'},fb:{t:'Feedback',ic:'fb'},cad:{t:'Cadastros',ic:'cad'}};
-function go(r,extra){if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';
+function go(r,extra){if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
   ui.route=r;ui.wiz=null;ui.metaView=null;ui.fbView=null;ui.rkView=null;ui.drawer=false;Object.assign(ui,extra||{});
   const h=r==='loja'&&ui.loja?'loja-'+ui.loja:r;try{if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)}catch(e){}
   $('#shell').classList.remove('open');render();window.scrollTo(0,0)}
@@ -1382,8 +1382,8 @@ function vLista(){const ls=lojasAtivas();if(!ls.length)return semLojas();if(!S.l
   const lid=ui.lojaOp,f=fila(lid),vs=vendLoja(lid),h=hoje(),t=stats(h,h,[lid]),md=metaAtual(lid,h),d=dis();
   const ordem=f.ordem.filter(id=>S.vend[id]),at=Object.entries(f.atendendo).filter(([id])=>S.vend[id]).sort((a,b)=>a[1].inicio-b[1].inicio),pa=Object.entries(f.fora).filter(([id])=>S.vend[id]),fora=vs.filter(([id])=>!ordem.includes(id)&&!f.atendendo[id]&&!f.fora[id]);
   const rks=Object.values(S.rank).filter(r=>r.tablet!==false&&rkStatus(r)==='atual'&&(r.lojas||[]).includes(lid)).slice(0,2);
-  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${DOW[dow(h)]}, ${fmtD(h)} · tela para o tablet da loja</div></div><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">${isAdmin||(PAINEL.eu&&PAINEL.eu.papel==='loja')?`<button class="btn" data-act="fotosEquipe" data-v="${esc(lid)}">📷 Fotos da equipe</button>`:''}<button class="btn pri" data-act="meuAbrir" title="O colaborador entra com CPF e senha e vê só os próprios números">👤 Minhas vendas e metas</button><label class="f" style="min-width:240px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label></div></div>
-  <div class="row" style="gap:12px;align-items:stretch">${[['Vendas hoje',brl(t.valor),fin(md)?`Meta do dia ${brl0(md)} · ${pct(md?t.valor/md:NaN,0)}`:'Sem meta cadastrada'],['Atendimentos',int(t.atend),`${t.conv} com venda · ${t.perdas} sem venda`],['Conversão',pct(t.cv),'vendas ÷ oportunidades'],['Ticket médio',brl(t.ticket),fin(t.pa)?num(t.pa)+' peças por venda':'']].map(([a,b,c])=>`<div class="card" style="flex:1;min-width:170px;gap:2px"><span class="muted sm">${a}</span><span class="big">${b}</span><span class="muted sm">${c}</span></div>`).join('')}</div>
+  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${DOW[dow(h)]}, ${fmtD(h)} · tela para o tablet da loja</div></div><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">${isAdmin||papelEu()==='gerente'?`<button class="btn" data-act="fotosEquipe" data-v="${esc(lid)}">📷 Fotos da equipe</button>`:''}<button class="btn pri" data-act="meuAbrir" title="O colaborador entra com CPF e senha e vê só os próprios números">👤 Minhas vendas e metas</button><label class="f" style="min-width:240px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label></div></div>
+  ${soLista()?'':`<div class="row" style="gap:12px;align-items:stretch">${[['Vendas hoje',brl(t.valor),fin(md)?`Meta do dia ${brl0(md)} · ${pct(md?t.valor/md:NaN,0)}`:'Sem meta cadastrada'],['Atendimentos',int(t.atend),`${t.conv} com venda · ${t.perdas} sem venda`],['Conversão',pct(t.cv),'vendas ÷ oportunidades'],['Ticket médio',brl(t.ticket),fin(t.pa)?num(t.pa)+' peças por venda':'']].map(([a,b,c])=>`<div class="card" style="flex:1;min-width:170px;gap:2px"><span class="muted sm">${a}</span><span class="big">${b}</span><span class="muted sm">${c}</span></div>`).join('')}</div>`}
   ${rks.length?`<div class="row">${rks.map(r=>{const c=rkCalc(r);return`<div class="card" style="flex:1;min-width:260px;gap:6px"><b>${esc(r.emoji||'🏆')} ${esc(r.nome)}</b><span class="muted sm">${indNome(r.indicador)} · até ${fmtD(r.fim)}${r.premio?' · Prêmio: '+esc(r.premio):''}</span>${c.lista.slice(0,3).map((x,i)=>`<span class="sm">${i+1}º ${esc(x.nome)} · <b>${indFmt(r.indicador,x.val)}</b></span>`).join('')||'<span class="muted sm">Sem dados ainda.</span>'}</div>`}).join('')}</div>`:''}
   ${!vs.length?vazio('Esta loja ainda não tem vendedores ativos.'):`<div class="q-cols">
   <section class="qcol"><div class="row" style="justify-content:space-between"><h3>Na vez</h3><span class="muted sm">${ordem.length} na fila</span></div>
@@ -1759,7 +1759,7 @@ ACT.usrSenhaOk=async el=>{const s=$('#nsSenha')?.value||'';try{await PAINEL.fn('
 ACT.usrAtivo=async el=>{try{await PAINEL.fn('painel-usuarios',{acao:'ativo',user_id:el.dataset.v,ativo:el.dataset.a==='1'});usr.lista=null;usrCarregar()}catch(e){toast(e.message)}};
 ACT.sair=()=>PAINEL.sair();
 ACT.usrVerComo=el=>{const u=(usr.lista||[]).find(x=>x.user_id===el.dataset.v);if(!u||!u.loja_id)return;
-  ui.verComo={login:u.login,nome:u.nome||u.login,loja:u.loja_id,adm:isAdmin,cw:canWrite};isAdmin=false;canWrite=false;PAINEL.leitura=true;ui.f.lojas=[u.loja_id];ui.menu.cad=false;go('lista')};
+  ui.verComo={login:u.login,nome:u.nome||u.login,loja:u.loja_id,adm:isAdmin,cw:canWrite};isAdmin=false;canWrite=false;PAINEL.leitura=true;ui.f.lojas=[u.loja_id];ui.menu.cad=false;document.body.classList.add('modo-loja');go('lista')};
 ACT.verComoSair=()=>{try{history.replaceState(null,'','#usuarios')}catch(e){}location.reload()};
 function verComoBar(){let b=document.getElementById('verComoBar');const v=ui.verComo;
   if(!v){if(b)b.remove();return}
@@ -1767,8 +1767,12 @@ function verComoBar(){let b=document.getElementById('verComoBar');const v=ui.ver
   b.innerHTML=`<span>👁 Vendo como <b>${esc(v.login)}</b> · ${esc(nomeLoja(v.loja))} — só visualização, nada é gravado</span><button class="btn sm" data-act="verComoSair">Voltar ao administrador</button>`}
 
 
+/* ================= papéis ================= */
+// login da loja (tablet): só a Lista da vez, sem informações gerenciais; gerente: tudo das lojas dele
+const papelEu=()=>ui.verComo?'loja':(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel)||'';
+const soLista=()=>!demo&&papelEu()==='loja';
 /* ================= fotos (RH e gerente de loja) ================= */
-const podeFoto=()=>!demo&&!PAINEL.leitura&&(isAdmin||(PAINEL.eu&&PAINEL.eu.papel==='loja'));
+const podeFoto=()=>!demo&&!PAINEL.leitura&&(isAdmin||papelEu()==='gerente');
 const pessoaFoto=id=>{const v=S.vend[id],g=S.ger[id];return v?{nome:v.nomeCompleto||v.nome,loja:v.lojaId,tipo:'Vendedor'}:g?{nome:g.nomeCompleto||g.nome,loja:(g.lojas||[])[0],tipo:'Gerente'}:null};
 function reduzirFoto(file){return new Promise((ok,erro)=>{const r=new FileReader();r.onerror=()=>erro(new Error('Não consegui ler a imagem.'));r.onload=()=>{const im=new Image();im.onerror=()=>erro(new Error('Arquivo não é uma imagem válida.'));im.onload=()=>{
   const t=200,c=document.createElement('canvas');c.width=t;c.height=t;const k=Math.min(im.width,im.height),x=(im.width-k)/2,y=(im.height-k)/3;c.getContext('2d').drawImage(im,x,Math.max(0,y),k,k,0,0,t,t);ok(c.toDataURL('image/jpeg',.8))};im.src=r.result};r.readAsDataURL(file)})}
@@ -1846,7 +1850,7 @@ render();
   dbState=db?'ok':'none';
   if(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='vendedor'){meuIniciarSite();return}
   try{userCap=window.claude&&window.claude.use?await window.claude.use('user'):null}catch(e){userCap=null}
-  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'&&PAINEL.eu.loja){ui.f.lojas=[PAINEL.eu.loja];if(ui.route==='visao')ui.route='lista'}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
+  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
   $('#userNm').textContent=ME.name||(isAdmin?'Editor':'Usuário');$('#userAv').textContent=iniciais(ME.name||'U');
   if(db)subscribe();
   if(!db&&!demo){entrarDemo();return}
