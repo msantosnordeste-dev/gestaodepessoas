@@ -327,7 +327,7 @@ tr.child>td:first-child{padding-left:42px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=4"></script>
+<script src="ponte.js?v=5"></script>
 </head>
 <body>
 
@@ -438,7 +438,7 @@ const svg=(k,c='')=>`<svg viewBox="0 0 24 24" class="${c}" aria-hidden="true">${
 const vazio=t=>`<div class="empty"><svg viewBox="0 0 64 64"><path d="M14 6h26l10 10v42H14z"/><path d="M40 6v10h10M20 26h20M20 33h14M20 40h10"/><circle cx="40" cy="40" r="9"/><path d="m47 47 8 8"/></svg><span>${t}</span></div>`;
 
 /* ================= estado e dados ================= */
-const COLS={lojas:'lojas',vendedores:'vend',gerentes:'ger',metas:'metas',metasArquivo:'arq',filas:'filas',atendimentos:'atend',vendas:'vendas',vendasDia:'vdia',jornada:'jor',cpfs:'cpfs',pendentes:'pend',rh:'rh',rankings:'rank',feedbacks:'fb',validacoes:'val',config:'cfg'};
+const COLS={lojas:'lojas',vendedores:'vend',gerentes:'ger',metas:'metas',metasArquivo:'arq',filas:'filas',atendimentos:'atend',vendas:'vendas',vendasDia:'vdia',jornada:'jor',cpfs:'cpfs',pendentes:'pend',rh:'rh',rankings:'rank',feedbacks:'fb',validacoes:'val',vendasCnpj:'cnpj',config:'cfg'};
 const KEY=COLS;
 const blank=()=>Object.fromEntries(Object.values(COLS).map(k=>[k,{}]));
 const LIVE=blank();
@@ -628,7 +628,7 @@ fromHash();
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);const cur=ui.route==='loja'?'loja-'+ui.loja:ui.route;if(h&&h!==cur)go(h)});
 
 function navHtml(){
-  const pend=Object.keys(S.pend).length;
+  const pend=Object.keys(S.pend).length+cnpjPend();
   const it=(r,ic,t,extra='')=>`<a data-go="${r}" class="${ui.route===r?'on leaf':''}" href="#${r}">${ic?svg(ic):''}<span>${esc(t)}</span>${extra}</a>`;
   const grp=g=>{const ks=Object.keys(R).filter(k=>R[k].g===g&&(!R[k].adm||isAdmin));if(!ks.length)return'';const on=ks.includes(ui.route);
     return`<a data-act="grp" data-v="${g}" class="${on?'on':''}" href="#${ks[0]}" aria-expanded="${!!ui.menu[g]}">${svg(GRP[g].ic)}<span>${GRP[g].t}</span></a>${ui.menu[g]?`<div class="sub">${ks.map(k=>`<a data-go="${k}" class="${ui.route===k?'on':''}" href="#${k}">${esc(R[k].t)}</a>`).join('')}</div>`:''}`};
@@ -715,7 +715,7 @@ setInterval(tick,1000);
 const NOMES={};let nomesPend=false;
 const nomeUsuario=id=>!id?'—':(id==='demo'?'Supervisão (demonstração)':(NOMES[id]||'Usuário do painel'));
 async function resolverNomes(){if(nomesPend||!userCap||demo)return;const ids=new Set();
-  Object.values(S.fb).forEach(f=>{if(f.autorId)ids.add(f.autorId);(f.comentarios||[]).forEach(c=>c.autorId&&ids.add(c.autorId))});Object.values(S.rank).forEach(r=>r.autorId&&ids.add(r.autorId));Object.values(S.val).forEach(v=>v.porId&&ids.add(v.porId));
+  Object.values(S.fb).forEach(f=>{if(f.autorId)ids.add(f.autorId);(f.comentarios||[]).forEach(c=>c.autorId&&ids.add(c.autorId))});Object.values(S.rank).forEach(r=>r.autorId&&ids.add(r.autorId));Object.values(S.val).forEach(v=>v.porId&&ids.add(v.porId));Object.values(S.cnpj||{}).forEach(v=>v.decididoPor&&ids.add(v.decididoPor));
   const falta=[...ids].filter(id=>!(id in NOMES)).slice(0,64);if(!falta.length)return;nomesPend=true;
   try{const ps=await userCap.profiles(falta);falta.forEach(id=>{NOMES[id]=(ps&&ps[id]&&ps[id].name)||''})}catch(e){falta.forEach(id=>NOMES[id]='')}
   nomesPend=false;scheduleRender()}
@@ -1020,8 +1020,9 @@ function rkForm(tipo,id){const r=id?JSON.parse(JSON.stringify(S.rank[id])):{tipo
     <div class="ft"><button class="btn" data-act="mFechar">Cancelar</button><button class="btn pri" data-act="rkSalvar">Salvar</button></div>`}})}
 
 /* ================= Validação ================= */
-function vValid(){const tab=isAdmin?ui.valTab:'dias',pend=Object.keys(S.pend).length;
-  const tabs=isAdmin?`<div class="tabs" role="tablist"><button data-act="valTab" data-v="dias" aria-selected="${tab==='dias'}">Dias da loja</button><button data-act="valTab" data-v="cpf" aria-selected="${tab==='cpf'}">Vendas sem vendedor (TOTVS)${pend?` · ${pend}`:''}</button></div>`:'';
+function vValid(){const tab=isAdmin?ui.valTab:'dias',pend=Object.keys(S.pend).length,pc=cnpjPend();
+  const tabs=isAdmin?`<div class="tabs" role="tablist"><button data-act="valTab" data-v="dias" aria-selected="${tab==='dias'}">Dias da loja</button><button data-act="valTab" data-v="cpf" aria-selected="${tab==='cpf'}">Vendas sem vendedor (TOTVS)${pend?` · ${pend}`:''}</button><button data-act="valTab" data-v="cnpj" aria-selected="${tab==='cnpj'}">Vendas para CNPJ${pc?` · ${pc}`:''}</button></div>`:'';
+  if(tab==='cnpj')return`<div class="ph"><div><h1>Validação</h1><div class="sub">Vendas da operação 600 feitas para cliente CNPJ: só contam para o vendedor e a loja se o RH aprovar</div></div></div>`+tabs+valCnpj();
   if(tab==='cpf')return`<div class="ph"><div><h1>Validação</h1><div class="sub">Vendas do TOTVS cujo CPF não está ligado a nenhum vendedor</div></div></div>`+tabs+valCpf();
   const lid=loja1(),m=ui.f.mesMeta;
   if(!lid)return`<div class="ph"><div><h1>Validação</h1><div class="sub">Confirme, dia a dia, se os números de venda conferem com o fechamento do caixa</div></div></div>`+tabs+vazio('Nenhuma informação para exibir. Selecione uma loja nos filtros.')+'<div class="row" style="justify-content:center"><button class="btn pri" data-act="filtros">Abrir filtros</button></div>';
@@ -1037,6 +1038,21 @@ function valModal(d){const lid=loja1();abrir({d,lid,render(){const a=dayAgg(this
   <div class="tbl"><table><thead><tr><th>Vendedor</th><th class="n">Vendas</th><th class="n">Peças</th><th class="n">Valor</th><th class="n">Atendimentos</th></tr></thead><tbody>${ids.map(v=>`<tr><td>${esc(nomeV(v))}</td><td class="n">${a.by[v].qtd}</td><td class="n">${a.by[v].pecas}</td><td class="n">${brl(a.by[v].valor)}</td><td class="n">${a.by[v].atend}</td></tr>`).join('')}
   <tr class="tot"><td>Total</td><td class="n">${a.tot.qtd}</td><td class="n">${a.tot.pecas}</td><td class="n">${brl(a.tot.valor)}</td><td class="n">${a.tot.atend}</td></tr></tbody></table></div>
   <div class="ft"><button class="btn" data-act="mFechar">Cancelar</button><button class="btn pri" data-act="valOk">Confirmar validação</button></div>`}})}
+const cnpjPend=()=>Object.values(S.cnpj||{}).filter(x=>x.status==='pendente').length;
+function valCnpj(){const d=dis(),f=ui.cnpjVer||'pendente',ls=new Set(lojasSel());
+  const todos=Object.entries(S.cnpj||{}).filter(([,x])=>!x.lojaId||ls.has(x.lojaId)),cont=k=>todos.filter(([,x])=>k==='todas'||x.status===k).length;
+  const l=todos.filter(([,x])=>f==='todas'||x.status===f).sort((a,b)=>String(b[1].data).localeCompare(String(a[1].data))||String(b[1].hora).localeCompare(String(a[1].hora)));
+  const fb=(k,t)=>`<button class="btn sm ${f===k?'pri':''}" data-act="cnpjVer" data-v="${k}">${t} · ${cont(k)}</button>`;
+  const st=x=>x.status==='aprovada'?'<span class="pill ok">Aprovada · conta</span>':x.status==='recusada'?'<span class="pill bad">Recusada · não conta</span>':'<span class="pill warn">Aguardando RH</span>';
+  const quem=x=>x.decididoPor?`<div class="muted sm">${esc(nomeUsuario(x.decididoPor))} · ${fmtD(String(x.decididoEm||'').slice(0,10))}</div>`:'';
+  return`<div class="card"><p class="muted" style="margin:0">Aprovar: a venda entra no resultado do vendedor e da loja. Recusar: a venda fica fora do painel. Você pode desfazer a decisão a qualquer momento.</p>
+  <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">${fb('pendente','Aguardando')}${fb('aprovada','Aprovadas')}${fb('recusada','Recusadas')}${fb('todas','Todas')}</div>
+  ${l.length?`<div class="tbl"><table><thead><tr><th>Data</th><th>Loja</th><th>Vendedor</th><th>Cliente (CNPJ)</th><th>Nota</th><th class="n">Peças</th><th class="n">Valor</th><th>Situação</th><th>Ações</th></tr></thead><tbody>
+  ${l.map(([id,x])=>`<tr><td>${fmtD(x.data)}${x.hora?` <span class="muted sm">${esc(String(x.hora).slice(0,5))}</span>`:''}</td><td>${esc(nomeLoja(x.lojaId))}</td>
+    <td>${x.vendedorId&&(S.vend[x.vendedorId]||S.ger[x.vendedorId])?esc(nomeV(x.vendedorId)):`Código ${esc(x.codVendedor||'—')} <span class="pill warn">sem cadastro</span>`}</td>
+    <td>${esc(x.cliente||'—')}</td><td class="mono">${esc(x.cupom||'')}${x.filial?` <span class="muted sm">fil. ${esc(x.filial)}</span>`:''}</td><td class="n">${int(+x.pecas||0)}</td><td class="n">${brl(+x.valor||0)}</td><td>${st(x)}${quem(x)}</td>
+    <td><div class="row">${x.status==='pendente'?`<button class="btn sm pri" data-act="cnpjDecidir" data-v="${esc(id)}" data-s="aprovada" ${d}>Aprovar</button><button class="btn sm" data-act="cnpjDecidir" data-v="${esc(id)}" data-s="recusada" ${d}>Recusar</button>`:`<button class="btn sm" data-act="cnpjDecidir" data-v="${esc(id)}" data-s="pendente" ${d}>Desfazer</button>`}</div></td></tr>`).join('')}
+  </tbody></table></div>`:vazio(f==='pendente'?'Nenhuma venda para CNPJ aguardando validação.':'Nenhuma venda para exibir.')}</div>`}
 function valCpf(){const d=dis(),grupos={};Object.entries(S.pend).forEach(([pid,p])=>{(grupos[p.cpf]=grupos[p.cpf]||[]).push(p)});
   const gl=Object.entries(grupos).sort((x,y)=>y[1].length-x[1].length),optV=Object.entries(S.vend).filter(([,v])=>sitV(v)!=='desligado').sort((a,b)=>(a[1].nome||'').localeCompare(b[1].nome||'','pt-BR'));
   return`<div class="card"><p class="muted" style="margin:0">Escolha o vendedor para ligar o CPF: todas as vendas desse CPF entram nos indicadores e as próximas importações já chegam vinculadas.</p>
@@ -1430,7 +1446,11 @@ const ACT={
   rkExcluir(el){const id=el.dataset.v;if(ui.tabs.rkDel!==id){ui.tabs.rkDel=id;render();return}ops.del('rankings',id);ui.rkView=null;toast('Ranking excluído.')},
   rkSalvar(){const m=ui.modal,r=m.r;if(!r.nome.trim()){toast('Informe o nome do ranking.');return}if(!r.ini||!r.fim||r.fim<r.ini){toast('Confira as datas de início e fim.');return}if(!r.lojas.length){toast('Escolha ao menos uma loja.');return}
     const id=m.id||nid();ops.set('rankings',id,{...r,nome:r.nome.trim(),qtd:Math.max(1,+r.qtd||10),autorId:m.id?(S.rank[m.id].autorId||ME.id||'demo'):(ME.id||'demo'),criadoEm:m.id?(S.rank[m.id].criadoEm||new Date().toISOString()):new Date().toISOString()});fechar_();toast('Ranking salvo.')},
-  valTab(el){ui.valTab=el.dataset.v;render()},valVer(el){valModal(el.dataset.v)},
+  valTab(el){ui.valTab=el.dataset.v;render()},
+  cnpjVer(el){ui.cnpjVer=el.dataset.v;render()},
+  cnpjDecidir(el){const id=el.dataset.v,s=el.dataset.s,x=S.cnpj[id];if(!x)return;
+    const n=s==='pendente'?{...x,status:'pendente',decididoPor:null,decididoEm:null}:{...x,status:s,decididoPor:ME.id||'demo',decididoEm:new Date().toISOString()};
+    Promise.resolve(ops.set('vendasCnpj',id,n)).then(()=>{if(!demo&&isAdmin)return rpcT('importar')}).then(()=>toast(s==='aprovada'?'Venda aprovada: já conta para o vendedor e a loja.':s==='recusada'?'Venda recusada: fica fora do painel.':'Decisão desfeita: a venda voltou para aguardando.')).catch(e=>toast(errMsg(e)))},valVer(el){valModal(el.dataset.v)},
   valOk(){const m=ui.modal;ops.set('validacoes',m.lid+'_'+m.d,{lojaId:m.lid,data:m.d,porId:ME.id||'demo',em:new Date().toISOString()});fechar_();toast('Dia '+fmtD(m.d)+' validado.')},
   valDesfazer(el){const lid=loja1();ops.del('validacoes',lid+'_'+el.dataset.v);toast('Validação desfeita.')},
   async vincular(el){const c=el.dataset.v,vid=document.getElementById('pv-'+c)?.value;if(!vid){toast('Escolha o vendedor.');return}
