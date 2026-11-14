@@ -327,7 +327,7 @@ tr.child>td:first-child{padding-left:42px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=7"></script>
+<script src="ponte.js?v=8"></script>
 </head>
 <body>
 
@@ -502,26 +502,26 @@ function idx(){return memo('idx',()=>{
   for(const a of Object.values(S.atend)){if(!a||!a.data)continue;push(A,a.lojaId+'|'+a.data,a);if(!lastA[a.lojaId]||a.data>lastA[a.lojaId])lastA[a.lojaId]=a.data}
   const noResumo=new Set();
   for(const r of Object.values(S.vdia||{})){if(!r||!r.data||!r.lojaId)continue;(r.ids||[]).forEach(i=>noResumo.add(i));Object.values(r.fil||{}).forEach(f=>(f.ids||[]).forEach(i=>noResumo.add(i)));
-    for(const[vid,x]of Object.entries(r.vend||{}))push(V,r.lojaId+'|'+r.data,{vendedorId:vid,lojaId:r.lojaId,data:r.data,valor:+x.valor||0,pecas:+x.pecas||0,n:+x.qtd||0,resumo:1});
+    for(const[vid,x]of Object.entries(r.vend||{}))push(V,r.lojaId+'|'+r.data,{vendedorId:vid,lojaId:r.lojaId,data:r.data,valor:+x.valor||0,pecas:+x.pecas||0,n:+x.qtd||0,vt:x.vt!=null?+x.vt||0:null,pt:x.pt!=null?+x.pt||0:null,resumo:1});
     if(!lastV[r.lojaId]||(r.atualizadoEm||r.data)>lastV[r.lojaId])lastV[r.lojaId]=r.atualizadoEm||r.data}
   for(const[id,v]of Object.entries(S.vendas)){if(!v||!v.data||noResumo.has(id))continue;push(V,v.lojaId+'|'+v.data,v);if(!lastV[v.lojaId]||(v.importadoEm||v.data)>lastV[v.lojaId])lastV[v.lojaId]=v.importadoEm||v.data}
   for(const j of Object.values(S.jor)){if(!j||!j.data)continue;push(J,j.lojaId+'|'+j.data,j)}
   return{A,V,J,lastA,lastV};
 })}
-const mk=()=>({atend:0,opp:0,conv:0,trocas:0,perdas:0,pref:0,fv:0,ts:0,tn:0,valor:0,qtd:0,pecas:0,uP:0,uMin:0,mais:0,menos:0,L:0,hasT:0});
-const ADD=['atend','opp','conv','trocas','perdas','pref','fv','ts','tn','valor','qtd','pecas','uP','uMin','mais','menos','L','hasT'];
+const mk=()=>({atend:0,opp:0,conv:0,trocas:0,perdas:0,pref:0,fv:0,ts:0,tn:0,valor:0,qtd:0,pecas:0,vt:0,pt:0,uP:0,uMin:0,mais:0,menos:0,L:0,hasT:0});
+const ADD=['vt','pt','atend','opp','conv','trocas','perdas','pref','fv','ts','tn','valor','qtd','pecas','uP','uMin','mais','menos','L','hasT'];
 function dayAgg(lid,d){return memo('da|'+lid+'|'+d,()=>{
   const ix=idx(),k=lid+'|'+d,A=ix.A.get(k)||[],T=ix.V.get(k)||[],hasT=T.length>0,by={},tot=mk();
   const g=vid=>by[vid]||(by[vid]=mk());
   for(const a of A){const s=g(a.vendedorId);for(const t of[s,tot]){t.atend++;if(a.resultado==='troca')t.trocas++;else t.opp++;if(a.resultado==='venda'){t.conv++;t.L++}if(a.resultado==='perda')t.perdas++;if(a.pref)t.pref++;if(a.foraDaVez)t.fv++;if(a.fim&&a.inicio){t.ts+=a.fim-a.inicio;t.tn++}}}
   const sales=hasT?T:A.filter(a=>a.resultado==='venda');
-  for(const v of sales){const s=g(v.vendedorId),n=v.resumo?(+v.n||0):1;for(const t of[s,tot]){t.valor+=+v.valor||0;t.qtd+=n;t.pecas+=+v.pecas||0}}
+  for(const v of sales){const s=g(v.vendedorId),n=v.resumo?(+v.n||0):1;for(const t of[s,tot]){t.valor+=+v.valor||0;t.qtd+=n;t.pecas+=+v.pecas||0;t.vt+=v.vt!=null?v.vt:(+v.valor||0);t.pt+=v.pt!=null?v.pt:(+v.pecas||0)}}
   if(hasT){const P={};T.forEach(v=>{P[v.vendedorId]=(P[v.vendedorId]||0)+(v.resumo?(+v.n||0):1)});
     for(const vid of new Set(Object.keys(P).concat(Object.keys(by)))){const s=g(vid),p=P[vid]||0,l=s.L;s.uP=p;s.uMin=Math.min(l,p);s.mais=Math.max(0,l-p);s.menos=Math.max(0,p-l);s.hasT=1;tot.uP+=p;tot.uMin+=s.uMin;tot.mais+=s.mais;tot.menos+=s.menos}
     tot.hasT=1}
   return{tot,by};
 })}
-function fechar(t){t.cv=t.opp?t.conv/t.opp:NaN;t.pa=t.qtd?t.pecas/t.qtd:NaN;t.ticket=t.qtd?t.valor/t.qtd:NaN;t.preco=t.pecas?t.valor/t.pecas:NaN;t.usab=t.uP?t.uMin/t.uP:NaN;t.tempo=t.tn?t.ts/t.tn:NaN;return t}
+function fechar(t){t.cv=t.opp?t.conv/t.opp:NaN;t.pa=t.qtd?(t.pt??t.pecas)/t.qtd:NaN;t.ticket=t.qtd?(t.vt??t.valor)/t.qtd:NaN;t.preco=t.pecas?t.valor/t.pecas:NaN;t.usab=t.uP?t.uMin/t.uP:NaN;t.tempo=t.tn?t.ts/t.tn:NaN;return t}
 /* indicadores somados em um intervalo de datas, para lojas e (opcional) vendedores */
 function stats(ini,fim,lojas,vids){
   const key='st|'+ini+'|'+fim+'|'+lojas.join(',')+'|'+(vids?[...vids].join(','):'');
