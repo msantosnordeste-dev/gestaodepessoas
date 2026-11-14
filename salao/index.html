@@ -322,12 +322,13 @@ tr.child>td:first-child{padding-left:42px}
 #pLogin input:focus{outline:2px solid #1A56DB33;border-color:#1A56DB}
 #pLogin button{width:100%;padding:11px;border:0;border-radius:8px;background:#1A56DB;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit}
 #pLogin button:disabled{opacity:.6}#pLogin .pl-msg{min-height:18px;color:#B42318;font-size:13px;margin:0 0 10px}#pLogin .pl-ajuda{color:#667085;font-size:12.5px;margin:14px 0 0;text-align:center}
+#meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}
 #verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
 #pInstalar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9000;display:flex;gap:8px;align-items:center;background:#17418F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.25);cursor:pointer}#pInstalar span{opacity:.8;font-weight:500}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=8"></script>
+<script src="ponte.js?v=9"></script>
 </head>
 <body>
 
@@ -682,7 +683,7 @@ let pend=false,deferred=false;
 function editing(){const a=document.activeElement;return a&&a.closest&&a.closest('#main,#modalHost')&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&!/^(checkbox|radio|file|search)$/.test(a.type)}
 function scheduleRender(){if(pend)return;pend=true;requestAnimationFrame(()=>{pend=false;if(editing()){deferred=true;return}render()})}
 document.addEventListener('focusout',()=>{if(deferred){deferred=false;setTimeout(scheduleRender,0)}});
-function render(){if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}try{verComoBar()}catch(e){}
+function render(){if(MEU.site){meuRender();return}if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}try{verComoBar()}catch(e){}
   if(R[ui.route]?.adm&&!isAdmin)ui.route='visao';
   $('#nav').innerHTML=navHtml();
   const r=R[ui.route];
@@ -1258,7 +1259,7 @@ function vVends(){const f=ui.f,ls=new Set(lojasSel()),st=new Set(f.status.length
   return`<div class="ph"><div><h1>Cadastro de Vendedores</h1><div class="sub">${l.length} vendedor(es) · ${[...st].map(s=>SITL[s]).join(', ')}</div></div><div class="row"><input type="search" data-ch="tabSel" data-k="vbusca" value="${esc(ui.tabs.vbusca||'')}" placeholder="Buscar por nome" aria-label="Buscar vendedor"><button class="btn pri" data-act="vendNovo">Cadastrar</button></div></div>
   ${l.length?`<div class="tbl"><table><thead><tr><th>Foto</th><th>Nome</th><th>Nome completo</th><th>Documento</th><th>Tipo</th><th>Cargo</th><th>Loja</th><th>Código PDV</th><th>Início</th><th>Fim</th><th>Situação</th><th></th></tr></thead><tbody>
   ${vis.map(([id,v])=>{const s=sitV(v),c=cpfDe(id);return`<tr><td>${av(v.nome,id)}</td><td>${esc(v.nome)}</td><td>${esc(v.nomeCompleto||'')}</td><td class="mono">${c?fmtCpf(c):esc(v.cpfMasc||'')}${!v.cpfMasc?'<span class="pill bad">sem CPF</span>':''}</td><td class="${v.tipo==='temporario'?'yellow':'green'}">${v.tipo==='temporario'?'Temporário':'Fixo'}</td><td>Vendedor</td><td>${esc(S.lojas[v.lojaId]?.nome||'—')}</td><td>${esc(v.codPdv||'')}</td><td>${fmtD(v.inicio)}</td><td>${fmtD(v.fim)}</td>
-    <td><span class="pill ${s==='ativo'?'ok':s==='ausente'?'blue':''}">${SITL[s]}</span></td><td class="n"><div class="dd"><button class="btn sm dark" data-act="dd" data-v="v:${esc(id)}">Ações ${svg('down')}</button>${ui.tabs.dd==='v:'+id?`<div class="dd-m"><button data-go="loja-${esc(v.lojaId)}">Painel da loja</button><button data-act="vendEditar" data-v="${esc(id)}">Editar dados pessoais</button><button data-act="vendPeriodo" data-v="${esc(id)}">Editar período na loja</button><button data-act="vendAus" data-v="${esc(id)}">Férias ou inativar</button><button data-act="vendPromover" data-v="${esc(id)}">Promover a gerente</button><button data-act="vendHist" data-v="${esc(id)}">Histórico</button>${isAdmin&&!demo?`<button data-act="vendOps" data-v="${esc(id)}">Operações de venda${v.opsModo==='escolher'?' · classificadas':''}</button>`:''}</div>`:''}</div></td></tr>`}).join('')}</tbody></table></div>
+    <td><span class="pill ${s==='ativo'?'ok':s==='ausente'?'blue':''}">${SITL[s]}</span></td><td class="n"><div class="dd"><button class="btn sm dark" data-act="dd" data-v="v:${esc(id)}">Ações ${svg('down')}</button>${ui.tabs.dd==='v:'+id?`<div class="dd-m"><button data-go="loja-${esc(v.lojaId)}">Painel da loja</button><button data-act="vendEditar" data-v="${esc(id)}">Editar dados pessoais</button><button data-act="vendPeriodo" data-v="${esc(id)}">Editar período na loja</button><button data-act="vendAus" data-v="${esc(id)}">Férias ou inativar</button><button data-act="vendPromover" data-v="${esc(id)}">Promover a gerente</button><button data-act="vendHist" data-v="${esc(id)}">Histórico</button>${isAdmin&&!demo?`<button data-act="vendOps" data-v="${esc(id)}">Operações de venda${v.opsModo==='escolher'?' · classificadas':''}</button><button data-act="vendResetSenha" data-v="${esc(id)}">${ui.tabs.rs===id?'Confirmar: senha volta a ser o CPF':'Redefinir senha do colaborador'}</button>`:''}</div>`:''}</div></td></tr>`}).join('')}</tbody></table></div>
   ${np>1?`<div class="row" style="justify-content:center">${Array.from({length:np},(_,i)=>`<button class="btn sm${i===pgc?' dark':''}" data-act="tab" data-k="vpg" data-v="${i}">${i+1}</button>`).join('')}</div>`:''}`:vazio('Nenhum vendedor com estes filtros.')}`}
 function opsForm(vid){const v=S.vend[vid];if(!v)return;
   abrir({vid,modo:v.opsModo==='escolher'?'escolher':'todas',sel:new Set(Array.isArray(v.opsContam)?v.opsContam.map(String):[]),lista:null,erro:null,render(){
@@ -1380,7 +1381,7 @@ function vLista(){const ls=lojasAtivas();if(!ls.length)return semLojas();if(!S.l
   const lid=ui.lojaOp,f=fila(lid),vs=vendLoja(lid),h=hoje(),t=stats(h,h,[lid]),md=metaAtual(lid,h),d=dis();
   const ordem=f.ordem.filter(id=>S.vend[id]),at=Object.entries(f.atendendo).filter(([id])=>S.vend[id]).sort((a,b)=>a[1].inicio-b[1].inicio),pa=Object.entries(f.fora).filter(([id])=>S.vend[id]),fora=vs.filter(([id])=>!ordem.includes(id)&&!f.atendendo[id]&&!f.fora[id]);
   const rks=Object.values(S.rank).filter(r=>r.tablet!==false&&rkStatus(r)==='atual'&&(r.lojas||[]).includes(lid)).slice(0,2);
-  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${DOW[dow(h)]}, ${fmtD(h)} · tela para o tablet da loja</div></div><label class="f" style="min-width:240px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label></div>
+  return`<div class="ph"><div><h1>Lista da vez</h1><div class="sub">${DOW[dow(h)]}, ${fmtD(h)} · tela para o tablet da loja</div></div><div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap"><button class="btn pri" data-act="meuAbrir" title="O colaborador entra com CPF e senha e vê só os próprios números">👤 Minhas vendas e metas</button><label class="f" style="min-width:240px">Loja<select data-ch="lojaOp">${ls.map(([l,x])=>`<option value="${esc(l)}"${l===lid?' selected':''}>${esc(x.nome)}</option>`).join('')}</select></label></div></div>
   <div class="row" style="gap:12px;align-items:stretch">${[['Vendas hoje',brl(t.valor),fin(md)?`Meta do dia ${brl0(md)} · ${pct(md?t.valor/md:NaN,0)}`:'Sem meta cadastrada'],['Atendimentos',int(t.atend),`${t.conv} com venda · ${t.perdas} sem venda`],['Conversão',pct(t.cv),'vendas ÷ oportunidades'],['Ticket médio',brl(t.ticket),fin(t.pa)?num(t.pa)+' peças por venda':'']].map(([a,b,c])=>`<div class="card" style="flex:1;min-width:170px;gap:2px"><span class="muted sm">${a}</span><span class="big">${b}</span><span class="muted sm">${c}</span></div>`).join('')}</div>
   ${rks.length?`<div class="row">${rks.map(r=>{const c=rkCalc(r);return`<div class="card" style="flex:1;min-width:260px;gap:6px"><b>${esc(r.emoji||'🏆')} ${esc(r.nome)}</b><span class="muted sm">${indNome(r.indicador)} · até ${fmtD(r.fim)}${r.premio?' · Prêmio: '+esc(r.premio):''}</span>${c.lista.slice(0,3).map((x,i)=>`<span class="sm">${i+1}º ${esc(x.nome)} · <b>${indFmt(r.indicador,x.val)}</b></span>`).join('')||'<span class="muted sm">Sem dados ainda.</span>'}</div>`}).join('')}</div>`:''}
   ${!vs.length?vazio('Esta loja ainda não tem vendedores ativos.'):`<div class="q-cols">
@@ -1457,6 +1458,8 @@ const ACT={
     const id=m.id||nid();ops.set('rankings',id,{...r,nome:r.nome.trim(),qtd:Math.max(1,+r.qtd||10),autorId:m.id?(S.rank[m.id].autorId||ME.id||'demo'):(ME.id||'demo'),criadoEm:m.id?(S.rank[m.id].criadoEm||new Date().toISOString()):new Date().toISOString()});fechar_();toast('Ranking salvo.')},
   valTab(el){ui.valTab=el.dataset.v;render()},
   vendOps(el){ui.tabs.dd=null;opsForm(el.dataset.v)},
+  async vendResetSenha(el){const vid=el.dataset.v;if(ui.tabs.rs!==vid){ui.tabs.rs=vid;render();return}ui.tabs.rs=null;ui.tabs.dd=null;render();
+    try{await PAINEL.fn('painel-vendedores',{acao:'resetar',vid});toast('Senha redefinida: o colaborador entra com o CPF como senha e cria uma nova no primeiro acesso.')}catch(e){toast(e.message)}},
   opsSalvar(){const m=ui.modal,v=S.vend[m.vid];if(!v)return;const n={...v,opsModo:m.modo,opsContam:[...m.sel].sort()};
     if(m.modo==='escolher'&&!m.sel.size){toast('Marque pelo menos uma operação ou escolha "Todas as operações contam".');return}
     fechar_();Promise.resolve(ops.set('vendedores',m.vid,n)).then(()=>rpcT('importar')).then(()=>toast('Operações de '+v.nome+' salvas. Resultados recalculados.')).catch(e=>toast(errMsg(e)))},
@@ -1741,7 +1744,8 @@ function vUsuarios(){if(!usr.lista&&!usr.carregando&&!usr.erro)usrCarregar();con
     <label class="f">Senha inicial (mín. 8 caracteres)<input id="nuSenha" type="password" autocomplete="new-password" ${d}></label></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" data-act="usrCriar" ${d}>Criar login</button></div></div>`;
   if(usr.erro)h+=`<div class="card"><p class="sm" style="margin:0;color:var(--bad)">${esc(usr.erro)}</p></div>`;
-  const L=usr.lista||[];
+  const LV=(usr.lista||[]).filter(u=>u.papel==='vendedor'),L=(usr.lista||[]).filter(u=>u.papel!=='vendedor');
+  if(usr.lista)h+=`<div class="card"><p class="sm" style="margin:0"><b>Logins dos colaboradores: ${LV.filter(u=>u.ativo).length} ativo(s).</b> São criados sozinhos a cada 10 minutos para todo vendedor com CPF no cadastro: usuário = CPF, senha inicial = CPF, com troca obrigatória no primeiro acesso. O colaborador vê só os próprios números, pelo site ou no botão "Minhas vendas e metas" da Lista da vez. Para redefinir a senha: Cadastros › Vendedores › Ações.</p></div>`;
   h+=`<div class="card"><div class="hd"><h3>${svg('cad')}Logins cadastrados</h3><span class="muted sm">${usr.carregando?'carregando…':L.length+' login(s)'}</span></div>
   ${L.length?`<div class="tw"><table><thead><tr><th>Login</th><th>Nome</th><th>Tipo</th><th>Loja</th><th>Situação</th><th></th></tr></thead><tbody>${L.map(u=>`<tr${u.ativo?'':' class="muted"'}><td>${esc(u.login)}</td><td>${esc(u.nome||'')}</td><td>${u.papel==='admin'?'Administrador':'Loja'}</td><td>${esc(u.loja_id?nomeLoja(u.loja_id):'—')}</td><td>${u.ativo?'Ativo':'Desativado'}</td>
     <td style="white-space:nowrap">${usr.senhaDe===u.user_id?`<input id="nsSenha" type="password" placeholder="nova senha" autocomplete="new-password" style="width:140px"> <button class="btn sm pri" data-act="usrSenhaOk" data-v="${u.user_id}">Salvar</button>`:`<button class="btn sm" data-act="usrSenha" data-v="${u.user_id}" ${d}>Nova senha</button>`} <button class="btn sm" data-act="usrAtivo" data-v="${u.user_id}" data-a="${u.ativo?0:1}" ${d}>${u.ativo?'Desativar':'Ativar'}</button>${u.papel==='loja'&&u.loja_id?` <button class="btn sm pri" data-act="usrVerComo" data-v="${u.user_id}" title="Ver o painel como esse login enxerga">Ver como</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:`<p class="muted sm" style="margin:0">${usr.carregando?'':'Nenhum login de loja criado ainda.'}</p>`}</div>`;
@@ -1760,11 +1764,68 @@ function verComoBar(){let b=document.getElementById('verComoBar');const v=ui.ver
   if(!v){if(b)b.remove();return}
   if(!b){b=document.createElement('div');b.id='verComoBar';document.body.appendChild(b)}
   b.innerHTML=`<span>👁 Vendo como <b>${esc(v.login)}</b> · ${esc(nomeLoja(v.loja))} — só visualização, nada é gravado</span><button class="btn sm" data-act="verComoSair">Voltar ao administrador</button>`}
+
+/* ================= Meu desempenho (login do colaborador) ================= */
+const MEU={site:false,cli:null,eu:null,mes:mAt(),dados:null,erro:null,carregando:false,tablet:false};
+function meuCalc(d){const old=S;S=blank();const lid=d.loja,vid=d.vid;
+  S.lojas[lid]=d.lojaDoc||{nome:'Loja'};Object.assign(S.vend,d.vendedores||{});Object.assign(S.metas,d.metas||{});Object.assign(S.vdia,d.vendasDia||{});Object.assign(S.atend,d.atendimentos||{});bump();
+  try{const mes=MEU.mes,mn=metaNorm(lid,mes),ini=mn?mn.ini:mes+'-01',fim=mn?mn.fim:fimMes(mes),h=hoje(),ate=fim<h?fim:h;
+    const s=ate>=ini?stats(ini,ate,[lid],[vid]):fechar(mk());
+    const niveis=[];if(mn)for(let i=0;i<5;i++){if(fin(mn.niveis[i])&&mn.niveis[i]>0){const v=metaRange([lid],ini,fim,vid,i);if(v>0)niveis.push([i+1,v])}}
+    const meta=niveis.length?niveis[0][1]:0,metaHoje=h>=ini&&h<=fim?metaAtual(lid,h,vid):NaN;
+    const dias=ate>=ini?diasEntre(ini,ate).map(x=>{const sd=stats(x,x,[lid],[vid]);return{d:x,v:sd.valor,q:sd.qtd,m:metaRange([lid],x,x,vid)}}).reverse():[];
+    return{lid,vid,nome:(d.vendedores[vid]||{}).nome||'',nomeCompleto:(d.vendedores[vid]||{}).nomeCompleto||'',loja:(d.lojaDoc||{}).nome||'',ini,fim,s,niveis,meta,metaHoje,dias,col:d.colocacao||{}}}
+  finally{S=old;bump()}}
+function meuHtml(){if(MEU.erro)return`<div class="card"><p class="red" style="margin:0">${esc(MEU.erro)}</p></div>`;if(!MEU.dados)return'<p class="muted">Carregando seus números…</p>';
+  const c=meuCalc(MEU.dados),s=c.s,p=c.meta?s.valor/c.meta:NaN,falta=Math.max(0,c.meta-s.valor),col=c.col;
+  const ms=[];for(let i=0;i<4;i++){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);ms.push(iso(d).slice(0,7))}
+  const barra=(v,m)=>{const q=m?Math.min(1,v/m):0;return`<div style="height:10px;border-radius:6px;background:var(--sunk);overflow:hidden"><div style="height:100%;width:${(q*100).toFixed(1)}%;background:${q>=1?'var(--ok,#12B76A)':'var(--pri)'}"></div></div>`};
+  return`<div class="ph"><div><h1>Olá, ${esc(c.nome||'colaborador')}</h1><div class="sub">${esc(c.loja)} · ${fmtD(c.ini)} a ${fmtD(c.fim)}</div></div>
+    <label class="f" style="min-width:170px">Mês<select data-ch="meuMes">${ms.map(m=>`<option value="${m}"${m===MEU.mes?' selected':''}>${nomeMes(m)}</option>`).join('')}</select></label></div>
+  <div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+    <div class="card"><span class="muted sm">Minhas vendas no mês</span><b style="font-size:26px">${brl(s.valor)}</b>${c.meta?barra(s.valor,c.meta):''}<span class="muted sm">${c.meta?`${pct(p)} da 1ª meta`:'Sem meta cadastrada'}</span></div>
+    <div class="card"><span class="muted sm">1ª meta do mês</span><b style="font-size:26px">${c.meta?brl(c.meta):'—'}</b><span class="muted sm">${c.meta?(falta>0?`Faltam ${brl(falta)}`:'Meta batida! 🎉'):''}</span></div>
+    <div class="card"><span class="muted sm">Minha colocação na loja</span><b style="font-size:26px">${col.posicao?`${col.posicao}º <span class="muted" style="font-size:16px;font-weight:500">de ${col.total}</span>`:'—'}</b><span class="muted sm">pelo faturamento bruto do mês${col.bruto?` · ${brl(+col.bruto)}`:''}</span></div>
+    <div class="card"><span class="muted sm">Meta de hoje</span><b style="font-size:26px">${fin(c.metaHoje)?brl(c.metaHoje):'—'}</b><span class="muted sm">recalculada pelo que falta</span></div>
+  </div>
+  ${c.niveis.length>1?`<div class="card"><div class="hd"><h3>Minhas metas</h3></div>${c.niveis.map(([n,v])=>`<div style="display:grid;gap:4px"><div class="row" style="justify-content:space-between"><span>${n}ª meta · ${brl(v)}</span><b>${pct(v?s.valor/v:NaN)}</b></div>${barra(s.valor,v)}</div>`).join('')}</div>`:''}
+  <div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+    <div class="card"><span class="muted sm">Vendas (com nota)</span><b style="font-size:22px">${int(s.qtd)}</b></div>
+    <div class="card"><span class="muted sm">Ticket médio</span><b style="font-size:22px">${brl(s.ticket)}</b></div>
+    <div class="card"><span class="muted sm">Peças por atendimento</span><b style="font-size:22px">${num(s.pa)}</b></div>
+    <div class="card"><span class="muted sm">Taxa de conversão</span><b style="font-size:22px">${pct(s.cv)}</b><span class="muted sm">${int(s.opp)} atendimentos</span></div>
+  </div>
+  <div class="card"><div class="hd"><h3>Dia a dia</h3></div>${c.dias.length?`<div class="tbl"><table><thead><tr><th>Dia</th><th class="n">Vendas</th><th class="n">Meta do dia</th><th class="n">%</th></tr></thead><tbody>${c.dias.map(x=>`<tr><td>${fmtD(x.d)}</td><td class="n">${brl(x.v)}</td><td class="n">${x.m?brl(x.m):'—'}</td><td class="n">${x.m?pct(x.v/x.m):'—'}</td></tr>`).join('')}</tbody></table></div>`:vazio('Sem vendas neste mês ainda.')}</div>
+  <p class="muted sm">Valores do TOTVS, atualizados a cada 10 minutos. Aqui aparecem só os seus números.</p>`}
+async function meuCarregar(){if(!MEU.cli)return;MEU.carregando=true;MEU.erro=null;try{MEU.dados=await PAINEL.colaborador.dados(MEU.cli,MEU.mes)}catch(e){MEU.erro=e.message||'Não foi possível carregar.'}MEU.carregando=false;meuRender()}
+function meuRender(){const html=meuHtml();
+  if(MEU.site){$('#main').innerHTML=html;return}
+  const o=document.getElementById('meuOverlay');if(o)o.querySelector('.meu-corpo').innerHTML=html}
+async function meuIniciarSite(){MEU.site=true;MEU.cli=PAINEL.sb;MEU.eu=PAINEL.eu;
+  document.body.classList.add('modo-colab');$('#side').hidden=true;$('#btnFiltros').hidden=true;$('#btnTotvs').hidden=true;
+  $('#userNm').textContent=PAINEL.eu.nome||'Colaborador';$('#userAv').textContent=iniciais(PAINEL.eu.nome||'C');
+  const tb=document.querySelector('.topbar');if(tb&&!document.getElementById('btnSenha')){const b=document.createElement('button');b.className='btn sm';b.id='btnSenha';b.dataset.act='meuSenha';b.textContent='Trocar senha';tb.insertBefore(b,tb.querySelector('[data-act=sair]'))}
+  meuRender();meuCarregar();setInterval(()=>{if(!document.hidden)meuCarregar()},600000)}
+CH.meuMes=t=>{MEU.mes=t.value;MEU.dados=null;meuRender();meuCarregar()};
+ACT.meuSenha=()=>PAINEL.trocarSenha();
+// no tablet da loja: o colaborador entra com CPF e senha, vê os próprios números e sai
+ACT.meuAbrir=()=>{abrir({cpf:'',render(){return mHd('Minhas vendas e metas')+`<p class="muted" style="margin:0">Entre com o seu CPF e a sua senha. Só você vê os seus números.</p>
+  <label class="f">CPF<input id="meuCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00"></label><label class="f">Senha<input id="meuSenhaIn" type="password" autocomplete="off"></label>
+  <p class="red sm" id="meuMsg" style="margin:0"></p><div class="ft"><button class="btn" data-act="mFechar">Cancelar</button><button class="btn pri" data-act="meuEntrar">Entrar</button></div>`},foco:'#meuCpf'})};
+ACT.meuEntrar=async el=>{const cpf=($('#meuCpf')?.value||'').replace(/\D/g,''),senha=$('#meuSenhaIn')?.value||'',msg=$('#meuMsg');
+  if(cpf.length!==11||!senha){if(msg)msg.textContent='Informe o CPF (11 números) e a senha.';return}el.disabled=true;
+  try{const r=await PAINEL.colaborador.entrar(cpf,senha);fechar_();MEU.cli=r.cli;MEU.eu=r.eu;MEU.mes=mAt();MEU.dados=null;MEU.erro=null;
+    const abrirPainel=()=>{let o=document.getElementById('meuOverlay');if(!o){o=document.createElement('div');o.id='meuOverlay';o.innerHTML=`<div class="meu-top"><b>Minhas vendas · ${esc(r.eu.nome||'')}</b><button class="btn sm" data-act="meuSair">Sair e voltar à lista</button></div><div class="meu-corpo"></div>`;document.body.appendChild(o)}
+      meuRender();meuCarregar();clearTimeout(MEU.tm);MEU.tm=setTimeout(()=>ACT.meuSair(),300000)};
+    if(r.eu.trocaSenha)PAINEL.telaNovaSenha(r.cli,abrirPainel,cpf);else abrirPainel()}
+  catch(e){el.disabled=false;if(msg)msg.textContent=e.message}};
+ACT.meuSair=async()=>{clearTimeout(MEU.tm);const o=document.getElementById('meuOverlay');if(o)o.remove();const c=MEU.cli;MEU.cli=null;MEU.dados=null;if(c&&!MEU.site)await PAINEL.colaborador.sair(c)};
 /* ================= início ================= */
 render();
 (async()=>{
   try{db=window.claude&&window.claude.use?await window.claude.use('db'):null}catch(e){db=null}
   dbState=db?'ok':'none';
+  if(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='vendedor'){meuIniciarSite();return}
   try{userCap=window.claude&&window.claude.use?await window.claude.use('user'):null}catch(e){userCap=null}
   if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'&&PAINEL.eu.loja){ui.f.lojas=[PAINEL.eu.loja];if(ui.route==='visao')ui.route='lista'}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
   $('#userNm').textContent=ME.name||(isAdmin?'Editor':'Usuário');$('#userAv').textContent=iniciais(ME.name||'U');
