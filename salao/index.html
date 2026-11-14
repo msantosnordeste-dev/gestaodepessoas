@@ -1723,7 +1723,7 @@ ACT.tvsSalvar=async()=>{if(tvs.busy)return;const v=id=>($('#'+id)?.value||'').tr
   tvs.busy=true;render();
   try{const ant=(await rpcT('status')).ultimo_id||0;await rpcT('salvar',o);['tvSenha','tvCid','tvCsec'].forEach(id=>{const e=$('#'+id);if(e)e.value=''});
     await rpcT('disparar',{modo:'teste'});const l=await tvsAguardar(ant);
-    if(l&&l.ok){tvs.form=false;tvs.tec=false;toast('Acesso ao TOTVS OK! Buscando as vendas…');tvs.busy=false;await tvsStatus();totvsSync(true);return}
+    if(l&&l.ok){tvs.form=false;tvs.tec=false;tvs.busy=false;await tvsStatus();if(tvs.status&&tvs.status.pausa&&tvs.status.pausa.pausado){toast('Acesso ao TOTVS OK! A API está pausada: clique em Retomar API para voltar a buscar as vendas.');return}toast('Acesso ao TOTVS OK! Buscando as vendas…');totvsSync(true);return}
     toast(l?'Não consegui acessar: '+tvsMsg(l.mensagem).slice(0,180):'O TOTVS não respondeu. Tente de novo em instantes.')}
   catch(e){toast(tvsErro(e))}finally{tvs.busy=false;await tvsStatus();render()}};
 async function totvsIniciar(){tvsBtn();if(!isAdmin||demo)return;tvsStatus();setInterval(()=>{if(!document.hidden)tvsStatus()},300000)}
