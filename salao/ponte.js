@@ -70,7 +70,7 @@
   const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); pedido = e;
-    if (instalado() || document.getElementById('pInstalar') || localStorageGet('pInstalarNao')) return;
+    if (instalado() || document.getElementById('pInstalar') || localStorageGet('pInstalarNao') || document.getElementById('btnApp')) return;
     const b = document.createElement('button'); b.id = 'pInstalar'; b.type = 'button';
     b.innerHTML = 'Instalar app <span>· Lista da Vez</span>';
     b.onclick = async () => { b.remove(); if (!pedido) return; pedido.prompt(); try { const r = await pedido.userChoice; if (r && r.outcome === 'dismissed') localStorageSet('pInstalarNao', '1'); } catch (x) {} pedido = null; };
@@ -79,7 +79,9 @@
   window.addEventListener('appinstalled', () => { const b = document.getElementById('pInstalar'); if (b) b.remove(); });
   function localStorageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function localStorageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  PAINEL.instalar = () => { if (pedido) { pedido.prompt(); pedido = null; return true; } return false; };
+  PAINEL.instalar = () => { if (pedido) { const p = pedido; pedido = null; p.prompt(); return true; } return false; };
+  PAINEL.instalado = () => !!instalado();
+  PAINEL.podeInstalar = () => !!pedido;
   PAINEL.sair = async () => { try { await sb.auth.signOut(); } catch (e) {} location.reload(); };
 
   const pronto = (async () => {

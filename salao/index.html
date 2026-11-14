@@ -328,7 +328,7 @@ tr.child>td:first-child{padding-left:42px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=11"></script>
+<script src="ponte.js?v=12"></script>
 </head>
 <body>
 
@@ -1767,6 +1767,17 @@ function verComoBar(){let b=document.getElementById('verComoBar');const v=ui.ver
   b.innerHTML=`<span>👁 Vendo como <b>${esc(v.login)}</b> · ${esc(nomeLoja(v.loja))} — só visualização, nada é gravado</span><button class="btn sm" data-act="verComoSair">Voltar ao administrador</button>`}
 
 
+
+/* ================= instalar o app (tablet da loja) ================= */
+function appBotao(){if(PAINEL.instalado&&PAINEL.instalado())return;const tb=document.querySelector('.topbar');if(!tb||document.getElementById('btnApp'))return;
+  const b=document.createElement('button');b.className='btn sm pri';b.id='btnApp';b.dataset.act='appInstalar';b.innerHTML='📲 Instalar app';b.title='Instalar a Lista da vez como app neste aparelho';
+  tb.insertBefore(b,tb.querySelector('[data-act=sair]'));const x=document.getElementById('pInstalar');if(x)x.remove();
+  window.addEventListener('appinstalled',()=>{const e=document.getElementById('btnApp');if(e)e.remove();toast('App instalado! Abra pelo ícone "Lista da Vez" na tela inicial.')})}
+ACT.appInstalar=()=>{if(PAINEL.instalar&&PAINEL.instalar())return;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  abrir({render(){return mHd('Instalar o app Lista da Vez')+(ios?`<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b> e toque em <b>Adicionar</b>.</li></ol>`
+    :`<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Google Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto de cima).</li><li>Escolha <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>) e confirme.</li></ol>`)
+    +`<p class="muted sm" style="margin:0">Depois é só abrir pelo ícone <b>Lista da Vez</b> na tela inicial: abre em tela cheia, já com o login da loja.</p><div class="ft"><button class="btn pri" data-act="mFechar">Entendi</button></div>`}})};
 /* ================= papéis ================= */
 // login da loja (tablet): só a Lista da vez, sem informações gerenciais; gerente: tudo das lojas dele
 const papelEu=()=>ui.verComo?'loja':(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel)||'';
@@ -1850,7 +1861,7 @@ render();
   dbState=db?'ok':'none';
   if(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='vendedor'){meuIniciarSite();return}
   try{userCap=window.claude&&window.claude.use?await window.claude.use('user'):null}catch(e){userCap=null}
-  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
+  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja');appBotao()}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
   $('#userNm').textContent=ME.name||(isAdmin?'Editor':'Usuário');$('#userAv').textContent=iniciais(ME.name||'U');
   if(db)subscribe();
   if(!db&&!demo){entrarDemo();return}
