@@ -1393,10 +1393,10 @@ function vLista(){const ls=lojasAtivas();if(!ls.length)return semLojas();if(!S.l
     <div class="row" style="justify-content:space-between;margin-top:8px"><h3>Fora do expediente</h3><span class="muted sm">${fora.length}</span></div>
     ${fora.map(([id,v])=>`<div class="qcard dim"><span class="nm">${esc(v.nome)}</span><button class="btn sm" data-act="qEntrar" data-v="${esc(id)}" ${d}>Entrar na vez</button></div>`).join('')||'<span class="muted sm">Toda a equipe está no salão.</span>'}
     ${fora.length>1?`<button class="btn link" data-act="qTodos" ${d}>Colocar todos na vez</button>`:''}</section></div>`}`}
-function finalizarModal(vid){const f=fila(ui.lojaOp),a=f.atendendo[vid]||{};abrir({vid,res:'venda',valor:'',pecas:'1',motivo:'',pref:false,fv:!!a.foraDaVez,foco:'#mValor',render(){const r=this.res;
+function finalizarModal(vid){const f=fila(ui.lojaOp),a=f.atendendo[vid]||{};abrir({vid,res:'venda',valor:'',pecas:'1',motivo:'',pref:false,fv:!!a.foraDaVez,foco:'#mPecas',render(){const r=this.res;
   return`<div class="hd"><div><span class="lbl">Finalizar atendimento</span><h2>${esc(nomeV(this.vid))}</h2></div><button class="x" data-act="mFechar" aria-label="Fechar">${svg('x')}</button></div>
   <div class="seg" style="display:grid;grid-template-columns:repeat(3,1fr)">${[['venda','Comprou'],['perda','Não comprou'],['troca','Troca']].map(([v,l])=>`<button data-act="mRes" data-v="${v}" aria-pressed="${r===v}" style="padding:10px">${l}</button>`).join('')}</div>
-  ${r==='venda'?`<div class="row"><label class="f">Valor da venda (R$)<input type="text" inputmode="decimal" id="mValor" data-ch="mset" data-k="valor" value="${esc(this.valor)}" placeholder="0,00" style="width:160px"></label><label class="f">Peças<input type="number" min="1" data-ch="mset" data-k="pecas" value="${esc(this.pecas)}" style="width:90px"></label></div><p class="muted sm" style="margin:0">Quando a loja tem vendas importadas do TOTVS no dia, o valor oficial passa a ser o do TOTVS.</p>`:''}
+  ${r==='venda'?`<div class="row"><label class="f">Peças<input type="number" min="1" id="mPecas" data-ch="mset" data-k="pecas" value="${esc(this.pecas)}" style="width:90px"></label></div><p class="muted sm" style="margin:0">O valor da venda vem automaticamente do TOTVS.</p>`:''}
   ${r==='perda'?`<div style="display:grid;gap:8px"><span class="lbl">Motivo</span><div class="chips">${motivos().map(m=>`<button class="chip lt" data-act="mMot" data-v="${esc(m)}" aria-pressed="${this.motivo===m}">${esc(m)}</button>`).join('')}</div></div>`:''}
   ${r==='troca'?'<p class="muted" style="margin:0">A troca conta como atendimento, mas fica fora do cálculo de conversão.</p>':''}
   ${this.fv?`<label class="ck"><input type="checkbox" data-ch="mPref"${this.pref?' checked':''}> O cliente pediu para ser atendido por este vendedor (preferência do cliente)</label>`:''}
@@ -1546,10 +1546,10 @@ const ACT={
   qFinalizar(el){finalizarModal(el.dataset.v)},qPausa(el){pausaModal(el.dataset.v)},
   qPausaOk(el){const lid=ui.lojaOp,f=fila(lid),vid=ui.modal.vid;limpar(f,vid);f.fora[vid]={motivo:el.dataset.v,desde:Date.now()};fechar_();salvarFila(lid,f)},
   qSair(){const lid=ui.lojaOp,f=fila(lid),vid=ui.modal.vid;sairDaLoja(f,lid,vid);fechar_();salvarFila(lid,f)},
-  mRes(el){ui.modal.res=el.dataset.v;ui.modal._f=0;ui.modal.foco=el.dataset.v==='venda'?'#mValor':null;renderModal()},mMot(el){ui.modal.motivo=el.dataset.v;renderModal()},
+  mRes(el){ui.modal.res=el.dataset.v;ui.modal._f=0;ui.modal.foco=el.dataset.v==='venda'?'#mPecas':null;renderModal()},mMot(el){ui.modal.motivo=el.dataset.v;renderModal()},
   qConcluir(){const m=ui.modal,lid=ui.lojaOp,f=fila(lid),a=f.atendendo[m.vid];if(!a){fechar_();return}const v=document.getElementById('mValor');if(v)m.valor=v.value;
     const reg={lojaId:lid,vendedorId:m.vid,data:hoje(),inicio:a.inicio,fim:Date.now(),resultado:m.res,foraDaVez:!!a.foraDaVez,pref:!!(a.foraDaVez&&m.pref)};
-    if(m.res==='venda'){const val=parseValor(m.valor);if(!(val>0)){toast('Informe o valor da venda.');return}reg.valor=r2(val);reg.pecas=Math.max(1,parseInt(m.pecas,10)||1)}
+    if(m.res==='venda'){reg.valor=0;reg.pecas=Math.max(1,parseInt(m.pecas,10)||1)}
     if(m.res==='perda'){if(!m.motivo){toast('Escolha o motivo de o cliente não ter comprado.');return}reg.motivo=m.motivo}
     ops.set('atendimentos',nid(),reg);limpar(f,m.vid);f.ordem.push(m.vid);salvarFila(lid,f);fechar_();toast(m.res==='venda'?`Venda de ${brl(reg.valor)} registrada.`:'Atendimento registrado.')}
 };
