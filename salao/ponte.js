@@ -68,13 +68,36 @@
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   let pedido = null;
   const instalado = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault(); pedido = e;
-    if (instalado() || document.getElementById('pInstalar') || localStorageGet('pInstalarNao')) return;
+  // botão flutuante "Instalar app": aparece sozinho quando o navegador permite instalar,
+  // e sempre no login da loja (se o aparelho não abrir a janela de instalação, mostra o passo a passo)
+  function botaoInstalar() {
+    if (instalado() || document.getElementById('pInstalar') || !document.body) return;
     const b = document.createElement('button'); b.id = 'pInstalar'; b.type = 'button';
     b.innerHTML = 'Instalar app <span>· Lista da Vez</span>';
-    b.onclick = async () => { b.remove(); if (!pedido) return; pedido.prompt(); try { const r = await pedido.userChoice; if (r && r.outcome === 'dismissed') localStorageSet('pInstalarNao', '1'); } catch (x) {} pedido = null; };
+    b.onclick = async () => {
+      if (pedido) { const p = pedido; pedido = null; p.prompt(); try { const r = await p.userChoice; if (r && r.outcome === 'accepted') b.remove(); } catch (x) {} return; }
+      passoAPasso();
+    };
     document.body.appendChild(b);
+  }
+  function passoAPasso() {
+    if (document.getElementById('pInstAjuda')) return;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const d = document.createElement('div'); d.id = 'pInstAjuda';
+    d.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(16,24,40,.55);display:grid;place-items:center;padding:16px';
+    d.innerHTML = `<div style="background:var(--surface,#fff);color:var(--ink,#101828);border-radius:16px;max-width:420px;width:100%;padding:22px;display:grid;gap:12px;box-shadow:0 20px 40px rgba(0,0,0,.25)">
+      <b style="font-size:18px">Instalar o app Lista da Vez</b>
+      ${ios ? '<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b> e toque em <b>Adicionar</b>.</li></ol>'
+            : '<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Google Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto de cima).</li><li>Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b> e confirme.</li></ol>'}
+      <span style="font-size:13px;opacity:.75">Depois é só abrir pelo ícone <b>Lista da Vez</b> na tela inicial.</span>
+      <button type="button" style="justify-self:end;border:0;border-radius:10px;padding:10px 18px;font-weight:700;background:#17418F;color:#fff;cursor:pointer">Entendi</button></div>`;
+    d.addEventListener('click', (e) => { if (e.target === d || e.target.tagName === 'BUTTON') d.remove(); });
+    document.body.appendChild(d);
+  }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); pedido = e;
+    if (localStorageGet('pInstalarNao') && !(PAINEL.eu && PAINEL.eu.papel === 'loja')) return;
+    if (document.body) botaoInstalar(); else document.addEventListener('DOMContentLoaded', botaoInstalar);
   });
   window.addEventListener('appinstalled', () => { const b = document.getElementById('pInstalar'); if (b) b.remove(); });
   function localStorageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -92,6 +115,7 @@
       return new Promise(() => {});
     }
     PAINEL.eu = eu;
+    if (eu.papel === 'loja') { if (document.body) botaoInstalar(); else document.addEventListener('DOMContentLoaded', botaoInstalar); }
     if (eu.trocaSenha) {
       const cpf = String((data.session.user && data.session.user.email) || '').split('@')[0].replace(/\D/g, '');
       const ir = () => telaNovaSenha(sb, () => location.reload(), cpf.length === 11 ? cpf : '');
