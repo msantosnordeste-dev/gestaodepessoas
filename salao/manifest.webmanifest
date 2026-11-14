@@ -1,0 +1,17 @@
+{
+  "name": "Lista da Vez · Brasileiríssima",
+  "short_name": "Lista da Vez",
+  "description": "Lista da vez, metas e resultados das lojas Brasileiríssima.",
+  "lang": "pt-BR",
+  "start_url": "./#lista",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F3F4F8",
+  "theme_color": "#17418F",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

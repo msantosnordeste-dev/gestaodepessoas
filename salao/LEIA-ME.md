@@ -9,3 +9,10 @@ Lista da vez, metas, indicadores, ranking e vendas do TOTVS Moda, por loja.
 - Filiais `xx` e `1xx` do TOTVS são a mesma loja (ex.: 20 e 120).
 
 Arquivos: `index.html` (o painel) e `ponte.js` (login e ligação com o Supabase). A configuração do Supabase vem de `../config.js`.
+
+## App no tablet/celular (Android)
+
+1. Abra o endereço do painel no **Chrome** do aparelho e entre com o login da loja.
+2. Toque em **Instalar app** (botão azul no canto) ou no menu ⋮ do Chrome › **Instalar app** / **Adicionar à tela inicial**.
+3. O ícone **Lista da Vez** aparece na tela inicial e abre em tela cheia, direto na lista da vez.
+4. Para prender o tablet só no app: Configurações do Android › Segurança › **Fixar app** (ou "Fixação de tela"); abra o app, toque em "Apps recentes" e escolha **Fixar**.

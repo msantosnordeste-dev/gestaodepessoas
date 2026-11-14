@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#17418F">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lista da Vez">
 <title>Painel das Lojas · Brasileiríssima</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -316,6 +322,7 @@ tr.child>td:first-child{padding-left:42px}
 #pLogin input:focus{outline:2px solid #1A56DB33;border-color:#1A56DB}
 #pLogin button{width:100%;padding:11px;border:0;border-radius:8px;background:#1A56DB;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit}
 #pLogin button:disabled{opacity:.6}#pLogin .pl-msg{min-height:18px;color:#B42318;font-size:13px;margin:0 0 10px}#pLogin .pl-ajuda{color:#667085;font-size:12.5px;margin:14px 0 0;text-align:center}
+#pInstalar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9000;display:flex;gap:8px;align-items:center;background:#17418F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.25);cursor:pointer}#pInstalar span{opacity:.8;font-weight:500}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
