@@ -94,6 +94,29 @@
     d.addEventListener('click', (e) => { if (e.target === d || e.target.tagName === 'BUTTON') d.remove(); });
     document.body.appendChild(d);
   }
+  // no tablet/celular da loja aberto pelo navegador: sugere tela cheia ou o app (uma vez por sessão)
+  function avisoTelaCheia() {
+    if (instalado() || document.fullscreenElement || document.getElementById('pTela')) return;
+    try { if (sessionStorage.getItem('pTelaVisto')) return; sessionStorage.setItem('pTelaVisto', '1'); } catch (e) {}
+    const podeFs = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+    const d = document.createElement('div'); d.id = 'pTela';
+    d.style.cssText = 'position:fixed;inset:0;z-index:85;background:rgba(16,24,40,.6);display:grid;place-items:center;padding:16px';
+    d.innerHTML = `<div style="background:var(--surface,#fff);color:var(--ink,#101828);border-radius:18px;max-width:440px;width:100%;padding:24px;display:grid;gap:14px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.3)">
+      <div style="width:56px;height:56px;border-radius:14px;margin:0 auto;background:linear-gradient(135deg,#F2306D,#7A2BD8);display:grid;place-items:center;color:#fff;font-size:28px">⛶</div>
+      <b style="font-size:20px">Use a Lista da Vez em tela cheia</b>
+      <span style="font-size:14px;opacity:.8">Fica mais fácil de tocar e ninguém sai da lista sem querer.</span>
+      ${podeFs ? '<button type="button" data-a="fs" style="border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,#F2306D,#7A2BD8);cursor:pointer">Abrir em tela cheia</button>' : ''}
+      <button type="button" data-a="app" style="border:1px solid #D0D5DD;border-radius:12px;padding:12px;font-size:15px;font-weight:700;background:transparent;color:inherit;cursor:pointer">Instalar o app Lista da Vez</button>
+      <span style="font-size:12.5px;opacity:.7">Já instalou? Feche esta página e abra direto pelo ícone <b>Lista da Vez</b> na tela inicial.</span>
+      <button type="button" data-a="nao" style="border:0;background:none;color:inherit;opacity:.7;font-size:14px;cursor:pointer;text-decoration:underline">Agora não</button></div>`;
+    d.addEventListener('click', async (e) => {
+      const a = e.target.closest && e.target.closest('[data-a]'); if (!a && e.target !== d) return;
+      const acao = a ? a.dataset.a : 'nao'; d.remove();
+      if (acao === 'fs') { const el = document.documentElement; try { await (el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen()); } catch (x) {} }
+      if (acao === 'app') { const b = document.getElementById('pInstalar'); if (b) b.click(); else passoAPasso(); }
+    });
+    document.body.appendChild(d);
+  }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); pedido = e;
     if (localStorageGet('pInstalarNao') && !(PAINEL.eu && PAINEL.eu.papel === 'loja')) return;
@@ -115,7 +138,7 @@
       return new Promise(() => {});
     }
     PAINEL.eu = eu;
-    if (eu.papel === 'loja') { if (document.body) botaoInstalar(); else document.addEventListener('DOMContentLoaded', botaoInstalar); }
+    if (eu.papel === 'loja') { const ir = () => { botaoInstalar(); avisoTelaCheia(); }; if (document.body) ir(); else document.addEventListener('DOMContentLoaded', ir); }
     if (eu.trocaSenha) {
       const cpf = String((data.session.user && data.session.user.email) || '').split('@')[0].replace(/\D/g, '');
       const ir = () => telaNovaSenha(sb, () => location.reload(), cpf.length === 11 ? cpf : '');

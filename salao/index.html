@@ -333,6 +333,11 @@ tr.child>td:first-child{padding-left:42px}
 #pLogin input:focus{outline:2px solid #1A56DB33;border-color:#1A56DB}
 #pLogin button{width:100%;padding:11px;border:0;border-radius:8px;background:#1A56DB;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit}
 #pLogin button:disabled{opacity:.6}#pLogin .pl-msg{min-height:18px;color:#B42318;font-size:13px;margin:0 0 10px}#pLogin .pl-ajuda{color:#667085;font-size:12.5px;margin:14px 0 0;text-align:center}
+@media (max-width:700px){.ph>.row{width:100%;flex-wrap:nowrap!important}.btn-metas{flex:1;min-width:0;padding:8px 12px 8px 8px}.btn-metas .ic{width:34px;height:34px}.qrel{padding:6px 12px}.qrel b{font-size:18px}.qcard{padding:10px}.qcard>.row{width:100%}.qcard>.row .btn{flex:1;justify-content:center;min-height:42px}.qcard .nm{min-width:0}}
+.btn-metas small,.btn-metas b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}.btn-metas>span:not(.ic){min-width:0}
+@media (max-width:380px){.btn-metas small{display:none}}
+@media (pointer:coarse){.qcard .btn{min-height:44px;padding:10px 18px;font-size:15px}}
+body:has(#pInstalar) #main{padding-bottom:84px}
 #meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}body.modo-loja .shell{grid-template-columns:1fr}body.modo-loja #side,body.modo-loja [data-act=menu],body.modo-loja #btnFiltros{display:none!important}
 .btn-metas{display:inline-flex;align-items:center;gap:12px;border:0;border-radius:14px;padding:10px 18px 10px 10px;color:#fff;cursor:pointer;text-align:left;white-space:nowrap;background:linear-gradient(135deg,#F2306D 0%,#7A2BD8 100%);box-shadow:0 8px 20px -8px rgba(242,48,109,.6);font-family:inherit;font-weight:700;font-size:15px;line-height:1.25;transition:transform .12s,box-shadow .12s}.btn-metas:hover{transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(242,48,109,.7)}.btn-metas:active{transform:translateY(0)}.btn-metas:focus-visible{outline:3px solid rgba(122,43,216,.4);outline-offset:2px}.btn-metas .ic{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:none}.btn-metas small{display:block;font-weight:500;font-size:12px;opacity:.88}
 #verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
@@ -340,7 +345,7 @@ tr.child>td:first-child{padding-left:42px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=14"></script>
+<script src="ponte.js?v=15"></script>
 </head>
 <body>
 
