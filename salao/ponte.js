@@ -22,21 +22,21 @@
     const d = document.createElement('div');
     d.id = 'pLogin';
     d.innerHTML = `<div class="pl-card"><div class="pl-logo">B</div><h1>Crie sua senha</h1><p class="pl-sub">Primeiro acesso: troque a senha inicial por uma só sua.</p>
-      <form id="nsForm"><label>Nova senha<input id="ns1" type="password" autocomplete="new-password" minlength="6" required></label>
-      <label>Repita a nova senha<input id="ns2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <form id="nsForm"><label>Nova senha<input id="ns1" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Repita a nova senha<input id="ns2" type="password" autocomplete="new-password" minlength="8" required></label>
       <p id="nsMsg" class="pl-msg"></p><button type="submit" id="nsBtn">Salvar senha</button></form>
-      <p class="pl-ajuda">Mínimo de 6 caracteres. Não use o seu CPF.</p></div>`;
+      <p class="pl-ajuda">Mínimo de 8 caracteres (a mesma senha vale no Gestão de Pessoas). Não use o seu CPF.</p></div>`;
     document.body.appendChild(d);
     document.getElementById('ns1').focus();
     document.getElementById('nsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const a = document.getElementById('ns1').value, b = document.getElementById('ns2').value, m = document.getElementById('nsMsg'), btn = document.getElementById('nsBtn');
-      if (a.length < 6) { m.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+      if (a.length < 8) { m.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; return; }
       if (a !== b) { m.textContent = 'As duas senhas não são iguais.'; return; }
       if (cpf && a.replace(/\D/g, '') === cpf) { m.textContent = 'Não use o seu CPF como senha.'; return; }
       btn.disabled = true; btn.textContent = 'Salvando…'; m.textContent = '';
       const { error } = await cli.auth.updateUser({ password: a });
-      if (error) { btn.disabled = false; btn.textContent = 'Salvar senha'; m.textContent = /same|different/i.test(error.message) ? 'A nova senha precisa ser diferente da atual.' : /weak|short|least/i.test(error.message) ? 'Senha fraca. Use pelo menos 6 caracteres.' : 'Não foi possível salvar agora. Tente de novo.'; return; }
+      if (error) { btn.disabled = false; btn.textContent = 'Salvar senha'; m.textContent = /same|different/i.test(error.message) ? 'A nova senha precisa ser diferente da atual.' : /weak|short|least/i.test(error.message) ? 'Senha fraca. Use pelo menos 8 caracteres.' : 'Não foi possível salvar agora. Tente de novo.'; return; }
       await cli.rpc('painel_senha_trocada');
       d.remove(); aoTerminar && aoTerminar();
     });
