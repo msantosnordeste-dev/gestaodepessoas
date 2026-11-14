@@ -105,8 +105,8 @@
       where(f, op, v) { filtros[col] = [f, op, v]; return api; },
       doc(id) {
         return {
-          async set(data) { const { error } = await sb.from('painel_docs').upsert({ col, id, data }, { onConflict: 'col,id' }); if (error) throw erro(error); (caches[col] || (caches[col] = {}))[id] = data; emitir(col); },
-          async delete() { const { error } = await sb.from('painel_docs').delete().eq('col', col).eq('id', id); if (error) throw erro(error); if (caches[col]) delete caches[col][id]; emitir(col); }
+          async set(data) { if (PAINEL.leitura) throw new Error('Modo "ver como": só visualização, nada foi gravado.'); const { error } = await sb.from('painel_docs').upsert({ col, id, data }, { onConflict: 'col,id' }); if (error) throw erro(error); (caches[col] || (caches[col] = {}))[id] = data; emitir(col); },
+          async delete() { if (PAINEL.leitura) throw new Error('Modo "ver como": só visualização, nada foi gravado.'); const { error } = await sb.from('painel_docs').delete().eq('col', col).eq('id', id); if (error) throw erro(error); if (caches[col]) delete caches[col][id]; emitir(col); }
         };
       },
       onSnapshot(cb, errCb) {

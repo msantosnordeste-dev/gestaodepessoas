@@ -322,11 +322,12 @@ tr.child>td:first-child{padding-left:42px}
 #pLogin input:focus{outline:2px solid #1A56DB33;border-color:#1A56DB}
 #pLogin button{width:100%;padding:11px;border:0;border-radius:8px;background:#1A56DB;color:#fff;font-weight:600;font-size:15px;cursor:pointer;font-family:inherit}
 #pLogin button:disabled{opacity:.6}#pLogin .pl-msg{min-height:18px;color:#B42318;font-size:13px;margin:0 0 10px}#pLogin .pl-ajuda{color:#667085;font-size:12.5px;margin:14px 0 0;text-align:center}
+#verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
 #pInstalar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9000;display:flex;gap:8px;align-items:center;background:#17418F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.25);cursor:pointer}#pInstalar span{opacity:.8;font-weight:500}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="../config.js"></script>
-<script src="ponte.js?v=3"></script>
+<script src="ponte.js?v=4"></script>
 </head>
 <body>
 
@@ -681,7 +682,7 @@ let pend=false,deferred=false;
 function editing(){const a=document.activeElement;return a&&a.closest&&a.closest('#main,#modalHost')&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&!/^(checkbox|radio|file|search)$/.test(a.type)}
 function scheduleRender(){if(pend)return;pend=true;requestAnimationFrame(()=>{pend=false;if(editing()){deferred=true;return}render()})}
 document.addEventListener('focusout',()=>{if(deferred){deferred=false;setTimeout(scheduleRender,0)}});
-function render(){if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}
+function render(){if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}try{verComoBar()}catch(e){}
   if(R[ui.route]?.adm&&!isAdmin)ui.route='visao';
   $('#nav').innerHTML=navHtml();
   const r=R[ui.route];
@@ -1704,7 +1705,7 @@ function vUsuarios(){if(!usr.lista&&!usr.carregando&&!usr.erro)usrCarregar();con
   const L=usr.lista||[];
   h+=`<div class="card"><div class="hd"><h3>${svg('cad')}Logins cadastrados</h3><span class="muted sm">${usr.carregando?'carregando…':L.length+' login(s)'}</span></div>
   ${L.length?`<div class="tw"><table><thead><tr><th>Login</th><th>Nome</th><th>Tipo</th><th>Loja</th><th>Situação</th><th></th></tr></thead><tbody>${L.map(u=>`<tr${u.ativo?'':' class="muted"'}><td>${esc(u.login)}</td><td>${esc(u.nome||'')}</td><td>${u.papel==='admin'?'Administrador':'Loja'}</td><td>${esc(u.loja_id?nomeLoja(u.loja_id):'—')}</td><td>${u.ativo?'Ativo':'Desativado'}</td>
-    <td style="white-space:nowrap">${usr.senhaDe===u.user_id?`<input id="nsSenha" type="password" placeholder="nova senha" autocomplete="new-password" style="width:140px"> <button class="btn sm pri" data-act="usrSenhaOk" data-v="${u.user_id}">Salvar</button>`:`<button class="btn sm" data-act="usrSenha" data-v="${u.user_id}" ${d}>Nova senha</button>`} <button class="btn sm" data-act="usrAtivo" data-v="${u.user_id}" data-a="${u.ativo?0:1}" ${d}>${u.ativo?'Desativar':'Ativar'}</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted sm" style="margin:0">${usr.carregando?'':'Nenhum login de loja criado ainda.'}</p>`}</div>`;
+    <td style="white-space:nowrap">${usr.senhaDe===u.user_id?`<input id="nsSenha" type="password" placeholder="nova senha" autocomplete="new-password" style="width:140px"> <button class="btn sm pri" data-act="usrSenhaOk" data-v="${u.user_id}">Salvar</button>`:`<button class="btn sm" data-act="usrSenha" data-v="${u.user_id}" ${d}>Nova senha</button>`} <button class="btn sm" data-act="usrAtivo" data-v="${u.user_id}" data-a="${u.ativo?0:1}" ${d}>${u.ativo?'Desativar':'Ativar'}</button>${u.papel==='loja'&&u.loja_id?` <button class="btn sm pri" data-act="usrVerComo" data-v="${u.user_id}" title="Ver o painel como esse login enxerga">Ver como</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:`<p class="muted sm" style="margin:0">${usr.carregando?'':'Nenhum login de loja criado ainda.'}</p>`}</div>`;
   return h}
 ACT.usrCriar=async()=>{const v=id=>($('#'+id)?.value||'').trim(),b={acao:'criar',login:v('nuLogin').toLowerCase(),nome:v('nuNome'),papel:v('nuPapel'),loja_id:v('nuLoja'),senha:$('#nuSenha')?.value||''};
   if(b.papel==='loja'&&!b.loja_id){toast('Escolha a loja.');return}
@@ -1713,6 +1714,13 @@ ACT.usrSenha=el=>{usr.senhaDe=el.dataset.v;render();setTimeout(()=>$('#nsSenha')
 ACT.usrSenhaOk=async el=>{const s=$('#nsSenha')?.value||'';try{await PAINEL.fn('painel-usuarios',{acao:'senha',user_id:el.dataset.v,senha:s});toast('Senha alterada.');usr.senhaDe=null;render()}catch(e){toast(e.message)}};
 ACT.usrAtivo=async el=>{try{await PAINEL.fn('painel-usuarios',{acao:'ativo',user_id:el.dataset.v,ativo:el.dataset.a==='1'});usr.lista=null;usrCarregar()}catch(e){toast(e.message)}};
 ACT.sair=()=>PAINEL.sair();
+ACT.usrVerComo=el=>{const u=(usr.lista||[]).find(x=>x.user_id===el.dataset.v);if(!u||!u.loja_id)return;
+  ui.verComo={login:u.login,nome:u.nome||u.login,loja:u.loja_id,adm:isAdmin,cw:canWrite};isAdmin=false;canWrite=false;PAINEL.leitura=true;ui.f.lojas=[u.loja_id];ui.menu.cad=false;go('lista')};
+ACT.verComoSair=()=>{try{history.replaceState(null,'','#usuarios')}catch(e){}location.reload()};
+function verComoBar(){let b=document.getElementById('verComoBar');const v=ui.verComo;
+  if(!v){if(b)b.remove();return}
+  if(!b){b=document.createElement('div');b.id='verComoBar';document.body.appendChild(b)}
+  b.innerHTML=`<span>👁 Vendo como <b>${esc(v.login)}</b> · ${esc(nomeLoja(v.loja))} — só visualização, nada é gravado</span><button class="btn sm" data-act="verComoSair">Voltar ao administrador</button>`}
 /* ================= início ================= */
 render();
 (async()=>{
