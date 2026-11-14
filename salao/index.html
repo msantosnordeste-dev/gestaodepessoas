@@ -1561,7 +1561,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.modal)fechar_();else if(ui.drawer)ACT.filtros()}
   if((e.key==='Enter'||e.key===' ')&&e.target.matches('.cal .day')){e.preventDefault();ACT.wDia(e.target)}
-  if(e.key==='Enter'&&ui.modal&&e.target.id==='mValor'){e.preventDefault();ACT.qConcluir()}});
+  if(e.key==='Enter'&&ui.modal&&e.target.id==='mPecas'){e.preventDefault();ACT.qConcluir()}});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.dataset.in==='busca'){const q=t.value.toLowerCase(),box=document.getElementById(t.dataset.alvo);if(box)$$('[data-busca]',box).forEach(b=>b.hidden=!!q&&!b.dataset.busca.includes(q));return}
   if(t.dataset.ch==='mset'&&ui.modal&&t.tagName==='INPUT'){ui.modal[t.dataset.k]=t.value}});
