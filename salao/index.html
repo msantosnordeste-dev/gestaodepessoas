@@ -1565,7 +1565,7 @@ const ACT={
   qSair(){const lid=ui.lojaOp,f=fila(lid),vid=ui.modal.vid;sairDaLoja(f,lid,vid);fechar_();salvarFila(lid,f)},
   mRes(el){ui.modal.res=el.dataset.v;ui.modal._f=0;ui.modal.foco=null;renderModal()},mMot(el){ui.modal.motivo=el.dataset.v;renderModal()},
   qConcluir(){const m=ui.modal,lid=ui.lojaOp,f=fila(lid),a=f.atendendo[m.vid];if(!a){fechar_();return}const v=document.getElementById('mValor');if(v)m.valor=v.value;
-    const reg={lojaId:lid,vendedorId:m.vid,data:hoje(),inicio:a.inicio,fim:Date.now(),resultado:m.res,foraDaVez:!!a.foraDaVez,pref:!!(a.foraDaVez&&m.pref)};
+    const reg={lojaId:lid,vendedorId:m.vid,data:a.inicio?iso(new Date(a.inicio)):hoje(),inicio:a.inicio,fim:Date.now(),resultado:m.res,foraDaVez:!!a.foraDaVez,pref:!!(a.foraDaVez&&m.pref)};
     if(m.res==='venda'){reg.valor=0;reg.pecas=0}
     if(m.res==='perda'){if(!m.motivo){toast('Escolha o motivo de o cliente não ter comprado.');return}reg.motivo=m.motivo}
     ops.set('atendimentos',nid(),reg);limpar(f,m.vid);f.ordem.push(m.vid);salvarFila(lid,f);fechar_();toast(m.res==='venda'?`Venda de ${brl(reg.valor)} registrada.`:'Atendimento registrado.')}
