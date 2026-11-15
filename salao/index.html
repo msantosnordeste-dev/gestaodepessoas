@@ -366,7 +366,7 @@ body:has(#pInstalar) #main{padding-bottom:84px}
 .om-sc{display:inline-grid;place-items:center;width:38px;height:24px;border-radius:99px;font-weight:700;font-size:12px;color:#fff;background:linear-gradient(90deg,#F2306D var(--s),#C4B5FD var(--s))}
 .om-det{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;background:var(--sunk);border-radius:12px;padding:12px;font-size:13px}.om-det>div{display:grid;gap:3px;align-content:start}
 @media (max-width:800px){.om-det{grid-template-columns:1fr}}
-#meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}body.modo-loja .shell{grid-template-columns:1fr}body.modo-loja #side,body.modo-loja [data-act=menu],body.modo-loja #btnFiltros{display:none!important}
+#meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}body.modo-loja .shell{grid-template-columns:1fr}body.modo-dir #btnFiltros{display:none!important}body.modo-loja #side,body.modo-loja [data-act=menu],body.modo-loja #btnFiltros{display:none!important}
 .btn-metas{display:inline-flex;align-items:center;gap:12px;border:0;border-radius:14px;padding:10px 18px 10px 10px;color:#fff;cursor:pointer;text-align:left;white-space:nowrap;background:linear-gradient(135deg,#F2306D 0%,#7A2BD8 100%);box-shadow:0 8px 20px -8px rgba(242,48,109,.6);font-family:inherit;font-weight:700;font-size:15px;line-height:1.25;transition:transform .12s,box-shadow .12s}.btn-metas:hover{transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(242,48,109,.7)}.btn-metas:active{transform:translateY(0)}.btn-metas:focus-visible{outline:3px solid rgba(122,43,216,.4);outline-offset:2px}.btn-metas .ic{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:none}.btn-metas small{display:block;font-weight:500;font-size:12px;opacity:.88}
 #verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
 #pInstalar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9000;display:flex;gap:8px;align-items:center;background:#17418F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(16,24,40,.25);cursor:pointer}#pInstalar span{opacity:.8;font-weight:500}
@@ -671,7 +671,8 @@ const R={
 };
 const GRP={rel:{t:'Relatórios',ic:'rel'},fb:{t:'Feedback',ic:'fb'},cad:{t:'Cadastros',ic:'cad'}};
 const ehDiretoria=()=>demo||!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.diretoria);
-function go(r,extra){if((r==='lojanova'||r==='operacoes')&&!ehDiretoria())r='visao';if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
+const soDiretoria=()=>!demo&&!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='diretoria');
+function go(r,extra){if(soDiretoria()&&!['lojanova','operacoes','ajuda'].includes(r))r='lojanova';if((r==='lojanova'||r==='operacoes')&&!ehDiretoria())r='visao';if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
   ui.route=r;ui.wiz=null;ui.metaView=null;ui.fbView=null;ui.rkView=null;ui.drawer=false;Object.assign(ui,extra||{});
   const h=r==='loja'&&ui.loja?'loja-'+ui.loja:r;try{if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)}catch(e){}
   $('#shell').classList.remove('open');render();window.scrollTo(0,0)}
@@ -684,6 +685,7 @@ function navHtml(){
   const it=(r,ic,t,extra='')=>`<a data-go="${r}" class="${ui.route===r?'on leaf':''}" href="#${r}">${ic?svg(ic):''}<span>${esc(t)}</span>${extra}</a>`;
   const grp=g=>{const ks=Object.keys(R).filter(k=>R[k].g===g&&(!R[k].adm||isAdmin));if(!ks.length)return'';const on=ks.includes(ui.route);
     return`<a data-act="grp" data-v="${g}" class="${on?'on':''}" href="#${ks[0]}" aria-expanded="${!!ui.menu[g]}">${svg(GRP[g].ic)}<span>${GRP[g].t}</span></a>${ui.menu[g]?`<div class="sub">${ks.map(k=>`<a data-go="${k}" class="${ui.route===k?'on':''}" href="#${k}">${esc(R[k].t)}</a>`).join('')}</div>`:''}`};
+  if(soDiretoria())return it('lojanova','ticket','Loja nova')+it('operacoes','perf','Composição do Faturamento')+'<div class="sep"></div>'+it('ajuda','ajuda','Ajuda');
   return it('visao','visao','Visão Geral')+(ehDiretoria()?it('lojanova','ticket','Loja nova')+it('operacoes','perf','Composição do Faturamento'):'')+grp('rel')+it('ranking','rank','Ranking')+it('validacao','val','Validação',isAdmin&&pend?`<span class="badge">${pend}</span>`:'')+grp('fb')+grp('cad')
     +'<div class="sep"></div>'+it('lista','lista','Lista da vez (loja)')+it('ajuda','ajuda','Ajuda')+(demo?'':'<div class="sep"></div><a data-act="demo" href="#visao">'+svg('eye')+'<span>Ver demonstração</span></a>');
 }
@@ -734,7 +736,7 @@ let pend=false,deferred=false;
 function editing(){const a=document.activeElement;return a&&a.closest&&a.closest('#main,#modalHost')&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&!/^(checkbox|radio|file|search)$/.test(a.type)}
 function scheduleRender(){if(pend)return;pend=true;requestAnimationFrame(()=>{pend=false;if(editing()){deferred=true;return}render()})}
 document.addEventListener('focusout',()=>{if(deferred){deferred=false;setTimeout(scheduleRender,0)}});
-function render(){if(MEU.site){meuRender();return}if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}try{verComoBar()}catch(e){}
+function render(){if(MEU.site){meuRender();return}if(soDiretoria()&&!['lojanova','operacoes','ajuda'].includes(ui.route))ui.route='lojanova';if(typeof tvsBtn==='function')try{tvsBtn()}catch(e){}try{verComoBar()}catch(e){}
   if(R[ui.route]?.adm&&!isAdmin)ui.route='visao';
   $('#nav').innerHTML=navHtml();
   const r=R[ui.route];
@@ -1795,7 +1797,7 @@ async function totvsIniciar(){tvsBtn();if(!isAdmin||demo)return;tvsStatus();setI
 const usr={lista:null,carregando:false,senhaDe:null,erro:''};
 async function usrCarregar(){if(usr.carregando)return;usr.carregando=true;try{usr.lista=(await PAINEL.fn('painel-usuarios',{acao:'listar'})).usuarios||[];usr.erro=''}catch(e){usr.erro=e.message}usr.carregando=false;scheduleRender()}
 function vUsuarios(){if(!usr.lista&&!usr.carregando&&!usr.erro)usrCarregar();const d=dis(),lojas=lojasAtivas();
-  let h=`<div class="ph"><div><h1>Logins do painel</h1><div class="sub">Crie um login para cada loja e para a Diretoria. Login da loja: só a Lista da vez daquela loja. Diretoria: consulta de todas as lojas, Loja nova e Composição do Faturamento, sem alterar nada. O RH entra com o próprio usuário do Gestão de Pessoas.</div></div></div>`;
+  let h=`<div class="ph"><div><h1>Logins do painel</h1><div class="sub">Crie um login para cada loja e para a Diretoria. Login da loja: só a Lista da vez daquela loja. Diretoria: por enquanto só consulta os painéis Loja nova e Composição do Faturamento, sem alterar nada. O RH entra com o próprio usuário do Gestão de Pessoas.</div></div></div>`;
   h+=`<div class="card"><div class="hd"><h3>${svg('cad')}Novo login</h3></div><div class="g2" style="gap:12px">
     <label class="f">Login (sem espaços; para Diretoria use o CPF)<input id="nuLogin" placeholder="ex.: ssa.casa ou CPF" autocapitalize="off" spellcheck="false" ${d}></label>
     <label class="f">Nome que aparece<input id="nuNome" placeholder="ex.: Loja BA SSA Casa" ${d}></label>
@@ -2154,7 +2156,7 @@ render();
   dbState=db?'ok':'none';
   if(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='vendedor'){meuIniciarSite();return}
   try{userCap=window.claude&&window.claude.use?await window.claude.use('user'):null}catch(e){userCap=null}
-  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}if(PAINEL.eu&&PAINEL.eu.papel==='diretoria')canWrite=false;const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
+  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}if(PAINEL.eu&&PAINEL.eu.papel==='diretoria'){canWrite=false;if(!['lojanova','operacoes','ajuda'].includes(ui.route))ui.route='lojanova';document.body.classList.add('modo-dir')}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
   $('#userNm').textContent=ME.name||(isAdmin?'Editor':'Usuário');$('#userAv').textContent=iniciais(ME.name||'U');
   if(db)subscribe();
   if(!db&&!demo){entrarDemo();return}
