@@ -473,7 +473,7 @@ const I={
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
 };
 const svg=(k,c='')=>`<svg viewBox="0 0 24 24" class="${c}" aria-hidden="true">${I[k]||''}</svg>`;
-const OP18='Não considera vendas da OP 18 (sem nota).',op18=`<span class="op18">${OP18}</span>`;
+const OP18='Não considera vendas da OP 18.',op18=`<span class="op18">${OP18}</span>`;
 const vazio=t=>`<div class="empty"><svg viewBox="0 0 64 64"><path d="M14 6h26l10 10v42H14z"/><path d="M40 6v10h10M20 26h20M20 33h14M20 40h10"/><circle cx="40" cy="40" r="9"/><path d="m47 47 8 8"/></svg><span>${t}</span></div>`;
 
 /* ================= estado e dados ================= */
@@ -1445,7 +1445,7 @@ function finalizarModal(vid){const f=fila(ui.lojaOp),a=f.atendendo[vid]||{};abri
 function pausaModal(vid){abrir({vid,render(){return mHd(esc(nomeV(this.vid))+' vai sair da vez')+`<div class="chips">${PAUSAS.map(p=>`<button class="btn" data-act="qPausaOk" data-v="${esc(p)}">${esc(p)}</button>`).join('')}</div><div class="ft"><button class="btn" data-act="qSair">Encerrar expediente</button><button class="btn" data-act="mFechar">Cancelar</button></div>`}})}
 
 /* ================= Ajuda ================= */
-function vAjuda(){const q=[['Taxa de conversão','Atendimentos com venda ÷ oportunidades (atendimentos registrados na lista da vez, sem contar trocas).'],['Peças por atendimento (P.A)','Peças vendidas ÷ quantidade de vendas. Não considera vendas da OP 18 (sem nota).'],['Ticket médio','Valor vendido ÷ quantidade de vendas. Não considera vendas da OP 18 (sem nota).'],['Preço médio','Valor vendido ÷ peças vendidas.'],
+function vAjuda(){const q=[['Taxa de conversão','Atendimentos com venda ÷ oportunidades (atendimentos registrados na lista da vez, sem contar trocas).'],['Peças por atendimento (P.A)','Peças vendidas ÷ quantidade de vendas. Não considera vendas da OP 18.'],['Ticket médio','Valor vendido ÷ quantidade de vendas. Não considera vendas da OP 18.'],['Preço médio','Valor vendido ÷ peças vendidas.'],
   ['Usabilidade','Quanto das vendas do PDV (TOTVS) foi registrado na lista da vez, por vendedor e dia. "Atendimentos a mais" são vendas registradas na lista que não aparecem no TOTVS; "a menos" são vendas do TOTVS sem registro na lista. Só é calculada nos dias com vendas importadas do TOTVS.'],
   ['Valor vendido','Nos dias com vendas importadas do TOTVS vale o TOTVS; nos demais, o valor informado ao finalizar o atendimento na lista da vez.'],['Meta atual (recalculada)','O que falta para a 1ª meta do ciclo, redistribuído pelos dias restantes na mesma proporção da distribuição cadastrada.'],
   ['1ª a 5ª meta','Níveis de meta cadastrados como percentual da 1ª meta (por exemplo, 2ª meta = 120%).'],['Pesos proporcionais, personalizados e independentes','Formatos de meta dos vendedores escolhidos no cadastro da meta. Nos dois primeiros, quando um vendedor está de folga, férias ou foi desligado, a diária da loja é repartida entre os colegas com meta no dia.'],
