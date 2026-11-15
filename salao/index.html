@@ -1857,7 +1857,7 @@ function vFotos(){const ls=lojasSel(),pode=podeFoto(),d=pode?'':'disabled';
     (grupos.length?grupos.map(([lid,ids])=>`<div class="card"><div class="hd"><h3>${esc(nomeLoja(lid))}</h3><span class="muted sm">${ids.length} pessoa(s)</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px">${ids.map(cartao).join('')}</div></div>`).join(''):vazio('Nenhuma pessoa cadastrada nas lojas selecionadas.'))}
 /* ================= Loja nova · acompanhamento (TOTVS por produto) ================= */
-const LN={d:null,carr:false,erro:null,loja:null,per:'hoje',cat:null,ref:null,cob:null,mix:'cls',pedido:new Set(),t:null,em:0};
+const LN={d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:null,mix:'cls',pedido:new Set(),t:null,em:0};
 function lnCarregar(forca){if(LN.carr||(!forca&&LN.d&&Date.now()-LN.em<120000))return;if(!window.PAINEL||!PAINEL.sb){LN.erro='Disponível só com login (não funciona na demonstração).';return}
   LN.carr=true;PAINEL.sb.rpc('painel_loja_detalhe',{loja:LN.loja}).then(({data,error})=>{if(error)throw error;LN.d=data;LN.erro=null;LN.em=Date.now();
     if(data&&data.loja){LN.loja=data.loja.loja;if(LN.cob==null)LN.cob=data.cobertura||14}}).catch(e=>{LN.erro=errMsg(e)}).finally(()=>{LN.carr=false;if(ui.route==='lojanova')render()})}
