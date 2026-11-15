@@ -119,7 +119,7 @@
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); pedido = e;
-    if (localStorageGet('pInstalarNao') && !(PAINEL.eu && PAINEL.eu.papel === 'loja')) return;
+    if (localStorageGet('pInstalarNao') && !(PAINEL.eu && (PAINEL.eu.papel === 'loja' || PAINEL.eu.papel === 'diretoria'))) return;
     if (document.body) botaoInstalar(); else document.addEventListener('DOMContentLoaded', botaoInstalar);
   });
   window.addEventListener('appinstalled', () => { const b = document.getElementById('pInstalar'); if (b) b.remove(); });
@@ -138,6 +138,7 @@
       return new Promise(() => {});
     }
     PAINEL.eu = eu;
+    if (eu.papel === 'diretoria') { if (document.body) botaoInstalar(); else document.addEventListener('DOMContentLoaded', botaoInstalar); }
     if (eu.papel === 'loja') { const ir = () => { botaoInstalar(); avisoTelaCheia(); }; if (document.body) ir(); else document.addEventListener('DOMContentLoaded', ir); }
     if (eu.trocaSenha) {
       const cpf = String((data.session.user && data.session.user.email) || '').split('@')[0].replace(/\D/g, '');
