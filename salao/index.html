@@ -1993,7 +1993,7 @@ function opvCarregar(){const k=OPV.de+'|'+OPV.ate;if(OPV.carr||OPV.chave===k)ret
   OPV.carr=true;PAINEL.sb.rpc('painel_operacoes',{de:OPV.de,ate:OPV.ate}).then(({data,error})=>{if(error)throw error;OPV.d=data;OPV.chave=k;OPV.erro=null}).catch(e=>{OPV.erro=errMsg(e);OPV.chave=k}).finally(()=>{OPV.carr=false;if(ui.route==='operacoes')render()})}
 const opvNome=(op,N)=>op==='18'?'OP 18':(N&&N[op])||('OP '+op);
 function vOperacoes(){opvIni();opvCarregar();
-  const cab=`<div class="ph"><div><h1>Operações de venda</h1><div class="sub">Faturamento por operação do TOTVS e quanto cada uma representa no faturamento da loja.</div></div></div>`;
+  const cab=`<div class="ph"><div><h1>Operações de venda</h1><div class="sub">Loja em acompanhamento (loja nova): faturamento por operação do TOTVS e quanto cada uma representa no faturamento da loja.</div></div></div>`;
   const D=OPV.d||{linhas:[],nomes:{}},N=D.nomes||{};
   const lojas=[...new Set((D.linhas||[]).map(x=>x.l))].sort((a,b)=>nomeLoja(a).localeCompare(nomeLoja(b),'pt-BR'));
   if(OPV.loja&&!lojas.includes(OPV.loja)&&OPV.d)OPV.loja='';
@@ -2002,7 +2002,7 @@ function vOperacoes(){opvIni();opvCarregar();
     <label class="opv-f"><span>De</span><input type="date" value="${OPV.de}" max="${OPV.ate}" data-ch="opvF" data-k="de"></label>
     <label class="opv-f"><span>Até</span><input type="date" value="${OPV.ate}" min="${OPV.de}" max="${hoje()}" data-ch="opvF" data-k="ate"></label>
     <label class="opv-f"><span>Dia em destaque</span><input type="date" value="${OPV.dia}" min="${OPV.de}" max="${OPV.ate}" data-ch="opvF" data-k="dia"></label>
-    <label class="opv-f"><span>Loja</span><select data-ch="opvF" data-k="loja"><option value="">Todas as lojas</option>${lojas.map(l=>`<option value="${esc(l)}" ${l===OPV.loja?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}</select></label>
+    ${lojas.length>1?'':`<span class="opv-f"><span>Loja</span><b style="color:var(--ink);font-size:14px;padding:8px 0">${lojas[0]?esc(nomeLoja(lojas[0])):'—'}</b></span>`}${lojas.length<=1?'':`<label class="opv-f"><span>Loja</span><select data-ch="opvF" data-k="loja"><option value="">Todas as lojas</option>${lojas.map(l=>`<option value="${esc(l)}" ${l===OPV.loja?'selected':''}>${esc(nomeLoja(l))}</option>`).join('')}</select></label>`}
     <div class="row" style="gap:6px;flex-wrap:wrap">${[['Hoje',0,0],['7 dias',6,0],['Mês atual','m',0],['Mês anterior','ma',0]].map(([t,a])=>`<button class="btn sm" data-act="opvAtalho" data-v="${a}">${t}</button>`).join('')}</div>
     ${OPV.carr?'<span class="muted sm">Carregando…</span>':''}</div></div>`;
   if(OPV.erro)return cab+filtros+`<div class="card red">${esc(OPV.erro)}</div>`;
@@ -2034,7 +2034,7 @@ function vOperacoes(){opvIni();opvCarregar();
   const dl=Object.values(DI).sort((a,b)=>b.d.localeCompare(a.d)),mx=Math.max(1,...dl.map(o=>o.p));
   const tDi=`<div class="card"><div><h3>Por dia${OPV.loja?' · '+esc(nomeLoja(OPV.loja)):''}</h3><div class="muted sm">Barra: faturamento do dia, com a parte da OP 18 em destaque.</div></div><div class="ln-tw"><table class="ln-t"><tr><th>Data</th><th class="r">Faturamento</th><th class="r">OP 18</th><th class="r">% OP 18</th><th class="r">Outras OP</th><th class="r">% outras</th><th style="min-width:140px"></th></tr>
     ${dl.map(o=>`<tr class="ln-cl${o.d===OPV.dia?' opv-sel':''}" data-act="opvDia" data-v="${o.d}"><td>${fmtD(o.d)} <span class="muted sm">${DOWC[dow(o.d)]||''}</span></td><td class="r">${brl(o.p)}</td><td class="r">${brl(o.p18)}</td><td class="r"><b>${pc(o.p18,o.p)}</b></td><td class="r">${brl(o.pO)}</td><td class="r">${pc(o.pO,o.p)}</td><td><div class="opv-bar" style="width:${Math.max(2,o.p/mx*100)}%"><i style="width:${o.p>0?Math.max(0,o.p18/o.p*100):0}%"></i></div></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Sem vendas no período.</td></tr>'}</table></div></div>`;
-  return cab+filtros+kp+tOp+tLj+tDi+`<p class="op18">Fonte: transações do TOTVS (movimentação fiscal). Faturamento = operações de venda − devoluções; não inclui transferências, ajustes e e-commerce.</p>`}
+  return cab+filtros+kp+tOp+(lojas.length>1?tLj:'')+tDi+`<p class="op18">Fonte: transações do TOTVS (movimentação fiscal). Faturamento = operações de venda − devoluções; não inclui transferências, ajustes e e-commerce.</p>`}
 /* ================= Meu desempenho (login do colaborador) ================= */
 const MEU={site:false,cli:null,eu:null,mes:mAt(),dados:null,erro:null,carregando:false,tablet:false};
 function meuCalc(d){const old=S;S=blank();const lid=d.loja,vid=d.vid;
