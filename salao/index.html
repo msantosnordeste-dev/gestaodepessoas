@@ -1870,8 +1870,16 @@ function lnCalc(){const D=LN.d,L=D.loja,hj=hoje(),ina=L.inauguracao||hj;
     return{...r,med,cobD,rep,sit}});
   // ontem (comparação no modo hoje)
   let ontem=0;const od=lnMais(hj,-1);(D.mov||[]).forEach(m=>{if(m.d===od&&(m.m==='Sales'||m.m==='SaleReturns'))ontem+=(m.m==='Sales'?1:-1)*(+m.v||0)});
-  const horas={};notas.forEach(n=>{const h=parseInt(n.h,10);if(isFinite(h)){const x=horas[h]||(horas[h]={v:0,n:0});x.n++;x.v+=(n.i||[]).reduce((a,i)=>a+(+i.v||0),0)}});
-  return{D,L,ini,fim,hj,ina,diasOp,cob,refs,notas,nv,vN,qN,venQ,venV,venB,venD,venTot,rec,dev,ontem,horas,P,R:Object.fromEntries(refs.map(r=>[r.k,r]))}}
+  const horas={};notas.forEach(n=>{const h=parseInt(n.h,10);if(isFinite(h)){const x=horas[h]||(horas[h]={v:0,n:0,vl:0,nl:0});x.n++;x.v+=(n.i||[]).reduce((a,i)=>a+(+i.v||0),0)}});
+  // vendas sem nota (ex.: operação 18): usam o horário do atendimento finalizado na Lista da vez
+  const minN=h=>{const m=/^(\d{1,2}):(\d{2})/.exec(h||'');return m?+m[1]*60+ +m[2]:null};
+  const nv_={},semH={v:0};notas.forEach(n=>{const vs=new Set();(n.i||[]).forEach(i=>{const k=n.d+'|'+(i.vd||'');const x=nv_[k]||(nv_[k]={v:0,min:[]});x.v+=+i.v||0;vs.add(k)});vs.forEach(k=>{const m=minN(n.h);if(m!=null)nv_[k].min.push(m)})});
+  const at_={};(D.atend||[]).forEach(a=>{if(!dentro(a.d)||!a.fim)return;const t=new Date(+a.fim);(at_[a.d+'|'+a.vd]=at_[a.d+'|'+a.vd]||[]).push(t.getHours()*60+t.getMinutes())});
+  (D.mv||[]).forEach(m=>{if(!dentro(m.d))return;const k=m.d+'|'+(m.vd||''),sem=(+m.v||0)-((nv_[k]||{}).v||0);if(sem<=0.01)return;
+    const livres=(at_[k]||[]).slice().sort((a,b)=>a-b);((nv_[k]||{}).min||[]).forEach(n=>{let bi=-1,bd=61;livres.forEach((a,i)=>{const d=Math.abs(a-n);if(d<bd){bd=d;bi=i}});if(bi>=0)livres.splice(bi,1)});
+    if(!livres.length){semH.v+=sem;return}
+    livres.forEach(a=>{const h=Math.floor(a/60),x=horas[h]||(horas[h]={v:0,n:0,vl:0,nl:0});const p=sem/livres.length;x.v+=p;x.vl+=p;x.n++;x.nl++})});
+  return{D,L,ini,fim,hj,ina,diasOp,cob,refs,notas,nv,vN,qN,venQ,venV,venB,venD,venTot,rec,dev,ontem,horas,semH,P,R:Object.fromEntries(refs.map(r=>[r.k,r]))}}
 function lnSit(s){return`<span class="ln-tag ln-${s[1]}">${esc(s[0])}</span>`}
 function vLojaNova(){lnCarregar();
   const cab=`<div class="ph"><div><h1>Loja nova · acompanhamento</h1><div class="sub">Vendas por produto, reposição, mix e estoque, direto do TOTVS.</div></div></div>`;
@@ -1898,9 +1906,9 @@ function vLojaNova(){lnCarregar();
   // vendas por hora + últimas vendas
   const hs=Object.keys(C.horas).map(Number),h0=Math.min(9,...(hs.length?hs:[9])),h1=Math.max(22,...(hs.length?hs:[22])),mx=Math.max(1,...Object.values(C.horas).map(x=>x.v));
   const agora=new Date().getHours();
-  const barras=[];for(let h=h0;h<=h1;h++){const x=C.horas[h];const fut=LN.per==='hoje'&&h>agora;barras.push(`<div title="${h}h: ${x?x.n+' venda(s) · '+brl(x.v):'sem vendas'}"><span class="ln-bv">${x?brl0(x.v):''}</span><i class="${fut?'f':''}" style="height:${x?Math.max(4,x.v/mx*100):3}%"></i>${h}h</div>`)}
+  const barras=[];for(let h=h0;h<=h1;h++){const x=C.horas[h];const fut=LN.per==='hoje'&&h>agora;barras.push(`<div title="${h}h: ${x?x.n+' venda(s) · '+brl(x.v)+(x.nl?' (inclui '+x.nl+' sem nota pelo horário da Lista da vez: '+brl(x.vl)+')':''):'sem vendas'}"><span class="ln-bv">${x?brl0(x.v):''}</span><i class="${fut?'f':''}" style="height:${x?Math.max(4,x.v/mx*100):3}%"></i>${h}h</div>`)}
   const ult=C.notas.slice(0,8).map(n=>{const it=n.i||[],v=it.reduce((a,i)=>a+(+i.v||0),0);return`<tr><td>${LN.per==='hoje'?'':esc(fmtD(n.d).slice(0,5))+' '}${esc(n.h||'')}</td><td>${esc((it[0]||{}).n||'—')}${it.length>1?` <span class="muted sm">+${it.length-1}</span>`:''}</td><td class="r">${brl(v)}</td></tr>`}).join('');
-  const g1=`<div class="ln-g2"><div class="card"><div><h3>Volume de vendas por hora</h3><div class="muted sm">Valor das notas emitidas em cada hora${LN.per==='hoje'?' · cinza = horas que ainda não chegaram':''}</div></div><div class="ln-hrs">${barras.join('')}</div></div>
+  const g1=`<div class="ln-g2"><div class="card"><div><h3>Volume de vendas por hora</h3><div class="muted sm">Notas pela hora de emissão; vendas sem nota (ex.: operação 18) pela hora do atendimento finalizado na Lista da vez${LN.per==='hoje'?' · cinza = horas que ainda não chegaram':''}</div></div><div class="ln-hrs">${barras.join('')}</div>${C.semH.v>0.01?`<div class="muted sm">${brl(C.semH.v)} vendidos sem nota e sem atendimento correspondente na Lista da vez ficaram fora do gráfico.</div>`:''}</div>
     <div class="card"><div><h3>Últimas vendas</h3><div class="muted sm">Cada nota emitida, com os produtos</div></div>${ult?`<div class="ln-tw"><table class="ln-t"><tr><th>Hora</th><th>Produtos</th><th class="r">Valor</th></tr>${ult}</table></div>`:'<div class="muted">Nenhuma venda no período.</div>'}</div></div>`;
   // mais vendidos + reposição
   const top=C.refs.filter(r=>r.qt>0).sort((a,b)=>b.q-a.q||b.qt-a.qt).slice(0,15);
