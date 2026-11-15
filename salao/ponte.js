@@ -46,7 +46,7 @@
     if (!document.body) { document.addEventListener('DOMContentLoaded', () => telaLogin(msg)); return; }
     const d = document.createElement('div');
     d.id = 'pLogin';
-    d.innerHTML = `<div class="pl-card"><div class="pl-logo">B</div><h1>Painel das Lojas</h1><p class="pl-sub">Brasileiríssima</p>
+    d.innerHTML = `<div class="pl-card"><div class="pl-logo">B</div><h1>UpHub</h1><p class="pl-sub">Brasileiríssima</p>
       <form id="plForm" autocomplete="on"><label>Usuário ou CPF<input id="plUser" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
       <label>Senha<input id="plSenha" type="password" autocomplete="current-password" required></label>
       <p id="plMsg" class="pl-msg">${msg || ''}</p><button type="submit" id="plBtn">Entrar</button></form>
@@ -73,7 +73,7 @@
   function botaoInstalar() {
     if (instalado() || document.getElementById('pInstalar') || !document.body) return;
     const b = document.createElement('button'); b.id = 'pInstalar'; b.type = 'button';
-    b.innerHTML = 'Instalar app <span>· Lista da Vez</span>';
+    b.innerHTML = 'Instalar app <span>· UpHub</span>';
     b.onclick = async () => {
       if (pedido) { const p = pedido; pedido = null; p.prompt(); try { const r = await p.userChoice; if (r && r.outcome === 'accepted') b.remove(); } catch (x) {} return; }
       passoAPasso();
@@ -86,10 +86,10 @@
     const d = document.createElement('div'); d.id = 'pInstAjuda';
     d.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(16,24,40,.55);display:grid;place-items:center;padding:16px';
     d.innerHTML = `<div style="background:var(--surface,#fff);color:var(--ink,#101828);border-radius:16px;max-width:420px;width:100%;padding:22px;display:grid;gap:12px;box-shadow:0 20px 40px rgba(0,0,0,.25)">
-      <b style="font-size:18px">Instalar o app Lista da Vez</b>
+      <b style="font-size:18px">Instalar o app UpHub</b>
       ${ios ? '<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b> e toque em <b>Adicionar</b>.</li></ol>'
             : '<ol style="margin:0;padding-left:20px;line-height:1.7"><li>Abra esta página no <b>Google Chrome</b>.</li><li>Toque no menu <b>⋮</b> (três pontinhos, no canto de cima).</li><li>Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b> e confirme.</li></ol>'}
-      <span style="font-size:13px;opacity:.75">Depois é só abrir pelo ícone <b>Lista da Vez</b> na tela inicial.</span>
+      <span style="font-size:13px;opacity:.75">Depois é só abrir pelo ícone <b>UpHub</b> na tela inicial.</span>
       <button type="button" style="justify-self:end;border:0;border-radius:10px;padding:10px 18px;font-weight:700;background:#17418F;color:#fff;cursor:pointer">Entendi</button></div>`;
     d.addEventListener('click', (e) => { if (e.target === d || e.target.tagName === 'BUTTON') d.remove(); });
     document.body.appendChild(d);
@@ -106,8 +106,8 @@
       <b style="font-size:20px">Use a Lista da Vez em tela cheia</b>
       <span style="font-size:14px;opacity:.8">Fica mais fácil de tocar e ninguém sai da lista sem querer.</span>
       ${podeFs ? '<button type="button" data-a="fs" style="border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,#F2306D,#7A2BD8);cursor:pointer">Abrir em tela cheia</button>' : ''}
-      <button type="button" data-a="app" style="border:1px solid #D0D5DD;border-radius:12px;padding:12px;font-size:15px;font-weight:700;background:transparent;color:inherit;cursor:pointer">Instalar o app Lista da Vez</button>
-      <span style="font-size:12.5px;opacity:.7">Já instalou? Feche esta página e abra direto pelo ícone <b>Lista da Vez</b> na tela inicial.</span>
+      <button type="button" data-a="app" style="border:1px solid #D0D5DD;border-radius:12px;padding:12px;font-size:15px;font-weight:700;background:transparent;color:inherit;cursor:pointer">Instalar o app UpHub</button>
+      <span style="font-size:12.5px;opacity:.7">Já instalou? Feche esta página e abra direto pelo ícone <b>UpHub</b> na tela inicial.</span>
       <button type="button" data-a="nao" style="border:0;background:none;color:inherit;opacity:.7;font-size:14px;cursor:pointer;text-decoration:underline">Agora não</button></div>`;
     d.addEventListener('click', async (e) => {
       const a = e.target.closest && e.target.closest('[data-a]'); if (!a && e.target !== d) return;

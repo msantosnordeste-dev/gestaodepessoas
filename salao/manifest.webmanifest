@@ -1,7 +1,7 @@
 {
-  "name": "Lista da Vez · Brasileiríssima",
-  "short_name": "Lista da Vez",
-  "description": "Lista da vez, metas e resultados das lojas Brasileiríssima.",
+  "name": "UpHub · Brasileiríssima",
+  "short_name": "UpHub",
+  "description": "UpHub: lista da vez, metas e resultados das lojas Brasileiríssima.",
   "lang": "pt-BR",
   "start_url": "./#lista",
   "scope": "./",
