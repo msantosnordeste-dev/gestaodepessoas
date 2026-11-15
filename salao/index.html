@@ -644,7 +644,7 @@ const R={
   visao:{t:'Visão Geral',f:['lojas']},
   loja:{t:'Visão da loja',f:[]},
   lojanova:{t:'Loja nova',f:[]},
-  operacoes:{t:'Operações de venda',f:[]},
+  operacoes:{t:'Composição do Faturamento',f:[]},
   raiox:{t:'Raio X',g:'rel',f:['data','agrupar','lojas']},
   evolucao:{t:'Evolução',g:'rel',f:['data','lojas','vends']},
   perdas:{t:'Motivos de perdas',g:'rel',f:['data','motivos','lojas','vends']},
@@ -670,7 +670,8 @@ const R={
   ajuda:{t:'Ajuda',f:[]}
 };
 const GRP={rel:{t:'Relatórios',ic:'rel'},fb:{t:'Feedback',ic:'fb'},cad:{t:'Cadastros',ic:'cad'}};
-function go(r,extra){if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
+const ehDiretoria=()=>demo||!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.diretoria);
+function go(r,extra){if((r==='lojanova'||r==='operacoes')&&!ehDiretoria())r='visao';if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
   ui.route=r;ui.wiz=null;ui.metaView=null;ui.fbView=null;ui.rkView=null;ui.drawer=false;Object.assign(ui,extra||{});
   const h=r==='loja'&&ui.loja?'loja-'+ui.loja:r;try{if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)}catch(e){}
   $('#shell').classList.remove('open');render();window.scrollTo(0,0)}
@@ -683,7 +684,7 @@ function navHtml(){
   const it=(r,ic,t,extra='')=>`<a data-go="${r}" class="${ui.route===r?'on leaf':''}" href="#${r}">${ic?svg(ic):''}<span>${esc(t)}</span>${extra}</a>`;
   const grp=g=>{const ks=Object.keys(R).filter(k=>R[k].g===g&&(!R[k].adm||isAdmin));if(!ks.length)return'';const on=ks.includes(ui.route);
     return`<a data-act="grp" data-v="${g}" class="${on?'on':''}" href="#${ks[0]}" aria-expanded="${!!ui.menu[g]}">${svg(GRP[g].ic)}<span>${GRP[g].t}</span></a>${ui.menu[g]?`<div class="sub">${ks.map(k=>`<a data-go="${k}" class="${ui.route===k?'on':''}" href="#${k}">${esc(R[k].t)}</a>`).join('')}</div>`:''}`};
-  return it('visao','visao','Visão Geral')+it('lojanova','ticket','Loja nova')+it('operacoes','perf','Operações de venda')+grp('rel')+it('ranking','rank','Ranking')+it('validacao','val','Validação',isAdmin&&pend?`<span class="badge">${pend}</span>`:'')+grp('fb')+grp('cad')
+  return it('visao','visao','Visão Geral')+(ehDiretoria()?it('lojanova','ticket','Loja nova')+it('operacoes','perf','Composição do Faturamento'):'')+grp('rel')+it('ranking','rank','Ranking')+it('validacao','val','Validação',isAdmin&&pend?`<span class="badge">${pend}</span>`:'')+grp('fb')+grp('cad')
     +'<div class="sep"></div>'+it('lista','lista','Lista da vez (loja)')+it('ajuda','ajuda','Ajuda')+(demo?'':'<div class="sep"></div><a data-act="demo" href="#visao">'+svg('eye')+'<span>Ver demonstração</span></a>');
 }
 
@@ -1898,7 +1899,7 @@ function lnCalc(){const D=LN.d,L=D.loja,hj=hoje(),ina=L.inauguracao||hj;
     livres.forEach(a=>{const h=Math.floor(a/60),x=horas[h]||(horas[h]={v:0,n:0,vl:0,nl:0});const p=sem/livres.length;x.v+=p;x.vl+=p;x.n++;x.nl++})});
   return{D,L,ini,fim,hj,ina,diasOp,cob,refs,notas,nv,vN,qN,venQ,venV,venB,venD,venTot,rec,dev,ontem,horas,semH,P,R:Object.fromEntries(refs.map(r=>[r.k,r]))}}
 function lnSit(s){return`<span class="ln-tag ln-${s[1]}">${esc(s[0])}</span>`}
-function vLojaNova(){lnCarregar();
+function vLojaNova(){if(!ehDiretoria())return vazio('Acesso restrito à Diretoria.');lnCarregar();
   const cab=`<div class="ph"><div><h1>Loja nova · acompanhamento</h1><div class="sub">Vendas por produto, reposição, mix e estoque, direto do TOTVS.</div></div></div>`;
   if(LN.erro&&!LN.d)return cab+`<div class="card">${esc(LN.erro)} <button class="btn sm" data-act="lnAtualizar">Tentar de novo</button></div>`;
   if(!LN.d)return cab+`<div class="card muted">Carregando dados da loja…</div>`;
@@ -2047,8 +2048,8 @@ function opvIni(){if(!OPV.ate){const h=hoje();OPV.ate=h;OPV.dia=h;OPV.de=h.slice
 function opvCarregar(){const k=OPV.de+'|'+OPV.ate;if(OPV.carr||OPV.chave===k)return;if(!window.PAINEL||!PAINEL.sb){OPV.erro='Disponível só com login.';return}
   OPV.carr=true;PAINEL.sb.rpc('painel_operacoes',{de:OPV.de,ate:OPV.ate}).then(({data,error})=>{if(error)throw error;OPV.d=data;OPV.chave=k;OPV.erro=null}).catch(e=>{OPV.erro=errMsg(e);OPV.chave=k}).finally(()=>{OPV.carr=false;if(ui.route==='operacoes')render()})}
 const opvNome=(op,N)=>op==='18'?'OP 18':(N&&N[op])||('OP '+op);
-function vOperacoes(){opvIni();opvCarregar();
-  const cab=`<div class="ph"><div><h1>Operações de venda</h1><div class="sub">Loja em acompanhamento (loja nova): faturamento por operação do TOTVS e quanto cada uma representa no faturamento da loja.</div></div></div>`;
+function vOperacoes(){if(!ehDiretoria())return vazio('Acesso restrito à Diretoria.');opvIni();opvCarregar();
+  const cab=`<div class="ph"><div><h1>Composição do Faturamento</h1><div class="sub">Loja em acompanhamento (loja nova): faturamento por operação do TOTVS e quanto cada uma representa no faturamento da loja.</div></div></div>`;
   const D=OPV.d||{linhas:[],nomes:{}},N=D.nomes||{};
   const lojas=[...new Set((D.linhas||[]).map(x=>x.l))].sort((a,b)=>nomeLoja(a).localeCompare(nomeLoja(b),'pt-BR'));
   if(OPV.loja&&!lojas.includes(OPV.loja)&&OPV.d)OPV.loja='';
