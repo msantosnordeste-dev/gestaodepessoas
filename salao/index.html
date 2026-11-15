@@ -1481,7 +1481,7 @@ const salvarFila=(lid,f)=>ops.set('filas',lid,f);
 function jornada(lid,vid,tipo,ini,fim,motivo){if(!(fim>ini))return;ops.set('jornada',nid(),{lojaId:lid,vendedorId:vid,data:iso(new Date(ini)),tipo,ini,fim,...(motivo?{motivo}:{})})}
 function sairDaLoja(f,lid,vid){const now=Date.now();if(f.fora[vid]&&f.fora[vid].desde)jornada(lid,vid,'pausa',f.fora[vid].desde,now,f.fora[vid].motivo);if(f.turnos[vid]){jornada(lid,vid,'turno',f.turnos[vid],now);delete f.turnos[vid]}limpar(f,vid)}
 const ACT={
-  omOrd(el){OM.ord=el.dataset.v;render()},omAbrir(el){OM.ab=OM.ab===el.dataset.v?null:el.dataset.v;render()},omMais(){OM.n+=20;render()},omExportar(){omExportar()},
+  omOrd(el){OM.ord=el.dataset.v;render()},omReg(el){OM.reg=el.dataset.v;OM.n=20;OM.ab=null;omCarregar(true);render()},omAbrir(el){OM.ab=OM.ab===el.dataset.v?null:el.dataset.v;render()},omMais(){OM.n+=20;render()},omExportar(){omExportar()},
   opvLoja(el){OPV.loja=OPV.loja===el.dataset.v?'':el.dataset.v;render()},opvDia(el){OPV.dia=el.dataset.v;render()},
   opvAtalho(el){const v=el.dataset.v,h=hoje(),d=new Date();if(v==='m'){OPV.de=h.slice(0,8)+'01';OPV.ate=h}else if(v==='ma'){const a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);OPV.de=iso(a);OPV.ate=iso(b)}else{const a=new Date();a.setDate(a.getDate()-(+v||0));OPV.de=iso(a);OPV.ate=h}OPV.dia=OPV.ate;opvCarregar();render()},
   lnAtualizar(){lnCarregar(true);omCarregar(true);render()},lnPer(el){LN.per=el.dataset.v;render()},lnMix(el){LN.mix=el.dataset.v;render()},
@@ -1993,11 +1993,11 @@ function lnExportar(){const C=lnCalc(),lin=[['Referência','Produto','Cor','Tama
   const csv='﻿'+lin.map(l=>l.map(x=>{const t=String(x??'');return/[;"\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}).join(';')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='reposicao-'+(C.L.loja||'loja')+'-'+C.hj+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 /* ---- Loja nova: oportunidades de mix (mais vendidos da rede que a loja não tem) ---- */
-const OM={d:null,carr:false,erro:null,em:0,ord:'v',cat:'',ab:null,n:20};
+const OM={d:null,carr:false,erro:null,em:0,ord:'v',cat:'',ab:null,n:20,reg:undefined};
 function omCarregar(forca){if(OM.carr||(!forca&&OM.d&&Date.now()-OM.em<300000))return;if(!window.PAINEL||!PAINEL.sb)return;
-  OM.carr=true;PAINEL.sb.rpc('painel_oportunidades_mix',{loja:LN.loja}).then(({data,error})=>{if(error)throw error;OM.d=data;OM.erro=null;OM.em=Date.now()}).catch(e=>{OM.erro=errMsg(e)}).finally(()=>{OM.carr=false;if(ui.route==='lojanova')render()})}
+  OM.carr=true;PAINEL.sb.rpc('painel_oportunidades_mix',{loja:LN.loja,reg:OM.reg||null}).then(({data,error})=>{if(error)throw error;OM.d=data;OM.erro=null;OM.em=Date.now();if(OM.reg===undefined){OM.reg=data.regional||'';if(OM.reg)setTimeout(()=>omCarregar(true),0)}}).catch(e=>{OM.erro=errMsg(e)}).finally(()=>{OM.carr=false;if(ui.route==='lojanova')render()})}
 function omHtml(C){omCarregar();
-  const tit=`<div><h3>Oportunidades de mix: o que mais vende na rede e a loja não tem</h3><div class="muted sm">Vendas das demais lojas nos últimos 30 dias, por referência. Só entram referências que esta loja nunca recebeu, vendeu ou teve em estoque.</div></div>`;
+  const tit=`<div><h3>Oportunidades de mix: o que mais vende na rede e a loja não tem</h3><div class="muted sm">Vendas das demais lojas${OM.reg?' da regional <b>'+esc(OM.reg)+'</b>':''} nos últimos 30 dias, por referência. Só entram referências que esta loja nunca recebeu, vendeu ou teve em estoque.</div></div>`;
   if(OM.erro)return`<div class="card">${tit}<div class="red">${esc(OM.erro)}</div></div>`;
   if(!OM.d)return`<div class="card">${tit}<div class="muted">Carregando a análise da rede…</div></div>`;
   const D=OM.d,R=D.resumo||{},st=D.status||{};
@@ -2019,18 +2019,19 @@ function omHtml(C){omCarregar();
   const top20=lst.slice().sort((a,b)=>b.v-a.v).slice(0,20),vTop=top20.reduce((s,r)=>s+r.v,0);
   const catsN=lst.filter(r=>!catLoja[r.cat]).reduce((o,r)=>{const k=r.cat||'Sem categoria';o[k]=(o[k]||0)+r.v;return o},{});
   const catsNovas=Object.entries(catsN).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  const ins=[`A rede vendeu ${brl0(R.valor)} em ${lnInt(R.refs)} referências nos últimos 30 dias; esta loja tem ${lnInt(R.refsTem)} delas, que somam <b>${pct(R.valor?R.valorTem/R.valor:0,0)}</b> do faturamento da rede.`,
-    `Das 50 referências que mais faturam na rede, a loja tem <b>${R.top50Tem||0}</b>.`,
+  const ins=[`${OM.reg?'As '+lnInt(R.lojas)+' lojas da regional '+esc(OM.reg)+' venderam':'A rede vendeu'} ${brl0(R.valor)} em ${lnInt(R.refs)} referências nos últimos 30 dias; esta loja tem ${lnInt(R.refsTem)} delas, que somam <b>${pct(R.valor?R.valorTem/R.valor:0,0)}</b> do faturamento ${OM.reg?'da regional':'da rede'}.`,
+    `Das 50 referências que mais faturam ${OM.reg?'na regional':'na rede'}, a loja tem <b>${R.top50Tem||0}</b>.`,
     top20.length?`As 20 maiores ausências somam <b>${brl0(vTop)}</b> em 30 dias nas outras lojas.`:'',
     catsNovas.length?`Categorias que vendem na rede e a loja não trabalha: ${catsNovas.map(([k,v])=>`<b>${esc(k)}</b> (${brl0(v)})`).join(', ')}.`:''].filter(Boolean);
   const vis=fl.slice(0,OM.n);
   const linha=r=>{const ab=OM.ab===r.ref;return`<tr class="ln-cl" data-act="omAbrir" data-v="${esc(r.ref)}"><td><span class="om-sc" style="--s:${Math.min(100,r.score)}%">${r.score}</span></td><td><b>${esc(r.rn)}</b><div class="muted sm">${esc(r.cat||'Sem categoria')} · ${esc(r.motivo.slice(0,2).join(' · '))}</div></td><td class="r">${lnInt(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${brl(r.pm)}</td><td class="r">${r.lojas}</td><td class="r">${num(r.porLojaDia,2)}</td><td class="r"><b>${r.ini}</b></td></tr>
-    ${ab?`<tr><td></td><td colspan="7"><div class="om-det"><div><b>Onde vende</b>${(r.porLoja||[]).slice(0,8).map(x=>`<div class="row" style="justify-content:space-between;gap:8px"><span>${esc(nomeLoja(x.l))}</span><span class="muted">${lnInt(x.q)} pç · ${brl0(x.v)}</span></div>`).join('')}</div>
+    ${ab?`<tr><td></td><td colspan="7"><div class="om-det"><div><b>Onde vende</b>${(r.porLoja||[]).slice(0,8).map(x=>`<div class="row" style="justify-content:space-between;gap:8px"><span>${esc(nomeLoja(x.l))}${S.lojas[x.l]&&S.lojas[x.l].grupo?' <small class="muted">· '+esc(S.lojas[x.l].grupo)+'</small>':''}</span><span class="muted">${lnInt(x.q)} pç · ${brl0(x.v)}</span></div>`).join('')}</div>
       <div><b>Cores que mais vendem</b>${(r.coresTop||[]).slice(0,6).map(x=>`<div class="row" style="justify-content:space-between;gap:8px"><span>${esc(x.c)}</span><span class="muted">${lnInt(x.q)} pç</span></div>`).join('')}<div class="muted sm" style="margin-top:6px">${r.cores} cor(es) · ${r.tams} tamanho(s)</div></div>
       <div><b>Por que sugerir</b>${r.motivo.map(m=>`<div>• ${esc(m)}</div>`).join('')}<div class="muted sm" style="margin-top:6px">Pedido inicial = peças/loja/dia × ${cob} dias de cobertura.</div></div></div></td></tr>`:''}`};
   return`<div class="card" id="lnOport"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">${tit}<button class="btn sm" data-act="omExportar">Exportar sugestões</button></div>
    <div class="om-ins">${ins.map(t=>`<div>${t}</div>`).join('')}</div>
    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><div class="seg">${[['v','Faturamento'],['q','Volume (peças)'],['s','Prioridade']].map(([v,t])=>`<button data-act="omOrd" data-v="${v}" aria-pressed="${OM.ord===v}">${t}</button>`).join('')}</div>
+   <div class="seg">${[...new Set([D.regional].concat(D.regionais||[]).filter(Boolean))].map(r=>`<button data-act="omReg" data-v="${esc(r)}" aria-pressed="${OM.reg===r}">${esc(r)}${r===D.regional?' (da loja)':''}</button>`).join('')}<button data-act="omReg" data-v="" aria-pressed="${!OM.reg}">Todas as regionais</button></div>
    <select data-ch="omCat"><option value="">Todas as categorias</option>${cats.map(c=>`<option ${c===OM.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>
    <span class="muted sm">Rede lida em ${new Date(st.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · ${fmtD(st.de)} a ${fmtD(st.ate)}</span></div>
    ${vis.length?`<div class="ln-tw"><table class="ln-t"><tr><th title="Prioridade (0–100): faturamento, presença nas lojas, giro e aderência ao perfil da loja">Prior.</th><th>Referência</th><th class="r">Peças 30d</th><th class="r">Faturamento 30d</th><th class="r">Preço médio</th><th class="r">Lojas</th><th class="r">Pç/loja/dia</th><th class="r" title="Sugestão de pedido inicial para ${cob} dias">Pedido inicial</th></tr>${vis.map(linha).join('')}</table></div>
