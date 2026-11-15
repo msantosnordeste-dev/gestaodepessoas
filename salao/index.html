@@ -1795,11 +1795,11 @@ async function totvsIniciar(){tvsBtn();if(!isAdmin||demo)return;tvsStatus();setI
 const usr={lista:null,carregando:false,senhaDe:null,erro:''};
 async function usrCarregar(){if(usr.carregando)return;usr.carregando=true;try{usr.lista=(await PAINEL.fn('painel-usuarios',{acao:'listar'})).usuarios||[];usr.erro=''}catch(e){usr.erro=e.message}usr.carregando=false;scheduleRender()}
 function vUsuarios(){if(!usr.lista&&!usr.carregando&&!usr.erro)usrCarregar();const d=dis(),lojas=lojasAtivas();
-  let h=`<div class="ph"><div><h1>Logins do painel</h1><div class="sub">Crie um login para cada loja. Quem entra com o login da loja vê os resultados e usa a lista da vez daquela loja. O RH entra com o próprio usuário do Gestão de Pessoas.</div></div></div>`;
+  let h=`<div class="ph"><div><h1>Logins do painel</h1><div class="sub">Crie um login para cada loja e para a Diretoria. Login da loja: só a Lista da vez daquela loja. Diretoria: consulta de todas as lojas, Loja nova e Composição do Faturamento, sem alterar nada. O RH entra com o próprio usuário do Gestão de Pessoas.</div></div></div>`;
   h+=`<div class="card"><div class="hd"><h3>${svg('cad')}Novo login</h3></div><div class="g2" style="gap:12px">
-    <label class="f">Login (sem espaços)<input id="nuLogin" placeholder="ex.: ssa.casa" autocapitalize="off" spellcheck="false" ${d}></label>
+    <label class="f">Login (sem espaços; para Diretoria use o CPF)<input id="nuLogin" placeholder="ex.: ssa.casa ou CPF" autocapitalize="off" spellcheck="false" ${d}></label>
     <label class="f">Nome que aparece<input id="nuNome" placeholder="ex.: Loja BA SSA Casa" ${d}></label>
-    <label class="f">Tipo<select id="nuPapel" ${d}><option value="loja">Loja</option><option value="admin">Administrador</option></select></label>
+    <label class="f">Tipo<select id="nuPapel" ${d}><option value="loja">Loja</option><option value="diretoria">Diretoria (consulta)</option><option value="admin">Administrador</option></select></label>
     <label class="f">Loja<select id="nuLoja" ${d}><option value="">— escolha —</option>${lojas.map(([id,l])=>`<option value="${esc(id)}">${esc(l.nome)}</option>`).join('')}</select></label>
     <label class="f">Senha inicial (mín. 8 caracteres)<input id="nuSenha" type="password" autocomplete="new-password" ${d}></label></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" data-act="usrCriar" ${d}>Criar login</button></div></div>`;
@@ -1807,12 +1807,12 @@ function vUsuarios(){if(!usr.lista&&!usr.carregando&&!usr.erro)usrCarregar();con
   const LV=(usr.lista||[]).filter(u=>u.papel==='vendedor'),L=(usr.lista||[]).filter(u=>u.papel!=='vendedor');
   if(usr.lista)h+=`<div class="card"><p class="sm" style="margin:0"><b>Logins dos colaboradores: ${LV.filter(u=>u.ativo).length} ativo(s).</b> São criados sozinhos a cada 10 minutos para todo vendedor com CPF no cadastro: usuário = CPF, senha inicial = CPF, com troca obrigatória no primeiro acesso. O colaborador vê só os próprios números, pelo site ou no botão "Minhas vendas e metas" da Lista da vez. Para redefinir a senha: Cadastros › Vendedores › Ações.</p></div>`;
   h+=`<div class="card"><div class="hd"><h3>${svg('cad')}Logins cadastrados</h3><span class="muted sm">${usr.carregando?'carregando…':L.length+' login(s)'}</span></div>
-  ${L.length?`<div class="tw"><table><thead><tr><th>Login</th><th>Nome</th><th>Tipo</th><th>Loja</th><th>Situação</th><th></th></tr></thead><tbody>${L.map(u=>`<tr${u.ativo?'':' class="muted"'}><td>${esc(u.login)}</td><td>${esc(u.nome||'')}</td><td>${u.papel==='admin'?'Administrador':'Loja'}</td><td>${esc(u.loja_id?nomeLoja(u.loja_id):'—')}</td><td>${u.ativo?'Ativo':'Desativado'}</td>
+  ${L.length?`<div class="tw"><table><thead><tr><th>Login</th><th>Nome</th><th>Tipo</th><th>Loja</th><th>Situação</th><th></th></tr></thead><tbody>${L.map(u=>`<tr${u.ativo?'':' class="muted"'}><td>${esc(u.login)}</td><td>${esc(u.nome||'')}</td><td>${u.papel==='admin'?'Administrador':u.papel==='diretoria'?'Diretoria (consulta)':'Loja'}</td><td>${esc(u.loja_id?nomeLoja(u.loja_id):'—')}</td><td>${u.ativo?'Ativo':'Desativado'}</td>
     <td style="white-space:nowrap">${usr.senhaDe===u.user_id?`<input id="nsSenha" type="password" placeholder="nova senha" autocomplete="new-password" style="width:140px"> <button class="btn sm pri" data-act="usrSenhaOk" data-v="${u.user_id}">Salvar</button>`:`<button class="btn sm" data-act="usrSenha" data-v="${u.user_id}" ${d}>Nova senha</button>`} <button class="btn sm" data-act="usrAtivo" data-v="${u.user_id}" data-a="${u.ativo?0:1}" ${d}>${u.ativo?'Desativar':'Ativar'}</button>${u.papel==='loja'&&u.loja_id?` <button class="btn sm pri" data-act="usrVerComo" data-v="${u.user_id}" title="Ver o painel como esse login enxerga">Ver como</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:`<p class="muted sm" style="margin:0">${usr.carregando?'':'Nenhum login de loja criado ainda.'}</p>`}</div>`;
   return h}
 ACT.usrCriar=async()=>{const v=id=>($('#'+id)?.value||'').trim(),b={acao:'criar',login:v('nuLogin').toLowerCase(),nome:v('nuNome'),papel:v('nuPapel'),loja_id:v('nuLoja'),senha:$('#nuSenha')?.value||''};
   if(b.papel==='loja'&&!b.loja_id){toast('Escolha a loja.');return}
-  try{await PAINEL.fn('painel-usuarios',b);toast('Login '+b.login+' criado. Passe o login e a senha para a loja.');['nuLogin','nuNome','nuSenha'].forEach(id=>{const e=$('#'+id);if(e)e.value=''});usr.lista=null;usrCarregar()}catch(e){toast(e.message)}};
+  try{const r=await PAINEL.fn('painel-usuarios',b);toast('Login '+((r&&r.login)||b.login)+' criado. '+(b.papel==='diretoria'?'No primeiro acesso a pessoa troca a senha.':'Passe o login e a senha para a loja.'));['nuLogin','nuNome','nuSenha'].forEach(id=>{const e=$('#'+id);if(e)e.value=''});usr.lista=null;usrCarregar()}catch(e){toast(e.message)}};
 ACT.usrSenha=el=>{usr.senhaDe=el.dataset.v;render();setTimeout(()=>$('#nsSenha')?.focus(),30)};
 ACT.usrSenhaOk=async el=>{const s=$('#nsSenha')?.value||'';try{await PAINEL.fn('painel-usuarios',{acao:'senha',user_id:el.dataset.v,senha:s});toast('Senha alterada.');usr.senhaDe=null;render()}catch(e){toast(e.message)}};
 ACT.usrAtivo=async el=>{try{await PAINEL.fn('painel-usuarios',{acao:'ativo',user_id:el.dataset.v,ativo:el.dataset.a==='1'});usr.lista=null;usrCarregar()}catch(e){toast(e.message)}};
@@ -2154,7 +2154,7 @@ render();
   dbState=db?'ok':'none';
   if(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='vendedor'){meuIniciarSite();return}
   try{userCap=window.claude&&window.claude.use?await window.claude.use('user'):null}catch(e){userCap=null}
-  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
+  if(userCap){try{const me=await userCap.me();ME.id=me.id;ME.name=me.name||'';isAdmin=!!me.canEdit;if(PAINEL.eu&&PAINEL.eu.papel==='loja'){if(PAINEL.eu.loja)ui.f.lojas=[PAINEL.eu.loja];ui.route='lista';document.body.classList.add('modo-loja')}if(PAINEL.eu&&PAINEL.eu.papel==='diretoria')canWrite=false;const c=await userCap.can('data.write');if(c===false)canWrite=false}catch(e){}}
   $('#userNm').textContent=ME.name||(isAdmin?'Editor':'Usuário');$('#userAv').textContent=iniciais(ME.name||'U');
   if(db)subscribe();
   if(!db&&!demo){entrarDemo();return}
