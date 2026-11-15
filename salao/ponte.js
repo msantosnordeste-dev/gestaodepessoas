@@ -133,7 +133,7 @@
     if (!data.session) { telaLogin(); return new Promise(() => {}); }
     const { data: eu, error } = await sb.rpc('painel_eu');
     if (error || !eu || !eu.papel) {
-      telaLogin(error ? 'Não foi possível verificar seu acesso. Tente entrar de novo.' : 'Seu usuário não tem acesso ao Painel das Lojas. Fale com o RH.');
+      telaLogin(error ? 'Não foi possível verificar seu acesso. Tente entrar de novo.' : 'Seu usuário não tem acesso ao UpHub. Fale com o RH.');
       try { await sb.auth.signOut(); } catch (e) {}
       return new Promise(() => {});
     }
