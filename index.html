@@ -9072,7 +9072,10 @@ const RS_DESIST=["Não devolveu a ficha / desistiu","Recusou a proposta"];
 function rsCandGrupo(c){if(c.status==="nao_seguiu")return RS_DESIST.includes((c.nao_seguiu||{}).motivo)?"desist":"reprov";if(c.status==="admitido")return "contr";const f=RS_ET[c.etapa].f;return c.etapa===3?"triagem":f===2?"selecao":f===3?"proposta":"contr"}
 function rsEscolaridade(c){const p=(RS.pre||[]).find(x=>x.cand_id===c.id&&x.status==="enviado");if(!p||!p.dados||!p.dados.escolaridade)return "";const e=p.dados.escolaridade;
   const k=(typeof PRE_ESC!=="undefined"?PRE_ESC:[]).find(([k])=>e[k]);return k?k[1]+" "+String(e[k[0]]).toLowerCase():""}
-function rsCvLink(c){const u=String(c.curriculo||"").trim();return /^https?:\/\//i.test(u)?`<a class="btn btn-sm" href="${esc(u)}" target="_blank" rel="noopener" title="Abrir currículo">📄 Currículo ↗</a> `:""}
+function rsCvLink(c){const u=String(c.curriculo||"").trim();if(/^pdf:/.test(u))return `<button class="btn btn-sm" data-rs="cvPdf" data-v="${esc(u.slice(4))}" title="Abrir currículo em PDF">📄 Currículo PDF</button> `;if(rsCvTexto(c))return `<button class="btn btn-sm" data-rs="candsVaga" data-id="${c.vaga_id}" data-c="${c.id}" title="Currículo preenchido no pré-cadastro">📝 Currículo</button> `;return /^https?:\/\//i.test(u)?`<a class="btn btn-sm" href="${esc(u)}" target="_blank" rel="noopener" title="Abrir currículo">📄 Currículo ↗</a> `:""}
+function rsCvTexto(c){const x=((c.registros||{}).pre||{}).cv;if(x&&(x.experiencias||x.resumo))return x;const p=(RS.pre||[]).find(y=>y.cand_id===c.id&&y.status==="enviado");const d=p&&p.dados&&p.dados.curriculo;return d&&(d.experiencias||d.resumo)?d:null}
+function rsCvBloco(c){const x=rsCvTexto(c);if(!x)return "";const b=(t,v)=>v?`<div style="margin-top:6px"><b class="small">${t}</b><div class="small" style="white-space:pre-wrap">${esc(v)}</div></div>`:"";
+  return `<div style="flex:1 1 100%;background:#F7F8F5;border-radius:8px;padding:10px 12px"><b>📝 Currículo preenchido no pré-cadastro</b>${b("Experiências",x.experiencias)}${b("Cursos, idiomas e habilidades",x.cursos)}${b("Sobre",x.resumo)}</div>`}
 function rsCandsModal(vid,foco){const v=RS.vagas.find(x=>x.id===vid);if(!v)return;const cs=rsCandsDe(vid).slice().sort((a,b)=>(b.status==="ativo")-(a.status==="ativo")||b.etapa-a.etapa);const rh=rsRH();
   const ini=n=>String(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
   const pre=c=>{const p=(RS.pre||[]).find(x=>x.cand_id===c.id&&x.status==="enviado");return p&&p.dados||null};
@@ -9090,10 +9093,10 @@ function rsCandsModal(vid,foco){const v=RS.vagas.find(x=>x.id===vid);if(!v)retur
           ${row("Gerente",r["4"]&&r["4"].gerente_em?(r["4"].gerente_segue?"👍 segue":"👎 não segue")+(r["4"].gerente_obs?" · "+esc(r["4"].gerente_obs):""):"")}
           ${row("Saída",c.status==="nao_seguiu"?esc((ns.motivo||"")+" · etapa "+String(ns.etapa||c.etapa).padStart(2,"0")+(ns.feedback_em?" · feedback "+ns.feedback_em:" · sem feedback")):"")}
         </dl>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${rsCvLink(c)||`<span class="small muted">Sem currículo anexado${rh?" · inclua o link na ficha":""}</span>`}${d?`<span class="chip c-ok" style="font-size:11px">Pré-cadastro preenchido</span>`:""}<button class="btn btn-sm btn-primary" data-rs="cand" data-id="${c.id}">Ficha e linha do processo</button></div>
+        ${rsCvBloco(c)}<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${(rsCvTexto(c)?"":rsCvLink(c))||`<span class="small muted">Sem currículo anexado${rh?" · inclua o link na ficha":""}</span>`}${d?`<span class="chip c-ok" style="font-size:11px">Pré-cadastro preenchido</span>`:""}<button class="btn btn-sm btn-primary" data-rs="cand" data-id="${c.id}">Ficha e linha do processo</button></div>
       </div></details>`};
   modal("Candidatos e currículos",`<p style="margin:0 0 4px"><b>${esc(v.cargo)}</b> · ${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"}${v.gupy?" · Gupy "+esc(v.gupy):""}</p>
-    <p class="small muted" style="margin:0 0 12px">${cs.length} candidatura${cs.length===1?"":"s"} · ${cs.filter(c=>c.status==="ativo").length} no processo · ${cs.filter(c=>/^https?:/i.test(c.curriculo||"")).length} com currículo</p>
+    <p class="small muted" style="margin:0 0 12px">${cs.length} candidatura${cs.length===1?"":"s"} · ${cs.filter(c=>c.status==="ativo").length} no processo · ${cs.filter(c=>/^(https?:|pdf:)/i.test(c.curriculo||"")||rsCvTexto(c)).length} com currículo</p>
     <div style="display:flex;flex-direction:column;gap:8px">${cs.length?cs.map(item).join(""):`<p class="empty">Nenhum candidato cadastrado ainda.</p>`}</div>`,
     `<button class="btn" data-close>Fechar</button>${rh&&v.status==="aberta"?`<button class="btn" data-rs="novoCand" data-id="${v.id}">+ Adicionar candidato</button>`:""}<button class="btn btn-primary" data-rs="abrirVaga" data-id="${v.id}">Ir para a vaga</button>`);
   if(foco)setTimeout(()=>{const e=document.querySelector("#modal-root details[open]");if(e)e.scrollIntoView({block:"nearest"})},50)}
@@ -9272,7 +9275,7 @@ function rsModalCand(c){
         <dt class="muted">Entrou em</dt><dd style="margin:0">${fdate(String(c.criado_em).slice(0,10))}</dd>
         ${c.contato?`<dt class="muted">Contato</dt><dd style="margin:0">${esc(c.contato)}</dd>`:""}
         ${c.cidade?`<dt class="muted">Cidade</dt><dd style="margin:0">${esc(c.cidade)}</dd>`:""}
-        ${c.curriculo?`<dt class="muted">Currículo</dt><dd style="margin:0"><a href="${esc(c.curriculo)}" target="_blank" rel="noopener">abrir</a></dd>`:""}
+        ${rsCvLink(c)?`<dt class="muted">Currículo</dt><dd style="margin:0">${rsCvLink(c)}</dd>`:""}
       </dl>${rh?rsPreDados(c):""}${rh&&ativo&&!RS.pre.some(x=>x.cand_id===c.id&&x.status==="enviado")?`<button class="btn btn-sm" data-rs="preNovo" data-id="${c.vaga_id}" data-cand="${c.id}">${RS.pre.some(x=>x.cand_id===c.id&&x.status==="pendente")?"Gerar novo link de pré-cadastro":"Enviar link de pré-cadastro"}</button>`:""}
       ${ativo?`<div style="background:#0B3D2B;color:#fff;border-radius:10px;padding:12px"><div style="font-size:11px;font-weight:700;letter-spacing:.12em;color:#F7A06A">ETAPA ATUAL</div><b style="font-size:1.1rem">${String(c.etapa).padStart(2,"0")} · ${RS_ET[c.etapa].t}</b><div class="small" style="opacity:.85">há ${s.d} dia${s.d===1?"":"s"} · prazo ${s.s} dia${s.s===1?"":"s"}</div><span class="chip" style="margin-top:6px;background:${RS_COR[s.st].bg};color:${RS_COR[s.st].fg}">${s.st==="ok"?"No prazo":s.st==="hoje"?"Vence hoje":"Atrasado"}</span></div>`:`<span class="chip ${c.status==="admitido"?"c-ok":"c-bad"}">${c.status==="admitido"?"Admitido":"Não seguiu no processo"}</span>`}
     </div>
@@ -9344,6 +9347,7 @@ document.addEventListener("click",async ev=>{
   if(a==="cmodo"){RS.cmodo=t.dataset.v;render();return}
   if(a==="modo"){RS.modo=t.dataset.v;try{localStorage.setItem("rs_modo",RS.modo)}catch(e){}render();return}
   if(a==="voltar"){RS.vaga=null;render();return}
+  if(a==="cvPdf"){const w=window.open("","_blank");const {data,error}=await SB.storage.from("curriculos").createSignedUrl(t.dataset.v,600);if(error||!data){if(w)w.close();toast("Não foi possível abrir o currículo"+(error?": "+error.message:""));return}if(w)w.location=data.signedUrl;else location.href=data.signedUrl;return}
   if(a==="candsVaga"){rsCandsModal(id,t.dataset.c||null);return}
   if(a==="abrirVaga"){closeModal();RS.vaga=id;RS.tab="painel";if(page!=="recrutamento")location.hash="recrutamento";else render();window.scrollTo(0,0);return}
   if(a==="novaVaga"){rsFormVaga();return}
@@ -9473,10 +9477,17 @@ function preForm(){
       <div class="field"><label for="pf-uf">Estado<span aria-hidden="true" style="color:var(--bad)">*</span></label><select class="input" id="pf-uf"><option value="">Selecione</option>${PRE_UF.map(u=>`<option>${u}</option>`).join("")}</select><span class="pre-msg" id="pf-uf-m" hidden></span></div></div>
     ${sec(4,"Escolaridade","Marque a situação de cada nível que você cursou.")}
     <div>${PRE_ESC.map(([k,t])=>`<div class="pre-esc"><b style="font-size:.92rem">${t}</b><div class="pre-pills" role="radiogroup" aria-label="${t}">${["Completo","Incompleto","Cursando"].map(o=>`<label><input type="radio" name="pe-${k}" value="${o.toLowerCase()}"> ${o}</label>`).join("")}</div></div>`).join("")}</div>
-    ${sec(5,"Informações gerais")}
+    ${sec(5,"Currículo","Anexe seu currículo em PDF ou preencha aqui. Um dos dois é obrigatório.")}
+    <fieldset class="field full" style="border:0;padding:0;margin:0 0 8px"><legend class="sr-only">Como enviar o currículo</legend><div class="pre-pills" role="radiogroup"><label><input type="radio" name="pf-cvm" value="pdf"> 📄 Anexar PDF</label><label><input type="radio" name="pf-cvm" value="texto"> ✍️ Preencher aqui</label></div><span class="pre-msg" id="pf-cvm-m" hidden></span></fieldset>
+    <div id="pf-cv-pdf" hidden><div class="field full"><label for="pf-cvarq">Currículo em PDF (até 5 MB)<span aria-hidden="true" style="color:var(--bad)">*</span></label><input class="input" id="pf-cvarq" type="file" accept="application/pdf,.pdf"><span class="pre-msg" id="pf-cvarq-m" hidden></span></div></div>
+    <div id="pf-cv-txt" hidden><div class="form-grid">
+      <div class="field full"><label for="pf-cvexp">Experiências profissionais<span aria-hidden="true" style="color:var(--bad)">*</span></label><textarea class="input" id="pf-cvexp" rows="5" maxlength="3000" placeholder="Empresa · cargo · período (ex.: 03/2023 a 12/2024) · principais atividades. Uma experiência por linha. Se for o primeiro emprego, conte aqui suas atividades e cursos."></textarea><span class="pre-msg" id="pf-cvexp-m" hidden></span></div>
+      <div class="field full"><label for="pf-cvcur">Cursos, idiomas e habilidades (opcional)</label><textarea class="input" id="pf-cvcur" rows="2" maxlength="1000" placeholder="Ex.: inglês intermediário, curso de vendas, pacote Office"></textarea></div>
+      <div class="field full"><label for="pf-cvres">Sobre você (opcional)</label><textarea class="input" id="pf-cvres" rows="2" maxlength="800" placeholder="Seus objetivos e o que você gosta de fazer"></textarea></div></div></div>
+    ${sec(6,"Informações gerais")}
     ${sn("pf-part","Já participou de processo seletivo na Brasileiríssima?")}${sn("pf-ind","É indicado(a) por alguém?")}
     <div class="field" id="pf-indpor-f" hidden><label for="pf-indpor">Quem indicou? (opcional)</label><input class="input" id="pf-indpor" maxlength="100"></div>
-    ${sec(6,"Declaração","Leia o termo de consentimento antes de enviar.")}
+    ${sec(7,"Declaração","Leia o termo de consentimento antes de enviar.")}
     <div class="pre-termo">${PRE_TERMO}</div>
     <label class="check" style="margin-top:12px;align-items:flex-start"><input type="checkbox" id="pf-lgpd"> <span>Li e concordo com a declaração e o termo de consentimento (LGPD).<span aria-hidden="true" style="color:var(--bad)">*</span></span></label><span class="pre-msg" id="pf-lgpd-m" hidden></span>
     <p id="pre-err" class="small" style="color:var(--bad);margin-top:12px" hidden></p>
@@ -9491,7 +9502,7 @@ document.addEventListener("input",ev=>{const t=ev.target;if(!t||!t.id||!String(t
   if(t.id==="pf-tel"){const d=preDig(t.value).slice(0,11);t.value=d.length>10?d.replace(/(\d{2})(\d{5})(\d{0,4})/,"($1) $2-$3"):d.replace(/(\d{2})(\d{0,4})(\d{0,4})/,(m,a,b,c)=>`(${a}) ${b}${c?"-"+c:""}`).replace(/\) $/,")")}
   if(t.id==="pf-cep"){const d=preDig(t.value).slice(0,8);t.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d;if(d.length===8)preCep(d)}
   if(t.classList.contains("pre-inv"))preMsg(t.id,"")});
-document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.name==="pf-ind"){const f=$("#pf-indpor-f");if(f)f.hidden=t.value!=="sim"}if(t&&(t.name==="pf-part"||t.name==="pf-ind"))preMsg(t.name,"");if(t&&t.id==="pf-lgpd")preMsg("pf-lgpd","");if(t&&t.id==="pf-uf")preMsg("pf-uf","")});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.name==="pf-cvm"){$("#pf-cv-pdf").hidden=t.value!=="pdf";$("#pf-cv-txt").hidden=t.value!=="texto";preMsg("pf-cvm","")}if(t&&t.id==="pf-cvarq")preMsg("pf-cvarq","");if(t&&t.name==="pf-ind"){const f=$("#pf-indpor-f");if(f)f.hidden=t.value!=="sim"}if(t&&(t.name==="pf-part"||t.name==="pf-ind"))preMsg(t.name,"");if(t&&t.id==="pf-lgpd")preMsg("pf-lgpd","");if(t&&t.id==="pf-uf")preMsg("pf-uf","")});
 async function preCep(cep){try{const r=await fetch("https://viacep.com.br/ws/"+cep+"/json/");const j=await r.json();if(j.erro)return;
   if(j.logradouro&&!$("#pf-end").value.trim())$("#pf-end").value=j.logradouro+", ";if(j.bairro)$("#pf-bairro").value=j.bairro;if(j.localidade)$("#pf-cidade").value=j.localidade;if(j.uf)$("#pf-uf").value=j.uf;["pf-bairro","pf-cidade","pf-uf"].forEach(i=>preMsg(i,""));const e=$("#pf-end");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}}catch(e){}}
 document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-pre]");if(!t)return;
@@ -9503,11 +9514,21 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-pr
   chk("pf-email",/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("pf-email")),"Informe um e-mail válido.");chk("pf-tel",preDig(v("pf-tel")).length>=10,"Informe o telefone com DDD.");
   chk("pf-cep",preDig(v("pf-cep")).length===8,"Informe o CEP.");chk("pf-end",v("pf-end").length>=5,"Informe o endereço.");chk("pf-bairro",!!v("pf-bairro"),"Informe o bairro.");chk("pf-cidade",!!v("pf-cidade"),"Informe a cidade.");chk("pf-uf",!!v("pf-uf"),"Selecione o estado.");
   if(!preMsg("pf-part",rad("pf-part")?"":"Responda sim ou não."))ok=false;if(!preMsg("pf-ind",rad("pf-ind")?"":"Responda sim ou não."))ok=false;
+  const cvm=rad("pf-cvm"),arq=cvm==="pdf"?(($("#pf-cvarq").files||[])[0]||null):null;
+  if(!preMsg("pf-cvm",cvm?"":"Escolha: anexar o PDF ou preencher o currículo."))ok=false;
+  if(cvm==="pdf"&&!preMsg("pf-cvarq",!arq?"Anexe o arquivo PDF.":!/\.pdf$/i.test(arq.name)&&arq.type!=="application/pdf"?"O arquivo precisa ser PDF.":arq.size>5*1024*1024?"O PDF passa de 5 MB. Reduza o arquivo.":""))ok=false;
+  if(cvm==="texto")chk("pf-cvexp",v("pf-cvexp").length>=20,"Conte suas experiências (pelo menos uma linha).");
   if(!preMsg("pf-lgpd",$("#pf-lgpd").checked?"":"É preciso ler e aceitar o termo para enviar."))ok=false;
   const err=$("#pre-err");if(!ok){err.hidden=false;err.textContent="Confira os campos marcados em vermelho.";const p=document.querySelector(".pre-inv,.pre-msg:not([hidden])");if(p)p.scrollIntoView({behavior:"smooth",block:"center"});return}
   const dados={cargo:v("pf-cargo"),nome:v("pf-nome"),nascimento:nasc,cpf:v("pf-cpf"),email:v("pf-email"),telefone:v("pf-tel"),cep:v("pf-cep"),endereco:v("pf-end"),bairro:v("pf-bairro"),cidade:v("pf-cidade"),uf:v("pf-uf"),
     escolaridade:Object.fromEntries(PRE_ESC.map(([k])=>[k,rad("pe-"+k)]).filter(x=>x[1])),ja_participou:rad("pf-part"),indicado:rad("pf-ind"),indicado_por:rad("pf-ind")==="sim"?v("pf-indpor"):"",lgpd:true};
   t.disabled=true;t.textContent="Enviando…";
+  if(cvm==="pdf"){const rb=new Uint8Array(6);crypto.getRandomValues(rb);const path=PRE.token+"/cv-"+[...rb].map(x=>x.toString(16).padStart(2,"0")).join("")+".pdf";
+    t.textContent="Enviando o currículo…";const up=await SB.storage.from("curriculos").upload(path,arq,{contentType:"application/pdf",upsert:false});
+    if(up.error){t.disabled=false;t.textContent="Enviar cadastro";err.hidden=false;err.textContent="Não foi possível enviar o PDF. Verifique a conexão e tente de novo.";return}
+    dados.curriculo={arquivo:path,nome_arquivo:arq.name.slice(0,120)}}
+  else dados.curriculo={experiencias:v("pf-cvexp"),cursos:v("pf-cvcur"),resumo:v("pf-cvres")};
+  t.textContent="Enviando…";
   let r;try{const {data,error}=await SB.rpc("rs_pre_enviar",{p_token:PRE.token,p_dados:dados});if(error)throw error;r=data||{}}catch(e){r={erro:"Sem conexão. Tente de novo."}}
   if(r.erro){err.hidden=false;err.textContent=r.erro;t.disabled=false;t.textContent="Enviar cadastro";return}
   preTela(`<div class="card" style="text-align:center;padding:32px 20px"><div aria-hidden="true" style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;margin:0 auto 12px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div><h2 style="margin:0 0 6px">Cadastro recebido, ${esc(r.nome||"")}!</h2><p>Obrigado pelo interesse na vaga de <b>${esc(PRE.info.cargo)}</b>. O RH da Brasileiríssima vai analisar e entrar em contato pelo WhatsApp ou e-mail informados.</p><p class="small muted">Este link já foi usado e não aceita outro cadastro.</p></div>`);
