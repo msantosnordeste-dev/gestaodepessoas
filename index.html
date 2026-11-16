@@ -1771,6 +1771,7 @@ async function boot(){
   mostrarTela("carregando");
   if(!CONF.supabaseUrl||!CONF.supabaseAnonKey||!window.supabase){mostrarTela("configurar");return}
   SB=window.supabase.createClient(CONF.supabaseUrl,CONF.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  if(new URLSearchParams(location.search).get("pre")){preBoot();return}
   if(new URLSearchParams(location.search).get("c")){candidatoBoot();return}
   SB.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&SESSION){SESSION=null;mostrarTela("login")}});
   const {data:{session}}=await SB.auth.getSession();
@@ -8933,7 +8934,7 @@ async function rsCarregar(forcar){
   RS.carregando=(async()=>{
     const [a,b]=await Promise.all([SB.from("rs_vagas").select("*").order("criado_em",{ascending:false}),SB.from("rs_candidatos").select("*").order("criado_em",{ascending:true})]);
     if(a.error||b.error){RS.err=(a.error||b.error).message;RS.ok=true;return}
-    RS.vagas=a.data||[];RS.cands=b.data||[];RS.ok=true;RS.err="";
+    RS.vagas=a.data||[];RS.cands=b.data||[];if(rsRH())try{await rsPreCarregar()}catch(e){}RS.ok=true;RS.err="";
   })();
   await RS.carregando;RS.carregando=null;
   if(typeof render==="function"&&(page==="recrutamento"||page==="painel"||page==="lojas"))render();
@@ -9005,7 +9006,7 @@ function rsTelaVaga(v){
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+(RS_MOT[v.motivo]||v.motivo)+(v.substitui?" · "+esc(v.substitui):""),true):""}${chip((v.canais||[]).length?"Divulgada: "+v.canais.map(esc).join(" · "):"Ainda não divulgada",(v.canais||[]).length)}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(v.status==="pedido"?"Aguardando aprovação do RH":v.status,false)}</div>
       ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto)?`<p class="small" style="margin:8px 0 0"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}${v.escala?" · Escala: "+esc(v.escala):""}</p>`:""}
     </div>
-    <div class="tabs-inline">${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">Analisar pedido</button>`:""}${rh&&aberta?`<button class="btn" data-rs="divulgar" data-id="${v.id}">Divulgação</button><button class="btn" data-rs="novoCand" data-id="${v.id}">+ Candidato</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
+    <div class="tabs-inline">${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">Analisar pedido</button>`:""}${rh&&aberta?`<button class="btn" data-rs="divulgar" data-id="${v.id}">Divulgação</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link de pré-cadastro</button><button class="btn" data-rs="novoCand" data-id="${v.id}">+ Candidato</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
   const funil=`<div class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><b>Funil:</b> ${f[0]} entraram › ${f[1]} triados › ${f[3]} com proposta › ${f[4]} admitido${f[4]===1?"":"s"}<span class="muted" style="margin-left:auto">Cor do cartão: verde no prazo · laranja vence hoje · vermelho atrasado</span></div>`;
   const card=c=>{const s=rsSla(c),cor=RS_COR[s.st];const r7=c.registros["7"]||{};
@@ -9023,7 +9024,7 @@ function rsTelaVaga(v){
   const ns=cs.filter(c=>c.status==="nao_seguiu"),semFb=ns.filter(c=>!(c.nao_seguiu&&c.nao_seguiu.feedback_em)).length;
   const faixa=ns.length?`<div style="background:#0F4A33;color:#fff;border-radius:12px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px"><div style="flex:1 1 380px"><b>Não seguiram no processo · ${ns.length}</b> · ${ns.length-semFb} com feedback${semFb?` · <span style="color:#F7A06A;font-weight:600">${semFb} sem retorno</span>`:""}<div class="small" style="opacity:.85;margin-top:4px">${ns.map(c=>`<button data-rs="cand" data-id="${c.id}" style="background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit;padding:0 6px 0 0">${esc(c.nome)}</button>`).join("")}</div></div></div>`:"";
   const hist=(v.eventos||[]).length?`<details class="card" style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">Histórico da vaga · ${(v.eventos||[]).length}</summary><ul class="small" style="margin:10px 0 0;padding-left:18px">${[...v.eventos].reverse().map(e=>`<li>${esc(e.em)} · ${esc(e.quem)} · ${esc(e.acao)}</li>`).join("")}</ul></details>`:"";
-  return header("Recrutamento & Seleção","Vaga")+`<div class="card">${topo}${funil}<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start">${colunas}</div>${faixa}</div>${hist}`;
+  return header("Recrutamento & Seleção","Vaga")+`<div class="card">${topo}${funil}<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start">${colunas}</div>${faixa}</div>${rh?rsPreLista(v):""}${hist}`;
 }
 function rsTelaBanco(){
   const banco=RS.cands.filter(c=>c.banco);
@@ -9136,7 +9137,7 @@ function rsModalCand(c){
         ${c.contato?`<dt class="muted">Contato</dt><dd style="margin:0">${esc(c.contato)}</dd>`:""}
         ${c.cidade?`<dt class="muted">Cidade</dt><dd style="margin:0">${esc(c.cidade)}</dd>`:""}
         ${c.curriculo?`<dt class="muted">Currículo</dt><dd style="margin:0"><a href="${esc(c.curriculo)}" target="_blank" rel="noopener">abrir</a></dd>`:""}
-      </dl>
+      </dl>${rh?rsPreDados(c):""}${rh&&ativo&&!RS.pre.some(x=>x.cand_id===c.id&&x.status==="enviado")?`<button class="btn btn-sm" data-rs="preNovo" data-id="${c.vaga_id}" data-cand="${c.id}">${RS.pre.some(x=>x.cand_id===c.id&&x.status==="pendente")?"Gerar novo link de pré-cadastro":"Enviar link de pré-cadastro"}</button>`:""}
       ${ativo?`<div style="background:#0B3D2B;color:#fff;border-radius:10px;padding:12px"><div style="font-size:11px;font-weight:700;letter-spacing:.12em;color:#F7A06A">ETAPA ATUAL</div><b style="font-size:1.1rem">${String(c.etapa).padStart(2,"0")} · ${RS_ET[c.etapa].t}</b><div class="small" style="opacity:.85">há ${s.d} dia${s.d===1?"":"s"} · prazo ${s.s} dia${s.s===1?"":"s"}</div><span class="chip" style="margin-top:6px;background:${RS_COR[s.st].bg};color:${RS_COR[s.st].fg}">${s.st==="ok"?"No prazo":s.st==="hoje"?"Vence hoje":"Atrasado"}</span></div>`:`<span class="chip ${c.status==="admitido"?"c-ok":"c-bad"}">${c.status==="admitido"?"Admitido":"Não seguiu no processo"}</span>`}
     </div>
     <div style="flex:999 1 380px;min-width:0">${form}<div style="margin-top:12px">${linha}</div></div></div>`,botoes);
@@ -9273,6 +9274,118 @@ async function rsAposAdmissao(cid,inicio){
   if(adm>=(+v.posicoes||1)&&v.status==="aberta")await rsSalvarVaga(v.id,{status:"fechada",fechada_em:TODAY,eventos:rsEvt(v,"Vaga fechada: todas as posições preenchidas")});
   rsAviso(v.loja_id,"Admissão iniciada · "+c.nome,c.nome+" foi aprovado(a) para "+v.cargo+(inicio?" com início previsto em "+fdate(inicio):"")+".");
 }
+
+/* ============ Pré-cadastro do candidato (link único: um link = um CPF = um envio) ============ */
+const PRE={token:"",info:null};
+const PRE_UF="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+const PRE_ESC=[["pos","Pós-graduação"],["superior","Ensino superior"],["tecnico","Ensino técnico"],["medio","Ensino médio"]];
+const PRE_TERMO=`<p>Declaro que as informações acima são verdadeiras e assumo a responsabilidade sobre as mesmas.</p>
+<p>Registro ainda o meu <b>CONSENTIMENTO LIVRE, INFORMADO E INEQUÍVOCO</b>, para tratamento de dados pessoais pela BRASILEIRÍSSIMA, pelo recebimento do meu currículo e/ou minhas informações pessoais (dados pessoais), para a finalidade única e exclusiva de realizar as ações de avaliação de histórico profissional e seleção para eventual recrutamento para participação em processos de seleção, admissão para compor o quadro de empregados de empresa, ou mesmo cadastro no banco de currículos, em conformidade com a Lei nº 13.709 – Lei Geral de Proteção de Dados Pessoais (LGPD).</p>
+<p>A BRASILEIRÍSSIMA não poderá utilizar, compartilhar, comercializar ou atribuir qualquer outra finalidade aos dados pessoais coletados, que sejam diferentes das finalidades aqui especificada para o integral cumprimento do objeto deste Termo de Consentimento.</p>
+<p>A BRASILEIRÍSSIMA, se compromete a manter o meu currículo e/ou dados pessoais armazenados em seu banco de dados por até 05 (cinco) anos.</p>`;
+function preTela(html){$("#main").innerHTML=`<style>.pre-sec{display:flex;gap:12px;align-items:flex-start;margin:22px 0 10px}.pre-n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-weight:700;font-size:.85rem}.pre-inv{border-color:var(--bad)!important;box-shadow:0 0 0 1px var(--bad)}.pre-msg{display:block;color:var(--bad);font-size:.75rem;margin-top:4px}.pre-esc{display:grid;grid-template-columns:1fr;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.pre-esc .pre-pills{flex-wrap:nowrap}@media(min-width:560px){.pre-esc{grid-template-columns:minmax(140px,1fr) auto;gap:8px 12px}}.pre-pills{display:flex;flex-wrap:wrap;gap:6px}.pre-pills label{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;font-size:.88rem;cursor:pointer;min-height:40px;box-sizing:border-box}.pre-pills label:has(input:checked){border-color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,var(--surface));font-weight:600}.pre-termo{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 14px;font-size:.85rem;background:var(--surface-2,var(--surface))}</style>
+  <div style="max-width:680px;margin:0 auto;padding:18px 16px 60px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><div aria-hidden="true" style="width:36px;height:36px;border-radius:10px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.5 11h-13z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/></svg></div><div><b>Brasileiríssima</b><br><span class="small muted">Pré-cadastro · Recrutamento e Seleção</span></div></div>${html}</div>`;window.scrollTo(0,0)}
+async function preBoot(){
+  PRE.token=(new URLSearchParams(location.search).get("pre")||"").toLowerCase();
+  $(".app").classList.add("gated");document.title="Pré-cadastro · Brasileiríssima";
+  preTela(`<div class="card"><p>Carregando…</p></div>`);
+  let r;try{const {data,error}=await SB.rpc("rs_pre_abrir",{p_token:PRE.token});if(error)throw error;r=data||{}}catch(e){r={erro:"Sem conexão. Tente de novo em instantes."}}
+  if(r.erro){preTela(`<div class="card"><h2>Não foi possível abrir</h2><p>${esc(r.erro)}</p></div>`);return}
+  if(r.enviado){preTela(`<div class="card"><h2>Cadastro já enviado${r.nome?", "+esc(r.nome):""}!</h2><p>Este link já foi usado e vale para um único cadastro. O RH da Brasileiríssima vai entrar em contato pelo WhatsApp ou e-mail informados.</p></div>`);return}
+  PRE.info=r;preForm();
+}
+function preForm(){
+  const r=PRE.info,f=(id,lbl,attrs="",full)=>`<div class="field${full?" full":""}"><label for="${id}">${lbl}<span aria-hidden="true" style="color:var(--bad)">*</span></label><input class="input" id="${id}" ${attrs}><span class="pre-msg" id="${id}-m" hidden></span></div>`;
+  const sec=(n,t,sub="")=>`<div class="pre-sec"><span class="pre-n">${n}</span><div><h2 style="margin:2px 0 0;font-size:1.15rem">${t}</h2>${sub?`<p class="small muted" style="margin:2px 0 0">${sub}</p>`:""}</div></div>`;
+  const sn=(nome,lbl)=>`<fieldset class="field full" style="border:0;padding:0;margin:0 0 6px"><legend style="font-weight:600;margin-bottom:6px">${lbl}<span aria-hidden="true" style="color:var(--bad)">*</span></legend><div class="pre-pills"><label><input type="radio" name="${nome}" value="sim"> Sim</label><label><input type="radio" name="${nome}" value="nao"> Não</label></div><span class="pre-msg" id="${nome}-m" hidden></span></fieldset>`;
+  preTela(`<div class="card"><h1 style="margin:0 0 4px;font-size:1.5rem">Pré-cadastro${r.nome?" · "+esc(String(r.nome).split(" ")[0]):""}</h1><p class="muted" style="margin:0">Preencha seus dados para participar do processo seletivo. Leva uns 3 minutos. Os campos com <span style="color:var(--bad)">*</span> são obrigatórios.</p>
+  <form id="pre-form" onsubmit="return false" novalidate>
+    ${sec(1,"Vaga")}
+    <div class="form-grid"><div class="field full"><label for="pf-cargo">Cargo pretendido<span aria-hidden="true" style="color:var(--bad)">*</span></label><input class="input" id="pf-cargo" value="${esc(r.cargo)}" readonly aria-readonly="true"><span class="small muted" style="margin-top:4px">${esc(r.loja||"")}${r.cidade?" · "+esc(r.cidade):""}</span></div></div>
+    ${sec(2,"Dados pessoais")}
+    <div class="form-grid">${f("pf-nome","Nome completo",`autocomplete="name" maxlength="120" value="${esc(r.nome||"")}"`,1)}${f("pf-nasc","Data de nascimento",`type="date" autocomplete="bday"`)}${f("pf-cpf","CPF",`inputmode="numeric" placeholder="000.000.000-00" maxlength="14"`)}${f("pf-rg","RG",`maxlength="20"`)}${f("pf-email","E-mail",`type="email" autocomplete="email" maxlength="120"`)}${f("pf-tel","Telefone / WhatsApp",`type="tel" inputmode="numeric" autocomplete="tel" placeholder="(71) 99999-9999" maxlength="16"`)}</div>
+    ${sec(3,"Endereço")}
+    <div class="form-grid">${f("pf-cep","CEP",`inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9"`)}${f("pf-end","Endereço (rua, número e complemento)",`autocomplete="street-address" maxlength="160"`,1)}${f("pf-bairro","Bairro",`maxlength="80"`)}${f("pf-cidade","Cidade",`autocomplete="address-level2" maxlength="80"`)}
+      <div class="field"><label for="pf-uf">Estado<span aria-hidden="true" style="color:var(--bad)">*</span></label><select class="input" id="pf-uf"><option value="">Selecione</option>${PRE_UF.map(u=>`<option>${u}</option>`).join("")}</select><span class="pre-msg" id="pf-uf-m" hidden></span></div></div>
+    ${sec(4,"Escolaridade","Marque a situação de cada nível que você cursou.")}
+    <div>${PRE_ESC.map(([k,t])=>`<div class="pre-esc"><b style="font-size:.92rem">${t}</b><div class="pre-pills" role="radiogroup" aria-label="${t}">${["Completo","Incompleto","Cursando"].map(o=>`<label><input type="radio" name="pe-${k}" value="${o.toLowerCase()}"> ${o}</label>`).join("")}</div></div>`).join("")}</div>
+    ${sec(5,"Informações gerais")}
+    ${sn("pf-part","Já participou de processo seletivo na Brasileiríssima?")}${sn("pf-ind","É indicado(a) por alguém?")}
+    <div class="field" id="pf-indpor-f" hidden><label for="pf-indpor">Quem indicou? (opcional)</label><input class="input" id="pf-indpor" maxlength="100"></div>
+    ${sec(6,"Declaração","Leia o termo de consentimento antes de enviar.")}
+    <div class="pre-termo">${PRE_TERMO}</div>
+    <label class="check" style="margin-top:12px;align-items:flex-start"><input type="checkbox" id="pf-lgpd"> <span>Li e concordo com a declaração e o termo de consentimento (LGPD).<span aria-hidden="true" style="color:var(--bad)">*</span></span></label><span class="pre-msg" id="pf-lgpd-m" hidden></span>
+    <p id="pre-err" class="small" style="color:var(--bad);margin-top:12px" hidden></p>
+    <button class="btn btn-primary" id="pre-enviar" data-pre="enviar" style="width:100%;justify-content:center;margin-top:14px;min-height:48px">Enviar cadastro</button>
+  </form></div>`);
+}
+const preDig=s=>String(s||"").replace(/\D/g,"");
+function preCpfOk(c){c=preDig(c);if(c.length!==11||/^(\d)\1+$/.test(c))return false;const dv=n=>{let s=0;for(let i=0;i<n;i++)s+=+c[i]*(n+1-i);const r=(s*10)%11;return r===10?0:r};return dv(9)===+c[9]&&dv(10)===+c[10]}
+function preMsg(id,m){const el=$("#"+id),ms=$("#"+id+"-m");if(el&&el.classList)el.classList.toggle("pre-inv",!!m);if(ms){ms.hidden=!m;ms.textContent=m||""}return !m}
+document.addEventListener("input",ev=>{const t=ev.target;if(!t||!t.id||!String(t.id).startsWith("pf-"))return;
+  if(t.id==="pf-cpf"){const d=preDig(t.value).slice(0,11);t.value=d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d{1,2})$/,".$1-$2")}
+  if(t.id==="pf-tel"){const d=preDig(t.value).slice(0,11);t.value=d.length>10?d.replace(/(\d{2})(\d{5})(\d{0,4})/,"($1) $2-$3"):d.replace(/(\d{2})(\d{0,4})(\d{0,4})/,(m,a,b,c)=>`(${a}) ${b}${c?"-"+c:""}`).replace(/\) $/,")")}
+  if(t.id==="pf-cep"){const d=preDig(t.value).slice(0,8);t.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d;if(d.length===8)preCep(d)}
+  if(t.classList.contains("pre-inv"))preMsg(t.id,"")});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.name==="pf-ind"){const f=$("#pf-indpor-f");if(f)f.hidden=t.value!=="sim"}if(t&&(t.name==="pf-part"||t.name==="pf-ind"))preMsg(t.name,"");if(t&&t.id==="pf-lgpd")preMsg("pf-lgpd","");if(t&&t.id==="pf-uf")preMsg("pf-uf","")});
+async function preCep(cep){try{const r=await fetch("https://viacep.com.br/ws/"+cep+"/json/");const j=await r.json();if(j.erro)return;
+  if(j.logradouro&&!$("#pf-end").value.trim())$("#pf-end").value=j.logradouro+", ";if(j.bairro)$("#pf-bairro").value=j.bairro;if(j.localidade)$("#pf-cidade").value=j.localidade;if(j.uf)$("#pf-uf").value=j.uf;["pf-bairro","pf-cidade","pf-uf"].forEach(i=>preMsg(i,""));const e=$("#pf-end");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}}catch(e){}}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-pre]");if(!t)return;
+  const v=id=>($("#"+id).value||"").trim(),rad=n=>(document.querySelector(`input[name="${n}"]:checked`)||{}).value||"";
+  let ok=true;const chk=(id,cond,m)=>{const r=cond?"":m;if(!preMsg(id,r))ok=false};
+  chk("pf-nome",v("pf-nome").split(/\s+/).length>=2,"Informe nome e sobrenome.");
+  const nasc=v("pf-nasc");chk("pf-nasc",/^\d{4}-\d{2}-\d{2}$/.test(nasc)&&nasc>="1930-01-01"&&nasc<=addDays(TODAY,-14*365),"Informe uma data válida.");
+  chk("pf-cpf",preCpfOk(v("pf-cpf")),"CPF inválido. Confira os números.");chk("pf-rg",v("pf-rg").length>=4,"Informe o RG.");
+  chk("pf-email",/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("pf-email")),"Informe um e-mail válido.");chk("pf-tel",preDig(v("pf-tel")).length>=10,"Informe o telefone com DDD.");
+  chk("pf-cep",preDig(v("pf-cep")).length===8,"Informe o CEP.");chk("pf-end",v("pf-end").length>=5,"Informe o endereço.");chk("pf-bairro",!!v("pf-bairro"),"Informe o bairro.");chk("pf-cidade",!!v("pf-cidade"),"Informe a cidade.");chk("pf-uf",!!v("pf-uf"),"Selecione o estado.");
+  if(!preMsg("pf-part",rad("pf-part")?"":"Responda sim ou não."))ok=false;if(!preMsg("pf-ind",rad("pf-ind")?"":"Responda sim ou não."))ok=false;
+  if(!preMsg("pf-lgpd",$("#pf-lgpd").checked?"":"É preciso ler e aceitar o termo para enviar."))ok=false;
+  const err=$("#pre-err");if(!ok){err.hidden=false;err.textContent="Confira os campos marcados em vermelho.";const p=document.querySelector(".pre-inv,.pre-msg:not([hidden])");if(p)p.scrollIntoView({behavior:"smooth",block:"center"});return}
+  const dados={cargo:v("pf-cargo"),nome:v("pf-nome"),nascimento:nasc,cpf:v("pf-cpf"),rg:v("pf-rg"),email:v("pf-email"),telefone:v("pf-tel"),cep:v("pf-cep"),endereco:v("pf-end"),bairro:v("pf-bairro"),cidade:v("pf-cidade"),uf:v("pf-uf"),
+    escolaridade:Object.fromEntries(PRE_ESC.map(([k])=>[k,rad("pe-"+k)]).filter(x=>x[1])),ja_participou:rad("pf-part"),indicado:rad("pf-ind"),indicado_por:rad("pf-ind")==="sim"?v("pf-indpor"):"",lgpd:true};
+  t.disabled=true;t.textContent="Enviando…";
+  let r;try{const {data,error}=await SB.rpc("rs_pre_enviar",{p_token:PRE.token,p_dados:dados});if(error)throw error;r=data||{}}catch(e){r={erro:"Sem conexão. Tente de novo."}}
+  if(r.erro){err.hidden=false;err.textContent=r.erro;t.disabled=false;t.textContent="Enviar cadastro";return}
+  preTela(`<div class="card" style="text-align:center;padding:32px 20px"><div aria-hidden="true" style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;margin:0 auto 12px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></div><h2 style="margin:0 0 6px">Cadastro recebido, ${esc(r.nome||"")}!</h2><p>Obrigado pelo interesse na vaga de <b>${esc(PRE.info.cargo)}</b>. O RH da Brasileiríssima vai analisar e entrar em contato pelo WhatsApp ou e-mail informados.</p><p class="small muted">Este link já foi usado e não aceita outro cadastro.</p></div>`);
+});
+
+/* ---------- RH: gerar e acompanhar links de pré-cadastro ---------- */
+RS.pre=[];
+const rsPreLink=tk=>location.origin+location.pathname+"?pre="+tk;
+const rsPreSt=p=>p.status==="enviado"?["Enviado","c-ok"]:p.status==="cancelado"?["Cancelado","c-mute"]:new Date(p.expira_em)<new Date()?["Expirado","c-mute"]:["Aguardando","c-warn"];
+async function rsPreCarregar(){if(!rsRH())return;const {data}=await SB.from("rs_precadastro").select("id,token,vaga_id,cand_id,cargo,nome_previsto,telefone_previsto,status,expira_em,enviado_em,criado_em,criado_nome,cpf,dados").order("criado_em",{ascending:false});RS.pre=data||[]}
+function rsPreMsg(nome,cargo,link){return `Olá${nome?", "+nome.split(" ")[0]:""}! Aqui é o RH da Brasileiríssima. Para participar do processo seletivo para ${cargo}, preencha seu pré-cadastro neste link (vale para um único cadastro, por 7 dias): ${link}`}
+function rsPreForm(vid,cid){
+  const v=RS.vagas.find(x=>x.id===vid),c=cid?RS.cands.find(x=>x.id===cid):null;
+  const tel=c?(String(c.contato||"").match(/\(?\d{2}\)?\s?\d{4,5}-?\d{4}/)||[""])[0]:"";
+  modal("Link de pré-cadastro",`<p><b>${esc(v.cargo)}</b> · ${esc(store(v.loja_id).nome)}</p><p class="small muted">O link abre o formulário com o cargo já preenchido. Ele vale para <b>um único CPF e um único envio</b>, por 7 dias. O cadastro entra direto no funil desta vaga, na triagem.</p>
+    <form class="form-grid"><div class="field"><label for="rp-nome">Nome do candidato (opcional)</label><input class="input" id="rp-nome" value="${esc(c?c.nome:"")}"></div>
+    <div class="field"><label for="rp-tel">WhatsApp (com DDD)</label><input class="input" id="rp-tel" inputmode="numeric" value="${esc(tel)}" placeholder="(71) 99999-9999"></div></form><div id="rp-res"></div>`,
+    `<button class="btn" data-close>Fechar</button><button class="btn btn-primary" data-rs="preGerar" data-id="${vid}" data-cand="${cid||""}">Gerar link</button>`);
+}
+function rsPreLista(v){
+  const ls=RS.pre.filter(p=>p.vaga_id===v.id);if(!ls.length)return "";
+  return `<details class="card" style="margin-top:14px" ${ls.some(p=>p.status==="pendente")?"open":""}><summary style="cursor:pointer;font-weight:600">Links de pré-cadastro · ${ls.length} (${ls.filter(p=>p.status==="enviado").length} enviados)</summary><div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Para</th><th>Gerado</th><th>Situação</th><th></th></tr></thead><tbody>${ls.map(p=>{const st=rsPreSt(p);return `<tr><td>${esc(p.nome_previsto||(p.dados&&p.dados.nome)||"—")}${p.telefone_previsto?`<br><span class="small muted">${esc(p.telefone_previsto)}</span>`:""}</td><td class="small">${new Date(p.criado_em).toLocaleDateString("pt-BR")} · ${esc(p.criado_nome||"")}</td><td><span class="chip ${st[1]}">${st[0]}</span>${p.enviado_em?`<br><span class="small muted">${new Date(p.enviado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</span>`:""}</td><td style="white-space:nowrap">${p.status==="pendente"&&st[0]==="Aguardando"?`<button class="btn btn-sm" data-rs="preCopiar" data-v="${p.token}">Copiar link</button> <button class="btn btn-sm btn-ghost" data-rs="preCancelar" data-id="${p.id}">Cancelar</button>`:p.cand_id?`<button class="btn btn-sm" data-rs="cand" data-id="${p.cand_id}">Ver candidato</button>`:""}</td></tr>`}).join("")}</tbody></table></div></details>`;
+}
+function rsPreDados(c){
+  const p=RS.pre.find(x=>x.cand_id===c.id&&x.status==="enviado");if(!p||!p.dados)return "";const d=p.dados,esc2=d.escolaridade||{};
+  const row=(l,v)=>v?`<dt class="muted">${l}</dt><dd style="margin:0">${esc(v)}</dd>`:"";
+  return `<details style="margin-top:4px" open><summary style="cursor:pointer;font-weight:600;font-size:.9rem">Pré-cadastro · ${new Date(p.enviado_em).toLocaleDateString("pt-BR")}</summary><dl class="small" style="margin:8px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:4px 10px">${row("CPF",d.cpf)}${row("Nascimento",fdate(d.nascimento))}${row("RG",d.rg)}${row("E-mail",d.email)}${row("Telefone",d.telefone)}${row("Endereço",[d.endereco,d.bairro,d.cidade+"/"+d.uf,d.cep].filter(Boolean).join(" · "))}${row("Escolaridade",PRE_ESC.filter(([k])=>esc2[k]).map(([k,t])=>t+": "+esc2[k]).join(" · ")||"não informada")}${row("Já participou",d.ja_participou==="sim"?"Sim":"Não")}${row("Indicado",d.indicado==="sim"?"Sim"+(d.indicado_por?" · "+d.indicado_por:""):"Não")}${row("LGPD","Aceito em "+new Date(p.enviado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}))}</dl></details>`;
+}
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-rs]");if(!t)return;const a=t.dataset.rs;
+  if(a==="preNovo"){rsPreForm(t.dataset.id,t.dataset.cand||null);return}
+  if(a==="preCopiar"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
+  if(a==="preCancelar"){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const {error}=await SB.from("rs_precadastro").update({status:"cancelado"}).eq("id",t.dataset.id).eq("status","pendente");if(error){toast(error.message);return}await rsPreCarregar();render();toast("Link cancelado");return}
+  if(a==="preGerar"){if(t.disabled)return;t.disabled=true;
+    const v=RS.vagas.find(x=>x.id===t.dataset.id),nome=$("#rp-nome").value.trim(),tel=$("#rp-tel").value.replace(/\D/g,"");
+    const b=new Uint8Array(24);crypto.getRandomValues(b);const tk=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+    const {error}=await SB.from("rs_precadastro").insert({token:tk,vaga_id:v.id,cand_id:t.dataset.cand||null,cargo:v.cargo,loja_id:v.loja_id,nome_previsto:nome||null,telefone_previsto:tel||null,criado_nome:rsQuem()});
+    if(error){t.disabled=false;toast("Não foi possível gerar: "+error.message);return}
+    const link=rsPreLink(tk),msg=rsPreMsg(nome,v.cargo,link),num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";
+    $("#rp-res").innerHTML=`<div class="note" style="margin-top:12px"><b>Link gerado</b> (válido por 7 dias, para um único CPF)<div class="input" style="margin-top:6px;word-break:break-all;font-size:.85rem;height:auto">${esc(link)}</div><div class="tabs-inline" style="margin-top:8px">${num?`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}">Enviar pelo WhatsApp</a>`:`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Abrir no WhatsApp</a>`}<button class="btn" data-rs="preCopiar" data-v="${tk}">Copiar link</button></div></div>`;
+    t.hidden=true;await rsPreCarregar();if(page==="recrutamento")render();return}
+});
 
 boot();
 </script>
