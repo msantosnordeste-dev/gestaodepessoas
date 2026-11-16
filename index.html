@@ -8878,7 +8878,7 @@ document.addEventListener("change",ev=>{const t=ev.target;if(!BV)return;
 /* ============ Recrutamento & Seleção · 4 fases, 11 etapas (vaga + funil de candidatos) ============
    Dados nas tabelas rs_vagas e rs_candidatos (RLS: RH tudo; gerente/supervisão leem as próprias lojas;
    gerente pede vaga e registra entrevistas pela função rs_gerente_registro). */
-const RS={ctab:"todos",cmodo:"lista",cord:"etapa",modo:(()=>{try{return localStorage.getItem("rs_modo")||"quadro"}catch(e){return "quadro"}})(),vagas:[],cands:[],ok:false,carregando:null,tab:"painel",vaga:null,f:{loja:"",fase:"",contrato:"",prazo:""},err:""};
+const RS={g:(()=>{try{return JSON.parse(localStorage.getItem("rs_g"))||{reg:"",loja:""}}catch(e){return {reg:"",loja:""}}})(),ctab:"todos",cmodo:"lista",cord:"etapa",modo:(()=>{try{return localStorage.getItem("rs_modo")||"quadro"}catch(e){return "quadro"}})(),vagas:[],cands:[],ok:false,carregando:null,tab:"painel",vaga:null,f:{loja:"",fase:"",contrato:"",prazo:""},err:""};
 const RS_ET=[null,
   {n:1,t:"Abertura da vaga",d:"Perfil alinhado com o gerente",f:1},
   {n:2,t:"Divulgação",d:"Vaga publicada e canal de indicação",f:1},
@@ -8958,18 +8958,31 @@ function rsPagina(){
   const temSim=RS.vagas.some(v=>v.simulacao);
   const acoes=`<button class="btn" data-rs="tour" style="border-color:#EE691F;color:#C2541A">▶ Simular toda a jornada</button>${rsRH()?`<button class="btn" data-rs="${temSim?"simLimpar":"simCarregar"}">${temSim?"Remover simulação":"Carregar simulação"}</button><button class="btn" data-rs="escalas">Escalas</button><button class="btn" data-rs="importar">Importar planilha</button>`:""}${rsPodePedir()?`<button class="btn btn-primary" data-rs="novaVaga">+ ${rsRH()?"Abrir vaga":"Pedir vaga"}</button>`:""}`;
   const tabs=`<div class="tabs-inline" style="margin-bottom:16px"><button class="btn btn-sm ${RS.tab==="painel"?"btn-primary":""}" data-rs="tab" data-v="painel">Vagas e funil</button><button class="btn btn-sm ${RS.tab==="banco"?"btn-primary":""}" data-rs="tab" data-v="banco">Banco de talentos e indicadores</button></div>`;
-  return header("Pessoas","Recrutamento & Seleção",acoes)+(RS.err?`<div class="alert"><b>Não foi possível carregar as vagas:</b> ${esc(RS.err)}</div>`:"")+tabs+(RS.tab==="banco"?rsTelaBanco():rsTelaPainel());
+  return header("Pessoas","Recrutamento & Seleção",acoes)+(RS.err?`<div class="alert"><b>Não foi possível carregar as vagas:</b> ${esc(RS.err)}</div>`:"")+tabs+rsFiltroG()+(RS.tab==="banco"?rsTelaBanco():rsTelaPainel());
 }
+function rsRegioes(){const m={};(((typeof ST!=="undefined"&&ST&&ST.supervisores)||[])).forEach(sv=>{const nome=((typeof refPessoa==="function"&&refPessoa(sv.ref))||{}).nome||sv.nome||"";const k=String(sv.regiao||"").trim()||("Supervisão "+(nome||sv.id));
+  (m[k]=m[k]||{k,nomes:[],lojas:new Set()});if(nome&&!m[k].nomes.includes(nome))m[k].nomes.push(nome);(sv.lojas||[]).forEach(l=>m[k].lojas.add(l))});return Object.values(m).sort((a,b)=>a.k.localeCompare(b.k))}
+function rsLojasG(){const g=RS.g;if(g.loja)return new Set([g.loja]);if(g.reg){const r=rsRegioes().find(x=>x.k===g.reg);return r?r.lojas:new Set()}return null}
+const rsVagasF=()=>{const L=rsLojasG();return L?RS.vagas.filter(v=>L.has(v.loja_id)):RS.vagas};
+const rsCandsF=()=>{const L=rsLojasG();if(!L)return RS.cands;const ids=new Set(rsVagasF().map(v=>v.id));return RS.cands.filter(c=>ids.has(c.vaga_id))};
+function rsFiltroG(){const regs=rsRegioes(),L=RS.g.reg?(regs.find(x=>x.k===RS.g.reg)||{lojas:new Set()}).lojas:null;
+  const lojasV=[...new Set(RS.vagas.map(v=>v.loja_id))];const lojas=ST.stores.filter(st=>L?L.has(st.id):(lojasV.includes(st.id)||!/n[uú]cleo|diretoria/i.test(st.nome||""))).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  const ativo=RS.g.reg||RS.g.loja;
+  return `<div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 18px;margin-bottom:14px">
+    <div class="field" style="flex:1 1 240px;margin:0"><label for="rs-greg">Região de supervisão</label><select class="input" id="rs-greg" data-rsg="reg"><option value="">Todas as regiões</option>${regs.map(r=>`<option value="${esc(r.k)}" ${r.k===RS.g.reg?"selected":""}>${esc(r.k)}${r.nomes.length?" · "+esc(r.nomes.join(", ")):""} (${r.lojas.size} loja${r.lojas.size===1?"":"s"})</option>`).join("")}</select></div>
+    <div class="field" style="flex:1 1 260px;margin:0"><label for="rs-gloja">Loja</label><select class="input" id="rs-gloja" data-rsg="loja"><option value="">${RS.g.reg?"Todas as lojas da região":"Todas as lojas"}</option>${lojas.map(st=>`<option value="${st.id}" ${st.id===RS.g.loja?"selected":""}>${esc(st.nome)}</option>`).join("")}</select></div>
+    ${ativo?`<button class="btn btn-ghost" data-rs="gLimpar">Limpar filtro</button>`:""}
+    ${!regs.length&&rsRH()?`<p class="small muted" style="flex:1 1 100%;margin:0">Nenhuma região cadastrada. Cadastre em Lojas › Supervisores (região e lojas de cada supervisor).</p>`:""}</div>`}
 function rsTelaPainel(){
-  const F=RS.f,todas=RS.vagas.map(v=>({v,i:rsVagaInfo(v)}));
+  const F=RS.f,todas=rsVagasF().map(v=>({v,i:rsVagaInfo(v)}));
   const abertas=todas.filter(x=>x.v.status==="aberta");
   const pedidos=todas.filter(x=>x.v.status==="pedido"||x.v.status==="devolvida");
   let lista=abertas.filter(x=>(!F.loja||x.v.loja_id===F.loja)&&(!F.contrato||x.v.contrato===F.contrato)&&(!F.fase||String(x.i.fase)===F.fase)&&(!F.prazo||(F.prazo==="atrasadas"?(x.i.prazo==="atrasado"||x.i.atras):true)));
   const ativos=RS.cands.filter(c=>c.status==="ativo"&&abertas.some(x=>x.v.id===c.vaga_id));
   const fechadas=todas.filter(x=>x.v.status==="fechada"&&x.v.fechada_em);
   const tFech=fechadas.length?Math.round(fechadas.reduce((s,x)=>s+diffDays(x.v.aberta_em||String(x.v.criado_em).slice(0,10),x.v.fechada_em),0)/fechadas.length):null;
-  const props=RS.cands.filter(c=>c.registros&&c.registros["9"]&&c.registros["9"].resposta),acc=props.filter(c=>c.registros["9"].resposta==="aceitou").length;
-  const ns=RS.cands.filter(c=>c.status==="nao_seguiu"),nsFb=ns.filter(c=>c.nao_seguiu&&c.nao_seguiu.feedback_em).length;
+  const props=rsCandsF().filter(c=>c.registros&&c.registros["9"]&&c.registros["9"].resposta),acc=props.filter(c=>c.registros["9"].resposta==="aceitou").length;
+  const ns=rsCandsF().filter(c=>c.status==="nao_seguiu"),nsFb=ns.filter(c=>c.nao_seguiu&&c.nao_seguiu.feedback_em).length;
   const kp=(l,v,s)=>`<div class="card kpi"><span class="lbl">${l}</span><span class="val num">${v}</span><span class="sub">${s}</span></div>`;
   const kpis=`<div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
     ${kp("Vagas abertas",abertas.length,abertas.reduce((s,x)=>s+(+x.v.posicoes||1),0)+" posições · "+abertas.filter(x=>x.v.contrato==="Temporário").length+" temporárias")}
@@ -8996,7 +9009,7 @@ function rsTelaPainel(){
   const pedHTML=!rsRH()&&!minhaEt&&pedidos.length?`<div class="card"><div class="card-head"><div><h2>Meus pedidos de vaga</h2><p>O RH alinha o perfil com você e aprova</p></div></div><div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Pedido em</th><th>Situação</th></tr></thead><tbody>${pedidos.map(x=>`<tr><td><b>${esc(x.v.cargo)}</b><br><span class="small muted">${esc(store(x.v.loja_id).nome)}</span></td><td class="num">${x.v.posicoes}</td><td class="num">${fdate(String(x.v.criado_em).slice(0,10))}</td><td>${x.v.status==="devolvida"?`<span class="chip c-warn">Devolvido</span> <span class="small">${esc(x.v.obs||"")}</span> <button class="btn btn-sm" data-rs="corrigir" data-id="${x.v.id}">Corrigir e reenviar</button>`:`<span class="chip c-info">Aguardando ${RS_APROV[rsEtapaAprov(x.v)]}</span>${rsCadeia(x.v)}`}</td></tr>`).join("")}</tbody></table></div></div>`:"";
   const sel=(k,ops,lbl)=>`<div class="field" style="min-width:150px"><label>${lbl}</label><select class="input" data-rsf="${k}">${ops.map(([v,t])=>`<option value="${v}" ${F[k]===v?"selected":""}>${t}</option>`).join("")}</select></div>`;
   const lojasV=[...new Set(abertas.map(x=>x.v.loja_id))];
-  const filtros=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">${sel("loja",[["","Todas as unidades"],...lojasV.map(id=>[id,store(id).nome])],"Unidade")}${sel("fase",[["","Todas"],["1","Atração"],["2","Seleção"],["3","Proposta"],["4","Contratação"]],"Fase")}${sel("contrato",[["","Todos"],["Efetivo","Efetivo"],["Temporário","Temporário"],["Aprendiz","Aprendiz"],["Intermitente","Intermitente"]],"Contrato")}${sel("prazo",[["","Todos"],["atrasadas","Com atraso"]],"Prazo")}</div>`;
+  const filtros=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px">${sel("fase",[["","Todas"],["1","Atração"],["2","Seleção"],["3","Proposta"],["4","Contratação"]],"Fase")}${sel("contrato",[["","Todos"],["Efetivo","Efetivo"],["Temporário","Temporário"],["Aprendiz","Aprendiz"],["Intermitente","Intermitente"]],"Contrato")}${sel("prazo",[["","Todos"],["atrasadas","Com atraso"]],"Prazo")}</div>`;
   const pontos=n=>`<div style="display:flex;gap:3px;margin-bottom:4px">${Array.from({length:11},(_,k)=>`<span style="width:11px;height:6px;border-radius:3px;background:${k<n?(k<3?"#0F6B4B":k<7?"#2E8B66":k<9?"#E8A24A":"#EE691F"):"#E1E5DF"}"></span>`).join("")}</div>`;
   const modoBt=`<div class="tabs-inline"><button class="btn btn-sm ${RS.modo==="quadro"?"btn-primary":""}" data-rs="modo" data-v="quadro">Quadro</button><button class="btn btn-sm ${RS.modo==="lista"?"btn-primary":""}" data-rs="modo" data-v="lista">Lista</button></div>`;
   const kcard=(v,i,ped)=>{const cs=i.cs;const pz=RS_COR[i.prazo];const alvo=ped?(rsRH()?"aprovar":"abrirVaga"):"abrirVaga";
@@ -9090,11 +9103,11 @@ function rsCandsGupy(v,i,quadroC){
   return `<div class="card"><div class="card-head" style="margin-bottom:8px"><div><h2>Talentos na vaga</h2><p>Candidaturas por etapa, com características, tags e avaliações</p></div></div>${barra}${corpo}</div>`;
 }
 function rsTelaBanco(){
-  const banco=RS.cands.filter(c=>c.banco);
-  const ns=RS.cands.filter(c=>c.status==="nao_seguiu");
+  const banco=rsCandsF().filter(c=>c.banco);
+  const ns=rsCandsF().filter(c=>c.status==="nao_seguiu");
   const perdas={};ns.forEach(c=>{const e=(c.nao_seguiu&&c.nao_seguiu.etapa)||c.etapa;perdas[e]=(perdas[e]||0)+1});
   const pmax=Math.max(1,...Object.values(perdas));
-  const adm=RS.cands.filter(c=>c.status==="admitido"),orig={};adm.forEach(c=>{orig[c.origem||"outro"]=(orig[c.origem||"outro"]||0)+1});
+  const adm=rsCandsF().filter(c=>c.status==="admitido"),orig={};adm.forEach(c=>{orig[c.origem||"outro"]=(orig[c.origem||"outro"]||0)+1});
   const motivos={};ns.forEach(c=>{const m=(c.nao_seguiu&&c.nao_seguiu.motivo)||"—";motivos[m]=(motivos[m]||0)+1});
   const barra=(l,n,max,cor)=>`<div style="display:grid;grid-template-columns:170px 1fr 34px;gap:8px;align-items:center;font-size:13px"><span>${l}</span><span style="height:10px;border-radius:5px;background:#EEF0EB;overflow:hidden"><span style="display:block;height:100%;width:${Math.round(n/max*100)}%;background:${cor}"></span></span><b class="num" style="text-align:right">${n}</b></div>`;
   const ind=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:14px">
@@ -9289,6 +9302,7 @@ async function rsLerPlanilha(file){
 document.addEventListener("change",ev=>{
   const t=ev.target;
   if(t.dataset&&t.dataset.rscord!==undefined&&t.matches("[data-rscord]")){RS.cord=t.value;render();return}
+  if(t.matches&&t.matches("[data-rsg]")){if(t.dataset.rsg==="reg"){RS.g.reg=t.value;RS.g.loja=""}else RS.g.loja=t.value;try{localStorage.setItem("rs_g",JSON.stringify(RS.g))}catch(e){}render();return}
   if(t.dataset&&t.dataset.rsf){RS.f[t.dataset.rsf]=t.value;render();return}
   if(t.id==="rv-pos"||t.closest&&t.closest(".rv-mrow")){if(t.id==="rv-pos"){const n=Math.min(30,Math.max(1,parseInt(t.value)||1));if(n!==document.querySelectorAll(".rv-mrow").length)$("#rv-mots").innerHTML=rsMotRows(n);$("#rv-mleg").textContent=n>1?"Motivo de cada posição":"Motivo"}rsNotaVaga();return}
   if(t.id==="rs-imp"&&t.files&&t.files[0])rsLerPlanilha(t.files[0]).catch(e=>{$("#rs-imp-prev").innerHTML=`<p style="color:var(--bad)">Não foi possível ler a planilha: ${esc(e.message)}</p>`});
@@ -9298,6 +9312,7 @@ document.addEventListener("click",async ev=>{
   const a=t.dataset.rs,id=t.dataset.id;const V=()=>RS.vagas.find(x=>x.id===id),C=()=>RS.cands.find(x=>x.id===id);
   const trava=async fn=>{if(t.disabled)return;t.disabled=true;try{await fn()}finally{t.disabled=false}};
   if(a==="tab"){RS.tab=t.dataset.v;render();return}
+  if(a==="gLimpar"){RS.g={reg:"",loja:""};try{localStorage.removeItem("rs_g")}catch(e){}render();return}
   if(a==="ctab"){RS.ctab=t.dataset.v;render();return}
   if(a==="cmodo"){RS.cmodo=t.dataset.v;render();return}
   if(a==="modo"){RS.modo=t.dataset.v;try{localStorage.setItem("rs_modo",RS.modo)}catch(e){}render();return}
@@ -9573,8 +9588,8 @@ function rsTourUI(){
 }
 async function rsTour(){
   if(TOUR.on)return;TOUR.on=true;TOUR.stop=false;TOUR.pausa=false;
-  const bak={SB,ROLE,PERFIL,SESSION,vagas:RS.vagas,cands:RS.cands,escalas:RS.escalas,pre:RS.pre,tab:RS.tab,vaga:RS.vaga,f:{...RS.f},hash:location.hash};
-  const {DB,mock}=rsTourMock(SB);SB=mock;RS.f={loja:"",fase:"",contrato:"",prazo:""};
+  const bak={SB,ROLE,PERFIL,SESSION,vagas:RS.vagas,cands:RS.cands,escalas:RS.escalas,pre:RS.pre,tab:RS.tab,vaga:RS.vaga,f:{...RS.f},g:{...RS.g},hash:location.hash};
+  const {DB,mock}=rsTourMock(SB);SB=mock;RS.f={loja:"",fase:"",contrato:"",prazo:""};RS.g={reg:"",loja:""};
   closeModal();rsTourUI();
   const PARAR={};const total=24;let passo=0;
   const W=async ms=>{let t=0;ms=ms/TOUR.vel;while(t<ms||TOUR.pausa){if(TOUR.stop)throw PARAR;await new Promise(r=>setTimeout(r,60));if(!TOUR.pausa)t+=60}};
@@ -9673,7 +9688,7 @@ async function rsTour(){
   }catch(e){if(e!==PARAR){console.error(e);toast("A demonstração parou: "+(e.message||e))}}
   finally{
     closeModal();const r=$("#tour-root");if(r)r.remove();const c=$("#tour-css");if(c)c.remove();
-    SB=bak.SB;ROLE=bak.ROLE;PERFIL=bak.PERFIL;SESSION=bak.SESSION;Object.assign(RS,{vagas:bak.vagas,cands:bak.cands,escalas:bak.escalas,pre:bak.pre,tab:"painel",vaga:null,f:bak.f});
+    SB=bak.SB;ROLE=bak.ROLE;PERFIL=bak.PERFIL;SESSION=bak.SESSION;Object.assign(RS,{vagas:bak.vagas,cands:bak.cands,escalas:bak.escalas,pre:bak.pre,tab:"painel",vaga:null,f:bak.f,g:bak.g});
     TOUR.on=false;TOUR.stop=false;TOUR.pausa=false;
     if(location.hash!=="#recrutamento")location.hash="recrutamento";render();rsCarregar(true);
   }
