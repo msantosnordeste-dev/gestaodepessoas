@@ -9469,7 +9469,7 @@ function preForm(){
   preTela(`<div class="card"><h1 style="margin:0 0 4px;font-size:1.5rem">Pré-cadastro${r.nome?" · "+esc(String(r.nome).split(" ")[0]):""}</h1><p class="muted" style="margin:0">Preencha seus dados para participar do processo seletivo. Leva uns 3 minutos. Os campos com <span style="color:var(--bad)">*</span> são obrigatórios.</p>
   <form id="pre-form" onsubmit="return false" novalidate>
     ${sec(1,"Vaga")}
-    <div class="form-grid"><div class="field full"><label for="pf-cargo">Cargo pretendido<span aria-hidden="true" style="color:var(--bad)">*</span></label><input class="input" id="pf-cargo" value="${esc(r.cargo)}" readonly aria-readonly="true"><span class="small muted" style="margin-top:4px">${esc(r.loja||"")}${r.cidade?" · "+esc(r.cidade):""}</span></div></div>
+    <div class="form-grid"><div class="field full"><label for="pf-cargo">Cargo pretendido<span aria-hidden="true" style="color:var(--bad)">*</span></label><input class="input" id="pf-cargo" value="${esc(r.cargo)}" readonly aria-readonly="true"><span class="small muted" style="margin-top:4px">${esc(rsLocalFmt(r.loja||""))}</span></div></div>
     ${sec(2,"Dados pessoais")}
     <div class="form-grid">${f("pf-nome","Nome completo",`autocomplete="name" maxlength="120" value="${esc(r.nome||"")}"`,1)}${f("pf-nasc","Data de nascimento",`type="date" autocomplete="bday"`)}${f("pf-cpf","CPF",`inputmode="numeric" placeholder="000.000.000-00" maxlength="14"`)}${f("pf-email","E-mail",`type="email" autocomplete="email" maxlength="120"`)}${f("pf-tel","Telefone / WhatsApp",`type="tel" inputmode="numeric" autocomplete="tel" placeholder="(71) 99999-9999" maxlength="16"`)}</div>
     ${sec(3,"Endereço")}
@@ -9540,13 +9540,14 @@ const rsPreLink=tk=>location.origin+location.pathname+"?pre="+tk;
 const rsPreSt=p=>p.status==="enviado"?["Enviado","c-ok"]:p.status==="cancelado"?["Cancelado","c-mute"]:new Date(p.expira_em)<new Date()?["Expirado","c-mute"]:["Aguardando","c-warn"];
 async function rsPreCarregar(){if(!rsRH())return;const {data}=await SB.from("rs_precadastro").select("id,token,vaga_id,cand_id,cargo,nome_previsto,telefone_previsto,status,expira_em,enviado_em,criado_em,criado_nome,cpf,dados").order("criado_em",{ascending:false});RS.pre=data||[]}
 function rsPreMsg(nome,cargo,link){return `Olá${nome?", "+nome.split(" ")[0]:""}! Aqui é o RH da Brasileiríssima. Para participar do processo seletivo para ${cargo}, preencha seu pré-cadastro neste link (vale para um único cadastro, por 7 dias): ${link}`}
-function rsConviteTxt(v,link){const L=store(v.loja_id).nome||"";const esc0=(RS.escalas||[]).find(e=>e.nome===v.escala);const p=v.perfil||{};
-  const linhas=["Olá! 👋 Aqui é o RH da Brasileiríssima.","","Estamos com vaga aberta e queremos conhecer você:","",
-    "💼 *Cargo:* "+v.cargo+(v.contrato&&v.contrato!=="Efetivo"?" ("+v.contrato.toLowerCase()+")":""),"📍 *Local:* "+L.replace(/^Loja\s*\d+\s*·\s*/i,""),
-    v.escala?"🕒 *Escala:* "+v.escala+(esc0&&esc0.descricao&&!v.escala.includes(esc0.descricao)?" · "+esc0.descricao:""):"",v.inicio_desejado?"📅 *Início previsto:* "+fdate(v.inicio_desejado):"",
-    (p.tags||[]).length||p.texto?"✨ *Perfil:* "+[(p.tags||[]).join(", "),p.texto].filter(Boolean).join(" · "):"","",
-    "👉 Para se inscrever, preencha seu pré-cadastro neste link:",link,"","O link é pessoal: vale para um único cadastro, por 7 dias. Indicou alguém? Peça um novo link ao RH. 😉"];
-  return linhas.filter((x,k)=>x!==""||linhas[k-1]!=="").join("\n").replace(/\n{3,}/g,"\n\n")}
+function rsLocalFmt(nome){const n=String(nome||"");const m=n.match(/^Loja\s*(\d+)\s*·\s*/i);let r=(m?n.slice(m[0].length):n).split(/\s*·\s*/)[0].replace(/Brasileir[ií]ssima\s*/i,"").trim();return (r||n)+(m?" - LJ "+m[1]:"")}
+function rsConviteTxt(v,link){const p=v.perfil||{};
+  const linhas=["Olá! Aqui é o RH da Brasileiríssima.","","Estamos com vaga aberta e queremos conhecer você:","",
+    "*Cargo:* "+v.cargo+(v.contrato&&v.contrato!=="Efetivo"?" ("+v.contrato.toLowerCase()+")":""),"*Local:* "+rsLocalFmt(store(v.loja_id).nome),
+    v.inicio_desejado?"*Início previsto:* "+fdate(v.inicio_desejado):"",
+    (p.tags||[]).length||p.texto?"*Perfil:* "+[(p.tags||[]).join(", "),p.texto].filter(Boolean).join(" · "):"","",
+    "Para se inscrever, preencha seu pré-cadastro neste link:",link,"","O link é pessoal: vale para um único cadastro, por 7 dias. Indicou alguém? Peça um novo link ao RH."];
+  return linhas.filter(x=>x!==null).join("\n").replace(/\n{3,}/g,"\n\n")}
 async function rsConvite(vid){const v=RS.vagas.find(x=>x.id===vid);if(!v)return;
   const b=new Uint8Array(24);crypto.getRandomValues(b);const tk=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
   const {error}=await SB.from("rs_precadastro").insert({token:tk,vaga_id:v.id,cargo:v.cargo,loja_id:v.loja_id,criado_nome:rsQuem()});
