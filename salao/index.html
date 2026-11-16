@@ -383,6 +383,14 @@ body:has(#pInstalar) #main{padding-bottom:84px}
  .opv-f input,.opv-f select{min-width:0;width:100%}.opv-f{flex:1 1 140px}
  .opv-18 td,.opv-sel td{background:none!important}table.rsp tr.opv-sel,table.rsp tr.opv-18{background:var(--accent-soft);border-radius:8px}
 }
+.cp-abas{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}.cp-abas button{font:inherit;font-weight:700;font-size:14px;cursor:pointer;background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px;color:var(--muted)}.cp-abas button.on{color:var(--ink);border-bottom-color:#7A2BD8}
+.cp-corpo{display:grid;gap:14px}.cp-dd{position:relative}.cp-dd>.btn{min-width:230px;justify-content:space-between}
+.cp-pan{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:min(360px,calc(100vw - 32px));max-height:380px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:8px;display:grid;gap:2px}
+.cp-top{display:flex;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.cp-it{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13px}.cp-it:hover{background:var(--sunk)}.cp-it input{width:16px;height:16px;accent-color:#7A2BD8;margin:0}.cp-it span{flex:1}.cp-it em{font-style:normal;font-size:11.5px;color:var(--muted);white-space:nowrap}.cp-it em.red{color:var(--bad)}
+.cp-busca{flex:1 1 240px;min-width:0}
+.cp-bar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--sunk)}.cp-bar i{display:block;height:100%}.cp-bar .cp-ok,.cp-leg .cp-ok:before{background:var(--good)}.cp-bar .cp-parcial,.cp-leg .cp-parcial:before{background:var(--warn)}.cp-bar .cp-falta,.cp-leg .cp-falta:before{background:var(--bad)}
+.cp-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}.cp-cat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:6px}.cp-cat b{font-size:13px}.cp-cat>div:not(.ln-bar){display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
 #meuOverlay{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:0 16px 32px}#meuOverlay .meu-top{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd);margin-bottom:14px}#meuOverlay .meu-corpo{display:grid;gap:14px;max-width:1100px;margin:0 auto}body.modo-colab .shell{grid-template-columns:1fr}body.modo-colab #main{display:grid;gap:14px;max-width:1100px;margin:0 auto;width:100%}body.modo-colab [data-act=menu]{display:none}body.modo-loja .shell{grid-template-columns:1fr}body.modo-dir #btnFiltros{display:none!important}body.modo-loja #side,body.modo-loja [data-act=menu],body.modo-loja #btnFiltros{display:none!important}
 .btn-metas{display:inline-flex;align-items:center;gap:12px;border:0;border-radius:14px;padding:10px 18px 10px 10px;color:#fff;cursor:pointer;text-align:left;white-space:nowrap;background:linear-gradient(135deg,#F2306D 0%,#7A2BD8 100%);box-shadow:0 8px 20px -8px rgba(242,48,109,.6);font-family:inherit;font-weight:700;font-size:15px;line-height:1.25;transition:transform .12s,box-shadow .12s}.btn-metas:hover{transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(242,48,109,.7)}.btn-metas:active{transform:translateY(0)}.btn-metas:focus-visible{outline:3px solid rgba(122,43,216,.4);outline-offset:2px}.btn-metas .ic{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;flex:none}.btn-metas small{display:block;font-weight:500;font-size:12px;opacity:.88}
 #verComoBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9500;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);box-sizing:border-box;background:#101828;color:#fff;border-radius:12px;padding:10px 14px;font:500 13.5px Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(16,24,40,.3)}#verComoBar .btn{background:#fff;color:#101828}
@@ -1502,10 +1510,14 @@ const salvarFila=(lid,f)=>ops.set('filas',lid,f);
 function jornada(lid,vid,tipo,ini,fim,motivo){if(!(fim>ini))return;ops.set('jornada',nid(),{lojaId:lid,vendedorId:vid,data:iso(new Date(ini)),tipo,ini,fim,...(motivo?{motivo}:{})})}
 function sairDaLoja(f,lid,vid){const now=Date.now();if(f.fora[vid]&&f.fora[vid].desde)jornada(lid,vid,'pausa',f.fora[vid].desde,now,f.fora[vid].motivo);if(f.turnos[vid]){jornada(lid,vid,'turno',f.turnos[vid],now);delete f.turnos[vid]}limpar(f,vid)}
 const ACT={
+  lnAba(el){LN.aba=el.dataset.v;CP.dd=false;render();window.scrollTo(0,0)},cpAtualizar(){cpCarregar(true);render()},
+  cpDD(){CP.dd=!CP.dd;const p=document.getElementById('cpPan');if(p)p.hidden=!CP.dd;const b=document.getElementById('cpBtn');if(b)b.setAttribute('aria-expanded',String(CP.dd))},
+  cpDDTodos(){const D=CP.d||{};(D.linhas||[]).concat(D.extras||[]).forEach(l=>CP.fs.add(l.f));cpRefaz()},cpDDLimpa(){CP.fs.clear();cpRefaz()},
+  cpF(el){CP.F=el.dataset.v;cpRefaz()},cpLimpa(){CP.fs.clear();CP.cat='';CP.q='';CP.F='todos';CP.dd=false;render()},
   omOrd(el){OM.ord=el.dataset.v;render()},omReg(el){OM.reg=el.dataset.v;OM.n=20;OM.ab=null;omCarregar(true);render()},omAbrir(el){OM.ab=OM.ab===el.dataset.v?null:el.dataset.v;render()},omMais(){OM.n+=20;render()},omExportar(){omExportar()},
   opvLoja(el){OPV.loja=OPV.loja===el.dataset.v?'':el.dataset.v;render()},opvDia(el){OPV.dia=el.dataset.v;render()},
   opvAtalho(el){const v=el.dataset.v,h=hoje(),d=new Date();if(v==='m'){OPV.de=h.slice(0,8)+'01';OPV.ate=h}else if(v==='ma'){const a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);OPV.de=iso(a);OPV.ate=iso(b)}else{const a=new Date();a.setDate(a.getDate()-(+v||0));OPV.de=iso(a);OPV.ate=h}OPV.dia=OPV.ate;opvCarregar();render()},
-  lnAtualizar(){lnCarregar(true);omCarregar(true);render()},lnPer(el){LN.per=el.dataset.v;render()},lnMix(el){LN.mix=el.dataset.v;render()},
+  lnAtualizar(){lnCarregar(true);omCarregar(true);cpCarregar(true);render()},lnPer(el){LN.per=el.dataset.v;render()},lnMix(el){LN.mix=el.dataset.v;render()},
   lnCat(el){LN.cat=el.dataset.v;LN.ref=null;render()},lnRef(el){LN.ref=el.dataset.v;const r=LN.d&&lnCalc().R[LN.ref];if(r)LN.cat=r.cat;render();if(el.tagName==='TR'){const c=document.getElementById('lnProdutos');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})}},
   lnPedido(el){const k=el.dataset.v;if(LN.pedido.has(k))LN.pedido.delete(k);else LN.pedido.add(k);render()},lnExportar(){lnExportar()},
   menu(){if(window.innerWidth<=900)$('#shell').classList.toggle('open');else{ui.mini=!ui.mini;render()}},
@@ -1643,6 +1655,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.modal)fechar_
   if((e.key==='Enter'||e.key===' ')&&e.target.matches('.cal .day')){e.preventDefault();ACT.wDia(e.target)}
   if(e.key==='Enter'&&ui.modal&&e.target.id==='mPecas'){e.preventDefault();ACT.qConcluir()}});
 document.addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.in==='cpBusca'){CP.q=t.value;cpRefaz();return}
   if(t.dataset.in==='busca'){const q=t.value.toLowerCase(),box=document.getElementById(t.dataset.alvo);if(box)$$('[data-busca]',box).forEach(b=>b.hidden=!!q&&!b.dataset.busca.includes(q));return}
   if(t.dataset.ch==='mset'&&ui.modal&&t.tagName==='INPUT'){ui.modal[t.dataset.k]=t.value}});
 document.addEventListener('submit',e=>{e.preventDefault();if(e.target.dataset.form==='motAdd'){const v=($('#motNovo').value||'').trim();if(!v)return;const ms=motivos().slice();if(ms.some(m=>m.toLowerCase()===v.toLowerCase())){toast('Este motivo já existe.');return}ms.push(v);ops.set('config','geral',{...(S.cfg.geral||{}),motivos:ms})}});
@@ -1650,6 +1663,7 @@ document.addEventListener('submit',e=>{e.preventDefault();if(e.target.dataset.fo
 /* ================= alterações em campos ================= */
 const ehTexto=t=>t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&!['checkbox','radio','date','month','file'].includes(t.type));
 const CH={
+  cpForn(t){if(t.checked)CP.fs.add(t.value);else CP.fs.delete(t.value);cpRefaz()},cpCat(t){CP.cat=t.value;cpRefaz()},
   omCat(t){OM.cat=t.value;OM.n=20;render()},
   opvF(t){const k=t.dataset.k;if(k!=='loja'&&!t.value)return;OPV[k]=t.value;if(OPV.de>OPV.ate){if(k==='de')OPV.ate=OPV.de;else OPV.de=OPV.ate}if(k==='de'||k==='ate'){OPV.dia=OPV.ate;opvCarregar()}render()},
   lnCob(t){LN.cob=+t.value||14;render()},lnLoja(t){LN.loja=t.value;LN.d=null;LN.cat=null;LN.ref=null;lnCarregar(true);render()},
@@ -1690,6 +1704,7 @@ const CH={
   lojaOp(t){ui.lojaOp=t.value;lsSet('lojaOp',t.value);render()}
 };
 document.addEventListener('change',e=>{const t=e.target,fn=CH[t.dataset.ch];if(fn)fn(t)});
+document.addEventListener('click',e=>{if(CP.dd&&!e.target.closest('.cp-dd')){CP.dd=false;const p=document.getElementById('cpPan');if(p)p.hidden=true}});
 function abrirImport(txt,nome){let rows;try{rows=lerTexto(txt)}catch(e){toast('Não consegui ler o conteúdo. Envie um CSV com cabeçalho ou um JSON válido.');return}if(!rows.length){toast('Nenhuma linha de venda encontrada.');return}
   const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))];ui.imp={rows,cols,map:autoMapa(cols),nome};render()}
 
@@ -1878,7 +1893,7 @@ function vFotos(){const ls=lojasSel(),pode=podeFoto(),d=pode?'':'disabled';
     (grupos.length?grupos.map(([lid,ids])=>`<div class="card"><div class="hd"><h3>${esc(nomeLoja(lid))}</h3><span class="muted sm">${ids.length} pessoa(s)</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px">${ids.map(cartao).join('')}</div></div>`).join(''):vazio('Nenhuma pessoa cadastrada nas lojas selecionadas.'))}
 /* ================= Loja nova · acompanhamento (TOTVS por produto) ================= */
-const LN={d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:null,mix:'cls',pedido:new Set(),t:null,em:0};
+const LN={aba:'acomp',d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:null,mix:'cls',pedido:new Set(),t:null,em:0};
 function lnCarregar(forca){if(LN.carr||(!forca&&LN.d&&Date.now()-LN.em<120000))return;if(!window.PAINEL||!PAINEL.sb){LN.erro='Disponível só com login (não funciona na demonstração).';return}
   LN.carr=true;PAINEL.sb.rpc('painel_loja_detalhe',{loja:LN.loja}).then(({data,error})=>{if(error)throw error;LN.d=data;LN.erro=null;LN.em=Date.now();
     if(data&&data.loja){LN.loja=data.loja.loja;if(LN.cob==null)LN.cob=data.cobertura||14}}).catch(e=>{LN.erro=errMsg(e)}).finally(()=>{LN.carr=false;if(ui.route==='lojanova')render()})}
@@ -1995,7 +2010,9 @@ function vLojaNova(){if(!ehDiretoria())return vazio('Acesso restrito à Diretori
    <div class="ln-tw"><table class="ln-t rsp"><tr><th>${{cls:'Classe',cat:'Categoria',art:'Artigo'}[campo]}</th><th class="r">Produtos</th><th class="r">Peças</th><th class="r">Valor (venda)</th><th class="r">Vendido</th><th>Giro</th></tr>
    ${ges.map(g=>{const gi=(g.qt+g.e)?g.qt/(g.qt+g.e):0;return`<tr><td>${esc(g.k)}</td><td class="r">${g.n}</td><td class="r">${lnInt(g.e)}</td><td class="r">${brl0(g.val)}</td><td class="r">${lnInt(g.qt)}</td><td><div class="ln-bar" style="width:110px" title="${pct(gi,1)}"><i style="width:${Math.min(100,gi*100*5)}%;background:${gi>=.1?'var(--good)':gi>=.03?'var(--warn)':'var(--bad)'}"></i></div></td></tr>`}).join('')}</table></div>
    <div class="muted sm">Giro = vendido ÷ (vendido + estoque) desde a inauguração.</div></div>`;
-  return head+kp+g1+g2+g3+omHtml(C)+g4+g5}
+  const abas=`<div class="cp-abas">${[['acomp','Acompanhamento'],['pedido','Conferência do pedido']].map(([k,t])=>`<button data-act="lnAba" data-v="${k}" class="${LN.aba===k?'on':''}">${t}</button>`).join('')}</div>`;
+  if(LN.aba==='pedido')return head.split('<div class="ln-tabs">')[0]+abas+cpHtml();
+  return head.replace('<div class="ln-tabs">',abas+'<div class="ln-tabs">')+kp+g1+g2+g3+omHtml(C)+g4+g5}
 function lnDet(C){const r=C.R[LN.ref];if(!r)return'<div class="muted">Selecione um produto.</div>';
   const sk=Object.values(r.skus),ordT=['PP','P','M','G','GG','XG','XGG','U','UN'];
   const tams=[...new Set(sk.map(s=>s.tam))].sort((a,b)=>{const ia=ordT.indexOf(a),ib=ordT.indexOf(b);return(ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b,'pt-BR',{numeric:true})}),cores=[...new Set(sk.map(s=>s.cor))].sort();
@@ -2062,6 +2079,58 @@ function omExportar(){if(!OM.d)return;const C=lnCalc(),cob=C.cob;const lin=[['Re
   (OM.d.refs||[]).forEach(r=>{const pld=r.lojas&&r.dias?r.q/r.lojas/r.dias:0;lin.push([r.rn,r.cat||'',r.cls||'',r.q,String(r.v).replace('.',','),(r.q?r.v/r.q:0).toFixed(2).replace('.',','),r.lojas,pld.toFixed(2).replace('.',','),Math.max(1,Math.ceil(pld*cob))])});
   const csv='﻿'+lin.map(l=>l.map(x=>{const t=String(x??'');return/[;"\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}).join(';')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='oportunidades-mix-'+(C.L.loja||'loja')+'-'+C.hj+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+/* ---- Loja nova: conferência do pedido de abertura (planilha × entradas no TOTVS) ---- */
+const CP={d:null,carr:false,erro:null,em:0,F:'pend',fs:new Set(),cat:'',q:'',dd:false};
+function cpCarregar(forca){if(CP.carr||(!forca&&CP.d&&Date.now()-CP.em<120000))return;if(!window.PAINEL||!PAINEL.sb){CP.erro='Disponível só com login.';return}
+  CP.carr=true;PAINEL.sb.rpc('painel_conferencia_pedido',{loja:LN.loja||'tt-44'}).then(({data,error})=>{if(error)throw error;CP.d=data;CP.erro=null;CP.em=Date.now()}).catch(e=>{CP.erro=errMsg(e)}).finally(()=>{CP.carr=false;if(ui.route==='lojanova'&&LN.aba==='pedido')render()})}
+const CPST={ok:['Completo','ok'],parcial:['Parcial','al'],falta:['Faltante','er']};
+const cpSt=l=>l.r>=l.q?'ok':l.r>0?'parcial':'falta';
+const cpEnt=s=>s?s.split(',').map(e=>{const[d,o]=e.split('/');return d.slice(8,10)+'/'+d.slice(5,7)+' · op '+o}).join('<br>'):'—';
+function cpPassa(l,semForn){const q=CP.q.trim().toLowerCase();return(!CP.cat||l.cat===CP.cat)&&(semForn||!CP.fs.size||CP.fs.has(l.f))&&(!q||(l.c+' '+l.n).toLowerCase().includes(q)||q.split(' ')[0]===l.c)}
+function cpDD(){const D=CP.d,L=D.linhas||[],X=D.extras||[];const fs=[...new Set(L.concat(X).map(l=>l.f))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return`<div class="cp-top"><button class="btn sm" data-act="cpDDTodos">Marcar todos</button><button class="btn sm" data-act="cpDDLimpa">Limpar</button></div>`+fs.map(f=>{const it=L.filter(l=>l.f===f&&cpPassa(l,true)),fa=it.reduce((s,l)=>s+Math.max(0,l.q-l.r),0),xs=X.filter(x=>x.f===f).length;
+   return`<label class="cp-it"><input type="checkbox" data-ch="cpForn" value="${esc(f)}" ${CP.fs.has(f)?'checked':''}><span>${esc(f)}</span><em class="${fa?'red':''}">${it.length?(fa?'−'+lnInt(fa)+' pç':'completo'):(xs?xs+' fora do pedido':'—')}</em></label>`}).join('')}
+function cpCorpo(){const D=CP.d,L=(D.linhas||[]).map(l=>({...l,st:cpSt(l)})),X=D.extras||[];
+  const A=L.filter(l=>!CP.fs.size||CP.fs.has(l.f));
+  const ped=A.reduce((s,l)=>s+l.q,0),rec=A.reduce((s,l)=>s+Math.min(l.r,l.q),0),cnt=k=>A.filter(l=>l.st===k).length;
+  const XA=X.filter(x=>!CP.fs.size||CP.fs.has(x.f)),recX=XA.reduce((s,x)=>s+x.r,0);
+  const kp=`<div class="ln-kp"><div class="ln-k hero"><small>Atendimento do pedido</small><b>${ped?pct(rec/ped,1):'—'}</b><em>${lnInt(rec)} de ${lnInt(ped)} peças</em></div>
+   <div class="ln-k"><small>Itens completos</small><b>${cnt('ok')} de ${A.length}</b><em>receberam a quantidade pedida</em></div>
+   <div class="ln-k"><small>Itens com falta</small><b>${cnt('falta')+cnt('parcial')}</b><em>${cnt('falta')} faltantes · ${cnt('parcial')} parciais</em></div>
+   <div class="ln-k"><small>Peças faltando</small><b>${lnInt(ped-rec)}</b><em>pedidas e ainda não recebidas</em></div>
+   <div class="ln-k"><small>Fora do pedido</small><b>${XA.length} itens</b><em>${lnInt(recX)} peças recebidas sem estar na planilha</em></div></div>`;
+  const bar=`<div class="card"><h3>Situação dos itens pedidos</h3><div class="cp-bar">${['ok','parcial','falta'].map(k=>`<i class="cp-${k}" style="width:${A.length?cnt(k)/A.length*100:0}%" title="${CPST[k][0]}: ${cnt(k)}"></i>`).join('')}</div><div class="ln-leg cp-leg">${['ok','parcial','falta'].map(k=>`<span class="cp-${k}">${CPST[k][0]}: ${cnt(k)} itens</span>`).join('')}</div></div>`;
+  const C={};A.forEach(l=>{const c=C[l.cat]||(C[l.cat]={q:0,r:0,f:0,n:0});c.q+=l.q;c.r+=Math.min(l.r,l.q);c.n++;if(l.st!=='ok')c.f++});
+  const cats=Object.entries(C).filter(([,c])=>c.f).sort((a,b)=>(b[1].q-b[1].r)-(a[1].q-a[1].r));
+  const gc=`<div class="card"><h3>Faltantes por categoria</h3>${cats.length?`<div class="cp-cats">${cats.map(([k,c])=>`<div class="cp-cat"><b>${esc(k)}</b><div><span>${c.f} de ${c.n} itens com falta</span><span class="red">−${lnInt(c.q-c.r)} pç</span></div><div class="ln-bar"><i style="width:${c.r/c.q*100}%;background:var(--good)"></i></div></div>`).join('')}</div>`:'<div class="muted">Nenhuma falta para a seleção.</div>'}</div>`;
+  const ord={falta:0,parcial:1,ok:2};
+  const v=A.filter(l=>(CP.F==='todos'||(CP.F==='pend'?l.st!=='ok':l.st===CP.F))&&cpPassa(l,false)).sort((a,b)=>ord[a.st]-ord[b.st]||(a.r-a.q)-(b.r-b.q)||a.n.localeCompare(b.n));
+  const tab=`<div class="card"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3>Itens do pedido</h3><span class="muted sm">${v.length} itens · ${lnInt(v.reduce((s,l)=>s+l.q,0))} pedidos · ${lnInt(v.reduce((s,l)=>s+l.r,0))} recebidos</span></div>
+   <div class="ln-tabs">${[['pend','Com falta'],['falta','Faltantes'],['parcial','Parciais'],['ok','Completos'],['todos','Todos']].map(([k,t])=>`<button data-act="cpF" data-v="${k}" class="${CP.F===k?'on':''}">${t}</button>`).join('')}</div>
+   <div class="ln-tw"><table class="ln-t rsp"><tr><th>Cód.</th><th>Produto</th><th>Fornecedor</th><th>Categoria</th><th class="r">Pedido</th><th class="r">Recebido</th><th class="r">Diferença</th><th>Situação</th><th>Entrada</th><th class="r">Vendido</th><th class="r">Estoque</th></tr>
+   ${v.map(l=>`<tr><td class="muted">${esc(l.c)}</td><td><b>${esc(l.n)}</b></td><td class="muted sm">${esc(l.f)}</td><td class="muted sm">${esc(l.cat)}</td><td class="r">${lnInt(l.q)}</td><td class="r">${lnInt(l.r)}</td><td class="r ${l.r<l.q?'red':''}">${l.r!==l.q?(l.r>l.q?'+':'−')+lnInt(Math.abs(l.r-l.q)):'—'}</td><td>${lnSit([CPST[l.st][0],CPST[l.st][1]])}</td><td class="muted sm">${cpEnt(l.ent)}</td><td class="r">${l.r?lnInt(l.v):'—'}</td><td class="r">${l.r?lnInt(l.e):'—'}</td></tr>`).join('')||'<tr><td colspan="11" class="muted">Nenhum item neste filtro.</td></tr>'}</table></div></div>`;
+  const xv=XA.filter(x=>cpPassa({...x,cat:''},true)&&!CP.cat).sort((a,b)=>b.r-a.r);
+  const tx=`<div class="card"><div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3>Recebido fora do pedido</h3><span class="muted sm">${xv.length} itens · ${lnInt(xv.reduce((s,x)=>s+x.r,0))} peças</span></div>
+   <div class="muted sm">Produtos que deram entrada na loja e não estão na planilha do pedido.${CP.cat?' (Filtro de categoria não se aplica a esta lista.)':''}</div>
+   <div class="ln-tw"><table class="ln-t rsp"><tr><th>Cód.</th><th>Produto</th><th>Fornecedor</th><th class="r">Recebido</th><th>Entrada</th><th class="r">Vendido</th><th class="r">Estoque</th></tr>
+   ${xv.map(x=>`<tr><td class="muted">${esc(x.c)}</td><td><b>${esc(x.n)}</b> ${lnSit(['fora do pedido','cz'])}</td><td class="muted sm">${esc(x.f)}</td><td class="r">${lnInt(x.r)}</td><td class="muted sm">${cpEnt(x.ent)}</td><td class="r">${lnInt(x.v)}</td><td class="r">${lnInt(x.e)}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">Nenhum item fora do pedido neste filtro.</td></tr>'}</table></div></div>`;
+  return`<div class="muted sm" style="font-weight:600">${CP.fs.size?'Mostrando: '+esc([...CP.fs].join(', ')):'Mostrando todos os fornecedores'}</div>`+kp+bar+gc+tab+tx}
+function cpRefaz(){const c=document.getElementById('cpCorpo');if(c)c.innerHTML=cpCorpo();const p=document.getElementById('cpPan');if(p)p.innerHTML=cpDD();const b=document.getElementById('cpBtn');if(b)b.textContent=cpRotulo();
+  try{document.querySelectorAll('#cpCorpo table.rsp').forEach(t=>{const hs=[...(t.rows[0]?t.rows[0].cells:[])].map(c=>c.textContent.trim());[...t.rows].slice(1).forEach(r=>{if(r.cells.length<hs.length)r.classList.add('rsp-full');[...r.cells].forEach((c,i)=>{if(hs[i])c.setAttribute('data-l',hs[i])})})})}catch(e){}}
+const cpRotulo=()=>'Fornecedores: '+(CP.fs.size?(CP.fs.size===1?[...CP.fs][0]:CP.fs.size+' selecionados'):'todos')+' ▾';
+function cpHtml(){cpCarregar();
+  if(CP.erro&&!CP.d)return`<div class="card">${esc(CP.erro)} <button class="btn sm" data-act="cpAtualizar">Tentar de novo</button></div>`;
+  if(!CP.d)return'<div class="card muted">Carregando a conferência do pedido…</div>';
+  const D=CP.d;if(!(D.linhas||[]).length)return vazio('Nenhum pedido de abertura cadastrado para esta loja.');
+  const at=D.atualizado?new Date(D.atualizado):null;
+  const cats=[...new Set((D.linhas||[]).map(l=>l.cat))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return`<div class="muted sm">Pedido da planilha <b>${esc(D.arquivo||'')}</b> comparado com as entradas no TOTVS das filiais ${esc((D.filiais||[]).join('/'))} (compras e transferências)${at?', atualizado às '+at.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}. Itens promocionais (bandanas e lenços) não entram na conferência.</div>
+   <div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+    <div class="cp-dd"><button class="btn" id="cpBtn" data-act="cpDD" aria-expanded="${CP.dd}">${esc(cpRotulo())}</button><div class="cp-pan" id="cpPan" ${CP.dd?'':'hidden'}>${cpDD()}</div></div>
+    <select data-ch="cpCat"><option value="">Todas as categorias</option>${cats.map(c=>`<option ${c===CP.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>
+    <input class="cp-busca" list="cpItens" data-in="cpBusca" value="${esc(CP.q)}" placeholder="Item: código ou descrição" aria-label="Item"><datalist id="cpItens">${(D.linhas||[]).concat(D.extras||[]).map(l=>`<option value="${esc(l.c+' '+l.n)}"></option>`).join('')}</datalist>
+    <button class="btn sm" data-act="cpLimpa">Limpar filtros</button></div></div>
+   <div id="cpCorpo" class="cp-corpo">${cpCorpo()}</div>`}
 /* ================= Operações de venda (OP 18 × outras) ================= */
 const OPV={de:null,ate:null,dia:null,loja:'',d:null,chave:'',carr:false,erro:null};
 function opvIni(){if(!OPV.ate){const h=hoje();OPV.ate=h;OPV.dia=h;OPV.de=h.slice(0,8)+'01'}}
