@@ -8940,14 +8940,14 @@ async function rsCarregar(forcar){
     const [a,b,e]=await Promise.all([SB.from("rs_vagas").select("*").order("criado_em",{ascending:false}),SB.from("rs_candidatos").select("*").order("criado_em",{ascending:true}),SB.from("escalas_trabalho").select("*").order("nome")]);
     RS.escalas=(e&&!e.error&&e.data)||[];
     if(a.error||b.error){RS.err=(a.error||b.error).message;RS.ok=true;return}
-    RS.vagas=a.data||[];RS.cands=b.data||[];if(rsRH())try{await rsPreCarregar()}catch(e){}RS.ok=true;RS.err="";
+    RS.vagas=a.data||[];RS.cands=b.data||[];if(rsRH())try{await rsPreCarregar()}catch(e){}RS.ok=true;RS.err="";if(!TOUR.on)setTimeout(rsAtencaoPop,600);
   })();
   await RS.carregando;RS.carregando=null;
   if(typeof render==="function"&&(page==="recrutamento"||page==="painel"||page==="lojas"))render();
 }
 async function rsSalvarVaga(id,campos,msg){const {error}=await SB.from("rs_vagas").update({...campos,atualizado_em:new Date().toISOString()}).eq("id",id);if(error){toast("Não foi possível salvar: "+error.message);return false}await rsCarregar(true);if(msg)toast(msg);return true}
 async function rsSalvarCand(id,campos,msg){const {error}=await SB.from("rs_candidatos").update({...campos,atualizado_em:new Date().toISOString()}).eq("id",id);if(error){toast("Não foi possível salvar: "+error.message);return false}await rsCarregar(true);if(msg)toast(msg);return true}
-async function rsAviso(lojaId,titulo,texto){try{await SB.from("mensagens").insert({loja_id:lojaId,tipo:"aviso",titulo,texto,autor_nome:rsQuem()})}catch(e){}}
+async function rsAviso(lojaId,titulo,texto){try{await SB.from("mensagens").insert({loja_id:lojaId,tipo:"comunicado",titulo,texto,autor_nome:rsQuem()})}catch(e){}}
 const rsEvt=(v,acao)=>[...(v.eventos||[]),{em:rsHoje(),quem:rsQuem(),acao}];
 
 /* ---------- página ---------- */
@@ -8956,7 +8956,8 @@ function rsPagina(){
   if(RS.vaga&&RS.vagas.find(v=>v.id===RS.vaga))return rsTelaVaga(RS.vagas.find(v=>v.id===RS.vaga));
   RS.vaga=null;
   const temSim=RS.vagas.some(v=>v.simulacao);
-  const acoes=`<button class="btn" data-rs="tour" style="border-color:#EE691F;color:#C2541A">▶ Simular toda a jornada</button>${rsRH()?`<button class="btn" data-rs="${temSim?"simLimpar":"simCarregar"}">${temSim?"Remover simulação":"Carregar simulação"}</button><button class="btn" data-rs="escalas">Escalas</button><button class="btn" data-rs="importar">Importar planilha</button>`:""}${rsPodePedir()?`<button class="btn btn-primary" data-rs="novaVaga">+ ${rsRH()?"Abrir vaga":"Pedir vaga"}</button>`:""}`;
+  const nAt=rsAtencao().length;
+  const acoes=`${nAt?`<button class="btn" data-rs="atencao" title="Precisa de atenção">🔔 ${nAt}</button>`:""}<button class="btn" data-rs="tour" style="border-color:#EE691F;color:#C2541A">▶ Simular toda a jornada</button>${rsRH()?`<button class="btn" data-rs="${temSim?"simLimpar":"simCarregar"}">${temSim?"Remover simulação":"Carregar simulação"}</button><button class="btn" data-rs="escalas">Escalas</button><button class="btn" data-rs="importar">Importar planilha</button>`:""}${rsPodePedir()?`<button class="btn btn-primary" data-rs="novaVaga">+ ${rsRH()?"Abrir vaga":"Pedir vaga"}</button>`:""}`;
   const tabs=`<div class="tabs-inline" style="margin-bottom:16px"><button class="btn btn-sm ${RS.tab==="painel"?"btn-primary":""}" data-rs="tab" data-v="painel">Vagas e funil</button><button class="btn btn-sm ${RS.tab==="banco"?"btn-primary":""}" data-rs="tab" data-v="banco">Banco de talentos e indicadores</button></div>`;
   return header("Pessoas","Recrutamento & Seleção",acoes)+(RS.err?`<div class="alert"><b>Não foi possível carregar as vagas:</b> ${esc(RS.err)}</div>`:"")+tabs+rsFiltroG()+(RS.tab==="banco"?rsTelaBanco():rsTelaPainel());
 }
@@ -9026,10 +9027,10 @@ function rsTelaPainel(){
     <div style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x proximity">${colunas.map(c=>`<section style="flex:0 0 232px;scroll-snap-align:start;background:${c.f===4?"#FFF3EA":"#F3F6F4"};border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:160px">
       <div style="border-bottom:2px solid ${c.f===4?"#EE691F":"#0B3D2B"};padding-bottom:6px"><div style="display:flex;justify-content:space-between;gap:6px"><b style="font-size:.88rem">${esc(c.t)}</b><span class="chip ${c.itens.length?"c-info":"c-mute"}" style="font-size:11px">${c.itens.length}</span></div><span class="small muted">${esc(c.sub)}</span></div>
       ${c.itens.length?c.itens.map(x=>kcard(x.v,x.i,x.ped)).join(""):`<p class="small muted" style="margin:6px 0;text-align:center">—</p>`}</section>`).join("")}</div></div>`;
-  const tabela=RS.modo==="quadro"?quadro:`<div class="card"><div class="card-head"><div><h2>Vagas abertas · ${abertas.length}</h2><p>Etapa da vaga = a do candidato mais avançado · prazo da vaga: até ${RS_SLA_VAGA} dias</p></div>${modoBt}</div>${filtros}
-   <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Motivo</th><th>Contrato</th><th class="r">Posições</th><th>Etapa (1 a 11)</th><th>Funil</th><th>Aberta há</th><th></th></tr></thead><tbody>
+  const tabela=`<div class="card"><div class="card-head"><div><h2>Vagas abertas · ${abertas.length}</h2><p>Etapa da vaga = a do candidato mais avançado · prazo da vaga: até ${RS_SLA_VAGA} dias</p></div></div>${filtros}
+   <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Motivo</th><th>Contrato</th><th class="r">Posições</th><th>Etapa (1 a 11)</th><th>Aberta há</th><th></th></tr></thead><tbody>
    ${lista.map(({v,i})=>{const cs=i.cs;const f=[cs.length,cs.filter(c=>c.etapa>=4||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
-     return `<tr><td><b>${esc(v.cargo)}</b>${rsSimChip(v)}${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="small" style="max-width:240px;white-space:normal">${esc(rsMotivosTxt(v))}</td><td><span class="chip ${v.contrato==="Temporário"?"c-brand":"c-info"}">${esc(v.contrato)}</span></td><td class="r num"><button class="btn btn-sm btn-ghost" data-rs="candsVaga" data-id="${v.id}" title="Ver candidatos e currículos">${v.posicoes} · 👥 ${i.cs.length}</button>${i.adm.length?`<br><span class="small muted">${i.adm.length} admitido${i.adm.length===1?"":"s"}</span>`:""}</td><td>${pontos(i.et)}<span class="small">${esc(i.lbl)}${i.atras?` · <b style="color:#8E1F12">${i.atras} atrasado${i.atras===1?"":"s"}</b>`:""}</span></td><td class="small num" title="entraram › entrevistados › proposta › admitidos">${f.join(" › ")}</td><td><span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} dia${i.dias===1?"":"s"}</span></td><td style="white-space:nowrap"><button class="btn btn-sm" data-rs="candsVaga" data-id="${v.id}">📂 Abrir</button> <button class="btn btn-sm btn-ghost" data-rs="abrirVaga" data-id="${v.id}">Vaga</button></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">${abertas.length?"Nenhuma vaga com esses filtros.":"Nenhuma vaga aberta."}</td></tr>`}</tbody></table></div></div>`;
+     return `<tr><td><b>${esc(v.cargo)}</b>${rsSimChip(v)}${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="small" style="max-width:240px;white-space:normal">${esc(rsMotivosTxt(v))}</td><td><span class="chip ${v.contrato==="Temporário"?"c-brand":"c-info"}">${esc(v.contrato)}</span></td><td class="r num"><button class="btn btn-sm btn-ghost" data-rs="candsVaga" data-id="${v.id}" title="Ver candidatos e currículos">${v.posicoes} · 👥 ${i.cs.length}</button>${i.adm.length?`<br><span class="small muted">${i.adm.length} admitido${i.adm.length===1?"":"s"}</span>`:""}</td><td>${pontos(i.et)}<span class="small">${esc(i.lbl)}${i.atras?` · <b style="color:#8E1F12">${i.atras} atrasado${i.atras===1?"":"s"}</b>`:""}</span></td><td><span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} dia${i.dias===1?"":"s"}</span></td><td style="white-space:nowrap"><button class="btn btn-sm" data-rs="candsVaga" data-id="${v.id}">📂 Abrir</button> <button class="btn btn-sm btn-ghost" data-rs="abrirVaga" data-id="${v.id}">Vaga</button></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">${abertas.length?"Nenhuma vaga com esses filtros.":"Nenhuma vaga aberta."}</td></tr>`}</tbody></table></div></div>`;
   const encerradas=todas.filter(x=>["fechada","cancelada"].includes(x.v.status));
   const enc=encerradas.length?`<details class="card"><summary style="cursor:pointer;font-weight:600">Vagas fechadas e canceladas · ${encerradas.length}</summary><div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Cargo · unidade</th><th>Situação</th><th>Aberta</th><th>Encerrada</th><th>Admitidos</th><th></th></tr></thead><tbody>${encerradas.map(({v,i})=>`<tr><td><b>${esc(v.cargo)}</b><br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td>${v.status==="fechada"?"Fechada":"Cancelada"}</td><td class="num">${fdate(v.aberta_em)}</td><td class="num">${fdate(v.fechada_em)}</td><td class="num">${i.adm.length}</td><td><button class="btn btn-sm btn-ghost" data-rs="abrirVaga" data-id="${v.id}">Ver</button></td></tr>`).join("")}</tbody></table></div></details>`:"";
   return aprovHTML+kpis+`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0">${porFase}</div>`+pedHTML+pedRH+alertas+tabela+enc;
@@ -9046,7 +9047,7 @@ function rsTelaVaga(v){
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(v.status==="pedido"?"Aguardando aprovação do RH":v.status,false)}</div>
       ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto)?`<p class="small" style="margin:8px 0 0"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}</p>`:""}
     ${rsCadeia(v)}</div>
-    <div class="tabs-inline">${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn" data-rs="preNovo" data-id="${v.id}">Link de pré-cadastro</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
+    <div class="tabs-inline">${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
   const funil=`<div class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><b>Funil:</b> ${f[0]} entraram › ${f[1]} triados › ${f[3]} com proposta › ${f[4]} admitido${f[4]===1?"":"s"}<span class="muted" style="margin-left:auto">Cor do cartão: verde no prazo · laranja vence hoje · vermelho atrasado</span></div>`;
   const card=c=>{const s=rsSla(c),cor=RS_COR[s.st];const r7=c.registros["7"]||{};
@@ -9367,6 +9368,7 @@ document.addEventListener("click",async ev=>{
     const {error}=await SB.rpc("rs_vaga_decidir",{p_vaga:id,p_ok:ok,p_obs:obs||null});if(error){toast("Não foi possível registrar: "+error.message);return}
     closeModal();await rsCarregar(true);toast(ok?"Aprovação registrada":"Pedido devolvido ao gerente")});
   if(a==="tour"){rsTour();return}
+  if(a==="atencao"){rsAtencaoPop(true);return}
   if(a==="simCarregar")return trava(async()=>{const {error}=await SB.rpc("rs_simulacao_carregar");if(error){toast("Não foi possível carregar: "+error.message);return}await rsCarregar(true);toast("Simulação carregada · vagas e candidatos fictícios")});
   if(a==="simLimpar")return trava(async()=>{if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toque de novo para remover";return}const {error}=await SB.rpc("rs_simulacao_limpar");if(error){toast("Não foi possível remover: "+error.message);return}RS.vaga=null;await rsCarregar(true);toast("Simulação removida")});
   if(a==="escalas"){rsFormEscalas();return}
@@ -9517,6 +9519,24 @@ const rsPreLink=tk=>location.origin+location.pathname+"?pre="+tk;
 const rsPreSt=p=>p.status==="enviado"?["Enviado","c-ok"]:p.status==="cancelado"?["Cancelado","c-mute"]:new Date(p.expira_em)<new Date()?["Expirado","c-mute"]:["Aguardando","c-warn"];
 async function rsPreCarregar(){if(!rsRH())return;const {data}=await SB.from("rs_precadastro").select("id,token,vaga_id,cand_id,cargo,nome_previsto,telefone_previsto,status,expira_em,enviado_em,criado_em,criado_nome,cpf,dados").order("criado_em",{ascending:false});RS.pre=data||[]}
 function rsPreMsg(nome,cargo,link){return `Olá${nome?", "+nome.split(" ")[0]:""}! Aqui é o RH da Brasileiríssima. Para participar do processo seletivo para ${cargo}, preencha seu pré-cadastro neste link (vale para um único cadastro, por 7 dias): ${link}`}
+function rsConviteTxt(v,link){const L=store(v.loja_id).nome||"";const esc0=(RS.escalas||[]).find(e=>e.nome===v.escala);const p=v.perfil||{};
+  const linhas=["Olá! 👋 Aqui é o RH da Brasileiríssima.","","Estamos com vaga aberta e queremos conhecer você:","",
+    "💼 *Cargo:* "+v.cargo+(v.contrato&&v.contrato!=="Efetivo"?" ("+v.contrato.toLowerCase()+")":""),"📍 *Local:* "+L.replace(/^Loja\s*\d+\s*·\s*/i,""),
+    v.escala?"🕒 *Escala:* "+v.escala+(esc0&&esc0.descricao&&!v.escala.includes(esc0.descricao)?" · "+esc0.descricao:""):"",v.inicio_desejado?"📅 *Início previsto:* "+fdate(v.inicio_desejado):"",
+    (p.tags||[]).length||p.texto?"✨ *Perfil:* "+[(p.tags||[]).join(", "),p.texto].filter(Boolean).join(" · "):"","",
+    "👉 Para se inscrever, preencha seu pré-cadastro neste link:",link,"","O link é pessoal: vale para um único cadastro, por 7 dias. Indicou alguém? Peça um novo link ao RH. 😉"];
+  return linhas.filter((x,k)=>x!==""||linhas[k-1]!=="").join("\n").replace(/\n{3,}/g,"\n\n")}
+async function rsConvite(vid){const v=RS.vagas.find(x=>x.id===vid);if(!v)return;
+  const b=new Uint8Array(24);crypto.getRandomValues(b);const tk=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+  const {error}=await SB.from("rs_precadastro").insert({token:tk,vaga_id:v.id,cargo:v.cargo,loja_id:v.loja_id,criado_nome:rsQuem()});
+  if(error){toast("Não foi possível gerar o link: "+error.message);return}
+  const link=rsPreLink(tk),txt=rsConviteTxt(v,link);
+  modal("Convite para inscrição · WhatsApp",`<p class="small muted" style="margin:0 0 8px">Um <b>novo link único</b> foi gerado agora para esta vaga. Cada clique em "Convite WhatsApp" gera outro link, um por candidato. O cadastro entra direto na triagem desta vaga.</p>
+    <div class="field"><label for="rcv-txt">Texto padrão (pode ajustar antes de enviar)</label><textarea class="input" id="rcv-txt" rows="14" style="font-size:.9rem;line-height:1.45">${esc(txt)}</textarea></div>
+    <div class="field" style="margin-top:8px"><label for="rcv-tel">WhatsApp do candidato (opcional, com DDD)</label><input class="input" id="rcv-tel" inputmode="numeric" placeholder="(71) 99999-9999"></div>
+    <div class="input" style="margin-top:8px;word-break:break-all;font-size:.82rem;height:auto;background:#F3F6F4" aria-label="Link de inscrição">${esc(link)}</div>`,
+    `<button class="btn" data-close>Fechar</button><button class="btn" data-rs="convCopLink" data-v="${tk}">Copiar só o link</button><button class="btn" data-rs="convCopTxt">📋 Copiar texto</button><button class="btn btn-primary" data-rs="convWa">📲 Abrir no WhatsApp</button>`);
+  await rsPreCarregar();}
 function rsPreForm(vid,cid){
   const v=RS.vagas.find(x=>x.id===vid),c=cid?RS.cands.find(x=>x.id===cid):null;
   const tel=c?(String(c.contato||"").match(/\(?\d{2}\)?\s?\d{4,5}-?\d{4}/)||[""])[0]:"";
@@ -9536,6 +9556,10 @@ function rsPreDados(c){
 }
 document.addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-rs]");if(!t)return;const a=t.dataset.rs;
+  if(a==="convite"){if(t.disabled)return;t.disabled=true;try{await rsConvite(t.dataset.id)}finally{t.disabled=false}return}
+  if(a==="convCopTxt"){const x=$("#rcv-txt");try{await navigator.clipboard.writeText(x.value);toast("Texto copiado · cole no WhatsApp")}catch(e){x.select();try{document.execCommand("copy");toast("Texto copiado")}catch(_){toast("Selecione e copie o texto")}}return}
+  if(a==="convCopLink"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
+  if(a==="convWa"){const msg=$("#rcv-txt").value,tel=$("#rcv-tel").value.replace(/\D/g,""),num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");return}
   if(a==="preNovo"){rsPreForm(t.dataset.id,t.dataset.cand||null);return}
   if(a==="preCopiar"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
   if(a==="preCancelar"){if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Confirmar";return}const {error}=await SB.from("rs_precadastro").update({status:"cancelado"}).eq("id",t.dataset.id).eq("status","pendente");if(error){toast(error.message);return}await rsPreCarregar();render();toast("Link cancelado");return}
@@ -9725,6 +9749,37 @@ document.addEventListener("input",ev=>{const t=ev.target;if(!t||t.id!=="rs-cbusc
   document.querySelectorAll("#rs-ctab tbody tr[data-busca]").forEach(tr=>{const ok=!q||q.split(/\s+/).every(w=>tr.dataset.busca.normalize("NFD").replace(/[\u0300-\u036f]/g,"").includes(w));tr.hidden=!ok;if(ok)n++});
   const c=document.querySelector("#rs-ccount");if(c)c.textContent=q?n:document.querySelectorAll("#rs-ctab tbody tr[data-busca]").length});
 document.addEventListener("keydown",ev=>{const t=ev.target;if((ev.key==="Enter"||ev.key===" ")&&t&&t.matches&&t.matches('div[role="button"][data-rs]')){ev.preventDefault();t.click()}});
+
+/* ---------- Precisa de atenção: aviso suspenso ao acessar (uma vez por sessão) ---------- */
+function rsAtencao(){const it=[],P=(PERFIL&&PERFIL.perfil)||ROLE,rh=rsRH();
+  const vg=id=>RS.vagas.find(v=>v.id===id)||{};const nome=v=>`${v.cargo||""} · ${v.loja_id?store(v.loja_id).nome:""}`;
+  const ativos=RS.cands.filter(c=>c.status==="ativo"&&vg(c.vaga_id).status==="aberta");
+  RS.vagas.filter(v=>v.status==="pedido").forEach(v=>{const e=rsEtapaAprov(v);if((e==="sup"&&P==="supervisor")||(e==="com"&&P==="comercial")||(e==="rh"&&rh))it.push({p:1,c:"hoje",t:"Pedido aguardando sua aprovação",d:nome(v)+" · "+rsMotivosTxt(v),rs:rh?"aprovar":"decidir",id:v.id,v:"1",sim:v.simulacao})});
+  if(!rh&&P==="gerente"){RS.vagas.filter(v=>v.status==="devolvida").forEach(v=>it.push({p:1,c:"atrasado",t:"Pedido devolvido · corrija e reenvie",d:nome(v)+" · "+(v.obs||""),rs:"corrigir",id:v.id,sim:v.simulacao}));
+    ativos.filter(c=>c.etapa===4&&!((c.registros||{})["4"]||{}).gerente_em).forEach(c=>it.push({p:2,c:"hoje",t:"Avalie a entrevista online",d:c.nome+" · "+nome(vg(c.vaga_id)),rs:"cand",id:c.id,sim:c.simulacao}));
+    ativos.filter(c=>c.etapa<=7&&((c.registros||{})["7"]||{}).pedida&&!((c.registros||{})["7"]||{}).resultado).forEach(c=>it.push({p:2,c:"hoje",t:"Dê o resultado da entrevista presencial",d:c.nome+(c.registros["7"].quando?" · "+c.registros["7"].quando:""),rs:"cand",id:c.id,sim:c.simulacao}))}
+  if(rh||P==="gerente"||P==="supervisor"){ativos.filter(c=>rsSla(c).st!=="ok").forEach(c=>{const s=rsSla(c);it.push({p:3,c:s.st,t:(s.st==="atrasado"?"Etapa atrasada":"Etapa vence hoje")+" · "+String(c.etapa).padStart(2,"0")+" "+RS_ET[c.etapa].t,d:c.nome+" · "+nome(vg(c.vaga_id)),rs:"candsVaga",id:c.vaga_id,cc:c.id,sim:c.simulacao})})}
+  if(rh)RS.cands.filter(c=>c.status==="nao_seguiu"&&!(c.nao_seguiu&&c.nao_seguiu.feedback_em)).forEach(c=>it.push({p:4,c:"hoje",t:"Feedback pendente",d:c.nome+" · "+nome(vg(c.vaga_id)),rs:"ns",id:c.id,sim:c.simulacao}));
+  return it.sort((a,b)=>a.p-b.p)}
+function rsAtencaoPop(forcar){try{if(!forcar&&sessionStorage.getItem("rs_pop"))return}catch(e){}
+  if(typeof TOUR!=="undefined"&&TOUR.on)return;const it=rsAtencao();if(!it.length){if(forcar)toast("Nada pendente no Recrutamento");return}
+  try{sessionStorage.setItem("rs_pop","1")}catch(e){}
+  let d=document.getElementById("rs-pop");if(d)d.remove();d=document.createElement("div");d.id="rs-pop";d.setAttribute("role","alertdialog");d.setAttribute("aria-label","Precisa de atenção");
+  d.style.cssText="position:fixed;right:18px;bottom:18px;z-index:45;width:min(420px,calc(100vw - 24px));max-height:min(70vh,560px);display:flex;flex-direction:column;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(11,61,43,.28);border:1px solid #E1E5DF;overflow:hidden;animation:rspop .35s ease-out";
+  const cor={atrasado:"#C0392B",hoje:"#EE691F",ok:"#2E8B66"};
+  d.innerHTML=`<style>@keyframes rspop{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}</style>
+    <div style="background:#0B3D2B;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="font-size:20px">🔔</span><div style="flex:1"><b>Precisa de atenção · ${it.length}</b><div style="font-size:12px;color:#CFDCD4">Recrutamento &amp; Seleção · também enviado ao Correio da loja</div></div><button data-rspop="x" aria-label="Fechar" style="background:none;border:0;color:#fff;font-size:20px;cursor:pointer">×</button></div>
+    <div style="overflow:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px">${it.slice(0,8).map((x,k)=>`<button data-rspop="go" data-k="${k}" style="text-align:left;display:flex;gap:10px;align-items:flex-start;background:#F7F8F5;border:0;border-left:4px solid ${cor[x.c]||cor.hoje};border-radius:8px;padding:8px 10px;cursor:pointer;font:inherit;color:#17231D"><span style="flex:1"><b style="font-size:.9rem">${esc(x.t)}</b>${x.sim?` <span class="chip c-warn" style="font-size:10px">SIM</span>`:""}<br><span class="small muted">${esc(x.d)}</span></span><span aria-hidden="true" style="color:#0F6B4B;font-weight:700">›</span></button>`).join("")}${it.length>8?`<p class="small muted" style="margin:4px 2px">e mais ${it.length-8}.</p>`:""}</div>
+    <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid #E1E5DF;flex-wrap:wrap"><button class="btn btn-sm" data-rspop="ouvir">🔊 Ouvir</button><button class="btn btn-sm" data-rspop="depois">Lembrar depois</button><button class="btn btn-sm btn-primary" data-rspop="tudo" style="margin-left:auto">Ver tudo em Vagas</button></div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click",ev=>{const b=ev.target.closest("[data-rspop]");if(!b)return;const a=b.dataset.rspop;
+    if(a==="x"||a==="depois"){try{speechSynthesis.cancel()}catch(e){}d.remove();if(a==="depois")setTimeout(()=>rsAtencaoPop(true),15*60*1000);return}
+    if(a==="ouvir"){try{speechSynthesis.cancel();const txt="Você tem "+it.length+(it.length===1?" item":" itens")+" que precisam de atenção no Recrutamento. "+it.slice(0,6).map(x=>x.t+": "+x.d.replace(/·/g,",")).join(". ")+".";const u=new SpeechSynthesisUtterance(txt);u.lang="pt-BR";u.rate=1.02;const vz=speechSynthesis.getVoices().find(v=>/pt[-_]BR/i.test(v.lang));if(vz)u.voice=vz;speechSynthesis.speak(u)}catch(e){toast("Seu navegador não tem leitura em voz")}return}
+    const ir=()=>{RS.tab="painel";if(page!=="recrutamento")location.hash="recrutamento";else render()};
+    if(a==="tudo"){d.remove();RS.vaga=null;ir();return}
+    if(a==="go"){const x=it[+b.dataset.k];d.remove();ir();setTimeout(()=>{const f=document.createElement("button");f.dataset.rs=x.rs;f.dataset.id=x.id;if(x.v)f.dataset.v=x.v;if(x.cc)f.dataset.c=x.cc;f.hidden=true;document.body.appendChild(f);f.click();f.remove()},250)}});
+}
+document.addEventListener("click",ev=>{const d=document.getElementById("rs-pop");if(d&&!d.contains(ev.target)&&!ev.target.closest('[data-rs="atencao"]')){try{speechSynthesis.cancel()}catch(e){}d.remove()}},true);
 
 boot();
 </script>
