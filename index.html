@@ -9843,7 +9843,7 @@ document.addEventListener("click",ev=>{const d=document.getElementById("rs-pop")
 
 
 /* ============ WhatsApp RH · histórico, interações e respostas ============ */
-const WA={ok:false,carregando:false,conv:[],msgs:{},sel:null,busca:"",dias:30,est:null,kpi:null,err:"",timer:null,filtro:"todas"};
+const WA={fi:"",selI:null,ok:false,carregando:false,conv:[],msgs:{},sel:null,busca:"",dias:30,est:null,kpi:null,err:"",timer:null,filtro:"todas"};
 const waFmtNum=n=>{const d=String(n||"").replace(/\D/g,"").replace(/^55/,"");return d.length===11?`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`:d.length===10?`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`:n};
 const waHora=iso=>{if(!iso)return "";const d=new Date(iso),h=new Date();const mesmo=d.toDateString()===h.toDateString();return mesmo?d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
 const WA_ORIG={convite:"Convite de vaga","pre-cadastro":"Link de pré-cadastro",feedback:"Feedback ao candidato",manual:"Mensagem do RH",resposta:"Resposta recebida",celular:"Enviada pelo celular",teste:"Teste"};
@@ -9861,25 +9861,27 @@ function waQuem(num){const k=waChave(num);if(!k)return null;const ix=waIndice();
   return null}
 async function waCarregar(silencioso){if(WA.carregando)return;WA.carregando=true;if(!silencioso)WA.err="";
   try{const desde=new Date(Date.now()-WA.dias*864e5).toISOString();
-    const [c,k,nm]=await Promise.all([SB.from("wa_conversas").select("*").order("ultima_em",{ascending:false}).limit(500),SB.from("wa_mensagens").select("direcao,status,origem,criado_em,numero").gte("criado_em",desde).limit(10000),SB.from("wa_contatos").select("*")]);
+    const [c,k,nm]=await Promise.all([SB.from("wa_conversas").select("*").order("ultima_em",{ascending:false}).limit(500),SB.from("wa_mensagens").select("direcao,status,origem,criado_em,numero,instancia,enviado_nome").gte("criado_em",desde).limit(10000),SB.from("wa_contatos").select("*")]);
     WA.nomes={};((nm&&nm.data)||[]).forEach(x=>WA.nomes[x.numero]=x);WA.idx=null;
-    if(c.error)throw c.error;if(k.error)throw k.error;WA.conv=c.data||[];const m=k.data||[];
+    if(c.error)throw c.error;if(k.error)throw k.error;WA.conv=c.data||[];WA.m30=k.data||[];const m=WA.m30.filter(x=>!WA.fi||x.instancia===WA.fi);
     const s=m.filter(x=>x.direcao==="saida"),e=m.filter(x=>x.direcao==="entrada"),orig={};s.forEach(x=>orig[x.origem||"manual"]=(orig[x.origem||"manual"]||0)+1);
     WA.kpi={env:s.length,ent:s.filter(x=>["entregue","lida"].includes(x.status)).length,lid:s.filter(x=>x.status==="lida").length,err:s.filter(x=>x.status==="erro").length,rec:e.length,contatos:new Set(m.map(x=>x.numero)).size,orig};
-    if(WA.sel)await waAbrir(WA.sel,true);WA.ok=true}
+    if(WA.sel)await waAbrir(WA.sel,true,WA.selI);WA.ok=true}
   catch(e){WA.err=e.message||String(e)}finally{WA.carregando=false}
   if(page==="whatsapp")waRender()}
 async function waStatus(){try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"status"}});WA.est=r.data||{ok:false}}catch(e){WA.est={ok:false}}if(page==="whatsapp")waRender()}
-async function waAbrir(num,semRender){const {data,error}=await SB.from("wa_mensagens").select("*").eq("numero",num).order("criado_em",{ascending:true}).limit(300);
-  if(!error)WA.msgs[num]=data||[];WA.sel=num;
-  try{await SB.from("wa_lidas").upsert({numero:num,lida_em:new Date().toISOString()});const cv=WA.conv.find(x=>x.numero===num);if(cv)cv.nao_lidas=0}catch(e){}
+const waK=(i,n)=>i+"|"+n;
+async function waAbrir(num,semRender,inst){inst=inst||WA.selI||(WA.conv.find(c=>c.numero===num)||{}).instancia;const {data,error}=await SB.from("wa_mensagens").select("*").eq("numero",num).eq("instancia",inst).order("criado_em",{ascending:true}).limit(300);
+  if(!error)WA.msgs[waK(inst,num)]=data||[];WA.sel=num;WA.selI=inst;
+  try{await SB.from("wa_lidas").upsert({instancia:inst,numero:num,lida_em:new Date().toISOString()});const cv=WA.conv.find(x=>x.numero===num&&x.instancia===inst);if(cv)cv.nao_lidas=0}catch(e){}
   if(!semRender)waRender()}
 function waTempoReal(){if(WA.rt||!SB||!SB.channel)return;
   try{WA.rt=SB.channel("wa-rh").on("postgres_changes",{event:"*",schema:"public",table:"wa_mensagens"},p=>{const m=p.new||{};if(!m.numero)return;
-    const l=WA.msgs[m.numero];if(l){const k=l.findIndex(x=>x.id===m.id||(x.pend&&x.texto===m.texto));if(k>=0)l[k]=m;else l.push(m)}
-    let cv=WA.conv.find(c=>c.numero===m.numero);if(!cv){cv={numero:m.numero,nome:m.nome,nao_lidas:0};WA.conv.unshift(cv)}
+    const l=WA.msgs[waK(m.instancia,m.numero)];if(l){const k=l.findIndex(x=>x.id===m.id||(x.pend&&x.texto===m.texto));if(k>=0)l[k]=m;else l.push(m)}
+    if(m.instancia&&WA.est&&!WA.est.gestor&&WA.est.instancia&&m.instancia!==WA.est.instancia)return;
+    let cv=WA.conv.find(c=>c.numero===m.numero&&c.instancia===m.instancia);if(!cv){cv={instancia:m.instancia,numero:m.numero,nome:m.nome,nao_lidas:0};WA.conv.unshift(cv)}
     if(p.eventType==="INSERT"){cv.ultima_em=m.criado_em;cv.ultimo_texto=m.texto;cv.ultima_direcao=m.direcao;if(m.nome)cv.nome=cv.nome||m.nome;
-      if(m.direcao==="entrada"){if(m.numero===WA.sel&&page==="whatsapp"&&!document.hidden){SB.from("wa_lidas").upsert({numero:m.numero,lida_em:new Date().toISOString()}).then(()=>{})}else cv.nao_lidas=(+cv.nao_lidas||0)+1}
+      if(m.direcao==="entrada"){if(m.numero===WA.sel&&m.instancia===WA.selI&&page==="whatsapp"&&!document.hidden){SB.from("wa_lidas").upsert({instancia:m.instancia,numero:m.numero,lida_em:new Date().toISOString()}).then(()=>{})}else cv.nao_lidas=(+cv.nao_lidas||0)+1}
       WA.conv.sort((a,b)=>String(b.ultima_em).localeCompare(String(a.ultima_em)))}
     if(page==="whatsapp")waRender();else if(m.direcao==="entrada"&&p.eventType==="INSERT")toast("Nova mensagem no WhatsApp RH")}).subscribe()}catch(e){}}
 function waPagina(){waTempoReal();
@@ -9893,26 +9895,29 @@ function waRender(){const r=document.getElementById("wa-root");if(!r)return;cons
   const det=document.querySelector("[data-wa-res]");if(det)det.ontoggle=()=>{WA.resumoAberto=det.open}}
 function waTela(){
   const est=WA.est,con=est&&est.conectado;
-  const acoes=`<span class="chip ${est==null?"c-mute":con?"c-ok":"c-bad"}">${est==null?"Verificando…":con?"● Conectado · "+esc(est.instancia||""):"● Desconectado"}</span><button class="btn" data-wa="atualizar">Atualizar</button><button class="btn btn-primary" data-wa="nova">+ Nova mensagem</button>`;
+  const meuNum=est&&est.numero?waFmtNum(est.numero):"";
+  const acoes=`<span class="chip ${est==null?"c-mute":con?"c-ok":"c-bad"}">${est==null?"Verificando…":con?"● Meu WhatsApp conectado"+(meuNum?" · "+esc(meuNum):""):est.instancia?"● Meu WhatsApp desconectado":"● Sem WhatsApp conectado"}</span>${est&&est.instancia?`<button class="btn" data-wa="conectar">${con?"Reconectar":"Conectar"}</button>`:""}<button class="btn" data-wa="atualizar">Atualizar</button><button class="btn btn-primary" data-wa="nova">+ Nova mensagem</button>`;
   if(!WA.ok)return header("Visão geral","WhatsApp RH",acoes)+`<div class="card"><p class="empty">${WA.err?"Não foi possível carregar: "+esc(WA.err):"Carregando histórico…"}</p></div>`;
   const k=WA.kpi||{env:0,ent:0,lid:0,err:0,rec:0,contatos:0,orig:{}};const pc=(a,b)=>b?Math.round(a/b*100)+"%":"—";
-  const aguard=WA.conv.filter(c=>c.ultima_direcao==="entrada").length,naoLid=WA.conv.reduce((s,c)=>s+(+c.nao_lidas||0),0);
+  const convF=WA.conv.filter(c=>!WA.fi||c.instancia===WA.fi);
+  const aguard=convF.filter(c=>c.ultima_direcao==="entrada").length,naoLid=convF.reduce((s,c)=>s+(+c.nao_lidas||0),0);
   const kp=(t,v,d,cor)=>`<div class="kpi"><div class="lbl">${t}</div><div class="val" ${cor?`style="color:${cor}"`:""}>${v}</div><div class="small muted">${d}</div></div>`;
   const kpis=`<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">${kp("Enviadas",k.env,"últimos "+WA.dias+" dias")}${kp("Entregues",pc(k.ent,k.env),k.ent+" mensagens")}${kp("Lidas",pc(k.lid,k.env),k.lid+" mensagens")}${kp("Respostas recebidas",k.rec,k.contatos+" contatos no período")}${kp("Aguardando o RH",aguard,naoLid+" não lida"+(naoLid===1?"":"s"),aguard?"#C2541A":"")}${kp("Falhas de envio",k.err,"verifique o número",k.err?"#C0392B":"")}</div>`;
   const ori=Object.entries(k.orig).sort((a,b)=>b[1]-a[1]);const tot=ori.reduce((s,x)=>s+x[1],0)||1;const cores=["#0F6B4B","#EE691F","#2E86AB","#8E44AD","#7F8C8D","#C0392B"];
   const origem=ori.length?`<div class="card" style="padding:14px 18px;margin-bottom:12px"><b class="small">Envios por tipo · ${WA.dias} dias</b><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:8px 0">${ori.map(([o,n],i)=>`<span title="${esc(WA_ORIG[o]||o)}: ${n}" style="width:${n/tot*100}%;background:${cores[i%cores.length]}"></span>`).join("")}</div><div style="display:flex;flex-wrap:wrap;gap:12px" class="small">${ori.map(([o,n],i)=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${cores[i%cores.length]};margin-right:4px"></span>${esc(WA_ORIG[o]||o)} · <b>${n}</b></span>`).join("")}</div></div>`:"";
   const q=(WA.busca||"").toLowerCase();
-  const lista=WA.conv.filter(c=>WA.filtro==="aguardando"?c.ultima_direcao==="entrada":WA.filtro==="naolidas"?+c.nao_lidas>0:true).filter(c=>{if(!q)return true;const w=waQuem(c.numero);return [c.numero,waFmtNum(c.numero),c.nome,w&&w.nome,c.ultimo_texto].filter(Boolean).join(" ").toLowerCase().includes(q)});
-  const item=c=>{const w=waQuem(c.numero),nome=(w&&w.nome)||c.nome||waFmtNum(c.numero),ativo=c.numero===WA.sel;
-    return `<button class="wa-it ${ativo?"on":""}" data-wa="abrir" data-n="${esc(c.numero)}">
+  const donoNome=i=>((est&&est.equipe||[]).find(x=>x.instancia===i)||{}).nome||"";
+  const lista=convF.filter(c=>WA.filtro==="aguardando"?c.ultima_direcao==="entrada":WA.filtro==="naolidas"?+c.nao_lidas>0:true).filter(c=>{if(!q)return true;const w=waQuem(c.numero);return [c.numero,waFmtNum(c.numero),c.nome,w&&w.nome,c.ultimo_texto].filter(Boolean).join(" ").toLowerCase().includes(q)});
+  const item=c=>{const w=waQuem(c.numero),nome=(w&&w.nome)||c.nome||waFmtNum(c.numero),ativo=c.numero===WA.sel&&c.instancia===WA.selI;
+    return `<button class="wa-it ${ativo?"on":""}" data-wa="abrir" data-n="${esc(c.numero)}" data-i="${esc(c.instancia||"")}">
       <span aria-hidden="true" style="width:44px;height:44px;flex:none;border-radius:50%;background:${w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B"};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">${esc(String(nome).replace(/[^A-Za-zÀ-ú ]/g,"").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"#")}</span>
       <span style="flex:1;min-width:0"><span style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="nm">${esc(nome)}</span><span class="hr" ${+c.nao_lidas?'style="color:#1FA855;font-weight:700"':""}>${waHora(c.ultima_em)}</span></span>
-      <span class="sb">${w?esc(w.tipo)+(w.det?" · "+esc(w.det):""):c.nome?esc(waFmtNum(c.numero))+" · nome do WhatsApp":"Sem cadastro no portal"}</span>
+      <span class="sb">${est&&est.gestor&&!WA.fi&&donoNome(c.instancia)?`<b style="color:#0F6B4B">${esc(primeiro(donoNome(c.instancia)))}</b> · `:""}${w?esc(w.tipo)+(w.det?" · "+esc(w.det):""):c.nome?esc(waFmtNum(c.numero))+" · nome do WhatsApp":"Sem cadastro no portal"}</span>
       <span style="display:flex;gap:8px;align-items:center;margin-top:3px"><span class="ul ${c.ultima_direcao==="entrada"?"ent":""}">${c.ultima_direcao==="saida"?"Você: ":""}${esc(c.ultimo_texto||"")}</span>${+c.nao_lidas?`<span style="background:#25D366;color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">${c.nao_lidas}</span>`:""}</span></span></button>`};
   const tick=m=>m.direcao!=="saida"?"":m.pend?`<span title="Enviando">🕓</span>`:m.status==="lida"?`<span title="Lida" style="color:#1D9BF0;font-weight:700">✓✓</span>`:m.status==="entregue"?`<span title="Entregue">✓✓</span>`:m.status==="erro"?`<span title="${esc(m.erro||"Falhou")}" style="color:#C0392B">⚠ falhou</span>`:`<span title="Enviada">✓</span>`;
   let conversa=`<div class="empty" style="padding:40px 20px;text-align:center"><b>Escolha uma conversa</b><p class="small muted">Aqui aparece todo o histórico com a pessoa e você pode responder pelo WhatsApp do RH.</p></div>`;
-  if(WA.sel){const ms=WA.msgs[WA.sel]||[],w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);let dia="";
-    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button><div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}</div></div>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Nomear"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
+  if(WA.sel){const ms=WA.msgs[waK(WA.selI,WA.sel)]||[],w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel&&c.instancia===WA.selI)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);let dia="";
+    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button><div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}${est&&est.gestor&&WA.selI!==est.instancia&&donoNome(WA.selI)?` · <b style="color:#C2541A">conversa de ${esc(donoNome(WA.selI))}</b>`:""}</div></div>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Nomear"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
     <div id="wa-thread" class="wa-th" aria-live="polite">${ms.length?ms.map(m=>{const d=new Date(m.criado_em).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});const sep=d!==dia?(dia=d,`<div class="wa-dia">${d}</div>`):"";const sd=m.direcao==="saida";
       return sep+`<div class="wa-b ${sd?"s":"e"} ${m.pend?"pend":""}">${sd&&m.origem&&!["manual","celular"].includes(m.origem)?`<div class="tg">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div class="tx">${esc(m.texto||"")}</div><div class="mt">${sd&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p style="align-self:center;color:#54656F">Sem mensagens.</p>`}</div>
     <div class="wa-cp"><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
@@ -9953,13 +9958,34 @@ function waTela(){
     <div class="wa-conv" style="display:flex;flex-direction:column;min-height:0;min-width:0">${conversa}</div></div>
     <style>@media(max-width:760px){${WA.sel?".wa-box .wa-lista{display:none!important}.wa-voltar{display:inline-flex}":".wa-box .wa-conv{display:none!important}"}}</style>`;
   const resumo=`<details class="card" style="padding:12px 18px;margin-bottom:12px" ${WA.resumoAberto?"open":""} data-wa-res><summary style="cursor:pointer;font-weight:700">Indicadores · últimos ${WA.dias} dias <span class="small muted" style="font-weight:400">· ${k.env} enviadas · ${pc(k.lid,k.env)} lidas · ${k.rec} respostas${aguard?` · <b style="color:#C2541A">${aguard} aguardando o RH</b>`:""}</span></summary><div style="margin-top:12px">${kpis}${origem}</div></details>`;
-  return header("Visão geral","WhatsApp RH",acoes)+(con&&est.webhook===false?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Recebimento de respostas desligado.</b> Hoje o painel mostra só o que o portal envia. Ative para registrar aqui as respostas dos candidatos e colaboradores e a confirmação de entrega e leitura.</span><button class="btn btn-primary" data-wa="webhook">Ativar recebimento de respostas</button></div>`:"")+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+resumo+painel+`<p class="small muted" style="margin-top:8px">Histórico registrado a partir de 16/11/2026. Mensagens novas aparecem na hora. Somente o RH vê esta tela.</p>`}
+  const semMeu=est&&est.configurado!==false&&!est.instancia;
+  const banner=semMeu?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Conecte o seu WhatsApp de trabalho.</b> As mensagens que você enviar pelo portal saem pelo seu número, e as respostas voltam para esta tela.${est.gestor?" Como gestor de RH, você continua vendo as conversas de todo o time.":""}</span><button class="btn btn-primary" data-wa="conectar">Conectar meu WhatsApp</button></div>`:"";
+  const eq=(est&&est.gestor&&est.equipe)||[];
+  const equipe=eq.length?(()=>{const m=WA.m30||[];const lin=eq.map(x=>{const mi=m.filter(y=>y.instancia===x.instancia);const cvs=WA.conv.filter(c=>c.instancia===x.instancia);return {...x,env:mi.filter(y=>y.direcao==="saida").length,rec:mi.filter(y=>y.direcao==="entrada").length,ag:cvs.filter(c=>c.ultima_direcao==="entrada").length}});
+    return `<div class="card" style="padding:12px 18px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><b>Time de RH no WhatsApp</b><label class="small" style="display:flex;gap:6px;align-items:center">Ver conversas de <select class="input" data-wafi style="width:auto;padding:6px 8px"><option value="">Todo o time</option>${eq.map(x=>`<option value="${esc(x.instancia)}" ${WA.fi===x.instancia?"selected":""}>${esc(x.nome||x.instancia)}</option>`).join("")}</select></label></div>
+      <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Pessoa</th><th>Número</th><th>Situação</th><th class="r">Enviadas (30d)</th><th class="r">Respostas (30d)</th><th class="r">Aguardando</th></tr></thead><tbody>${lin.map(x=>`<tr><td><b>${esc(x.nome||x.instancia)}</b></td><td class="small">${x.numero?esc(waFmtNum(x.numero)):"—"}</td><td><span class="chip ${x.estado==="open"?"c-ok":"c-bad"}" style="font-size:11px">${x.estado==="open"?"Conectado":"Desconectado"}</span></td><td class="r num">${x.env}</td><td class="r num">${x.rec}</td><td class="r num" ${x.ag?'style="color:#C2541A;font-weight:700"':""}>${x.ag}</td></tr>`).join("")}</tbody></table></div></div>`})():"";
+  return header("Visão geral","WhatsApp RH",acoes)+banner+equipe+(con&&est.webhook===false?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Recebimento de respostas desligado.</b> Hoje o painel mostra só o que o portal envia. Ative para registrar aqui as respostas dos candidatos e colaboradores e a confirmação de entrega e leitura.</span><button class="btn btn-primary" data-wa="webhook">Ativar recebimento de respostas</button></div>`:"")+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+resumo+painel+`<p class="small muted" style="margin-top:8px">Histórico registrado a partir de 16/11/2026. Mensagens novas aparecem na hora. Somente o RH vê esta tela.</p>`}
+function confirmaDupla(t,txt){if(t.dataset.ok==="1")return true;t.dataset.ok="1";const o=t.textContent;t.textContent=txt;setTimeout(()=>{t.dataset.ok="";t.textContent=o},4000);return false}
+async function waConectar(btn){if(btn){btn.disabled=true}
+  try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"conectar"}});let d=r.data;if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
+    if(!d||!d.ok){toast("Não foi possível conectar: "+((d&&(d.detalhe||d.erro))||""));return}
+    if(d.conectado){toast("Seu WhatsApp já está conectado");await waStatus();return}
+    modal("Conectar meu WhatsApp",`<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center"><div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #E1E5DF">${d.qr?`<img id="wa-qr" src="${esc(d.qr)}" alt="QR Code para conectar o WhatsApp" width="240" height="240" style="display:block">`:`<p class="small">QR indisponível. Tente de novo.</p>`}</div>
+      <ol class="small" style="flex:1;min-width:200px;line-height:1.7;margin:0;padding-left:18px"><li>Abra o WhatsApp no <b>seu celular de trabalho</b>.</li><li>Toque em <b>⋮ / Configurações › Aparelhos conectados</b>.</li><li>Toque em <b>Conectar um aparelho</b> e aponte para o código.</li></ol></div>
+      <p class="small muted" id="wa-qr-st" style="margin-top:10px">Aguardando a leitura… o código renova sozinho.</p>`,`<button class="btn" data-close>Fechar</button>`);
+    let n=0;const loop=async()=>{if(!document.getElementById("wa-qr-st"))return;n++;const s=await SB.functions.invoke("whatsapp",{body:{acao:"status"}});WA.est=s.data||WA.est;
+      if(WA.est&&WA.est.conectado){closeModal();toast("WhatsApp conectado ✓");waRender();waCarregar(true);return}
+      if(n%8===0){const q=await SB.functions.invoke("whatsapp",{body:{acao:"conectar"}});if(q.data&&q.data.qr&&$("#wa-qr"))$("#wa-qr").src=q.data.qr}
+      setTimeout(loop,4000)};setTimeout(loop,4000)}
+  finally{if(btn)btn.disabled=false}}
 function waNova(){modal("Nova mensagem pelo WhatsApp do RH",`<div class="form-grid"><div class="field"><label for="wn-num">WhatsApp (com DDD)</label><input class="input" id="wn-num" inputmode="numeric" placeholder="(71) 99999-9999"></div><div class="field"><label for="wn-nome">Nome (opcional)</label><input class="input" id="wn-nome"></div><div class="field full"><label for="wn-txt">Mensagem</label><textarea class="input" id="wn-txt" rows="5"></textarea></div></div>`,
   `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-wa="novaOk">Enviar</button>`)}
 document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wa]");if(!t)return;const a=t.dataset.wa;
   if(a==="atualizar"){WA.ok=WA.ok;await Promise.all([waCarregar(),waStatus()]);toast("Atualizado");return}
-  if(a==="abrir"){await waAbrir(t.dataset.n);const x=$("#wa-txt");if(x&&innerWidth>760)x.focus();return}
-  if(a==="fechar"){WA.sel=null;waRender();return}
+  if(a==="abrir"){await waAbrir(t.dataset.n,false,t.dataset.i);const x=$("#wa-txt");if(x&&innerWidth>760)x.focus();return}
+  if(a==="fechar"){WA.sel=null;WA.selI=null;waRender();return}
+  if(a==="conectar"){await waConectar(t);return}
+  if(a==="desconectar"){if(!confirmaDupla(t,"Toque de novo para desconectar"))return;const r=await SB.functions.invoke("whatsapp",{body:{acao:"desconectar"}});toast(r.data&&r.data.ok?"WhatsApp desconectado":"Não foi possível desconectar");await waStatus();return}
   if(a==="filtro"){WA.filtro=t.dataset.v;waRender();return}
   if(a==="webhook"){t.disabled=true;t.textContent="Ativando…";try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"webhook"}});let d=r.data;if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
     if(d&&d.ok){toast("Recebimento de respostas ativado ✓");await waStatus()}else{toast("Não foi possível ativar: "+((d&&(d.detalhe||d.erro))||""));t.disabled=false;t.textContent="Ativar recebimento de respostas"}}catch(e){toast(e.message);t.disabled=false}return}
@@ -9974,16 +10000,18 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wa
   if(a==="nova"){waNova();return}
   if(a==="novaOk"){const num=$("#wn-num").value,txt=$("#wn-txt").value.trim();if(!txt){toast("Escreva a mensagem");return}
     const nomeN=$("#wn-nome").value.trim();if(await rsWaEnviar(num,txt,t,{origem:"manual",nome:nomeN||null})){closeModal();let n=num.replace(/\D/g,"");if(n.length<=11)n="55"+n;
+      const mi=WA.est&&WA.est.instancia;if(mi){WA.selI=mi}
       if(nomeN&&!waIndice()[waChave(n)]){await SB.from("wa_contatos").upsert({numero:n,nome:nomeN,atualizado_nome:(PERFIL&&PERFIL.nome)||null,atualizado_em:new Date().toISOString()})}WA.sel=n;await waCarregar(true)}return}
-  if(a==="enviar"){const x=$("#wa-txt"),txt=x.value.trim();if(!txt||!WA.sel)return;const num=WA.sel;
+  if(a==="enviar"){const x=$("#wa-txt"),txt=x.value.trim();if(!txt||!WA.sel)return;const num=WA.sel,inst=WA.selI,kk=waK(inst,num);
     const tmp={id:"tmp"+Date.now(),numero:num,direcao:"saida",texto:txt,origem:"manual",status:"enviada",pend:true,enviado_nome:(PERFIL&&PERFIL.nome)||"",criado_em:new Date().toISOString()};
-    (WA.msgs[num]=WA.msgs[num]||[]).push(tmp);x.value="";WA.fixo=true;waRender();
-    const ok=await rsWaEnviar(num,txt,null,{origem:"manual"});
-    if(!ok){WA.msgs[num]=WA.msgs[num].filter(m=>m!==tmp);const y=$("#wa-txt");if(y&&!y.value)y.value=txt;waRender();return}
-    tmp.pend=false;await waAbrir(num,true);waRender();return}
+    tmp.instancia=inst;(WA.msgs[kk]=WA.msgs[kk]||[]).push(tmp);x.value="";WA.fixo=true;waRender();
+    const ok=await rsWaEnviar(num,txt,null,{origem:"manual",instancia:inst});
+    if(!ok){WA.msgs[kk]=WA.msgs[kk].filter(m=>m!==tmp);const y=$("#wa-txt");if(y&&!y.value)y.value=txt;waRender();return}
+    tmp.pend=false;await waAbrir(num,true,inst);waRender();return}
 });
 document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="wa-busca"){WA.busca=ev.target.value;const l=document.querySelector(".wa-lista > div:last-child");if(l){const tmp=document.createElement("div");tmp.innerHTML=waTela();const nl=tmp.querySelector(".wa-lista > div:last-child");if(nl)l.innerHTML=nl.innerHTML}}});
 document.addEventListener("keydown",ev=>{if(ev.target&&ev.target.id==="wa-txt"&&ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();const b=document.querySelector('[data-wa="enviar"]');if(b&&!b.disabled)b.click()}});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.matches&&t.matches("[data-wafi]")){WA.fi=t.value;WA.sel=null;WA.selI=null;waCarregar(true)}});
 
 boot();
 </script>
