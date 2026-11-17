@@ -9997,17 +9997,34 @@ function waTela(){
   return header("Visão geral","WhatsApp RH",acoes)+DM_CSS+banner+(con&&est.webhook===false?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Recebimento de respostas desligado.</b> Hoje o painel mostra só o que o portal envia. Ative para registrar aqui as respostas dos candidatos e colaboradores e a confirmação de entrega e leitura.</span><button class="btn btn-primary" data-wa="webhook">Ativar recebimento de respostas</button></div>`:"")+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+barra+painel}
 function confirmaDupla(t,txt){if(t.dataset.ok==="1")return true;t.dataset.ok="1";const o=t.textContent;t.textContent=txt;setTimeout(()=>{t.dataset.ok="";t.textContent=o},4000);return false}
 async function waConectar(btn){if(btn){btn.disabled=true}
-  try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"conectar"}});let d=r.data;if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
-    if(!d||!d.ok){toast("Não foi possível conectar: "+((d&&(d.detalhe||d.erro))||""));return}
+  const chamar=async(extra)=>{const r=await SB.functions.invoke("whatsapp",{body:{acao:"conectar",...(extra||{})}});let d=r.data;if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}return d||{}};
+  const qrBox=q=>q?`<img id="wa-qr" src="${esc(q)}" alt="QR Code para conectar o WhatsApp" width="240" height="240" style="display:block">`:`<div id="wa-qr-wait" style="width:240px;height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#54656F;font-size:13px;text-align:center"><span class="wa-spin" aria-hidden="true"></span>Gerando o código…</div>`;
+  const pintar=q=>{const b=document.getElementById("wa-qr-box");if(!b||!q)return;const im=document.getElementById("wa-qr");if(im)im.src=q;else b.innerHTML=qrBox(q)};
+  try{const d=await chamar();
+    if(!d.ok){toast("Não foi possível conectar: "+(d.detalhe||d.erro||""));return}
     if(d.conectado){toast("Seu WhatsApp já está conectado");await waStatus();return}
-    modal("Conectar meu WhatsApp",`<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center"><div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #E1E5DF">${d.qr?`<img id="wa-qr" src="${esc(d.qr)}" alt="QR Code para conectar o WhatsApp" width="240" height="240" style="display:block">`:`<p class="small">QR indisponível. Tente de novo.</p>`}</div>
+    modal("Conectar meu WhatsApp",`<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center"><div id="wa-qr-box" style="background:#fff;padding:10px;border-radius:12px;border:1px solid #E1E5DF">${qrBox(d.qr)}</div>
       <ol class="small" style="flex:1;min-width:200px;line-height:1.7;margin:0;padding-left:18px"><li>Abra o WhatsApp no <b>seu celular de trabalho</b>.</li><li>Toque em <b>⋮ / Configurações › Aparelhos conectados</b>.</li><li>Toque em <b>Conectar um aparelho</b> e aponte para o código.</li></ol></div>
-      <p class="small muted" id="wa-qr-st" style="margin-top:10px">Aguardando a leitura… o código renova sozinho.</p>`,`<button class="btn" data-close>Fechar</button>`);
-    let n=0;const loop=async()=>{if(!document.getElementById("wa-qr-st"))return;n++;const s=await SB.functions.invoke("whatsapp",{body:{acao:"status"}});WA.est=s.data||WA.est;
-      if(WA.est&&WA.est.conectado){closeModal();toast("WhatsApp conectado ✓");waRender();waCarregar(true);return}
-      if(n%8===0){const q=await SB.functions.invoke("whatsapp",{body:{acao:"conectar"}});if(q.data&&q.data.qr&&$("#wa-qr"))$("#wa-qr").src=q.data.qr}
-      setTimeout(loop,4000)};setTimeout(loop,4000)}
+      <p class="small muted" id="wa-qr-st" style="margin-top:10px">Aguardando a leitura… o código renova sozinho.</p>
+      <details style="margin-top:8px"><summary class="small" style="cursor:pointer;font-weight:600">Não consegue ler o código? Conectar pelo número</summary>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px"><label class="small" style="display:flex;flex-direction:column;gap:4px">Número do WhatsApp de trabalho<input id="wa-pn" inputmode="tel" placeholder="(71) 99999-9999" style="min-width:200px"></label><button type="button" class="btn btn-sm" id="wa-pn-b">Gerar código</button></div>
+        <div id="wa-pn-r" class="small" style="margin-top:8px"></div></details>`,`<button class="btn" data-close>Fechar</button>`);
+    const pb=document.getElementById("wa-pn-b");if(pb)pb.onclick=async()=>{const v=(document.getElementById("wa-pn").value||"").replace(/\D/g,"");const out=document.getElementById("wa-pn-r");
+      if(v.length<10){out.innerHTML=`<span style="color:#C0392B">Informe o número com DDD.</span>`;return}
+      pb.disabled=true;out.textContent="Gerando…";try{const x=await chamar({numero:(v.length<=11?"55":"")+v});
+        if(x.conectado){out.textContent="Já conectado.";return}
+        out.innerHTML=x.codigo?`No celular: <b>Aparelhos conectados › Conectar um aparelho › Conectar com número de telefone</b> e digite o código <b style="font-size:20px;letter-spacing:3px;color:#0F6B4B">${esc(String(x.codigo).replace(/^(.{4})(.{4})$/,"$1-$2"))}</b>`:`<span style="color:#C0392B">Não veio o código agora. Tente de novo em alguns segundos.</span>`;if(x.qr)pintar(x.qr)}finally{pb.disabled=false}};
+    let n=0,ultimoQr=Date.now();const loop=async()=>{if(!document.getElementById("wa-qr-st"))return;n++;
+      try{const s=await SB.functions.invoke("whatsapp",{body:{acao:"status"}});WA.est=s.data||WA.est;
+        if(WA.est&&WA.est.conectado){closeModal();toast("WhatsApp conectado ✓");waRender();waCarregar(true);return}
+        const semQr=!document.getElementById("wa-qr");
+        if(semQr||Date.now()-ultimoQr>30000){const q=await chamar();if(q.conectado){closeModal();toast("WhatsApp conectado ✓");await waStatus();waCarregar(true);return}if(q.qr){pintar(q.qr);ultimoQr=Date.now()}}
+      }catch(e){}
+      setTimeout(loop,semQrAgora()?2500:4000)};
+    const semQrAgora=()=>!document.getElementById("wa-qr");
+    setTimeout(loop,d.qr?4000:1500)}
   finally{if(btn)btn.disabled=false}}
+if(!document.getElementById("wa-spin-css"))document.head.insertAdjacentHTML("beforeend",`<style id="wa-spin-css">.wa-spin{width:28px;height:28px;border:3px solid #DDE5DF;border-top-color:#25D366;border-radius:50%;animation:waSpin .8s linear infinite}@keyframes waSpin{to{transform:rotate(360deg)}}</style>`);
 function waSecBloco(ms){if(!(WA.est&&WA.est.gestor))return "";const k=waK(WA.selI,WA.sel),s=WA.sec[k]||{};const ult=[...ms].reverse().find(m=>m.texto);const aguarda=ult&&ult.direcao==="entrada";
   if(s.carregando)return `<div style="padding:10px 14px;background:#F4F7FB;border-top:1px solid #DDE5EF;font-size:13.5px;color:#33475B">🤖 Preparando sugestão…</div>`;
   const op=s.opcoes&&s.opcoes[s.i||0];
@@ -10130,8 +10147,8 @@ function waEvolucao(){
     <div class="wa-evo-g">${graf("Mensagens recebidas","por dia, em cada WhatsApp do RH","rec")}${graf("Recebidas e não respondidas","ainda sem resposta, pelo dia em que chegaram","nr")}</div></div>`;
 }
 
-/* ---- aguardando: sai quando o RH responde (portal ou celular), volta quando chega mensagem nova ---- */
-const waAg=c=>c.aguardando!==undefined&&c.aguardando!==null?!!c.aguardando:c.ultima_direcao==="entrada";
+/* ---- aguardando: sai quando o RH responde (portal ou celular) ou quando a conversa é lida; volta quando chega mensagem nova ---- */
+const waAg=c=>(c.aguardando!==undefined&&c.aguardando!==null?!!c.aguardando:c.ultima_direcao==="entrada")&&+c.nao_lidas>0;
 const waDesde=iso=>{if(!iso)return "";const m=Math.max(0,Math.round((Date.now()-new Date(iso))/6e4));return m<1?"agora":m<60?"há "+m+" min":m<1440?"há "+Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":""):"há "+Math.floor(m/1440)+" dia"+(m>=2880?"s":"")};
 /* arquivo recebido: prévia e download pelo sistema por 48 h (bucket privado wa-arquivos); depois fica só no Drive */
 WA.urls=WA.urls||{};
