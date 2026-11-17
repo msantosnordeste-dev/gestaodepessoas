@@ -805,8 +805,8 @@ async function atualizarPeriodico(){
   if(!SB||!SESSION||document.hidden)return;
   try{
     if(ROLE!=="colaborador"&&(typeof VC==="undefined"||!VC)){try{await SB.rpc("premiacoes_swile_tick")}catch(e){}}
-    if(PERFIL&&PERFIL.user_id&&(typeof VC==="undefined"||!VC)){try{const {data:pf}=await SB.from("perfis").select("perfil,lojas,supervisor_id,ativo").eq("user_id",PERFIL.user_id).maybeSingle();
-      if(pf&&(!pf.ativo||pf.perfil!==PERFIL.perfil||[...(pf.lojas||[])].sort().join()!==[...(PERFIL.lojas||[])].sort().join()||(pf.supervisor_id||"")!==(PERFIL.supervisor_id||""))){if(!pf.ativo){await SB.auth.signOut();location.reload();return}toast("Seus acessos foram atualizados pelo RH. Recarregando…");setTimeout(()=>location.reload(),1500);return}}catch(e){}}
+    if(PERFIL&&PERFIL.user_id&&(typeof VC==="undefined"||!VC)){try{const {data:pf}=await SB.from("perfis").select("perfil,lojas,supervisor_id,ativo,menus,gestor_rh").eq("user_id",PERFIL.user_id).maybeSingle();
+      if(pf&&(!pf.ativo||pf.perfil!==PERFIL.perfil||[...(pf.lojas||[])].sort().join()!==[...(PERFIL.lojas||[])].sort().join()||(pf.supervisor_id||"")!==(PERFIL.supervisor_id||"")||acMudou(pf))){if(!pf.ativo){await SB.auth.signOut();location.reload();return}toast("Seus acessos foram atualizados pelo RH. Recarregando…");setTimeout(()=>location.reload(),1500);return}}catch(e){}}
     if(typeof VC==="undefined"||!VC){const ag=Date.now();if(!window.__ACR||ag-window.__ACR>600000){window.__ACR=ag;try{const {data:n}=await SB.rpc("acesso_rotina_desligados");if(n&&ROLE==="rh"){await carregarUsuarios();renderSafe()}}catch(e){}}}
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
     else if(ROLE==="gerente"){await carregarGerente()}
@@ -1149,7 +1149,7 @@ const PAGES=[
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
-const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].concat(["correio","experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):PAGES;
+const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].concat(["correio","experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):acFiltrar(PAGES);
 const pages=()=>{const b=pagesBase();if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
@@ -1168,9 +1168,9 @@ function renderNav(){
   $("#nav").innerHTML=pages().map(p=>p.g?`<div class="nav-label">${p.g}</div>`:
     `<a href="#${p.id}" class="${p.id===page?"on":""}" ${p.id===page?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[p.id]}</svg>${p.t}${p.id==="esocial"&&pend?`<span class="count">${pend}</span>`:""}${p.id==="painel"&&nAl&&(!G()||xpLib())?`<span class="count">${nAl}</span>`:""}${p.id==="experiencia"&&nXp?`<span class="count">${nXp}</span>`:""}${p.id==="usuarios"&&nG?`<span class="count">${nG}</span>`:""}${p.id==="correio"&&nC?`<span class="count">${nC}</span>`:""}${p.id==="chamados"&&ROLE==="rh"&&chPendRH()?`<span class="count">${chPendRH()}</span>`:""}${p.id==="meuschamados"&&chPendColab()?`<span class="count">${chPendColab()}</span>`:""}${p.id==="solicitacoes"&&nS?`<span class="count">${nS}</span>`:""}</a>${p.id==="premiacoes"&&page==="premiacoes"&&PREM&&ROLE!=="colaborador"?PREM.subnav():""}`).join("");
   const nome=(SESSION&&SESSION.nome)||(ROLE==="rh"?"RH":"Gerente");
-  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?"RH · acesso total":(PERFIS_CURTO[PERFIL&&PERFIL.perfil]||"Gerente")+" · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
+  $("#side-foot").innerHTML=`<div class="avatar">${esc(initials(nome))}</div><div style="min-width:0;flex:1"><b>${esc(nome)}</b><span>${ROLE==="colaborador"?"Colaborador · "+esc(ST.stores[0]?.nome||""):ROLE==="rh"?(acLista()?"RH · acesso por menus":"RH · acesso total"):(PERFIS_CURTO[PERFIL&&PERFIL.perfil]||"Gerente")+" · "+(ST.stores.length>1?ST.stores.length+" lojas":esc(ST.stores[0]?.nome||""))}</span>${ROLE==="rh"?`<span id="sync" class="sync ${SYNC}">${SYNC==="saving"?"Salvando…":SYNC==="error"?"Erro ao salvar":"Tudo salvo"}</span>`:""}</div><button class="btn btn-sm btn-ghost" data-act="sair" title="Sair">Sair</button>`;
 }
-function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:ROLE==="colaborador"?"meustd":"painel";render()}
+function go(){if(!ST||!ROLE)return;const h=(location.hash||"#painel").slice(1);page=pages().some(p=>p.id===h)?h:ROLE==="colaborador"?"meustd":acInicio();render()}
 window.addEventListener("hashchange",go);
 
 function header(eyebrow,title,actions=""){
@@ -1223,7 +1223,7 @@ R.usuarios=()=>{
   let corpo="";
   if(tab==="usuarios"){
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Loja</th><th>Situação</th><th>Último acesso</th><th>Termos (LGPD)</th><th></th></tr></thead>
-    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${PERFIS[u.perfil]}${u.perfil_manual?`<br><span class="small muted">definido pelo RH</span>`:""}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="comercial"?"Todas as lojas · duas regionais":u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip ${u.bloqueio_motivo==="desligamento"?"c-bad":"c-mute"}">${u.bloqueio_motivo==="desligamento"?"Bloqueado · desligamento":"Desativado"}</span>${u.bloqueado_em?`<br><span class="small muted">desde ${new Date(u.bloqueado_em).toLocaleDateString("pt-BR")}${u.bloqueado_por?" · "+esc(u.bloqueado_por):""}</span>`:""}`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
+    <tbody>${USUARIOS.filter(u=>u.perfil!=="colaborador").sort((a,b)=>a.perfil.localeCompare(b.perfil)||a.nome.localeCompare(b.nome)).map(u=>`<tr><td><div class="who"><div class="avatar">${esc(initials(u.nome))}</div><div><b>${esc(u.nome)}</b><span>desde ${fdate(String(u.criado_em).slice(0,10))}</span></div></div></td><td class="num">${esc(u.login)}</td><td>${acPerfilTxt(u)}${u.perfil_manual?`<br><span class="small muted">definido pelo RH</span>`:""}</td><td style="white-space:normal;min-width:160px">${u.perfil==="supervisor"?usrCarteira(u):u.perfil==="comercial"?"Todas as lojas · duas regionais":u.perfil==="rh"?"Todas":(u.lojas||[]).length===ST.stores.length&&ST.stores.length>1?"Todas as lojas":(u.lojas||[]).map(id=>esc(store(id).nome)).join(", ")}</td><td>${u.ativo?`<span class="chip ${u.perfil==="rh"?"c-brand":"c-ok"}">Ativo</span>`:`<span class="chip ${u.bloqueio_motivo==="desligamento"?"c-bad":"c-mute"}">${u.bloqueio_motivo==="desligamento"?"Bloqueado · desligamento":"Desativado"}</span>${u.bloqueado_em?`<br><span class="small muted">desde ${new Date(u.bloqueado_em).toLocaleDateString("pt-BR")}${u.bloqueado_por?" · "+esc(u.bloqueado_por):""}</span>`:""}`}</td><td class="num">${quando(u.ultimo_acesso)}</td><td style="white-space:nowrap">${bvRHcol(u)}</td>
       <td style="white-space:nowrap"><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button>${u.ativo&&u.user_id&&u.perfil!=="rh"?` <button class="btn btn-sm btn-ghost" data-vcusr="${esc(u.user_id)}" title="Ver o portal como este usuário vê (só para olhar, nada é gravado)">Ver como</button>`:""}${ROLE==="rh"&&u.user_id&&SESSION&&u.user_id!==SESSION.id&&u.user_id!==(PERFIL&&PERFIL.user_id)?(u.ativo?` <button class="btn btn-sm btn-ghost" style="color:var(--bad)" data-usracesso="${esc(u.user_id)}|0">Desabilitar acesso</button>`:` <button class="btn btn-sm btn-ghost" data-usracesso="${esc(u.user_id)}|1">Reabilitar acesso</button>`):""}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Quando um colaborador é desligado (ou um contrato PJ é encerrado), o acesso dele é bloqueado automaticamente a partir da data de saída: a senha deixa de funcionar e as sessões abertas são encerradas. Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
@@ -10478,6 +10478,82 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en
 const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
 function notasPagina(){return `<h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Central de Notas</h1>
   <div style="margin:-8px 0 0;border-radius:16px;overflow:hidden;border:1px solid #DFE8E3;background:#fff;box-shadow:0 1px 2px rgba(7,94,54,.05)"><iframe src="${NOTAS_URL}" title="Central de Notas" credentialless style="display:block;width:100%;height:calc(100vh - 40px);min-height:620px;border:0" allow="clipboard-write"></iframe></div>`}
+/* ============ Acesso por menus do time de RH ============
+   perfis.menus: telas liberadas para um usuário de RH (vazio = acesso total).
+   Só o gestor do RH (perfis.gestor_rh) define; o gestor do RH tem sempre acesso total.
+   A função "usuarios" confere quem pode mudar e recusa gerenciar usuários a quem não tem o menu Usuários. */
+const acLista=()=>{const p=PERFIL;if(!p||ROLE!=="rh"||p.gestor_rh)return null;return Array.isArray(p.menus)&&p.menus.length?p.menus:null};
+function acFiltrar(lista){
+  const m=acLista();if(!m)return lista;
+  const out=[];let grupo=null;
+  lista.forEach(p=>{if(p.g){grupo=p;return}if(!m.includes(p.id))return;if(grupo){out.push(grupo);grupo=null}out.push(p)});
+  return out;
+}
+function acInicio(){const l=pages().filter(p=>!p.g);return l.some(p=>p.id==="painel")?"painel":(l[0]?l[0].id:"painel")}
+const acMenusTxt=u=>{const m=Array.isArray(u.menus)?u.menus:[];if(!m.length||u.gestor_rh)return "";const tot=PAGES.filter(p=>!p.g).length;return `<br><span class="small muted">${m.length} de ${tot} menus</span>`};
+const acPerfilTxt=u=>u.perfil==="rh"?(u.gestor_rh?"RH · gestor (acesso total)":Array.isArray(u.menus)&&u.menus.length?"RH · acesso por menus"+acMenusTxt(u):"RH · acesso total"):(PERFIS[u.perfil]||u.perfil);
+const acMudou=pf=>[...((pf&&pf.menus)||[])].sort().join()!==[...((PERFIL&&PERFIL.menus)||[])].sort().join()||!!(pf&&pf.gestor_rh)!==!!(PERFIL&&PERFIL.gestor_rh);
+
+function acFieldset(u){
+  const gestor=!!(PERFIL&&PERFIL.gestor_rh);
+  const alvoGestor=!!(u&&u.gestor_rh);
+  const sel=u&&Array.isArray(u.menus)&&u.menus.length?u.menus:null;
+  const total=!sel;
+  const dis=!gestor||alvoGestor?"disabled":"";
+  const grupos=[];PAGES.forEach(p=>{if(p.g)grupos.push({g:p.g,itens:[]});else if(grupos.length)grupos[grupos.length-1].itens.push(p)});
+  const hidden=(u?u.perfil:"gerente")==="rh"?"":"hidden";
+  return `<fieldset class="field full fx-sec" id="u-menus-f" ${hidden}><legend>Menus que acessa</legend>
+    ${alvoGestor?`<p class="small muted">Gestor do RH: acesso total a todos os menus, sempre.</p>`:`
+    <div class="ac-modo">
+      <label class="check"><input type="radio" name="u-ac-modo" value="total" ${total?"checked":""} ${dis}> Acesso total</label>
+      <label class="check"><input type="radio" name="u-ac-modo" value="menus" ${total?"":"checked"} ${dis}> Escolher os menus</label>
+    </div>
+    <div id="u-ac-lista" ${total?"hidden":""}>
+      <div class="ac-acoes"><button type="button" class="btn btn-sm btn-ghost" data-acmarcar="1" ${dis}>Marcar todos</button><button type="button" class="btn btn-sm btn-ghost" data-acmarcar="0" ${dis}>Desmarcar todos</button></div>
+      <div class="ac-grupos">${grupos.map(g=>`<div class="ac-grupo"><b>${esc(g.g)}</b>${g.itens.map(p=>`<label class="check"><input type="checkbox" name="u-menus" value="${esc(p.id)}" ${!sel||sel.includes(p.id)?"checked":""} ${dis}> ${esc(p.t)}</label>`).join("")}</div>`).join("")}</div>
+    </div>
+    <span class="small muted">${gestor?"A pessoa vê no menu lateral só o que estiver marcado; as outras telas ficam fora do alcance dela. Mudou aqui, a tela dela recarrega sozinha em até 1 minuto.":"Só o gestor do RH define os menus de cada pessoa do RH."}</span>`}
+  </fieldset>`;
+}
+document.head.insertAdjacentHTML("beforeend",`<style>
+#u-menus-f .ac-modo{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 10px}
+#u-menus-f .ac-acoes{display:flex;gap:6px;margin-bottom:8px}
+#u-menus-f .ac-grupos{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px}
+#u-menus-f .ac-grupo{display:flex;flex-direction:column;gap:6px;min-width:0}
+#u-menus-f .ac-grupo>b{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+</style>`);
+
+const acUsuarioFormBase=usuarioForm;
+usuarioForm=function(login){
+  acUsuarioFormBase(login);
+  const u=login?USUARIOS.find(x=>x.login===login):null;
+  const ref=document.getElementById("u-loja-f");
+  if(ref)ref.insertAdjacentHTML("afterend",acFieldset(u));
+  const o=document.querySelector('#u-perfil option[value="rh"]');if(o)o.textContent="RH · equipe de RH (menus abaixo)";
+};
+document.addEventListener("change",ev=>{
+  const t=ev.target;
+  if(t.id==="u-perfil"){const f=document.getElementById("u-menus-f");if(f)f.hidden=t.value!=="rh";return}
+  if(t.name==="u-ac-modo"){const l=document.getElementById("u-ac-lista");if(l)l.hidden=t.value!=="menus"}
+});
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest&&ev.target.closest("[data-acmarcar]");if(!b)return;
+  document.querySelectorAll('input[name="u-menus"]').forEach(i=>{if(!i.disabled)i.checked=b.dataset.acmarcar==="1"});
+});
+const acChamarBase=chamarUsuarios;
+chamarUsuarios=async function(body){
+  const f=document.getElementById("u-menus-f");
+  if(f&&(body.acao==="criar"||body.acao==="atualizar")&&PERFIL&&PERFIL.gestor_rh&&!f.hidden&&f.querySelector('input[name="u-ac-modo"]')){
+    const modo=(f.querySelector('input[name="u-ac-modo"]:checked')||{}).value;
+    if(modo==="menus"){
+      const m=[...f.querySelectorAll('input[name="u-menus"]:checked')].map(i=>i.value);
+      if(!m.length)return "Marque pelo menos um menu ou escolha Acesso total.";
+      body.menus=m.length===PAGES.filter(p=>!p.g).length?null:m;
+    }else body.menus=null;
+  }
+  return acChamarBase(body);
+};
+
 boot();
 </script>
 </body>
