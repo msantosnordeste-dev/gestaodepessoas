@@ -9001,7 +9001,10 @@ function rsMinhasVagas(){
     <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Cadastrada em</th><th>Situação</th><th></th></tr></thead><tbody>${l.slice(0,12).map(v=>{const s=rsSituacao(v);
       return `<tr><td><b>${esc(v.cargo)}</b>${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
         <td><span class="chip ${s.c}">${esc(s.t)}</span>${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
-        <td><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button></td></tr>`}).join("")}</tbody></table></div></div>`}
+        <td style="white-space:nowrap"><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button>${rsPodeExcluir(v)?` <button class="btn btn-sm btn-danger" data-rs="excluirVaga" data-id="${v.id}">Excluir</button>`:""}</td></tr>`}).join("")}</tbody></table></div>
+    ${rsRH()?"":`<p class="small muted" style="margin:8px 0 0">Você pode excluir o pedido enquanto ele não for aprovado. Depois da aprovação, só o RH exclui.</p>`}</div>`}
+// quem cadastrou exclui antes da aprovação (pedido ou devolvida); o RH exclui sempre
+const rsPodeExcluir=v=>!v.simulacao&&(rsRH()||(PERFIL&&v.criado_por===PERFIL.user_id&&["pedido","devolvida"].includes(v.status)));
 function rsTelaPainel(){
   const F=RS.f,todas=rsVagasF().map(v=>({v,i:rsVagaInfo(v)}));
   const abertas=todas.filter(x=>x.v.status==="aberta");
@@ -9417,6 +9420,10 @@ document.addEventListener("click",async ev=>{
   if(a==="importar"){rsFormImportar();return}
   if(a==="importarOk")return trava(async()=>{const linhas=RS_IMP.map(x=>({gupy:x.gupy,cargo:x.cargo,loja_id:x.loja_id,posicoes:x.posicoes,contrato:x.contrato,aberta_em:x.aberta_em,status:"aberta",perfil_alinhado_em:x.aberta_em,criado_nome:rsQuem(),eventos:[{em:rsHoje(),quem:rsQuem(),acao:"Vaga importada da planilha"}]}));
     const {error}=await SB.from("rs_vagas").insert(linhas);if(error){toast("Não foi possível importar: "+error.message);return}closeModal();await rsCarregar(true);toast(linhas.length+" vaga"+(linhas.length===1?"":"s")+" importada"+(linhas.length===1?"":"s"))});
+  if(a==="excluirVaga"){const v=RS.vagas.find(x=>x.id===id);if(!v)return;
+    if(t.dataset.confirm!=="1"){const nc=RS.cands.filter(c=>c.vaga_id===v.id).length;t.dataset.confirm="1";t.textContent=nc?`Excluir? ${nc} candidato${nc===1?"":"s"} vai${nc===1?"":"ão"} para o banco`:"Toque de novo para excluir";setTimeout(()=>{if(t.isConnected){t.dataset.confirm="";t.textContent="Excluir"}},5000);return}
+    return trava(async()=>{const {error}=await SB.rpc("rs_vaga_excluir",{p_vaga:v.id});if(error){toast("Não foi possível excluir: "+error.message);return}
+      RS.vaga=null;await rsCarregar(true);toast(`Vaga de ${v.cargo} · ${store(v.loja_id).nome} excluída`)})}
   if(a==="salvarVaga")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;
     // evita vaga repetida: mesma unidade e cargo já aberta/pedida (e mesmo nº Gupy, se houver)
     const ig=(RS.vagas||[]).find(v=>!v.simulacao&&["aberta","pedido","devolvida"].includes(v.status)&&v.loja_id===d.loja_id&&v.cargo===d.cargo&&(!d.gupy||!v.gupy||v.gupy===d.gupy));
