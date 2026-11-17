@@ -1078,6 +1078,7 @@ const ehTransf=e=>!!e.desligado&&INICIATIVA[e.desligado.tipo]==="transferencia";
 
 /* ============ navegação ============ */
 const ICON={
+  whatsapp:'<path d="M20.5 3.5A11 11 0 0 0 3.4 17.1L2 22l5-1.3A11 11 0 0 0 20.5 3.5z"/><path d="M8.5 8.5c.3 2.6 2.4 5 5 6l1.5-1.3 2 1-.6 1.8c-3.6.4-8.6-4.6-8.2-8.2l1.8-.6 1 2z"/>',
   painel:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
   colaboradores:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 9M22 21a7 7 0 0 0-4-6.3"/>',
   lojas:'<path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
@@ -1120,6 +1121,7 @@ const PAGES=[
   {g:"Visão geral"},
   {id:"painel",t:"Painel"},
   {id:"correio",t:"Correio"},
+  {id:"whatsapp",t:"WhatsApp RH"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
   {id:"planejamento",t:"Planejamento"},
@@ -1488,6 +1490,7 @@ R.admissao=()=>typeof candidatosTela==="function"&&UI.admTab!=="kanban"?candidat
   <div class="note">Ao concluir, a pessoa entra no cadastro em contrato de experiência.</div>`;
 
 R.recrutamento=()=>rsPagina();
+R.whatsapp=()=>waPagina();
 
 R.ponto=()=>{
   const s=store(UI.escLoja);const ws=UI.escSemana;const esc_=escalaSemana(s,ws);
@@ -9565,10 +9568,10 @@ async function rsPreCarregar(){if(!rsRH())return;const {data}=await SB.from("rs_
 function rsPreMsg(nome,cargo,link){return `Olá${nome?", "+nome.split(" ")[0]:""}! Aqui é o RH da Brasileiríssima. Para participar do processo seletivo para ${cargo}, preencha seu pré-cadastro neste link (vale para um único cadastro, por 7 dias): ${link}`}
 function rsLocalFmt(nome){const n=String(nome||"");const m=n.match(/^Loja\s*(\d+)\s*·\s*/i);let r=(m?n.slice(m[0].length):n).split(/\s*·\s*/)[0].replace(/Brasileir[ií]ssima\s*/i,"").trim();return (r||n)+(m?" - LJ "+m[1]:"")}
 RS.waMsg={};
-async function rsWaEnviar(numero,texto,btn){const num=String(numero||"").replace(/\D/g,"");
+async function rsWaEnviar(numero,texto,btn,meta){const num=String(numero||"").replace(/\D/g,"");
   if(num.length<10){toast("Informe o WhatsApp com DDD");return false}
   const old=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Enviando…"}
-  try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"enviar",numero:num,texto}});let d=r.data;
+  try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"enviar",numero:num,texto,...(meta||{})}});let d=r.data;
     if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
     if(d&&d.ok){toast("Mensagem enviada pelo WhatsApp do RH ✓");if(btn){btn.textContent="Enviado ✓"}return true}
     toast("Não foi enviado: "+((d&&(d.detalhe||d.erro))||"erro desconhecido"));if(btn){btn.disabled=false;btn.textContent=old}return false}
@@ -9613,9 +9616,9 @@ document.addEventListener("click",async ev=>{
   if(a==="convite"){if(t.disabled)return;t.disabled=true;try{await rsConvite(t.dataset.id)}finally{t.disabled=false}return}
   if(a==="convCopTxt"){const x=$("#rcv-txt");try{await navigator.clipboard.writeText(x.value);toast("Texto copiado · cole no WhatsApp")}catch(e){x.select();try{document.execCommand("copy");toast("Texto copiado")}catch(_){toast("Selecione e copie o texto")}}return}
   if(a==="convCopLink"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
-  if(a==="convEnviar"){const tel=$("#rcv-tel").value;if(tel.replace(/\D/g,"").length<10){toast("Informe o WhatsApp do candidato com DDD");$("#rcv-tel").focus();return}await rsWaEnviar(tel,$("#rcv-txt").value,t);return}
-  if(a==="waEnviar"){await rsWaEnviar(t.dataset.num,RS.waMsg[t.dataset.k]||"",t);return}
-  if(a==="nsWa"){const ok=await rsWaEnviar(t.dataset.num,$("#rn-msg").value,t);if(ok){const fb=$("#rn-fb");if(fb)fb.checked=true;const c=document.querySelector('input[name="rn-canal"][value="WhatsApp"]');if(c)c.checked=true}return}
+  if(a==="convEnviar"){const tel=$("#rcv-tel").value;if(tel.replace(/\D/g,"").length<10){toast("Informe o WhatsApp do candidato com DDD");$("#rcv-tel").focus();return}await rsWaEnviar(tel,$("#rcv-txt").value,t,{origem:"convite",ref_tipo:"vaga",ref_id:(document.querySelector('[data-rs="convCopLink"]')||{dataset:{}}).dataset.v||null});return}
+  if(a==="waEnviar"){await rsWaEnviar(t.dataset.num,RS.waMsg[t.dataset.k]||"",t,{origem:"pre-cadastro",ref_tipo:"pre",ref_id:t.dataset.k});return}
+  if(a==="nsWa"){const ok=await rsWaEnviar(t.dataset.num,$("#rn-msg").value,t,{origem:"feedback"});if(ok){const fb=$("#rn-fb");if(fb)fb.checked=true;const c=document.querySelector('input[name="rn-canal"][value="WhatsApp"]');if(c)c.checked=true}return}
   if(a==="convWa"){const msg=$("#rcv-txt").value,tel=$("#rcv-tel").value.replace(/\D/g,""),num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");return}
   if(a==="preNovo"){rsPreForm(t.dataset.id,t.dataset.cand||null);return}
   if(a==="preCopiar"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
@@ -9837,6 +9840,85 @@ function rsAtencaoPop(forcar){try{if(!forcar&&sessionStorage.getItem("rs_pop"))r
     if(a==="go"){const x=it[+b.dataset.k];d.remove();ir();setTimeout(()=>{const f=document.createElement("button");f.dataset.rs=x.rs;f.dataset.id=x.id;if(x.v)f.dataset.v=x.v;if(x.cc)f.dataset.c=x.cc;f.hidden=true;document.body.appendChild(f);f.click();f.remove()},250)}});
 }
 document.addEventListener("click",ev=>{const d=document.getElementById("rs-pop");if(d&&!d.contains(ev.target)&&!ev.target.closest('[data-rs="atencao"]')){try{speechSynthesis.cancel()}catch(e){}d.remove()}},true);
+
+
+/* ============ WhatsApp RH · histórico, interações e respostas ============ */
+const WA={ok:false,carregando:false,conv:[],msgs:{},sel:null,busca:"",dias:30,est:null,kpi:null,err:"",timer:null,filtro:"todas"};
+const waFmtNum=n=>{const d=String(n||"").replace(/\D/g,"").replace(/^55/,"");return d.length===11?`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`:d.length===10?`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`:n};
+const waHora=iso=>{if(!iso)return "";const d=new Date(iso),h=new Date();const mesmo=d.toDateString()===h.toDateString();return mesmo?d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
+const WA_ORIG={convite:"Convite de vaga","pre-cadastro":"Link de pré-cadastro",feedback:"Feedback ao candidato",manual:"Mensagem do RH",resposta:"Resposta recebida",celular:"Enviada pelo celular",teste:"Teste"};
+function waQuem(num){const d=String(num).replace(/\D/g,"").replace(/^55/,"");if(!d)return null;
+  const c=(RS.cands||[]).find(c=>String(c.contato||"").replace(/\D/g,"").includes(d));if(c){const v=(RS.vagas||[]).find(v=>v.id===c.vaga_id);return {nome:c.nome,tipo:"Candidato",det:v?v.cargo+" · "+rsLocalFmt(store(v.loja_id).nome):"",cand:c}}
+  const p=((ST&&ST.colaboradores)||[]).find(p=>[p.celular,p.telefone,p.fone,p.whatsapp].some(x=>x&&String(x).replace(/\D/g,"").endsWith(d)));if(p)return {nome:p.nome,tipo:"Colaborador",det:p.cargo||""};
+  return null}
+async function waCarregar(silencioso){if(WA.carregando)return;WA.carregando=true;if(!silencioso)WA.err="";
+  try{const desde=new Date(Date.now()-WA.dias*864e5).toISOString();
+    const [c,k]=await Promise.all([SB.from("wa_conversas").select("*").order("ultima_em",{ascending:false}).limit(500),SB.from("wa_mensagens").select("direcao,status,origem,criado_em,numero").gte("criado_em",desde).limit(10000)]);
+    if(c.error)throw c.error;if(k.error)throw k.error;WA.conv=c.data||[];const m=k.data||[];
+    const s=m.filter(x=>x.direcao==="saida"),e=m.filter(x=>x.direcao==="entrada"),orig={};s.forEach(x=>orig[x.origem||"manual"]=(orig[x.origem||"manual"]||0)+1);
+    WA.kpi={env:s.length,ent:s.filter(x=>["entregue","lida"].includes(x.status)).length,lid:s.filter(x=>x.status==="lida").length,err:s.filter(x=>x.status==="erro").length,rec:e.length,contatos:new Set(m.map(x=>x.numero)).size,orig};
+    if(WA.sel)await waAbrir(WA.sel,true);WA.ok=true}
+  catch(e){WA.err=e.message||String(e)}finally{WA.carregando=false}
+  if(page==="whatsapp")waRender()}
+async function waStatus(){try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"status"}});WA.est=r.data||{ok:false}}catch(e){WA.est={ok:false}}if(page==="whatsapp")waRender()}
+async function waAbrir(num,semRender){const {data,error}=await SB.from("wa_mensagens").select("*").eq("numero",num).order("criado_em",{ascending:true}).limit(300);
+  if(!error)WA.msgs[num]=data||[];WA.sel=num;
+  try{await SB.from("wa_lidas").upsert({numero:num,lida_em:new Date().toISOString()});const cv=WA.conv.find(x=>x.numero===num);if(cv)cv.nao_lidas=0}catch(e){}
+  if(!semRender)waRender()}
+function waPagina(){
+  if(!WA.ok&&!WA.carregando){waCarregar();waStatus()}
+  if(!WA.timer)WA.timer=setInterval(()=>{if(page==="whatsapp"&&!document.querySelector("#wa-txt:focus")&&!(TOUR&&TOUR.on))waCarregar(true)},30000);
+  return `<div id="wa-root">${waTela()}</div>`}
+function waRender(){const r=document.getElementById("wa-root");if(!r)return;const foco=document.activeElement&&document.activeElement.id,val=$("#wa-txt")?$("#wa-txt").value:null,bus=$("#wa-busca")?$("#wa-busca").value:null;
+  r.innerHTML=waTela();if(val!==null&&$("#wa-txt"))$("#wa-txt").value=val;if(bus!==null&&$("#wa-busca"))$("#wa-busca").value=bus;if(foco&&document.getElementById(foco))document.getElementById(foco).focus();
+  const th=$("#wa-thread");if(th)th.scrollTop=th.scrollHeight}
+function waTela(){
+  const est=WA.est,con=est&&est.conectado;
+  const acoes=`<span class="chip ${est==null?"c-mute":con?"c-ok":"c-bad"}">${est==null?"Verificando…":con?"● Conectado · "+esc(est.instancia||""):"● Desconectado"}</span><button class="btn" data-wa="atualizar">Atualizar</button><button class="btn btn-primary" data-wa="nova">+ Nova mensagem</button>`;
+  if(!WA.ok)return header("Visão geral","WhatsApp RH",acoes)+`<div class="card"><p class="empty">${WA.err?"Não foi possível carregar: "+esc(WA.err):"Carregando histórico…"}</p></div>`;
+  const k=WA.kpi||{env:0,ent:0,lid:0,err:0,rec:0,contatos:0,orig:{}};const pc=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+  const aguard=WA.conv.filter(c=>c.ultima_direcao==="entrada").length,naoLid=WA.conv.reduce((s,c)=>s+(+c.nao_lidas||0),0);
+  const kp=(t,v,d,cor)=>`<div class="kpi"><div class="lbl">${t}</div><div class="val" ${cor?`style="color:${cor}"`:""}>${v}</div><div class="small muted">${d}</div></div>`;
+  const kpis=`<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">${kp("Enviadas",k.env,"últimos "+WA.dias+" dias")}${kp("Entregues",pc(k.ent,k.env),k.ent+" mensagens")}${kp("Lidas",pc(k.lid,k.env),k.lid+" mensagens")}${kp("Respostas recebidas",k.rec,k.contatos+" contatos no período")}${kp("Aguardando o RH",aguard,naoLid+" não lida"+(naoLid===1?"":"s"),aguard?"#C2541A":"")}${kp("Falhas de envio",k.err,"verifique o número",k.err?"#C0392B":"")}</div>`;
+  const ori=Object.entries(k.orig).sort((a,b)=>b[1]-a[1]);const tot=ori.reduce((s,x)=>s+x[1],0)||1;const cores=["#0F6B4B","#EE691F","#2E86AB","#8E44AD","#7F8C8D","#C0392B"];
+  const origem=ori.length?`<div class="card" style="padding:14px 18px;margin-bottom:12px"><b class="small">Envios por tipo · ${WA.dias} dias</b><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:8px 0">${ori.map(([o,n],i)=>`<span title="${esc(WA_ORIG[o]||o)}: ${n}" style="width:${n/tot*100}%;background:${cores[i%cores.length]}"></span>`).join("")}</div><div style="display:flex;flex-wrap:wrap;gap:12px" class="small">${ori.map(([o,n],i)=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${cores[i%cores.length]};margin-right:4px"></span>${esc(WA_ORIG[o]||o)} · <b>${n}</b></span>`).join("")}</div></div>`:"";
+  const q=(WA.busca||"").toLowerCase();
+  const lista=WA.conv.filter(c=>WA.filtro==="aguardando"?c.ultima_direcao==="entrada":WA.filtro==="naolidas"?+c.nao_lidas>0:true).filter(c=>{if(!q)return true;const w=waQuem(c.numero);return [c.numero,waFmtNum(c.numero),c.nome,w&&w.nome,c.ultimo_texto].filter(Boolean).join(" ").toLowerCase().includes(q)});
+  const item=c=>{const w=waQuem(c.numero),nome=(w&&w.nome)||c.nome||waFmtNum(c.numero),ativo=c.numero===WA.sel;
+    return `<button data-wa="abrir" data-n="${esc(c.numero)}" style="display:flex;gap:10px;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid #EEF1EC;background:${ativo?"#E7F0EB":"#fff"};cursor:pointer;font:inherit;color:inherit">
+      <span aria-hidden="true" style="width:38px;height:38px;flex:none;border-radius:50%;background:${w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B"};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">${esc(String(nome).replace(/[^A-Za-zÀ-ú ]/g,"").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"#")}</span>
+      <span style="flex:1;min-width:0"><span style="display:flex;justify-content:space-between;gap:6px"><b style="font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nome)}</b><span class="small muted" style="white-space:nowrap">${waHora(c.ultima_em)}</span></span>
+      <span class="small muted" style="display:block">${w?esc(w.tipo)+(w.det?" · "+esc(w.det):""):c.nome?esc(waFmtNum(c.numero)):"Sem cadastro no portal"}</span>
+      <span class="small" style="display:flex;gap:6px;align-items:center"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${c.ultima_direcao==="entrada"?"font-weight:600":"color:#5B6B62"}">${c.ultima_direcao==="saida"?"Você: ":""}${esc(c.ultimo_texto||"")}</span>${+c.nao_lidas?`<span style="background:#25D366;color:#fff;border-radius:999px;padding:0 7px;font-size:11px;font-weight:700">${c.nao_lidas}</span>`:""}</span></span></button>`};
+  const tick=m=>m.direcao!=="saida"?"":m.status==="lida"?`<span title="Lida" style="color:#34B7F1">✓✓</span>`:m.status==="entregue"?`<span title="Entregue">✓✓</span>`:m.status==="erro"?`<span title="${esc(m.erro||"Falhou")}" style="color:#C0392B">⚠ falhou</span>`:`<span title="Enviada">✓</span>`;
+  let conversa=`<div class="empty" style="padding:40px 20px;text-align:center"><b>Escolha uma conversa</b><p class="small muted">Aqui aparece todo o histórico com a pessoa e você pode responder pelo WhatsApp do RH.</p></div>`;
+  if(WA.sel){const ms=WA.msgs[WA.sel]||[],w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);let dia="";
+    conversa=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #E1E5DF;background:#F7F8F5"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar">‹</button><div style="flex:1;min-width:0"><b>${esc(nome)}</b><div class="small muted">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}</div></div>${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
+    <div id="wa-thread" style="flex:1;overflow:auto;padding:14px;background:#EFEAE2;display:flex;flex-direction:column;gap:6px">${ms.length?ms.map(m=>{const d=new Date(m.criado_em).toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"});const sep=d!==dia?(dia=d,`<div style="align-self:center;background:#fff;border-radius:8px;padding:2px 10px;font-size:11px;color:#5B6B62;margin:6px 0">${d}</div>`):"";const s=m.direcao==="saida";
+      return sep+`<div style="align-self:${s?"flex-end":"flex-start"};max-width:78%;background:${s?"#D9FDD3":"#fff"};border-radius:10px;padding:7px 10px;box-shadow:0 1px 1px rgba(0,0,0,.08)">${s&&m.origem&&m.origem!=="manual"?`<div style="font-size:10px;font-weight:700;letter-spacing:.04em;color:#0F6B4B;margin-bottom:2px">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div style="white-space:pre-wrap;word-break:break-word;font-size:.9rem">${esc(m.texto||"")}</div><div style="text-align:right;font-size:10.5px;color:#667781;margin-top:2px">${s&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p class="small muted" style="align-self:center">Sem mensagens.</p>`}</div>
+    <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #E1E5DF;background:#F7F8F5;align-items:flex-end"><textarea class="input" id="wa-txt" rows="2" placeholder="Escreva a resposta… (Enter envia · Shift+Enter quebra linha)" style="flex:1;resize:vertical;min-height:44px"></textarea><button class="btn btn-primary" data-wa="enviar" style="min-height:44px">Enviar</button></div>`}
+  const filtros=[["todas","Todas"],["aguardando","Aguardando o RH"],["naolidas","Não lidas"]];
+  const painel=`<div class="card wa-box" style="padding:0;overflow:hidden;display:grid;grid-template-columns:minmax(260px,340px) 1fr;height:min(72vh,680px)">
+    <div class="wa-lista" style="display:flex;flex-direction:column;border-right:1px solid #E1E5DF;min-height:0"><div style="padding:10px;border-bottom:1px solid #E1E5DF;display:flex;flex-direction:column;gap:8px"><input class="input" id="wa-busca" type="search" placeholder="Buscar nome, número ou texto" aria-label="Buscar conversas"><div style="display:flex;gap:4px;flex-wrap:wrap">${filtros.map(([k,t])=>`<button class="btn btn-sm ${WA.filtro===k?"btn-primary":""}" data-wa="filtro" data-v="${k}">${t}</button>`).join("")}</div></div>
+      <div style="overflow:auto;flex:1">${lista.length?lista.map(item).join(""):`<p class="small muted" style="padding:16px">Nenhuma conversa ${q||WA.filtro!=="todas"?"neste filtro":"ainda. As mensagens enviadas pelo portal e as respostas aparecem aqui."}</p>`}</div></div>
+    <div class="wa-conv" style="display:flex;flex-direction:column;min-height:0;min-width:0">${conversa}</div></div>
+    <style>.wa-voltar{display:none}@media(max-width:760px){.wa-box{grid-template-columns:1fr!important;height:auto!important}.wa-box .wa-conv{min-height:70vh}${WA.sel?".wa-box .wa-lista{display:none!important}.wa-voltar{display:inline-flex}":".wa-box .wa-conv{display:none!important}"}}</style>`;
+  return header("Visão geral","WhatsApp RH",acoes)+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+kpis+origem+painel+`<p class="small muted" style="margin-top:8px">Histórico registrado a partir de 16/11/2026. Atualiza sozinho a cada 30 segundos. Somente o RH vê esta tela.</p>`}
+function waNova(){modal("Nova mensagem pelo WhatsApp do RH",`<div class="form-grid"><div class="field"><label for="wn-num">WhatsApp (com DDD)</label><input class="input" id="wn-num" inputmode="numeric" placeholder="(71) 99999-9999"></div><div class="field"><label for="wn-nome">Nome (opcional)</label><input class="input" id="wn-nome"></div><div class="field full"><label for="wn-txt">Mensagem</label><textarea class="input" id="wn-txt" rows="5"></textarea></div></div>`,
+  `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-wa="novaOk">Enviar</button>`)}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wa]");if(!t)return;const a=t.dataset.wa;
+  if(a==="atualizar"){WA.ok=WA.ok;await Promise.all([waCarregar(),waStatus()]);toast("Atualizado");return}
+  if(a==="abrir"){await waAbrir(t.dataset.n);const x=$("#wa-txt");if(x&&innerWidth>760)x.focus();return}
+  if(a==="fechar"){WA.sel=null;waRender();return}
+  if(a==="filtro"){WA.filtro=t.dataset.v;waRender();return}
+  if(a==="nova"){waNova();return}
+  if(a==="novaOk"){const num=$("#wn-num").value,txt=$("#wn-txt").value.trim();if(!txt){toast("Escreva a mensagem");return}
+    if(await rsWaEnviar(num,txt,t,{origem:"manual",nome:$("#wn-nome").value.trim()||null})){closeModal();let n=num.replace(/\D/g,"");if(n.length<=11)n="55"+n;WA.sel=n;await waCarregar(true)}return}
+  if(a==="enviar"){const x=$("#wa-txt"),txt=x.value.trim();if(!txt||!WA.sel)return;
+    if(await rsWaEnviar(WA.sel,txt,t,{origem:"manual"})){x.value="";await waAbrir(WA.sel,true);await waCarregar(true)}return}
+});
+document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="wa-busca"){WA.busca=ev.target.value;const l=document.querySelector(".wa-lista > div:last-child");if(l){const tmp=document.createElement("div");tmp.innerHTML=waTela();const nl=tmp.querySelector(".wa-lista > div:last-child");if(nl)l.innerHTML=nl.innerHTML}}});
+document.addEventListener("keydown",ev=>{if(ev.target&&ev.target.id==="wa-txt"&&ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();const b=document.querySelector('[data-wa="enviar"]');if(b&&!b.disabled)b.click()}});
 
 boot();
 </script>
