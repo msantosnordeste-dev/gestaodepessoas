@@ -8991,6 +8991,8 @@ function rsSituacao(v){
   if(v.status==="fechada")return {t:"Fechada",c:"c-mute"};
   if(v.status==="cancelada")return {t:"Cancelada",c:"c-mute"};
   return {t:v.status||"—",c:"c-mute"}}
+const rsSalAviso=v=>{if(!rsRH())return "";const ms=(v.motivos||[]).filter(m=>m&&m.salario);const fora=ms.some(m=>rsForaFaixa(v.cargo,Number(m.salario)));
+  return (v.salario?`<br><span class="small muted">Salário: R$ ${esc(v.salario)}</span>`:"")+(fora?` <span class="chip c-bad" style="font-size:11px">Salário fora da faixa</span>`:"")};
 function rsMinhasVagas(){
   const eu=PERFIL&&PERFIL.user_id;if(!eu)return "";
   const lim=new Date(Date.now()-45*864e5).toISOString();
@@ -9000,7 +9002,7 @@ function rsMinhasVagas(){
   return `<div class="card" id="rs-minhas" style="margin-bottom:14px"><div class="card-head"><div><h2>Vagas que você cadastrou · ${l.length}</h2><p>Situação de cada vaga e de cada aprovação${fora?` · <b>${fora} fora do filtro de loja/região acima</b>`:""}</p></div></div>
     <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Cadastrada em</th><th>Situação</th><th></th></tr></thead><tbody>${l.slice(0,12).map(v=>{const s=rsSituacao(v);
       return `<tr><td><b>${esc(v.cargo)}</b>${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
-        <td><span class="chip ${s.c}">${esc(s.t)}</span>${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
+        <td><span class="chip ${s.c}">${esc(s.t)}</span>${rsSalAviso(v)}${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button>${rsPodeExcluir(v)?` <button class="btn btn-sm btn-danger" data-rs="excluirVaga" data-id="${v.id}">Excluir</button>`:""}</td></tr>`}).join("")}</tbody></table></div>
     ${rsRH()?"":`<p class="small muted" style="margin:8px 0 0">Você pode excluir o pedido enquanto ele não for aprovado. Depois da aprovação, só o RH exclui.</p>`}</div>`}
 // quem cadastrou exclui antes da aprovação (pedido ou devolvida); o RH exclui sempre
@@ -9204,10 +9206,11 @@ function rsTelaBanco(){
 }
 
 /* ---------- modais ---------- */
-function rsMotRows(n,lista){n=Math.min(Math.max(1,n||1),30);const at=[...document.querySelectorAll(".rv-mrow")].map(el=>({motivo:el.querySelector("select").value,substitui:el.querySelector("input").value}));
+function rsMotRows(n,lista){n=Math.min(Math.max(1,n||1),30);const at=[...document.querySelectorAll(".rv-mrow")].map(el=>({motivo:el.querySelector("select").value,substitui:el.querySelector("input").value,salario:(el.querySelector(".rv-sal")||{}).value||"",manual:(el.querySelector(".rv-sal")||{dataset:{}}).dataset.manual||""}));
   const base=at.length?at:(lista||[]);const ops=Object.entries(RS_MOT).filter(([k])=>k!=="misto");
   return Array.from({length:n},(_,i)=>{const m=base[i]||base[base.length-1]||{motivo:"substituicao",substitui:""};const sub=base[i]?m.substitui||"":"";
-    return `<div class="rv-mrow" style="display:grid;grid-template-columns:${n>1?"70px ":""}minmax(150px,1fr) minmax(150px,1.3fr);gap:8px;align-items:center;margin-bottom:6px">${n>1?`<span class="small muted">Posição ${i+1}</span>`:""}<select class="input" aria-label="Motivo da posição ${i+1}">${ops.map(([k,t])=>`<option value="${k}" ${k===m.motivo?"selected":""}>${t}</option>`).join("")}</select><input class="input" list="rv-subs" autocomplete="off" aria-label="Substitui quem (posição ${i+1})" value="${esc(sub)}" placeholder="Substituído: escolha da lista ou digite"></div>`}).join("")}
+    const sal=base[i]&&m.salario!=null&&m.salario!==""?(typeof m.salario==="number"?rsMoeda(m.salario):m.salario):"";const man=base[i]&&(m.manual||(m.salario!=null&&m.salario!==""))?"1":"";
+    return `<div class="rv-mrow" style="display:grid;grid-template-columns:${n>1?"70px ":""}minmax(140px,1fr) minmax(150px,1.3fr) minmax(120px,.8fr);gap:8px;align-items:center;margin-bottom:6px">${n>1?`<span class="small muted">Posição ${i+1}</span>`:""}<select class="input" aria-label="Motivo da posição ${i+1}">${ops.map(([k,t])=>`<option value="${k}" ${k===m.motivo?"selected":""}>${t}</option>`).join("")}</select><input class="input" list="rv-subs" autocomplete="off" aria-label="Substitui quem (posição ${i+1})" value="${esc(sub)}" placeholder="Substituído: escolha da lista ou digite"><input class="input rv-sal num" inputmode="decimal" aria-label="Salário da posição ${i+1} (R$)" value="${esc(sal)}" data-manual="${man}" placeholder="Salário (R$)">${rsRH()?`<span class="rv-salref small muted" style="grid-column:1/-1;margin:-2px 0 4px"></span>`:""}</div>`}).join("")}
 function rsEscalaOpts(atual){const l=(RS.escalas||[]).filter(e=>e.ativo!==false);const tem=l.some(e=>e.nome===atual);
   if(!l.length&&!atual)return `<option value="">Nenhuma escala cadastrada — o RH cadastra em Escalas</option>`;
   return `<option value="">Escolha a escala…</option>`+l.map(e=>`<option value="${esc(e.nome)}" ${e.nome===atual?"selected":""}>${esc(e.nome)}${e.descricao?" · "+esc(e.descricao):""}</option>`).join("")+(atual&&!tem?`<option selected value="${esc(atual)}">${esc(atual)} (fora do cadastro)</option>`:"")}
@@ -9222,7 +9225,7 @@ function rsFormVaga(v,corrigir){
     <div class="field"><label for="rv-loja">Unidade</label><select class="input" id="rv-loja" ${corrigir?"disabled":""}>${lojas.map(s=>`<option value="${s.id}" ${s.id===x.loja_id?"selected":""}>${esc(s.nome)}</option>`).join("")}</select></div>
     <div class="field"><label for="rv-pos">Posições</label><input class="input num" id="rv-pos" type="number" min="1" max="30" value="${x.posicoes}"></div>
     <div class="field"><label for="rv-con">Contrato</label><select class="input" id="rv-con">${["Efetivo","Temporário","Aprendiz","Intermitente"].map(c=>`<option ${c===x.contrato?"selected":""}>${c}</option>`).join("")}</select></div>
-    <fieldset class="field full"><legend id="rv-mleg">${x.posicoes>1?"Motivo de cada posição":"Motivo"}</legend><div id="rv-mots">${rsMotRows(x.posicoes,mots)}</div>
+    <fieldset class="field full"><legend id="rv-mleg">${x.posicoes>1?"Motivo e salário de cada posição":"Motivo e salário"}</legend><div id="rv-mots">${rsMotRows(x.posicoes,mots)}</div>
       <p class="small muted" style="margin:4px 0 0">Aumento de quadro passa por Supervisão → Gestão comercial → validação final do Gerente de RH.</p></fieldset>
     <div class="field"><label for="rv-esc">Escala de trabalho</label><select class="input" id="rv-esc">${rsEscalaOpts(x.escala)}</select></div>
     <div class="field"><label for="rv-ini">Início desejado</label><input class="input" id="rv-ini" type="date" value="${esc(x.inicio_desejado||"")}"></div>
@@ -9233,8 +9236,33 @@ function rsFormVaga(v,corrigir){
     <p class="full small" id="rv-err" style="color:var(--bad)" hidden></p></form>
     <div class="note" id="rv-nota"></div>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-rs="${corrigir?"corrigirOk":"salvarVaga"}" data-id="${v?v.id:""}">${btn}</button>`);
-  rsNotaVaga();rsSubsAtualizar();
+  rsNotaVaga();rsSubsAtualizar();rsSalSugerir();
 }
+/* ---------- salário da vaga ----------
+   Sugestão automática (só para o RH, que vê salários): salário do substituído escolhido; senão, o salário mais comum do cargo na mesma unidade.
+   Qualquer um pode digitar outro valor. Faixa do cargo = menor e maior salário entre os ativos do cargo na rede; fora disso o RH vê o aviso. */
+const rsNum=v=>{if(typeof v==="number")return v;const s=String(v||"").replace(/[^\d,.]/g,"");if(!s)return 0;const n=s.includes(",")?parseFloat(s.replace(/\./g,"").replace(",",".")):parseFloat(s);return isFinite(n)?Math.round(n*100)/100:0};
+const rsMoeda=n=>Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const rsCargoK=c=>semAcento(String(c||"").replace(/\(a\)/gi,"")).replace(/(\w{3,})a\b/g,"$1");
+function rsFaixa(cargo){const k=rsCargoK(cargo);const l=(ST.emps||[]).filter(e=>!e.desligado&&Number(e.salario)>0&&rsCargoK(e.cargo)===k).map(e=>Number(e.salario));
+  return l.length?{min:Math.min(...l),max:Math.max(...l),n:l.length}:null}
+function rsSalRef(lojaId,cargo,sub){
+  const nm=semAcento(sub||"");if(nm){const e=(ST.emps||[]).find(x=>x.lojaId===lojaId&&semAcento(x.nome)===nm&&Number(x.salario)>0)||(ST.emps||[]).find(x=>semAcento(x.nome)===nm&&Number(x.salario)>0);
+    if(e)return {v:Number(e.salario),fonte:"salário de "+e.nome+(e.desligado?" (desligado)":"")}}
+  const k=rsCargoK(cargo);const l=(ST.emps||[]).filter(e=>e.lojaId===lojaId&&!e.desligado&&Number(e.salario)>0&&rsCargoK(e.cargo)===k).map(e=>Number(e.salario));
+  if(l.length){const c={};l.forEach(v=>c[v]=(c[v]||0)+1);const v=Number(Object.entries(c).sort((a,b)=>b[1]-a[1]||b[0]-a[0])[0][0]);return {v,fonte:`salário mais comum de ${cargo} nesta unidade (${l.length} pessoa${l.length===1?"":"s"})`}}
+  return null}
+const rsForaFaixa=(cargo,v)=>{const f=rsFaixa(cargo);return !!(f&&v&&(v<f.min-0.005||v>f.max+0.005))};
+function rsSalSugerir(){
+  const cargo=($("#rv-cargo")||{}).value,loja=($("#rv-loja")||{}).value;if(!cargo)return;const rh=rsRH();const f=rh?rsFaixa(cargo):null;
+  document.querySelectorAll(".rv-mrow").forEach(row=>{const inp=row.querySelector(".rv-sal");if(!inp)return;const sub=row.querySelector("input").value.trim();
+    const ref=rh?rsSalRef(loja,cargo,sub):null;
+    if(ref&&inp.dataset.manual!=="1")inp.value=rsMoeda(ref.v);
+    const dica=row.querySelector(".rv-salref");if(!dica)return;const v=rsNum(inp.value);
+    const fora=f&&v&&(v<f.min-0.005||v>f.max+0.005);
+    dica.innerHTML=[ref?`Referência: R$ ${rsMoeda(ref.v)} — ${esc(ref.fonte)}`:"",f?`Faixa de ${esc(cargo)} na rede: R$ ${rsMoeda(f.min)} a R$ ${rsMoeda(f.max)}`:"",fora?`<b style="color:var(--bad)">Salário fora da faixa</b>`:"",inp.dataset.manual==="1"&&ref&&v&&Math.abs(v-ref.v)>0.005?"valor digitado manualmente":""].filter(Boolean).join(" · ");
+  })}
+document.addEventListener("input",ev=>{const t=ev.target;if(!t||!t.closest||!t.closest(".rv-mrow")||t.tagName!=="INPUT")return;if(t.classList.contains("rv-sal")&&ev.isTrusted!==false)t.dataset.manual=t.value.trim()?"1":"";rsSalSugerir()});
 /* substituído: lista das pessoas da unidade (ativas primeiro, depois desligadas); se não achar, digita o nome à mão */
 function rsSubsAtualizar(){
   const sel=$("#rv-loja");const form=$("#rs-fv");if(!sel||!form)return;
@@ -9249,12 +9277,13 @@ document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="rv-loja")r
 function rsNotaVaga(){const n=$("#rv-nota");if(!n)return;const aum=[...document.querySelectorAll(".rv-mrow select")].some(s=>s.value==="aumento");
   n.innerHTML=aum?"<b>Aumento de quadro:</b> o pedido vai para a Supervisão, depois para a Gestão comercial e, por último, para a validação do Gerente de RH. A vaga só abre depois das três aprovações.":rsRH()?"Substituição/temporário: a vaga já entra aberta, com o perfil alinhado hoje. A divulgação é feita em paralelo no Gupy.":"Substituição/temporário: o pedido vai direto para o Gerente de RH, que alinha o perfil com você e aprova.";}
 function rsLerFormVaga(){const err=m=>{const e=$("#rv-err");e.hidden=false;e.textContent=m;return null};
-  const motivos=[...document.querySelectorAll(".rv-mrow")].map(el=>({motivo:el.querySelector("select").value,substitui:el.querySelector("input").value.trim()||null}));
+  const motivos=[...document.querySelectorAll(".rv-mrow")].map(el=>{const sv=rsNum((el.querySelector(".rv-sal")||{}).value);return {motivo:el.querySelector("select").value,substitui:el.querySelector("input").value.trim()||null,salario:sv||null}});
   const d={cargo:$("#rv-cargo").value,loja_id:$("#rv-loja").value,posicoes:motivos.length,contrato:$("#rv-con").value,motivos,
     motivo:new Set(motivos.map(m=>m.motivo)).size>1?"misto":motivos[0].motivo,substitui:motivos.map(m=>m.substitui).filter(Boolean).join(", ")||null,
     escala:$("#rv-esc").value||null,inicio_desejado:$("#rv-ini").value||null,fluxo:motivos.some(m=>m.motivo==="aumento")?"aumento":"rh",
     perfil:{tags:[...document.querySelectorAll('input[name="rv-tag"]:checked')].map(i=>i.value),texto:$("#rv-txt").value.trim(),indicacao:$("#rv-ind").value.trim()}};
   if($("#rv-gupy"))d.gupy=$("#rv-gupy").value.trim()||null;
+  {const vs=[...new Set(motivos.map(m=>m.salario).filter(Boolean))];if(vs.length)d.salario=vs.map(rsMoeda).join(" / ")}
   if(!d.loja_id)return err("Escolha a unidade.");
   const semSub=motivos.findIndex(m=>m.motivo==="substituicao"&&!m.substitui);if(semSub>=0)return err(motivos.length>1?`Posição ${semSub+1}: informe quem está sendo substituído.`:"Informe quem está sendo substituído.");
   if((RS.escalas||[]).length&&!d.escala)return err("Escolha a escala de trabalho.");
@@ -9274,7 +9303,7 @@ function rsFormAprovar(v){
       <label class="check full"><input type="checkbox" id="ra-ok" checked> Perfil alinhado com o gerente</label>
       <div class="field"><label for="ra-dt">Data do alinhamento</label><input class="input" id="ra-dt" type="date" value="${TODAY}"></div>
       <div class="field"><label for="ra-gupy">Nº da vaga no Gupy</label><input class="input" id="ra-gupy" value="${esc(v.gupy||"")}" placeholder="Pode preencher depois"></div>
-      <div class="field"><label for="ra-sal">Salário da vaga</label><input class="input" id="ra-sal" value="${esc(v.salario||"")}" placeholder="Ex.: R$ 1.900 + premiação"></div>
+      <div class="field"><label for="ra-sal">Salário da vaga</label><input class="input" id="ra-sal" value="${esc(v.salario||"")}" placeholder="Ex.: R$ 1.900 + premiação"></div>${rsSalAviso(v)?`<p class="full small" style="margin:-6px 0 0">${rsSalAviso(v).replace(/^<br>/,"")}${(()=>{const f=rsFaixa(v.cargo);return f?` · faixa de ${esc(v.cargo)} na rede: R$ ${rsMoeda(f.min)} a R$ ${rsMoeda(f.max)}`:""})()}</p>`:""}
       <div class="field full"><label for="ra-obs">Observação (vai para o gerente se devolver)</label><input class="input" id="ra-obs" value=""></div>
     </form>`,
     `<button class="btn" data-close>Fechar</button>${v.status==="pedido"?`<button class="btn" data-rs="devolver" data-id="${v.id}">Devolver ao gerente</button>`:""}<button class="btn" data-rs="cancelarVaga" data-id="${v.id}">Cancelar pedido</button><button class="btn btn-primary" data-rs="aprovarOk" data-id="${v.id}" ${podeRH?"":"disabled"}>${v.fluxo==="aumento"?"Validar e autorizar vaga":"Aprovar e abrir vaga"}</button>`);
@@ -9400,7 +9429,9 @@ document.addEventListener("change",ev=>{
   if(t.dataset&&t.dataset.rscord!==undefined&&t.matches("[data-rscord]")){RS.cord=t.value;render();return}
   if(t.matches&&t.matches("[data-rsg]")){if(t.dataset.rsg==="reg"){RS.g.reg=t.value;RS.g.loja=""}else RS.g.loja=t.value;try{localStorage.setItem("rs_g",JSON.stringify(RS.g))}catch(e){}render();return}
   if(t.dataset&&t.dataset.rsf){RS.f[t.dataset.rsf]=t.value;render();return}
-  if(t.id==="rv-pos"||t.closest&&t.closest(".rv-mrow")){if(t.id==="rv-pos"){const n=Math.min(30,Math.max(1,parseInt(t.value)||1));if(n!==document.querySelectorAll(".rv-mrow").length)$("#rv-mots").innerHTML=rsMotRows(n);$("#rv-mleg").textContent=n>1?"Motivo de cada posição":"Motivo"}rsNotaVaga();return}
+  if(t.classList&&t.classList.contains("rv-sal")){t.dataset.manual=t.value.trim()?"1":"";rsSalSugerir();return}
+  if(t.id==="rv-cargo"||t.id==="rv-loja"){rsSalSugerir();}
+  if(t.id==="rv-pos"||t.closest&&t.closest(".rv-mrow")){if(t.id==="rv-pos"){const n=Math.min(30,Math.max(1,parseInt(t.value)||1));if(n!==document.querySelectorAll(".rv-mrow").length)$("#rv-mots").innerHTML=rsMotRows(n);$("#rv-mleg").textContent=n>1?"Motivo e salário de cada posição":"Motivo e salário"}rsNotaVaga();rsSalSugerir();return}
   if(t.id==="rs-imp"&&t.files&&t.files[0])rsLerPlanilha(t.files[0]).catch(e=>{$("#rs-imp-prev").innerHTML=`<p style="color:var(--bad)">Não foi possível ler a planilha: ${esc(e.message)}</p>`});
 });
 document.addEventListener("click",async ev=>{
