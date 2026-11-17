@@ -10781,6 +10781,65 @@ document.addEventListener("click",ev=>{if(ev.target.closest&&ev.target.closest("
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")tmFechar()});
 tmMenuBtn();
 
+/* ============ Rascunho automático dos formulários ============
+   Tudo o que é digitado numa janela de formulário fica guardado neste aparelho enquanto a pessoa preenche.
+   Se a tela cair, a página recarregar ou a janela fechar sem salvar, ao abrir o mesmo formulário aparece "Recuperar rascunho".
+   Senhas e arquivos nunca são guardados. O rascunho some quando o formulário é salvo, quando a pessoa descarta ou depois de 7 dias. */
+const DR_PREF="cgp-rasc:";const DR_VIDA=7*864e5;
+const drLS={get(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}},
+  chaves(){try{return Object.keys(localStorage).filter(k=>k.startsWith(DR_PREF))}catch(e){return[]}}};
+const drUsuario=()=>(typeof PERFIL!=="undefined"&&PERFIL&&PERFIL.user_id)||(typeof SESSION!=="undefined"&&SESSION&&SESSION.nome)||"anon";
+let DR={chave:null,titulo:"",mexeu:false,salvouEm:0};
+function drCampos(m){return [...m.querySelectorAll(".modal-b input, .modal-b select, .modal-b textarea")].filter(el=>{
+  const t=(el.type||"").toLowerCase();if(["password","file","hidden","button","submit"].includes(t))return false;
+  if(/password/.test(el.autocomplete||""))return false;if(el.closest(".dr-aviso"))return false;return true})}
+function drId(el,i,todos){if(el.id)return "#"+el.id;const nm=el.name||el.getAttribute("aria-label")||el.tagName;const mesmos=todos.filter(x=>!x.id&&(x.name||x.getAttribute("aria-label")||x.tagName)===nm);return nm+"@"+mesmos.indexOf(el)}
+function drLer(m){const cs=drCampos(m);const o={};cs.forEach((el,i)=>{const k=drId(el,i,cs);o[k]=(el.type==="checkbox"||el.type==="radio")?{c:el.checked}:{v:el.value}});return o}
+function drAplicar(m,o){const cs=drCampos(m);let n=0;
+  cs.forEach((el,i)=>{const k=drId(el,i,cs);const x=o[k];if(!x)return;
+    if("c" in x){if(el.checked!==x.c){el.checked=x.c;el.dispatchEvent(new Event("change",{bubbles:true}));n++}}
+    else if(el.value!==x.v&&!el.disabled){el.value=x.v;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}));n++}});return n}
+function drQuando(t){const d=new Date(t);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function drAbriu(m){
+  const titulo=m.getAttribute("aria-label")||"";if(!titulo||!drCampos(m).length){DR.chave=null;return}
+  const pb=m.querySelector(".modal-f .btn-primary");const id=pb&&pb.dataset.id||"";
+  DR={chave:DR_PREF+drUsuario()+"|"+titulo+"|"+id,titulo,mexeu:false,salvouEm:0};
+  const r=drLS.get(DR.chave);
+  if(r&&r.em&&Date.now()-r.em<DR_VIDA&&r.campos){
+    const b=m.querySelector(".modal-b");if(!b)return;
+    b.insertAdjacentHTML("afterbegin",`<div class="note dr-aviso" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px"><span style="flex:1;min-width:200px">Você tem um rascunho deste formulário, salvo em ${drQuando(r.em)}.</span><button type="button" class="btn btn-sm btn-primary" data-dr="recuperar">Recuperar rascunho</button><button type="button" class="btn btn-sm" data-dr="descartar">Descartar</button></div>`);
+  }else if(r)drLS.del(DR.chave);
+}
+document.addEventListener("click",ev=>{
+  const d=ev.target.closest&&ev.target.closest("[data-dr]");
+  if(d){const m=d.closest(".modal");const av=d.closest(".dr-aviso");
+    if(d.dataset.dr==="recuperar"){const r=drLS.get(DR.chave);if(r&&m){drAplicar(m,r.campos);setTimeout(()=>{drAplicar(m,r.campos);setTimeout(()=>drAplicar(m,r.campos),150)},150);DR.mexeu=true;if(typeof toast==="function")toast("Rascunho recuperado")}}
+    else{drLS.del(DR.chave)}
+    if(av)av.remove();return}
+  const p=ev.target.closest&&ev.target.closest("#modal-root .modal-f .btn-primary");if(p)DR.salvouEm=Date.now();
+  if(ev.target.closest&&ev.target.closest("#modal-root [data-close], #modal-root [data-close-overlay], #modal-root [data-prfundo]")&&!ev.target.closest(".modal-f .btn-primary"))DR.salvouEm=0;
+},true);
+let drT=null;
+const drGuardar=()=>{const m=document.querySelector("#modal-root .modal");if(!m||!DR.chave||!DR.mexeu)return;drLS.set(DR.chave,{em:Date.now(),titulo:DR.titulo,campos:drLer(m)})};
+["input","change"].forEach(t=>document.addEventListener(t,ev=>{if(!ev.isTrusted)return;if(!ev.target.closest||!ev.target.closest("#modal-root .modal-b")||ev.target.closest(".dr-aviso"))return;DR.mexeu=true;clearTimeout(drT);drT=setTimeout(drGuardar,400)},true));
+window.addEventListener("pagehide",drGuardar);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")drGuardar()});
+// janela abriu / fechou
+new MutationObserver(()=>{
+  const m=document.querySelector("#modal-root .modal");
+  if(m&&!m.dataset.drVisto){m.dataset.drVisto="1";clearTimeout(drT);drAbriu(m);return}
+  if(!m&&DR.chave){
+    // fechou logo depois de clicar no botão principal (salvar/enviar): o formulário foi concluído, o rascunho sai
+    if(DR.salvouEm&&Date.now()-DR.salvouEm<8000)drLS.del(DR.chave);else drGuardar();
+    DR={chave:null,titulo:"",mexeu:false,salvouEm:0};
+  }
+}).observe(document.getElementById("modal-root"),{childList:true,subtree:true});
+// ao entrar no sistema, avisa se ficou algum rascunho de antes (tela caiu, página recarregou)
+(function drAvisoEntrada(){let n=0;const iv=setInterval(()=>{n++;const app=document.querySelector(".app");
+  if(app&&!app.classList.contains("gated")&&typeof PERFIL!=="undefined"&&PERFIL){clearInterval(iv);
+    const pre=DR_PREF+drUsuario()+"|";const l=drLS.chaves().filter(k=>k.startsWith(pre)).map(k=>drLS.get(k)).filter(r=>r&&r.em&&Date.now()-r.em<DR_VIDA);
+    if(l.length&&typeof toast==="function"){const t=[...new Set(l.map(r=>r.titulo))].slice(0,3).join(", ");toast(`Rascunho guardado: ${t}. Abra o formulário para continuar de onde parou.`)}}
+  if(n>90)clearInterval(iv)},2000)})();
+
 boot();
 </script>
 </body>
