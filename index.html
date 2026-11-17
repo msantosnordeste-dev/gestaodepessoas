@@ -1078,6 +1078,7 @@ const ehTransf=e=>!!e.desligado&&INICIATIVA[e.desligado.tipo]==="transferencia";
 
 /* ============ navegação ============ */
 const ICON={
+  notas:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8M9 9h3"/>',
   demandas:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14l2 2 4-4"/>',
   whatsapp:'<path d="M20.5 3.5A11 11 0 0 0 3.4 17.1L2 22l5-1.3A11 11 0 0 0 20.5 3.5z"/><path d="M8.5 8.5c.3 2.6 2.4 5 5 6l1.5-1.3 2 1-.6 1.8c-3.6.4-8.6-4.6-8.2-8.2l1.8-.6 1 2z"/>',
   painel:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
@@ -1124,6 +1125,7 @@ const PAGES=[
   {id:"correio",t:"Correio"},
   {id:"whatsapp",t:"WhatsApp RH"},
   {id:"demandas",t:"Demandas e agenda"},
+  {id:"notas",t:"Central de Notas"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
   {id:"planejamento",t:"Planejamento"},
@@ -1494,6 +1496,7 @@ R.admissao=()=>typeof candidatosTela==="function"&&UI.admTab!=="kanban"?candidat
 R.recrutamento=()=>rsPagina();
 R.whatsapp=()=>waPagina();
 R.demandas=()=>dmPagina();
+R.notas=()=>notasPagina();
 
 R.ponto=()=>{
   const s=store(UI.escLoja);const ws=UI.escSemana;const esc_=escalaSemana(s,ws);
@@ -10431,6 +10434,10 @@ function enConviteModal(e){const c=RS.cands.find(x=>x.id===e.cand_id)||{nome:e.n
     <textarea class="input" id="en-txt" rows="9" style="font-size:13.5px">${esc(enTexto(e,c))}</textarea>`,
     `<button class="btn" data-en="voltarCand" data-id="${e.cand_id}">Agora não</button><button class="btn btn-primary" data-en="conviteOk" data-id="${e.id}">Enviar pelo WhatsApp</button>`)}
 
+const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
+function notasPagina(){return header("Visão geral","Central de Notas",`<a class="btn" href="${NOTAS_URL}" target="_blank" rel="noopener">Abrir em nova aba ↗</a>`)+
+  `<div class="card" style="padding:0;overflow:hidden"><iframe src="${NOTAS_URL}" title="Central de Notas" style="display:block;width:100%;height:calc(100vh - 190px);min-height:560px;border:0" allow="clipboard-write"></iframe></div>
+  <p class="small muted" style="margin:8px 2px 0">A Central de Notas tem login próprio. Se a tela não carregar aqui, use “Abrir em nova aba”.</p>`}
 boot();
 </script>
 </body>
