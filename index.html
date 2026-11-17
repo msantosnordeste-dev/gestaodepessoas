@@ -9993,7 +9993,7 @@ function waTela(){
       <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Pessoa</th><th>Número</th><th>Situação</th><th class="r">Enviadas (30d)</th><th class="r">Respostas (30d)</th><th class="r">Aguardando</th></tr></thead><tbody>${lin.map(x=>`<tr><td><b>${esc(x.nome||x.instancia)}</b></td><td class="small">${x.numero?esc(waFmtNum(x.numero)):"—"}</td><td><span class="chip ${x.estado==="open"?"c-ok":"c-bad"}" style="font-size:11px">${x.estado==="open"?"Conectado":"Desconectado"}</span></td><td class="r num">${x.env}</td><td class="r num">${x.rec}</td><td class="r num" ${x.ag?'style="color:#C2541A;font-weight:700"':""}>${x.ag}</td></tr>`).join("")}</tbody></table></div></div>`})():"";
   const segF=`<div class="dm-seg" role="tablist">${filtros.map(([k,t])=>`<button role="tab" aria-selected="${WA.filtro===k}" class="${WA.filtro===k?"on":""}" data-wa="filtro" data-v="${k}">${t}${k==="naolidas"&&naoLid?` <span style="background:#25D366;color:#fff;border-radius:999px;padding:0 6px;font-size:11px;margin-left:2px">${naoLid}</span>`:k==="aguardando"&&aguard?` <span style="color:#C2541A">${aguard}</span>`:""}</button>`).join("")}</div>`;
   const time=eq.length>1||(eq.length&&est.gestor)?`<div class="dm-pess" aria-label="Ver conversas por pessoa do RH">${eq.map(x=>`<button class="${WA.fi===x.instancia?"on":WA.fi?"off":""}" data-wa="fiPess" data-v="${esc(x.instancia)}" title="${esc((x.nome||x.instancia)+" · "+(x.estado==="open"?"conectado":"desconectado"))}" style="position:relative">${dmAv(x.nome||x.instancia,32)}<span style="position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:${x.estado==="open"?"#25D366":"#C0392B"}"></span></button>`).join("")}</div>`:"";
-  const barra=`<div class="dm-bar">${segF}<label class="dm-busca">${DM_IC.busca}<input id="wa-busca" type="search" placeholder="Buscar nome, número ou texto" aria-label="Buscar conversas" value="${esc(WA.busca||"")}"></label>${time}${est&&est.instancia?`<button class="btn btn-sm" data-wa="trazer" title="Importa as conversas recentes que já estão no celular">↓ Trazer conversas do celular</button>`:""}${typeof enLembBtn==="function"?enLembBtn():""}</div>`;
+  const barra=`<div class="dm-bar">${segF}<label class="dm-busca">${DM_IC.busca}<input id="wa-busca" type="search" placeholder="Buscar nome, número ou texto" aria-label="Buscar conversas" value="${esc(WA.busca||"")}"></label>${time}${est&&est.instancia?`<button class="btn btn-sm" data-wa="trazer" title="Importa as conversas recentes que já estão no celular">↓ Trazer conversas do celular</button>`:""}${typeof enLembBtn==="function"?enAnivBtn()+enLembBtn():""}</div>`;
   return header("Visão geral","WhatsApp RH",acoes)+DM_CSS+banner+(con&&est.webhook===false?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Recebimento de respostas desligado.</b> Hoje o painel mostra só o que o portal envia. Ative para registrar aqui as respostas dos candidatos e colaboradores e a confirmação de entrega e leitura.</span><button class="btn btn-primary" data-wa="webhook">Ativar recebimento de respostas</button></div>`:"")+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+barra+painel+`<p class="small muted" style="margin-top:8px">Ao abrir uma conversa, o histórico dela é trazido do WhatsApp. Mensagens novas aparecem na hora. Somente o RH vê esta tela.</p>`}
 function confirmaDupla(t,txt){if(t.dataset.ok==="1")return true;t.dataset.ok="1";const o=t.textContent;t.textContent=txt;setTimeout(()=>{t.dataset.ok="";t.textContent=o},4000);return false}
 async function waConectar(btn){if(btn){btn.disabled=true}
@@ -10176,7 +10176,7 @@ function dmPagina(){dmTempoReal();if(!DM.ok&&!DM.carregando)dmCarregar();
     <label class="dm-busca">${DM_IC.busca}<input id="dm-busca" type="search" placeholder="Buscar" value="${esc(f.busca)}" aria-label="Buscar demandas"></label>
     <div class="dm-pess" aria-label="Filtrar por responsável">${pess.map(x=>`<button class="${f.resp===x.user_id?"on":f.resp?"off":""}" data-dm="pess" data-v="${x.user_id}" title="${esc(x.nome)}">${dmAv(x.nome,30)}</button>`).join("")}</div>
     <select class="dm-sel" data-dmf="prio" aria-label="Prioridade"><option value="">Prioridade</option>${Object.entries(DM_PR).map(([k,v])=>`<option value="${k}" ${f.prio===k?"selected":""}>${v[0]}</option>`).join("")}</select>
-    ${f.resp||f.prio||f.busca?`<button class="btn btn-sm btn-ghost" data-dm="limpar">Limpar filtros</button>`:""}${typeof enLembBtn==="function"?enLembBtn():""}</div>`;
+    ${f.resp||f.prio||f.busca?`<button class="btn btn-sm btn-ghost" data-dm="limpar">Limpar filtros</button>`:""}${typeof enLembBtn==="function"?enAnivBtn()+enLembBtn():""}</div>`;
   let corpo="";
   if(DM.view==="quadro"){const lim=dmAdd(h,-14);
     corpo=`<div class="dm-board">${DM_ST.map(([k,t,c])=>{const it=ls.filter(d=>d.status===k&&(k!=="concluida"||String(d.concluida_em||d.atualizado_em).slice(0,10)>=lim)).sort((a,b)=>k==="concluida"?String(b.concluida_em).localeCompare(String(a.concluida_em)):(a.prazo||"9999").localeCompare(b.prazo||"9999")||a.ordem-b.ordem);
@@ -10379,7 +10379,7 @@ EN.gev={};EN.gload={};
 function enGoogle(de,ate){const k=de+"|"+ate;if(EN.gev[k])return EN.gev[k];if(!EN.gload[k])EN.gload[k]=enAgendaGs({acao:"listar",de,ate}).then(x=>{EN.gev[k]=x.ok?x.itens:[];EN.gAtualizar=!!x.atualizar;if(page==="demandas"&&DM.view==="agenda")render()});return null}
 function enGoogleDia(d,ls,lista){if(!lista||!lista.length)return "";const ids=new Set(ls.map(x=>x.reuniao&&x.reuniao.event_id).filter(Boolean));
   return lista.filter(e=>e.inicio.slice(0,10)===d&&!ids.has(e.id)).map(e=>`<a class="dm-ev g" ${e.link?`href="${esc(e.link)}" target="_blank" rel="noopener"`:""} title="Google Agenda"><b>${e.dia_inteiro?"Dia todo":e.inicio.slice(11,16)}</b> ${esc(e.titulo)}</a>`).join("")}
-function enLembBtn(){const n=EN.lemb.length;return `<button class="btn btn-sm" data-en="lemb" title="Lembretes de RH para aprovar o envio" style="margin-left:auto">🔔 Lembretes${n?` <span style="background:#EE691F;color:#fff;border-radius:99px;padding:1px 7px;font-size:11.5px;margin-left:4px">${n}</span>`:""}</button>`}
+function enLembBtn(){const n=EN.lemb.length;return `<button class="btn btn-sm" data-en="lemb" title="Lembretes de RH para aprovar o envio">🔔 Lembretes${n?` <span style="background:#EE691F;color:#fff;border-radius:99px;padding:1px 7px;font-size:11.5px;margin-left:4px">${n}</span>`:""}</button>`}
 function enLembModal(){const ls=EN.lemb;
   const card=l=>{const t=EN_TIPO[l.tipo]||[l.tipo,"#5B6B62"];return `<div style="border:1px solid #E1E5DF;border-radius:12px;padding:12px 14px;margin-bottom:10px" data-lemb="${l.id}">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:11.5px;font-weight:700;color:${t[1]};text-transform:uppercase;letter-spacing:.04em">${t[0]}</span><b style="font-size:14px">${esc(l.nome||"")}</b><span class="small muted" style="margin-left:auto">${esc(l.motivo||"")}</span></div>
@@ -10433,6 +10433,47 @@ function enConviteModal(e){const c=RS.cands.find(x=>x.id===e.cand_id)||{nome:e.n
   modal("Convite da entrevista",`<p class="small" style="margin:0 0 8px">Revise e envie para <b>${esc(c.nome||"")}</b> · ${esc(waFmtNum(e.numero||""))}. A resposta 1 ou 2 atualiza a confirmação aqui sozinha.</p>
     <textarea class="input" id="en-txt" rows="9" style="font-size:13.5px">${esc(enTexto(e,c))}</textarea>`,
     `<button class="btn" data-en="voltarCand" data-id="${e.cand_id}">Agora não</button><button class="btn btn-primary" data-en="conviteOk" data-id="${e.id}">Enviar pelo WhatsApp</button>`)}
+/* ---------- Aniversariantes: lista do cadastro, envio automático às 8h e acompanhamento ---------- */
+const AN={tab:"hoje"};
+function anHoje(){return new Date(Date.now()-3*36e5).toISOString().slice(0,10)}
+function anAdd(d,n){const x=new Date(d+"T12:00:00Z");x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)}
+function enAnivBtn(){return `<button class="btn btn-sm" data-en="aniv" title="Aniversariantes e cartões enviados" style="margin-left:auto">🎂 Aniversários</button>`}
+async function anCarregar(){const h=anHoje();const ini=anAdd(h,-30),fim=anAdd(h,30);
+  const [a,b,c]=await Promise.all([SB.rpc("rh_aniversariantes",{de:ini,ate:fim}),SB.from("rh_aniversarios").select("*").gte("enviado_em",anAdd(h,-400)),SB.rpc("rh_aniv_auto",{ligar:null})]);
+  AN.lista=(a.data||[]);AN.envios=(b.data||[]);AN.auto=c.data==="on";AN.err=(a.error||b.error||{}).message||null}
+function anStatus(x){const h=anHoje(),ano=+x.dia.slice(0,4);const e=AN.envios.find(y=>y.colaborador_id===x.colaborador_id&&y.ano===ano);
+  if(e&&e.status==="enviado")return ["Cartão enviado"+(e.enviado_em?" às "+e.enviado_em.slice(11,16).replace(/^(\d\d)/,h=>String((+h+21)%24).padStart(2,"0")):""),"#0F6B4B","#DCF3E6"];
+  if(e&&e.status==="sem_telefone")return ["Sem WhatsApp no cadastro","#B86E00","#FFF2DC"];
+  if(e&&e.status==="erro")return ["Erro no envio","#C0392B","#FDE6EA"];
+  if(x.dia<h)return ["Não enviado","#5B6B62","#EEF1ED"];
+  if(!x.numero)return ["Sem WhatsApp no cadastro","#B86E00","#FFF2DC"];
+  return [AN.auto?(x.dia===h?"Envio hoje às 8h":"Envio automático às 8h"):"Envio automático desligado",AN.auto?"#2E86AB":"#5B6B62",AN.auto?"#E7F0FA":"#EEF1ED"]}
+async function anModal(){if(!AN.lista){modal("Aniversariantes",`<p class="empty">Carregando…</p>`,"");await anCarregar()}
+  const h=anHoje();const L=AN.lista||[];
+  const grupos={hoje:L.filter(x=>x.dia===h),prox:L.filter(x=>x.dia>h),pass:L.filter(x=>x.dia<h).reverse()};
+  const it=grupos[AN.tab]||[];const gestor=!!(DM.agenda&&DM.agenda.gestor)||!!(WA.est&&WA.est.gestor);
+  const linha=x=>{const s=anStatus(x);const ano=+x.dia.slice(0,4);const e=AN.envios.find(y=>y.colaborador_id===x.colaborador_id&&y.ano===ano);
+    return `<div style="display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid #EEF1ED">
+      <div style="text-align:center;background:#F0FAF4;border-radius:10px;padding:6px 0"><div style="font:700 18px Sora,sans-serif;color:#075E36">${x.dia.slice(8,10)}</div><div class="small muted">${["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][+x.dia.slice(5,7)-1]}</div></div>
+      <div style="min-width:0"><b>${esc(x.nome||"")}</b><div class="small muted">${esc([x.loja_id?store(x.loja_id).nome:"",x.numero?waFmtNum(x.numero):""].filter(Boolean).join(" · "))}</div>${e&&e.erro?`<div class="small" style="color:#C0392B">${esc(e.erro)}</div>`:""}</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;color:${s[1]};background:${s[2]}">${s[0]}</span>
+        <button class="btn btn-sm" data-en="anVer" data-v="${esc(x.primeiro||"")}">Ver cartão</button>${x.dia===h&&x.numero&&!(e&&e.status==="enviado")?`<button class="btn btn-sm btn-primary" data-en="anEnviar" data-id="${x.colaborador_id}">Enviar agora</button>`:""}</div></div>`};
+  modal("Aniversariantes",`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div class="en-seg">${[["hoje","Hoje"],["prox","Próximos 30 dias"],["pass","Últimos 30 dias"]].map(([k,t])=>`<button class="${AN.tab===k?"on":""}" data-en="anTab" data-v="${k}">${t} (${grupos[k].length})</button>`).join("")}</div>
+      <span class="small" style="margin-left:auto;display:flex;gap:8px;align-items:center">Envio automático às 8h: <b style="color:${AN.auto?"#0F6B4B":"#C0392B"}">${AN.auto?"ligado":"desligado"}</b>${gestor?`<button class="btn btn-sm" data-en="anAuto" data-v="${AN.auto?0:1}">${AN.auto?"Desligar":"Ligar"}</button>`:""}</span></div>
+    ${AN.err?`<div class="note">${esc(AN.err)}</div>`:""}
+    ${it.length?it.map(linha).join(""):`<p class="empty">${AN.tab==="hoje"?"Ninguém faz aniversário hoje.":"Nenhum aniversariante neste período."}</p>`}
+    <p class="small muted" style="margin:10px 0 0">A data vem do cadastro do colaborador (ficha). O cartão vai com o texto institucional pelo WhatsApp do RH e cada envio fica registrado aqui.</p>`,
+    `<button class="btn btn-primary" data-close>Fechar</button>`)}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en]");if(!t)return;const a=t.dataset.en;
+  if(a==="aniv"){AN.lista=null;anModal();return}
+  if(a==="anTab"){AN.tab=t.dataset.v;anModal();return}
+  if(a==="anAuto"){t.disabled=true;const {data,error}=await SB.rpc("rh_aniv_auto",{ligar:t.dataset.v==="1"});if(error){toast(error.message);t.disabled=false;return}AN.auto=data==="on";toast(AN.auto?"Envio automático ligado: todo dia às 8h":"Envio automático desligado");anModal();return}
+  if(a==="anVer"){const nome=t.dataset.v||"Mariana";t.disabled=true;t.textContent="Gerando…";const r=await SB.functions.invoke("aniversario",{body:{acao:"previa",nome}});const d=r.data||{};t.disabled=false;t.textContent="Ver cartão";if(!d.ok){toast(d.erro||"Não foi possível gerar");return}
+    modal("Cartão de "+nome,`<div style="text-align:center"><img src="data:image/png;base64,${d.png}" style="width:100%;max-width:400px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.15)" alt="Cartão de aniversário de ${esc(nome)}"></div><div style="margin-top:12px;background:#E7FBE4;border-radius:10px;padding:10px 12px;white-space:pre-wrap;font-size:13.5px">${esc(d.legenda||"")}</div>`,`<button class="btn" data-en="anVoltar">Voltar à lista</button>`);return}
+  if(a==="anVoltar"){anModal();return}
+  if(a==="anEnviar"){if(!confirmaDupla(t,"Toque de novo para enviar"))return;t.disabled=true;t.textContent="Enviando…";const r=await SB.functions.invoke("aniversario",{body:{acao:"enviar_um",colaborador_id:t.dataset.id}});const d=r.data||{};const st=(d.resultado||[])[0];
+    toast(st&&st.status==="enviado"?"Cartão enviado pelo WhatsApp":"Não enviado: "+((st&&(st.erro||st.status))||d.erro||"erro"));await anCarregar();anModal();return}
+});
 
 const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
 function notasPagina(){return header("Visão geral","Central de Notas",`<a class="btn" href="${NOTAS_URL}" target="_blank" rel="noopener">Abrir em nova aba ↗</a>`)+
