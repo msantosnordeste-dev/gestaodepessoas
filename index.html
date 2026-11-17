@@ -1078,6 +1078,7 @@ const ehTransf=e=>!!e.desligado&&INICIATIVA[e.desligado.tipo]==="transferencia";
 
 /* ============ navegação ============ */
 const ICON={
+  demandas:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14l2 2 4-4"/>',
   whatsapp:'<path d="M20.5 3.5A11 11 0 0 0 3.4 17.1L2 22l5-1.3A11 11 0 0 0 20.5 3.5z"/><path d="M8.5 8.5c.3 2.6 2.4 5 5 6l1.5-1.3 2 1-.6 1.8c-3.6.4-8.6-4.6-8.2-8.2l1.8-.6 1 2z"/>',
   painel:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
   colaboradores:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 9M22 21a7 7 0 0 0-4-6.3"/>',
@@ -1122,6 +1123,7 @@ const PAGES=[
   {id:"painel",t:"Painel"},
   {id:"correio",t:"Correio"},
   {id:"whatsapp",t:"WhatsApp RH"},
+  {id:"demandas",t:"Demandas e agenda"},
   {id:"headcount",t:"Headcount"},
   {id:"rotatividade",t:"Rotatividade"},
   {id:"planejamento",t:"Planejamento"},
@@ -1491,6 +1493,7 @@ R.admissao=()=>typeof candidatosTela==="function"&&UI.admTab!=="kanban"?candidat
 
 R.recrutamento=()=>rsPagina();
 R.whatsapp=()=>waPagina();
+R.demandas=()=>dmPagina();
 
 R.ponto=()=>{
   const s=store(UI.escLoja);const ws=UI.escSemana;const esc_=escalaSemana(s,ws);
@@ -1761,7 +1764,7 @@ async function iniciarSessao(novoLogin){
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   if(bvPendente()){await telaBoasVindas();return}
-  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal()}catch(e){}},1500);
+  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true)}catch(e){}},1500);
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
@@ -9644,7 +9647,7 @@ function rsTourMock(real){
     const Q=new Proxy({},{get(_,k){
       if(k==="then")return (res,rej)=>{let out;
         if(op==="ins"){const rows=val.map(r=>({id:nid(),criado_em:new Date().toISOString(),...(PAD[t]?PAD[t]():{}),...JSON.parse(JSON.stringify(r))}));DB[t].push(...rows);out={data:one?rows[0]:rows,error:null}}
-        else if(op==="upd"){const rs=DB[t].filter(r=>filt.every(([a,b])=>r[a]===b));rs.forEach(r=>Object.assign(r,JSON.parse(JSON.stringify(val))));out={data:rs,error:null}}
+        else if(op==="upd"){const rs=DB[t].filter(r=>filt.every(([a,b])=>r[a]===b));rs.forEach(r=>Object.assign(r,JSON.parse(JSON.stringify(val))));out={data:one?(rs[0]||null):rs,error:null}}
         else if(op==="del"){DB[t]=DB[t].filter(r=>!filt.every(([a,b])=>r[a]===b));out={data:null,error:null}}
         else{const rs=JSON.parse(JSON.stringify(DB[t].filter(r=>filt.every(([a,b])=>r[a]===b))));out={data:one?(rs[0]||null):rs,error:null}}
         return Promise.resolve(out).then(res,rej)};
@@ -9899,7 +9902,7 @@ function waTempoReal(){if(WA.rt||!SB||!SB.channel)return;
       if(p.eventType==="DELETE"){Object.keys(WA.atr).forEach(k=>{if(o.instancia&&k===waK(o.instancia,o.numero))delete WA.atr[k]})}
       else if(n.instancia){WA.atr[waK(n.instancia,n.numero)]=n;if(n.responsavel===(PERFIL&&PERFIL.user_id)&&n.por!==n.responsavel){toast("↪ "+(primeiro(n.por_nome||"")||"O gestor")+" transferiu uma conversa para você");waCarregar(true)}}
       if(page==="whatsapp")waRender()}).subscribe()}catch(e){}}
-function waPagina(){waTempoReal();
+function waPagina(){waTempoReal();if(typeof dmCarregar==="function"&&!DM.ok&&!DM.carregando)dmCarregar(true).then(()=>{if(page==="whatsapp")waRender()});
   if(!WA.ok&&!WA.carregando){waCarregar();waStatus()}
   if(!WA.timer)WA.timer=setInterval(()=>{if(page==="whatsapp"&&!(TOUR&&TOUR.on))waCarregar(true)},60000);
   return `<div id="wa-root">${waTela()}</div>`}
@@ -9934,12 +9937,12 @@ function waTela(){
   const tick=m=>m.direcao!=="saida"?"":m.pend?`<span title="Enviando">🕓</span>`:m.status==="lida"?`<span title="Lida" style="color:#1D9BF0;font-weight:700">✓✓</span>`:m.status==="entregue"?`<span title="Entregue">✓✓</span>`:m.status==="erro"?`<span title="${esc(m.erro||"Falhou")}" style="color:#C0392B">⚠ falhou</span>`:`<span title="Enviada">✓</span>`;
   let conversa=`<div class="empty" style="padding:40px 20px;text-align:center"><b>Escolha uma conversa</b><p class="small muted">Aqui aparece todo o histórico com a pessoa e você pode responder pelo WhatsApp do RH.</p></div>`;
   if(WA.sel){const ms=WA.msgs[waK(WA.selI,WA.sel)]||[],w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel&&c.instancia===WA.selI)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);let dia="";
-    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button>${waAvatar(WA.sel,nome,w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B",42)}<div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}${est&&est.gestor&&WA.selI!==est.instancia&&donoNome(WA.selI)?` · <b style="color:#C2541A">conversa de ${esc(donoNome(WA.selI))}</b>`:""}</div></div><button class="btn btn-sm" data-wa="transf" title="Passar esta conversa para outra pessoa do RH">↪ Transferir</button>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" data-n="${esc(WA.sel)}" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Incluir nome"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
+    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button>${waAvatar(WA.sel,nome,w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B",42)}<div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}${est&&est.gestor&&WA.selI!==est.instancia&&donoNome(WA.selI)?` · <b style="color:#C2541A">conversa de ${esc(donoNome(WA.selI))}</b>`:""}</div></div><button class="btn btn-sm" data-wadm="criar" title="Registrar como demanda no painel">📌 Demanda</button><button class="btn btn-sm" data-wa="transf" title="Passar esta conversa para outra pessoa do RH">↪ Transferir</button>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" data-n="${esc(WA.sel)}" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Incluir nome"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
     ${(at=>at?`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:#EAF2FB;border-bottom:1px solid #D4E3F3;font-size:13.5px;color:#1F3B57"><span style="flex:1;min-width:200px">↪ <b>${at.responsavel===(PERFIL&&PERFIL.user_id)?"Transferida para você":"Atendimento com "+esc(at.responsavel_nome||"")}</b>${at.por_nome?" · por "+esc(at.por_nome):""} · ${waHora(at.em)}${at.nota?` · “${esc(at.nota)}”`:""}</span><button class="btn btn-sm" data-wa="transfFim">Encerrar transferência</button></div>`:"")(WA.atr[waK(WA.selI,WA.sel)])}
     <div id="wa-thread" class="wa-th" aria-live="polite">${WA.hist[waK(WA.selI,WA.sel)]==="carregando"?`<div class="wa-dia">Buscando o histórico desta conversa no WhatsApp…</div>`:""}${ms.length?ms.map(m=>{const d=new Date(m.criado_em).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});const sep=d!==dia?(dia=d,`<div class="wa-dia">${d}</div>`):"";const sd=m.direcao==="saida";
       const ant=ms[ms.indexOf(m)-1];const novoBloco=!sd&&(!ant||ant.direcao!=="entrada"||sep);
       return sep+`<div class="wa-b ${sd?"s":"e"} ${m.pend?"pend":""}">${novoBloco?`<div style="font-size:12.5px;font-weight:700;color:#C2541A;margin-bottom:2px">${esc(nome)}</div>`:""}${sd&&m.origem&&!["manual","celular"].includes(m.origem)?`<div class="tg">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div class="tx">${esc(m.texto||"")}</div><div class="mt">${sd&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p style="align-self:center;color:#54656F">Sem mensagens.</p>`}</div>
-    ${waSecBloco(ms)}
+    ${typeof waDmBloco==="function"?waDmBloco(ms):""}${waSecBloco(ms)}
     <div class="wa-cp"><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
   const filtros=[["todas","Todas"],["aguardando","Aguardando"],["naolidas","Não lidas"],["transf","Transferidas"]];
   const painel=`<style>
@@ -10084,6 +10087,172 @@ document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="wa-busca"){
 document.addEventListener("keydown",ev=>{if(ev.target&&ev.target.id==="wa-txt"&&ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();const b=document.querySelector('[data-wa="enviar"]');if(b&&!b.disabled)b.click()}});
 document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.matches&&t.matches("[data-wafi]")){WA.fi=t.value;WA.sel=null;WA.selI=null;waCarregar(true)}});
 document.addEventListener("keydown",ev=>{const t=ev.target;if((ev.key==="Enter"||ev.key===" ")&&t&&t.matches&&t.matches('div[role="button"][data-wa]')){ev.preventDefault();t.click()}});
+
+
+/* ============ Demandas e agenda do RH (estilo quadro de tarefas) ============ */
+const dmNorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const DM={ok:false,carregando:false,lista:[],view:"quadro",f:{resp:"",prio:"",busca:"",meu:false},sem:0,err:"",rt:null,agenda:null};
+const DM_ST=[["afazer","A fazer","#5B6B62"],["andamento","Em andamento","#2E86AB"],["aguardando","Aguardando retorno","#C2541A"],["concluida","Concluídas","#0F6B4B"]];
+const DM_PR={urgente:["Urgente","#C0392B"],alta:["Alta","#E67E22"],media:["Média","#2E86AB"],baixa:["Baixa","#7F8C8D"]};
+const dmHoje=()=>TODAY;
+const dmAdd=(d,n)=>{const x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const dmPrazo=d=>{if(!d.prazo||d.status==="concluida")return null;const h=dmHoje();return d.prazo<h?["Atrasada","#C0392B","#FDECEA"]:d.prazo===h?["Hoje","#B9550F","#FDEBD9"]:d.prazo===dmAdd(h,1)?["Amanhã","#2E5A88","#EAF2FB"]:[fdate(d.prazo),"#3B4A42","#EEF1EC"]};
+const dmEv=(d,txt)=>[...(Array.isArray(d.eventos)?d.eventos:[]),{em:new Date().toISOString(),quem:(PERFIL&&PERFIL.nome)||"",txt}];
+async function dmCarregar(sil){if(DM.carregando)return;DM.carregando=true;
+  try{const r=await SB.from("rh_demandas").select("*").order("ordem",{ascending:true}).limit(2000);if(r.error)throw r.error;DM.lista=r.data||[];DM.ok=true;DM.err="";
+    if(!WA.rhs||!WA.rhs.length){const p=await SB.from("perfis").select("user_id,nome").eq("perfil","rh").eq("ativo",true);if(p.data)WA.rhs=p.data}
+    if(DM.agenda==null){try{const a=await SB.functions.invoke("agenda",{body:{acao:"status"}});DM.agenda=a.data||{}}catch(e){DM.agenda={}}}}
+  catch(e){DM.err=e.message||String(e)}finally{DM.carregando=false}
+  if(page==="demandas")render();dmBadge()}
+function dmTempoReal(){if(DM.rt||!SB||!SB.channel)return;try{DM.rt=SB.channel("rh-demandas").on("postgres_changes",{event:"*",schema:"public",table:"rh_demandas"},p=>{
+  const n=p.new||{},o=p.old||{};if(p.eventType==="DELETE")DM.lista=DM.lista.filter(x=>x.id!==o.id);else{const i=DM.lista.findIndex(x=>x.id===n.id);if(i>=0)DM.lista[i]=n;else DM.lista.push(n)}
+  if(p.eventType==="INSERT"&&n.responsavel===(PERFIL&&PERFIL.user_id)&&n.criado_por!==n.responsavel)toast("📌 Nova demanda para você: "+String(n.titulo).slice(0,60));
+  if(page==="demandas"&&!document.querySelector("#modal-root .modal"))render();dmBadge()}).subscribe()}catch(e){}}
+function dmBadge(){try{const n=DM.lista.filter(d=>d.status!=="concluida"&&d.responsavel===(PERFIL&&PERFIL.user_id)&&d.prazo&&d.prazo<=dmHoje()).length;const a=document.querySelector('.nav a[href="#demandas"], [data-page="demandas"]');if(a){let b=a.querySelector(".count");if(n){if(!b){b=document.createElement("span");b.className="count";a.appendChild(b)}b.textContent=n}else if(b)b.remove()}}catch(e){}}
+function dmFiltradas(){const f=DM.f,q=dmNorm(f.busca||""),eu=PERFIL&&PERFIL.user_id;
+  return DM.lista.filter(d=>(!f.resp||(f.resp==="—"?!d.responsavel:d.responsavel===f.resp))&&(!f.meu||d.responsavel===eu)&&(!f.prio||d.prioridade===f.prio)&&(!q||dmNorm([d.titulo,d.descricao,d.contato_nome,d.responsavel_nome].join(" ")).includes(q)))}
+function dmCard(d){const p=DM_PR[d.prioridade]||DM_PR.media,pz=dmPrazo(d),ini=String(d.responsavel_nome||"?").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+  return `<div class="dm-card" draggable="true" data-dm="abrir" data-id="${d.id}" role="button" tabindex="0">
+    <div style="display:flex;gap:6px;align-items:flex-start"><span title="Prioridade ${p[0]}" style="width:8px;height:8px;border-radius:50%;background:${p[1]};margin-top:7px;flex:none"></span><b style="flex:1;font-size:14.5px;line-height:1.35;color:#111B21">${esc(d.titulo)}</b></div>
+    ${d.contato_nome||d.wa_numero?`<div style="font-size:12.5px;color:#54656F;margin:4px 0 0 14px">${d.origem==="whatsapp"?"💬 ":""}${esc(d.contato_nome||waFmtNum(d.wa_numero))}</div>`:""}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">${pz?`<span style="font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;color:${pz[1]};background:${pz[2]}">${pz[0]}</span>`:""}${d.reuniao&&d.reuniao.inicio?`<span style="font-size:11.5px;padding:2px 8px;border-radius:999px;background:#EAF2FB;color:#1F3B57">📅 ${fdate(d.reuniao.inicio.slice(0,10))} ${d.reuniao.inicio.slice(11,16)}</span>`:""}${(d.eventos||[]).filter(e=>e.tipo==="comentario").length?`<span style="font-size:11.5px;color:#54656F">💬 ${(d.eventos||[]).filter(e=>e.tipo==="comentario").length}</span>`:""}
+      <span title="${esc(d.responsavel_nome||"Sem responsável")}" style="margin-left:auto;width:26px;height:26px;border-radius:50%;background:${d.responsavel?"#0B3D2B":"#C9D3CC"};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${d.responsavel?esc(ini):"?"}</span></div></div>`}
+function dmPagina(){dmTempoReal();if(!DM.ok&&!DM.carregando)dmCarregar();
+  const acoes=`<div class="tabs-inline" style="margin:0">${[["quadro","Quadro"],["lista","Lista"],["agenda","Agenda"]].map(([k,t])=>`<button class="btn ${DM.view===k?"btn-primary":""}" data-dm="view" data-v="${k}">${t}</button>`).join("")}</div>${DM.agenda&&DM.agenda.gestor?`<button class="btn" data-dm="cfgAgenda" title="Ligar à sua Google Agenda">${DM.agenda.configurado?"✓ Google Agenda":"Conectar Google Agenda"}</button>`:""}<button class="btn btn-primary" data-dm="nova">+ Nova demanda</button>`;
+  if(!DM.ok)return header("Visão geral","Demandas e agenda",acoes)+`<div class="card"><p class="empty">${DM.err?"Não foi possível carregar: "+esc(DM.err):"Carregando…"}</p></div>`;
+  const ls=dmFiltradas(),f=DM.f,h=dmHoje();const ab=ls.filter(d=>d.status!=="concluida");
+  const kp=(t,v,c)=>`<div class="kpi"><div class="lbl">${t}</div><div class="val" ${c?`style="color:${c}"`:""}>${v}</div></div>`;
+  const kpis=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">${kp("Em aberto",ab.length)}${kp("Atrasadas",ab.filter(d=>d.prazo&&d.prazo<h).length,"#C0392B")}${kp("Vencem hoje",ab.filter(d=>d.prazo===h).length,"#B9550F")}${kp("Aguardando retorno",ab.filter(d=>d.status==="aguardando").length)}${kp("Vindas do WhatsApp",ab.filter(d=>d.origem==="whatsapp").length)}${kp("Reuniões na semana",ls.filter(d=>d.reuniao&&d.reuniao.inicio&&d.reuniao.inicio.slice(0,10)>=h&&d.reuniao.inicio.slice(0,10)<=dmAdd(h,7)).length)}</div>`;
+  const filtros=`<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <input class="input" id="dm-busca" type="search" placeholder="Buscar demanda, contato ou responsável" value="${esc(f.busca)}" style="flex:1 1 220px;min-width:0">
+    <select class="input" data-dmf="resp" style="width:auto"><option value="">Todos os responsáveis</option>${(WA.rhs||[]).map(x=>`<option value="${x.user_id}" ${f.resp===x.user_id?"selected":""}>${esc(x.nome)}</option>`).join("")}<option value="—" ${f.resp==="—"?"selected":""}>Sem responsável</option></select>
+    <select class="input" data-dmf="prio" style="width:auto"><option value="">Todas as prioridades</option>${Object.entries(DM_PR).map(([k,v])=>`<option value="${k}" ${f.prio===k?"selected":""}>${v[0]}</option>`).join("")}</select>
+    <label class="check"><input type="checkbox" data-dmf="meu" ${f.meu?"checked":""}> Só as minhas</label></div>`;
+  const css=`<style>.dm-col{background:#F3F5F2;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:240px}.dm-col.over{outline:2px dashed #0F6B4B;outline-offset:-4px}
+    .dm-card{background:#fff;border:1px solid #E1E5DF;border-radius:10px;padding:10px 12px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.04);color:#111B21}.dm-card:hover{border-color:#9DB8A8}.dm-card.drag{opacity:.4}
+    .dm-sem{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:8px;overflow-x:auto}.dm-dia{background:#fff;border:1px solid #E1E5DF;border-radius:10px;min-height:220px;padding:8px;display:flex;flex-direction:column;gap:6px}.dm-dia.hoje{border:2px solid #0F6B4B}</style>`;
+  let corpo="";
+  if(DM.view==="quadro"){const lim=dmAdd(h,-14);
+    corpo=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:start">${DM_ST.map(([k,t,c])=>{const it=ls.filter(d=>d.status===k&&(k!=="concluida"||String(d.concluida_em||d.atualizado_em).slice(0,10)>=lim)).sort((a,b)=>k==="concluida"?String(b.concluida_em).localeCompare(String(a.concluida_em)):(a.prazo||"9999").localeCompare(b.prazo||"9999")||a.ordem-b.ordem);
+      return `<section class="dm-col" data-dmcol="${k}"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid ${c};padding-bottom:6px"><b style="font-size:14px">${t}</b><span class="chip c-mute" style="font-size:11px">${it.length}</span></div>${it.map(dmCard).join("")}${k!=="concluida"?`<button class="btn btn-sm btn-ghost" data-dm="nova" data-v="${k}" style="align-self:flex-start">+ Adicionar</button>`:""}</section>`}).join("")}</div>`}
+  else if(DM.view==="lista"){const it=ls.slice().sort((a,b)=>(a.status==="concluida")-(b.status==="concluida")||(a.prazo||"9999").localeCompare(b.prazo||"9999"));
+    corpo=`<div class="card"><div class="table-wrap"><table><thead><tr><th>Demanda</th><th>Contato</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Situação</th></tr></thead><tbody>${it.length?it.map(d=>{const pz=dmPrazo(d),p=DM_PR[d.prioridade]||DM_PR.media;return `<tr data-dm="abrir" data-id="${d.id}" style="cursor:pointer"><td><b>${esc(d.titulo)}</b>${d.reuniao&&d.reuniao.inicio?` <span class="small">📅</span>`:""}</td><td class="small">${d.origem==="whatsapp"?"💬 ":""}${esc(d.contato_nome||"")}</td><td class="small">${esc(d.responsavel_nome||"—")}</td><td><span class="small" style="color:${p[1]};font-weight:700">● ${p[0]}</span></td><td>${pz?`<span style="font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;color:${pz[1]};background:${pz[2]}">${pz[0]}</span>`:d.prazo?fdate(d.prazo):"—"}</td><td class="small">${(DM_ST.find(x=>x[0]===d.status)||[])[1]||""}</td></tr>`}).join(""):`<tr><td colspan="6" class="empty">Nenhuma demanda.</td></tr>`}</tbody></table></div></div>`}
+  else{const base=new Date(h+"T12:00:00");const dow=(base.getDay()+6)%7;const seg=dmAdd(h,-dow+DM.sem*7);const dias=[...Array(7)].map((_,i)=>dmAdd(seg,i));
+    corpo=`<div class="card" style="padding:12px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><button class="btn btn-sm" data-dm="sem" data-v="-1" aria-label="Semana anterior">‹</button><b>${fdate(dias[0])} a ${fdate(dias[6])}</b><button class="btn btn-sm" data-dm="sem" data-v="1" aria-label="Próxima semana">›</button>${DM.sem?`<button class="btn btn-sm btn-ghost" data-dm="sem" data-v="0">Hoje</button>`:""}<span class="small muted" style="margin-left:auto">📅 reuniões com horário · 📌 prazos de demandas</span></div>
+      <div class="dm-sem">${dias.map((d,i)=>{const re=ls.filter(x=>x.reuniao&&x.reuniao.inicio&&x.reuniao.inicio.slice(0,10)===d).sort((a,b)=>a.reuniao.inicio.localeCompare(b.reuniao.inicio));const pz=ls.filter(x=>x.prazo===d&&x.status!=="concluida");
+        return `<div class="dm-dia ${d===h?"hoje":""}"><div style="font-size:12px;font-weight:700;color:#54656F">${["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"][i]} ${d.slice(8,10)}/${d.slice(5,7)}</div>${re.map(x=>`<div data-dm="abrir" data-id="${x.id}" style="cursor:pointer;background:#EAF2FB;border-left:3px solid #2E86AB;border-radius:6px;padding:5px 7px;font-size:12.5px;color:#111B21"><b>${x.reuniao.inicio.slice(11,16)}</b> ${esc(x.reuniao.titulo||x.titulo)}${x.reuniao.meet?" · Meet":""}</div>`).join("")}${pz.map(x=>`<div data-dm="abrir" data-id="${x.id}" style="cursor:pointer;background:#F7F8F5;border-left:3px solid ${(DM_PR[x.prioridade]||DM_PR.media)[1]};border-radius:6px;padding:5px 7px;font-size:12.5px;color:#111B21">📌 ${esc(x.titulo)}</div>`).join("")}${!re.length&&!pz.length?`<span class="small muted">—</span>`:""}<button class="btn btn-sm btn-ghost" data-dm="reuniaoDia" data-v="${d}" style="margin-top:auto;font-size:12px">+ Reunião</button></div>`}).join("")}</div></div>`}
+  return header("Visão geral","Demandas e agenda",acoes)+css+kpis+filtros+corpo}
+function dmForm(d){d=d||{};const nova=!d.id;const rhs=WA.rhs||[];const eu=PERFIL&&PERFIL.user_id;
+  const evs=(Array.isArray(d.eventos)?d.eventos:[]).slice().reverse();
+  modal(nova?"Nova demanda":"Demanda",`<div class="form-grid">
+    <div class="field full"><label for="dm-tit">O que precisa ser feito</label><input class="input" id="dm-tit" value="${esc(d.titulo||"")}" maxlength="200" placeholder="Ex.: Responder gerente da loja 21 sobre escala"></div>
+    <div class="field full"><label for="dm-desc">Detalhes</label><textarea class="input" id="dm-desc" rows="3">${esc(d.descricao||"")}</textarea></div>
+    <div class="field"><label for="dm-st">Situação</label><select class="input" id="dm-st">${DM_ST.map(([k,t])=>`<option value="${k}" ${(d.status||"afazer")===k?"selected":""}>${t}</option>`).join("")}</select></div>
+    <div class="field"><label for="dm-pr">Prioridade</label><select class="input" id="dm-pr">${Object.entries(DM_PR).map(([k,v])=>`<option value="${k}" ${(d.prioridade||"media")===k?"selected":""}>${v[0]}</option>`).join("")}</select></div>
+    <div class="field"><label for="dm-pz">Prazo</label><input class="input" id="dm-pz" type="date" value="${esc(d.prazo||"")}"></div>
+    <div class="field"><label for="dm-resp">Responsável</label><select class="input" id="dm-resp"><option value="">Sem responsável</option>${rhs.map(x=>`<option value="${x.user_id}" ${(nova?eu:d.responsavel)===x.user_id?"selected":""}>${esc(x.nome)}</option>`).join("")}</select></div>
+    <div class="field full"><label for="dm-ct">Contato / solicitante</label><input class="input" id="dm-ct" value="${esc(d.contato_nome||"")}" placeholder="Nome de quem pediu"></div></div>
+    ${d.wa_texto?`<div style="margin-top:10px;background:#F0F2F5;border-radius:10px;padding:10px 12px;font-size:13.5px"><b class="small">💬 Mensagem de origem (WhatsApp)</b><div style="white-space:pre-wrap;margin-top:4px">${esc(d.wa_texto)}</div></div>`:""}
+    ${d.reuniao&&d.reuniao.inicio?`<div style="margin-top:10px;background:#EAF2FB;border-radius:10px;padding:10px 12px;font-size:13.5px;color:#1F3B57">📅 <b>Reunião ${fdate(d.reuniao.inicio.slice(0,10))} das ${d.reuniao.inicio.slice(11,16)} às ${String(d.reuniao.fim||"").slice(11,16)}</b>${d.reuniao.meet?` · <a href="${esc(d.reuniao.meet)}" target="_blank" rel="noopener">${esc(d.reuniao.meet)}</a>`:""}${(d.reuniao.convidados||[]).length?`<div class="small" style="margin-top:4px">Convidados: ${d.reuniao.convidados.map(esc).join(", ")}</div>`:""}${d.reuniao.meet&&d.wa_numero?`<button class="btn btn-sm" data-dm="meetWa" data-id="${d.id}" style="margin-top:6px">Enviar link pelo WhatsApp</button>`:""}</div>`:""}
+    ${!nova?`<div style="margin-top:12px"><b class="small">Andamento</b><div style="display:flex;gap:6px;margin-top:6px"><input class="input" id="dm-com" placeholder="Escreva uma atualização ou comentário" style="flex:1"><button class="btn" data-dm="comentar" data-id="${d.id}">Registrar</button></div>
+      <ul class="small" style="margin:8px 0 0;padding-left:16px;max-height:160px;overflow:auto">${evs.map(e=>`<li><span class="muted">${new Date(e.em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${esc(e.quem||"")}</span> — ${esc(e.txt||"")}</li>`).join("")}</ul></div>`:""}`,
+    `${!nova?`<button class="btn btn-ghost" data-dm="excluir" data-id="${d.id}">Excluir</button>`:""}${d.wa_numero?`<button class="btn" data-dm="conversa" data-id="${d.id||""}" data-n="${esc(d.wa_numero)}" data-i="${esc(d.wa_instancia||"")}">💬 Abrir conversa</button>`:""}<button class="btn" data-dm="reuniao" data-id="${d.id||""}">📅 Agendar reunião</button><button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-dm="salvar" data-id="${d.id||""}">Salvar</button>`);
+  DM.rascunho=nova?{...d}:null}
+function dmLer(){const resp=$("#dm-resp").value,p=(WA.rhs||[]).find(x=>x.user_id===resp);
+  return {titulo:$("#dm-tit").value.trim(),descricao:$("#dm-desc").value.trim()||null,status:$("#dm-st").value,prioridade:$("#dm-pr").value,prazo:$("#dm-pz").value||null,responsavel:resp||null,responsavel_nome:p?p.nome:null,contato_nome:$("#dm-ct").value.trim()||null}}
+async function dmSalvar(id,extra){const v=dmLer();if(!v.titulo){toast("Descreva a demanda");$("#dm-tit").focus();return null}
+  if(!id){const base={...(DM.rascunho||{}),...v,...(extra||{}),criado_nome:(PERFIL&&PERFIL.nome)||null,origem:(DM.rascunho&&DM.rascunho.origem)||"manual",eventos:[{em:new Date().toISOString(),quem:(PERFIL&&PERFIL.nome)||"",txt:"Demanda criada"+((DM.rascunho&&DM.rascunho.origem)==="whatsapp"?" a partir do WhatsApp":"")}]};delete base.id;
+    if(base.status==="concluida")base.concluida_em=new Date().toISOString();
+    const {data,error}=await SB.from("rh_demandas").insert(base).select().single();if(error){toast("Não foi possível salvar: "+error.message);return null}DM.lista.push(data);return data}
+  const d=DM.lista.find(x=>x.id===id)||{};const mud=[];if(d.status!==v.status)mud.push("situação: "+(DM_ST.find(x=>x[0]===v.status)||[])[1]);if((d.responsavel||null)!==v.responsavel)mud.push("responsável: "+(v.responsavel_nome||"ninguém"));if((d.prazo||null)!==v.prazo)mud.push("prazo: "+(v.prazo?fdate(v.prazo):"sem prazo"));if(d.prioridade!==v.prioridade)mud.push("prioridade: "+DM_PR[v.prioridade][0]);
+  const up={...v,...(extra||{}),atualizado_em:new Date().toISOString(),concluida_em:v.status==="concluida"?(d.concluida_em||new Date().toISOString()):null};if(mud.length)up.eventos=dmEv(d,"Alterou "+mud.join(", "));
+  const {data,error}=await SB.from("rh_demandas").update(up).eq("id",id).select().single();if(error){toast("Não foi possível salvar: "+error.message);return null}
+  const i=DM.lista.findIndex(x=>x.id===id);if(i>=0)DM.lista[i]=data;return data}
+function dmReuniaoForm(d,dia){d=d||{};const r=d.reuniao||{};const conf=DM.agenda&&DM.agenda.configurado;
+  const hoje=dmHoje(),data=(r.inicio||"").slice(0,10)||dia||dmAdd(hoje,1),hora=(r.inicio||"").slice(11,16)||"10:00";
+  modal("Agendar reunião",`<div class="form-grid">
+    <div class="field full"><label for="rm-tit">Título</label><input class="input" id="rm-tit" value="${esc(r.titulo||(d.titulo?"Reunião · "+d.titulo:""))}"></div>
+    <div class="field"><label for="rm-dt">Data</label><input class="input" id="rm-dt" type="date" value="${data}"></div>
+    <div class="field"><label for="rm-hr">Início</label><input class="input" id="rm-hr" type="time" value="${hora}"></div>
+    <div class="field"><label for="rm-du">Duração</label><select class="input" id="rm-du">${[15,30,45,60,90,120].map(m=>`<option value="${m}" ${m===30?"selected":""}>${m<60?m+" min":m/60+" h"}${m===90?" 30":""}</option>`).join("").replace("1.5 h 30","1h30")}</select></div>
+    <div class="field full"><label for="rm-cv">Convidados (e-mails, separados por vírgula)</label><input class="input" id="rm-cv" value="${esc((r.convidados||[]).join(", "))}" placeholder="gerente.loja21@soubrasileirissima.com.br"></div>
+    <div class="field full"><label for="rm-ds">Pauta</label><textarea class="input" id="rm-ds" rows="3">${esc(d.descricao||d.wa_texto||"")}</textarea></div></div>
+    <p class="small muted" style="margin:8px 0 0">${conf?"O evento é criado na sua Google Agenda com link do Google Meet, e os convidados recebem o convite por e-mail.":"A Google Agenda ainda não está conectada: por enquanto o botão abre a Google Agenda já preenchida, e você clica em “Adicionar videoconferência do Google Meet” e salva."}</p>`,
+    `<button class="btn" data-close>Cancelar</button>${conf?`<button class="btn btn-primary" data-dm="reuniaoOk" data-id="${d.id||""}">Agendar e enviar convite</button>`:`<button class="btn btn-primary" data-dm="reuniaoGoogle" data-id="${d.id||""}">Abrir na Google Agenda</button>`}`);
+  DM.reuDem=d}
+function dmReuLer(){const dt=$("#rm-dt").value,hr=$("#rm-hr").value,du=+$("#rm-du").value||30;if(!dt||!hr)return null;const ini=dt+"T"+hr+":00";const f=new Date(dt+"T"+hr+":00");f.setMinutes(f.getMinutes()+du);
+  const fim=f.getFullYear()+"-"+String(f.getMonth()+1).padStart(2,"0")+"-"+String(f.getDate()).padStart(2,"0")+"T"+String(f.getHours()).padStart(2,"0")+":"+String(f.getMinutes()).padStart(2,"0")+":00";
+  return {titulo:$("#rm-tit").value.trim()||"Reunião RH",inicio:ini,fim,convidados:$("#rm-cv").value.split(/[,;\s]+/).map(x=>x.trim()).filter(x=>/@/.test(x)),descricao:$("#rm-ds").value.trim()}}
+async function dmCfgAgenda(){const r=await SB.functions.invoke("agenda",{body:{acao:"config"}});const d=r.data||{};if(!d.ok){toast(d.erro||"Não foi possível abrir");return}
+  modal("Conectar a sua Google Agenda",`<p class="small" style="margin:0 0 10px">Feito uma única vez, com a sua conta Google do trabalho. Depois disso, as reuniões criadas aqui entram na sua agenda com link do Meet e convite para os participantes, sem custo.</p>
+    <ol class="small" style="line-height:1.7;padding-left:18px;margin:0 0 10px"><li>Abra <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com › Novo projeto</a>.</li><li>Apague o conteúdo e cole o código abaixo (botão Copiar). O seu token já vai junto.</li><li>À esquerda, em <b>Serviços +</b>, adicione <b>Google Calendar API</b>.</li><li><b>Implantar › Nova implantação › App da Web</b>: executar como <b>Eu</b>, acesso <b>Qualquer pessoa</b>. Autorize a sua agenda.</li><li>Copie o <b>URL do app da Web</b> (termina em /exec) e cole abaixo.</li></ol>
+    <div style="display:flex;justify-content:space-between;align-items:center"><b class="small">Código do Apps Script</b><button class="btn btn-sm" data-dm="copiarScript">📋 Copiar código</button></div>
+    <textarea class="input" id="ag-code" rows="6" readonly style="font-family:monospace;font-size:11.5px;margin-top:4px">${esc(DM_SCRIPT.replace("COLE_AQUI_O_TOKEN_DO_CONECTAGP",d.token))}</textarea>
+    <div class="field" style="margin-top:10px"><label for="ag-url">URL do app da Web</label><input class="input" id="ag-url" value="${esc(d.url||"")}" placeholder="https://script.google.com/macros/s/…/exec"></div>`,
+    `<button class="btn" data-close>Fechar</button><button class="btn btn-primary" data-dm="cfgAgendaOk">Salvar e testar</button>`)}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-dm]");if(!t)return;const a=t.dataset.dm,id=t.dataset.id;
+  if(a==="view"){DM.view=t.dataset.v;render();return}
+  if(a==="sem"){DM.sem=t.dataset.v==="0"?0:DM.sem+(+t.dataset.v);render();return}
+  if(a==="nova"){dmForm({status:t.dataset.v||"afazer",prazo:dmAdd(dmHoje(),2),prioridade:"media"});return}
+  if(a==="abrir"){const d=DM.lista.find(x=>x.id===id);if(d)dmForm(d);return}
+  if(a==="salvar"){t.disabled=true;const d=await dmSalvar(id||null);t.disabled=false;if(d){closeModal();render();toast("Demanda salva")}return}
+  if(a==="excluir"){if(!confirmaDupla(t,"Toque de novo para excluir"))return;const {error}=await SB.from("rh_demandas").delete().eq("id",id);if(error){toast(error.message);return}DM.lista=DM.lista.filter(x=>x.id!==id);closeModal();render();return}
+  if(a==="comentar"){const x=$("#dm-com"),txt=x.value.trim();if(!txt)return;const d=DM.lista.find(y=>y.id===id);const evs=[...dmEv(d,txt)];evs[evs.length-1].tipo="comentario";
+    const {data,error}=await SB.from("rh_demandas").update({eventos:evs,atualizado_em:new Date().toISOString()}).eq("id",id).select().single();if(error){toast(error.message);return}const i=DM.lista.findIndex(y=>y.id===id);DM.lista[i]=data;dmForm(data);return}
+  if(a==="conversa"){closeModal();WA.sel=t.dataset.n;WA.selI=t.dataset.i||null;location.hash="whatsapp";setTimeout(()=>{if(page==="whatsapp")waAbrir(t.dataset.n,false,t.dataset.i||undefined)},300);return}
+  if(a==="reuniao"){let d=id?DM.lista.find(x=>x.id===id):null;if(!d){const s=await dmSalvar(null);if(!s)return;d=s;render()}else{const s=await dmSalvar(id);if(s)d=s}dmReuniaoForm(d);return}
+  if(a==="reuniaoDia"){dmReuniaoForm(null,t.dataset.v);return}
+  if(a==="reuniaoOk"||a==="reuniaoGoogle"){const r=dmReuLer();if(!r){toast("Informe data e horário");return}let d=DM.reuDem&&DM.reuDem.id?DM.reuDem:null;
+    if(a==="reuniaoGoogle"){const z=s=>s.replace(/[-:]/g,"").slice(0,15);const u="https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(r.titulo)+"&dates="+z(r.inicio)+"/"+z(r.fim)+"&ctz=America/Bahia&details="+encodeURIComponent(r.descricao)+(r.convidados.length?"&add="+encodeURIComponent(r.convidados.join(",")):"");window.open(u,"_blank","noopener");
+      const reu={...r,meet:null,link:null,manual:true};if(d){const {data}=await SB.from("rh_demandas").update({reuniao:reu,eventos:dmEv(d,"Reunião marcada para "+fdate(r.inicio.slice(0,10))+" às "+r.inicio.slice(11,16)+" (Google Agenda aberta)")}).eq("id",d.id).select().single();if(data){const i=DM.lista.findIndex(y=>y.id===d.id);DM.lista[i]=data}}
+      else{const {data}=await SB.from("rh_demandas").insert({titulo:r.titulo,descricao:r.descricao||null,status:"afazer",prioridade:"media",prazo:r.inicio.slice(0,10),responsavel:PERFIL&&PERFIL.user_id,responsavel_nome:PERFIL&&PERFIL.nome,criado_nome:PERFIL&&PERFIL.nome,reuniao:reu,eventos:[{em:new Date().toISOString(),quem:PERFIL&&PERFIL.nome,txt:"Reunião criada na agenda"}]}).select().single();if(data)DM.lista.push(data)}
+      closeModal();render();return}
+    t.disabled=true;t.textContent="Agendando…";
+    if(!d){const {data,error}=await SB.from("rh_demandas").insert({titulo:r.titulo,descricao:r.descricao||null,status:"afazer",prioridade:"media",prazo:r.inicio.slice(0,10),responsavel:PERFIL&&PERFIL.user_id,responsavel_nome:PERFIL&&PERFIL.nome,criado_nome:PERFIL&&PERFIL.nome,eventos:[{em:new Date().toISOString(),quem:PERFIL&&PERFIL.nome,txt:"Reunião criada na agenda"}]}).select().single();if(error){toast(error.message);t.disabled=false;return}DM.lista.push(data);d=data}
+    const rr=await SB.functions.invoke("agenda",{body:{acao:"criar",demanda_id:d.id,...r}});let x=rr.data;if(rr.error){try{x=await rr.error.context.json()}catch(e){x={erro:rr.error.message}}}
+    if(!x||!x.ok){toast((x&&x.erro)||"Não foi possível agendar");t.disabled=false;t.textContent="Agendar e enviar convite";return}
+    const {data}=await SB.from("rh_demandas").select("*").eq("id",d.id).single();if(data){const i=DM.lista.findIndex(y=>y.id===d.id);DM.lista[i]=data}
+    closeModal();render();toast("Reunião agendada"+(x.meet?" com link do Meet":"")+(r.convidados.length?" · convites enviados":""));if(data)dmForm(data);return}
+  if(a==="meetWa"){const d=DM.lista.find(x=>x.id===id);if(!d||!d.reuniao)return;const r=d.reuniao;
+    const txt=`Olá${d.contato_nome?", "+primeiro(d.contato_nome):""}! Nossa reunião ficou marcada para ${fdate(r.inicio.slice(0,10))}, às ${r.inicio.slice(11,16)}.\n\nLink da sala on-line (Google Meet):\n${r.meet}\n\nQualquer imprevisto, me avise por aqui.`;
+    if(await rsWaEnviar(d.wa_numero,txt,t,{origem:"reuniao",instancia:d.wa_instancia||undefined,ref_tipo:"demanda",ref_id:d.id})){const {data}=await SB.from("rh_demandas").update({eventos:dmEv(d,"Link da reunião enviado pelo WhatsApp")}).eq("id",id).select().single();if(data){const i=DM.lista.findIndex(y=>y.id===id);DM.lista[i]=data}}return}
+  if(a==="cfgAgenda"){await dmCfgAgenda();return}
+  if(a==="copiarScript"){const x=$("#ag-code");try{await navigator.clipboard.writeText(x.value);toast("Código copiado")}catch(e){x.select();document.execCommand("copy");toast("Código copiado")}return}
+  if(a==="cfgAgendaOk"){t.disabled=true;t.textContent="Testando…";const r=await SB.functions.invoke("agenda",{body:{acao:"config",url:$("#ag-url").value}});let d=r.data;if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
+    t.disabled=false;t.textContent="Salvar e testar";if(d&&d.ok){DM.agenda={...(DM.agenda||{}),configurado:!!d.configurado};closeModal();render();toast("Google Agenda conectada"+(d.conta?" · "+d.conta:""))}else toast((d&&d.erro)||"Falhou");return}
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.matches&&t.matches("[data-dmf]")){const k=t.dataset.dmf;DM.f[k]=t.type==="checkbox"?t.checked:t.value;render()}});
+document.addEventListener("input",ev=>{const t=ev.target;if(t&&t.id==="dm-busca"){DM.f.busca=t.value;clearTimeout(DM.tb);DM.tb=setTimeout(()=>{render();const x=$("#dm-busca");if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}},250)}});
+document.addEventListener("keydown",ev=>{const t=ev.target;if((ev.key==="Enter")&&t&&t.matches&&t.matches('.dm-card[data-dm]')){ev.preventDefault();t.click()}});
+/* arrastar e soltar entre colunas */
+document.addEventListener("dragstart",ev=>{const c=ev.target.closest&&ev.target.closest(".dm-card");if(!c)return;DM.arr=c.dataset.id;c.classList.add("drag");ev.dataTransfer.effectAllowed="move";try{ev.dataTransfer.setData("text/plain",c.dataset.id)}catch(e){}});
+document.addEventListener("dragend",ev=>{const c=ev.target.closest&&ev.target.closest(".dm-card");if(c)c.classList.remove("drag");document.querySelectorAll(".dm-col.over").forEach(x=>x.classList.remove("over"))});
+document.addEventListener("dragover",ev=>{const col=ev.target.closest&&ev.target.closest("[data-dmcol]");if(!col||!DM.arr)return;ev.preventDefault();document.querySelectorAll(".dm-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
+document.addEventListener("drop",async ev=>{const col=ev.target.closest&&ev.target.closest("[data-dmcol]");if(!col||!DM.arr)return;ev.preventDefault();const id=DM.arr,st=col.dataset.dmcol;DM.arr=null;col.classList.remove("over");
+  const d=DM.lista.find(x=>x.id===id);if(!d||d.status===st)return;const up={status:st,atualizado_em:new Date().toISOString(),concluida_em:st==="concluida"?new Date().toISOString():null,eventos:dmEv(d,"Moveu para "+(DM_ST.find(x=>x[0]===st)||[])[1])};
+  Object.assign(d,up);render();const {error}=await SB.from("rh_demandas").update(up).eq("id",id);if(error){toast("Não foi possível mover: "+error.message);dmCarregar(true)}});
+
+const DM_SCRIPT="/**\n * ConectaGP \u00b7 Agenda do RH\n * Cria reuni\u00f5es na sua Google Agenda com link do Google Meet e envia o convite aos participantes.\n *\n * Como instalar (uma vez):\n * 1) Acesse script.google.com com a sua conta Google do trabalho > Novo projeto.\n * 2) Apague o conte\u00fado e cole este c\u00f3digo. Troque o TOKEN abaixo pelo token mostrado no ConectaGP.\n * 3) No menu \u00e0 esquerda, em \"Servi\u00e7os\" (+), adicione \"Google Calendar API\" (identificador: Calendar).\n * 4) Implantar > Nova implanta\u00e7\u00e3o > tipo \"App da Web\":\n *      Executar como: Eu  |  Quem pode acessar: Qualquer pessoa\n *    Autorize o acesso \u00e0 sua agenda quando o Google pedir.\n * 5) Copie o \"URL do app da Web\" (termina em /exec) e cole no ConectaGP.\n */\nconst TOKEN = 'COLE_AQUI_O_TOKEN_DO_CONECTAGP';\nconst FUSO = 'America/Bahia';\n\nfunction doPost(e) {\n  try {\n    const b = JSON.parse((e && e.postData && e.postData.contents) || '{}');\n    if (!b.token || b.token !== TOKEN) return saida({ ok: false, erro: 'token inv\u00e1lido' });\n    if (b.acao === 'teste') return saida({ ok: true, conta: Session.getEffectiveUser().getEmail() });\n    if (b.acao !== 'criar') return saida({ ok: false, erro: 'a\u00e7\u00e3o inv\u00e1lida' });\n    const evento = {\n      summary: b.titulo,\n      description: b.descricao || '',\n      start: { dateTime: b.inicio, timeZone: FUSO },\n      end: { dateTime: b.fim, timeZone: FUSO },\n      attendees: (b.convidados || []).map(function (m) { return { email: m }; }),\n      conferenceData: { createRequest: { requestId: Utilities.getUuid(), conferenceSolutionKey: { type: 'hangoutsMeet' } } },\n      reminders: { useDefault: true }\n    };\n    const r = Calendar.Events.insert(evento, 'primary', { conferenceDataVersion: 1, sendUpdates: 'all' });\n    let meet = r.hangoutLink || null;\n    if (r.conferenceData && r.conferenceData.entryPoints) {\n      r.conferenceData.entryPoints.forEach(function (p) { if (p.entryPointType === 'video') meet = p.uri; });\n    }\n    return saida({ ok: true, id: r.id, link: r.htmlLink, meet: meet });\n  } catch (err) {\n    return saida({ ok: false, erro: String(err && err.message || err) });\n  }\n}\n\nfunction saida(o) {\n  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);\n}\n";
+/* ---------- WhatsApp → demanda ---------- */
+const DM_COBRA=/cobran|ainda nao|ate quando|aguardando (retorno|resposta)|sem retorno|urgente|prazo|preciso|precisamos|poderia|pode(ria)? me|solicit|pedido|reuniao|agendar|marcar|verificar|resolver|retorno|resposta/;
+function waDemandaDe(inst,num){return DM.lista.find(d=>d.wa_instancia===inst&&d.wa_numero===num&&d.status!=="concluida")}
+function waDmBloco(ms){const ult=[...ms].reverse().find(m=>m.texto);const dm=waDemandaDe(WA.selI,WA.sel);
+  if(dm){const pz=dmPrazo(dm);return `<div style="padding:6px 14px;background:#FFF8E6;border-top:1px solid #F1DFB0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:#5C4A12">📌 <b style="flex:1;min-width:160px">Demanda: ${esc(dm.titulo)}</b>${pz?`<span style="font-weight:700;color:${pz[1]}">${pz[0]}</span>`:""}<span>${esc((DM_ST.find(x=>x[0]===dm.status)||[])[1]||"")}</span><button class="btn btn-sm" data-wadm="abrir" data-id="${dm.id}">Abrir</button>${dm.status!=="concluida"?`<button class="btn btn-sm" data-wadm="concluir" data-id="${dm.id}">Concluir</button>`:""}</div>`}
+  if(ult&&ult.direcao==="entrada"&&DM_COBRA.test(dmNorm(ult.texto||"")))return `<div style="padding:6px 14px;background:#FFF8E6;border-top:1px solid #F1DFB0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:#5C4A12">📌 Parece uma solicitação ou cobrança.<button class="btn btn-sm" data-wadm="criar">Criar demanda</button>${/reuniao|agendar|marcar/.test(dmNorm(ult.texto||""))?`<button class="btn btn-sm" data-wadm="reuniao">📅 Agendar reunião</button>`:""}</div>`;
+  return ""}
+function waNovaDemanda(reuniao){const k=waK(WA.selI,WA.sel),ms=WA.msgs[k]||[];const rec=[];for(const m of [...ms].reverse()){if(m.direcao==="entrada"&&m.texto)rec.unshift(m.texto);else if(rec.length)break}
+  const w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel&&c.instancia===WA.selI)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);const txt=rec.join("\n");
+  const d={titulo:(nome+": "+String(txt||"Retornar contato").replace(/\s+/g," ")).slice(0,120),status:"afazer",prioridade:/urgente|hoje|cobran|ainda nao/.test(dmNorm(txt))?"alta":"media",prazo:dmAdd(dmHoje(),1),origem:"whatsapp",contato_nome:nome,wa_instancia:WA.selI,wa_numero:WA.sel,wa_texto:txt.slice(0,2000),wa_msg_id:(ms[ms.length-1]||{}).msg_id||null};
+  if(reuniao){DM.rascunho=d;(async()=>{const base={...d,responsavel:PERFIL&&PERFIL.user_id,responsavel_nome:PERFIL&&PERFIL.nome,criado_nome:PERFIL&&PERFIL.nome,eventos:[{em:new Date().toISOString(),quem:PERFIL&&PERFIL.nome,txt:"Demanda criada a partir do WhatsApp"}]};
+    const {data,error}=await SB.from("rh_demandas").insert(base).select().single();if(error){toast(error.message);return}DM.lista.push(data);waRender();dmReuniaoForm(data)})();return}
+  dmForm(d)}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wadm]");if(!t)return;const a=t.dataset.wadm;
+  if(!DM.ok)await dmCarregar(true);
+  if(a==="criar"){waNovaDemanda(false);return}
+  if(a==="reuniao"){waNovaDemanda(true);return}
+  if(a==="abrir"){const d=DM.lista.find(x=>x.id===t.dataset.id);if(d)dmForm(d);return}
+  if(a==="concluir"){const d=DM.lista.find(x=>x.id===t.dataset.id);if(!d)return;const up={status:"concluida",concluida_em:new Date().toISOString(),atualizado_em:new Date().toISOString(),eventos:dmEv(d,"Concluída pelo WhatsApp RH")};Object.assign(d,up);waRender();await SB.from("rh_demandas").update(up).eq("id",d.id);toast("Demanda concluída");return}
+});
 
 boot();
 </script>
