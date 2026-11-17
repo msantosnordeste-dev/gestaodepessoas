@@ -1150,7 +1150,7 @@ const PAGES=[
   {id:"config",t:"Configurações"}
 ];
 const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].concat(["correio","experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):acFiltrar(PAGES);
-const pages=()=>{const b=pagesBase();if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
+const pages=()=>{const b=pagesBase();if(ROLE==="rh")return acMeuEspaco(b);if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
@@ -1767,7 +1767,7 @@ async function iniciarSessao(novoLogin){
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   if(bvPendente()){await telaBoasVindas();return}
-  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true);enTempoReal();enCarregar()}catch(e){}},1500);
+  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true);enTempoReal();enCarregar()}catch(e){}try{acCarregarMeu()}catch(e){}},1500);
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
@@ -10529,6 +10529,8 @@ usuarioForm=function(login){
   const u=login?USUARIOS.find(x=>x.login===login):null;
   const ref=document.getElementById("u-loja-f");
   if(ref)ref.insertAdjacentHTML("afterend",acFieldset(u));
+  const p2=document.getElementById("u-pass2");
+  if(u&&u.colaborador_id&&p2){const f=p2.closest(".field");if(f)f.insertAdjacentHTML("afterend",`<p class="full small muted" style="margin:-4px 0 0">Senha única: o login (CPF) e a senha definidos aqui valem para o RH, para o Meu espaço e para o Painel das Lojas. O Primeiro acesso não troca essa senha.</p>`)}
   const o=document.querySelector('#u-perfil option[value="rh"]');if(o)o.textContent="RH · equipe de RH (menus abaixo)";
 };
 document.addEventListener("change",ev=>{
@@ -10553,6 +10555,17 @@ chamarUsuarios=async function(body){
   }
   return acChamarBase(body);
 };
+
+/* ---- RH com cadastro de colaborador: mesmo login e senha, com o "Meu espaço" junto do RH ---- */
+async function acCarregarMeu(){
+  if(ROLE!=="rh"||!PERFIL||!PERFIL.colaborador_id)return;
+  try{const {data}=await SB.rpc("meus_dados");if(!data||!data.id)return;MEU=data;
+    const td=await SB.from("td_progresso").select("*").eq("colaborador_id",data.id);window.__MEU_TDP=td.error?[]:(td.data||[]);
+    try{const r=await SB.rpc("integracao_liberada");window.__IB_LIB=r.data===true}catch(e){window.__IB_LIB=false}
+    renderNav();if(["meustd","integracao","meusdados"].includes((location.hash||"").slice(1)))go();
+  }catch(e){}
+}
+const acMeuEspaco=b=>ROLE==="rh"&&MEU&&MEU.id&&PERFIL&&PERFIL.colaborador_id?[...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},...(window.__IB_LIB?[{id:"integracao",t:"Integração"}]:[]),{id:"meusdados",t:"Meus dados"}]:b;
 
 boot();
 </script>
