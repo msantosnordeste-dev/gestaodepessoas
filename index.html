@@ -9185,7 +9185,7 @@ function rsTelaBanco(){
 function rsMotRows(n,lista){n=Math.min(Math.max(1,n||1),30);const at=[...document.querySelectorAll(".rv-mrow")].map(el=>({motivo:el.querySelector("select").value,substitui:el.querySelector("input").value}));
   const base=at.length?at:(lista||[]);const ops=Object.entries(RS_MOT).filter(([k])=>k!=="misto");
   return Array.from({length:n},(_,i)=>{const m=base[i]||base[base.length-1]||{motivo:"substituicao",substitui:""};const sub=base[i]?m.substitui||"":"";
-    return `<div class="rv-mrow" style="display:grid;grid-template-columns:${n>1?"70px ":""}minmax(150px,1fr) minmax(150px,1.3fr);gap:8px;align-items:center;margin-bottom:6px">${n>1?`<span class="small muted">Posição ${i+1}</span>`:""}<select class="input" aria-label="Motivo da posição ${i+1}">${ops.map(([k,t])=>`<option value="${k}" ${k===m.motivo?"selected":""}>${t}</option>`).join("")}</select><input class="input" aria-label="Substitui quem (posição ${i+1})" value="${esc(sub)}" placeholder="Substitui quem (se substituição)"></div>`}).join("")}
+    return `<div class="rv-mrow" style="display:grid;grid-template-columns:${n>1?"70px ":""}minmax(150px,1fr) minmax(150px,1.3fr);gap:8px;align-items:center;margin-bottom:6px">${n>1?`<span class="small muted">Posição ${i+1}</span>`:""}<select class="input" aria-label="Motivo da posição ${i+1}">${ops.map(([k,t])=>`<option value="${k}" ${k===m.motivo?"selected":""}>${t}</option>`).join("")}</select><input class="input" list="rv-subs" autocomplete="off" aria-label="Substitui quem (posição ${i+1})" value="${esc(sub)}" placeholder="Substituído: escolha da lista ou digite"></div>`}).join("")}
 function rsEscalaOpts(atual){const l=(RS.escalas||[]).filter(e=>e.ativo!==false);const tem=l.some(e=>e.nome===atual);
   if(!l.length&&!atual)return `<option value="">Nenhuma escala cadastrada — o RH cadastra em Escalas</option>`;
   return `<option value="">Escolha a escala…</option>`+l.map(e=>`<option value="${esc(e.nome)}" ${e.nome===atual?"selected":""}>${esc(e.nome)}${e.descricao?" · "+esc(e.descricao):""}</option>`).join("")+(atual&&!tem?`<option selected value="${esc(atual)}">${esc(atual)} (fora do cadastro)</option>`:"")}
@@ -9211,8 +9211,19 @@ function rsFormVaga(v,corrigir){
     <p class="full small" id="rv-err" style="color:var(--bad)" hidden></p></form>
     <div class="note" id="rv-nota"></div>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-rs="${corrigir?"corrigirOk":"salvarVaga"}" data-id="${v?v.id:""}">${btn}</button>`);
-  rsNotaVaga();
+  rsNotaVaga();rsSubsAtualizar();
 }
+/* substituído: lista das pessoas da unidade (ativas primeiro, depois desligadas); se não achar, digita o nome à mão */
+function rsSubsAtualizar(){
+  const sel=$("#rv-loja");const form=$("#rs-fv");if(!sel||!form)return;
+  let dl=document.getElementById("rv-subs");if(!dl){dl=document.createElement("datalist");dl.id="rv-subs";form.appendChild(dl)}
+  const loja=sel.value;const br=d=>d?String(d).slice(0,10).split("-").reverse().join("/"):"";
+  const l=(ST.emps||[]).filter(e=>e&&e.nome&&e.lojaId===loja);
+  const at=l.filter(e=>!e.desligado).sort((a,b)=>a.nome.localeCompare(b.nome,"pt"));
+  const dg=l.filter(e=>e.desligado).sort((a,b)=>String(b.desligado.data||"").localeCompare(String(a.desligado.data||"")));
+  dl.innerHTML=at.map(e=>`<option value="${esc(e.nome)}">Ativo${e.cargo?" · "+esc(e.cargo):""}</option>`).join("")+dg.map(e=>`<option value="${esc(e.nome)}">Desligado${e.desligado.data?" em "+br(e.desligado.data):""}${e.cargo?" · "+esc(e.cargo):""}</option>`).join("");
+}
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="rv-loja")rsSubsAtualizar()});
 function rsNotaVaga(){const n=$("#rv-nota");if(!n)return;const aum=[...document.querySelectorAll(".rv-mrow select")].some(s=>s.value==="aumento");
   n.innerHTML=aum?"<b>Aumento de quadro:</b> o pedido vai para a Supervisão, depois para a Gestão comercial e, por último, para a validação do Gerente de RH. A vaga só abre depois das três aprovações.":rsRH()?"Substituição/temporário: a vaga já entra aberta, com o perfil alinhado hoje. A divulgação é feita em paralelo no Gupy.":"Substituição/temporário: o pedido vai direto para o Gerente de RH, que alinha o perfil com você e aprova.";}
 function rsLerFormVaga(){const err=m=>{const e=$("#rv-err");e.hidden=false;e.textContent=m;return null};
