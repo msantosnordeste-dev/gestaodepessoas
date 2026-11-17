@@ -10010,7 +10010,9 @@ function waPagina(){waTempoReal();if(typeof dmCarregar==="function"&&!DM.ok&&!DM
   if(!WA.ok&&!WA.carregando){waCarregar();waStatus()}
   if(!WA.timer)WA.timer=setInterval(()=>{if(page==="whatsapp"&&!(TOUR&&TOUR.on))waCarregar(true)},60000);
   return `<div id="wa-root">${waTela()}</div>`}
-function waRender(){const r=document.getElementById("wa-root");if(!r)return;const foco=document.activeElement&&document.activeElement.id,val=$("#wa-txt")?$("#wa-txt").value:null,bus=$("#wa-busca")?$("#wa-busca").value:null;
+let waRaf=0;
+function waRender(){if(waRaf)return;waRaf=(window.requestAnimationFrame||(f=>setTimeout(f,16)))(()=>{waRaf=0;waRenderNow()})}
+function waRenderNow(){const r=document.getElementById("wa-root");if(!r)return;const foco=document.activeElement&&document.activeElement.id,val=$("#wa-txt")?$("#wa-txt").value:null,bus=$("#wa-busca")?$("#wa-busca").value:null;
   r.innerHTML=waTela();if(val!==null&&$("#wa-txt"))$("#wa-txt").value=val;if(bus!==null&&$("#wa-busca"))$("#wa-busca").value=bus;if(foco&&document.getElementById(foco))document.getElementById(foco).focus();
   const th=$("#wa-thread");if(th){if(WA.fixo===false&&WA.scroll!=null)th.scrollTop=WA.scroll;else th.scrollTop=th.scrollHeight;th.onscroll=()=>{WA.scroll=th.scrollTop;WA.fixo=th.scrollHeight-th.scrollTop-th.clientHeight<80}}
   const ta=$("#wa-txt");if(ta){const aj=()=>{ta.style.height="auto";ta.style.height=Math.min(160,ta.scrollHeight)+"px"};ta.oninput=aj;aj()}
