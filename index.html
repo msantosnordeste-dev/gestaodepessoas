@@ -5353,6 +5353,7 @@ function cdRender(){
       <div class="field"><label for="cd-cpf">CPF</label><input class="input" id="cd-cpf" inputmode="numeric" value="${esc(r.cpf||"")}" placeholder="000.000.000-00"></div>
       <div class="field"><label for="cd-tel">WhatsApp com DDD</label><input class="input" id="cd-tel" inputmode="tel" value="${esc(r.telefone||"")}"></div>
       <div class="field full"><label for="cd-email">E-mail</label><input class="input" id="cd-email" type="email" value="${esc(r.email||"")}" autocomplete="email"></div>
+      <p class="full small muted" style="margin:-4px 0 2px">Informe seu WhatsApp e e-mail <b>pessoais</b>, não os da empresa: é por eles que o RH fala com você, inclusive depois da admissão.</p>
       <label class="check full"><input type="checkbox" id="cd-lgpd"> Autorizo a Brasileiríssima a usar meus dados e documentos somente para este processo de admissão (LGPD). Se eu não for admitido(a), meus dados serão excluídos.</label></form>
       <p class="small" id="cd-err" style="color:var(--bad)" hidden></p><button class="btn btn-primary" data-cd="precadastro" style="width:100%;justify-content:center">Enviar pré-cadastro</button></div>`);return}
   if(et==="analise"){cdTela(top+`<div class="card"><h2>Recebemos seu pré-cadastro</h2><p>O RH está analisando. Você vai receber a próxima etapa pelo WhatsApp, e também pode voltar a este link quando quiser.</p></div>`);return}
