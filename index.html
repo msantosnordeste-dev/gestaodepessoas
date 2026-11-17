@@ -10476,9 +10476,8 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en
 });
 
 const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
-function notasPagina(){return header("Visão geral","Central de Notas",`<a class="btn" href="${NOTAS_URL}" target="_blank" rel="noopener">Abrir em nova aba ↗</a>`)+
-  `<div class="card" style="padding:0;overflow:hidden"><iframe src="${NOTAS_URL}" title="Central de Notas" style="display:block;width:100%;height:calc(100vh - 190px);min-height:560px;border:0" allow="clipboard-write"></iframe></div>
-  <p class="small muted" style="margin:8px 2px 0">A Central de Notas tem login próprio. Se a tela não carregar aqui, use “Abrir em nova aba”.</p>`}
+function notasPagina(){return header("Visão geral","Central de Notas","")+
+  `<div class="card" style="padding:0;overflow:hidden"><iframe src="${NOTAS_URL}" title="Central de Notas" style="display:block;width:100%;height:calc(100vh - 170px);min-height:560px;border:0" allow="clipboard-write"></iframe></div>`}
 boot();
 </script>
 </body>
