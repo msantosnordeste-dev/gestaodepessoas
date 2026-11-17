@@ -9315,7 +9315,7 @@ function rsFormNS(c){
     <fieldset class="field full"><legend>Feedback ao candidato (compromisso: retorno a todos)</legend>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${["WhatsApp","E-mail","Telefone"].map(k=>`<label class="check"><input type="radio" name="rn-canal" value="${k}" ${k===(g.feedback_canal||"WhatsApp")?"checked":""}> ${k}</label>`).join("")}</div>
       <textarea class="input" id="rn-msg" rows="4" style="margin-top:8px">${esc(msg)}</textarea>
-      <div class="tabs-inline" style="margin-top:6px"><button type="button" class="btn btn-sm" data-rs="copiarMsg">Copiar mensagem</button>${fone?`<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${fone[0].length<=11?"55"+fone[0]:fone[0]}?text=${encodeURIComponent(msg)}">Abrir no WhatsApp</a>`:""}</div>
+      <div class="tabs-inline" style="margin-top:6px"><button type="button" class="btn btn-sm" data-rs="copiarMsg">Copiar mensagem</button>${fone?`${rsRH()?`<button type="button" class="btn btn-sm btn-primary" data-rs="nsWa" data-num="${fone[0]}">📲 Enviar pelo WhatsApp do RH</button>`:""}<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${fone[0].length<=11?"55"+fone[0]:fone[0]}?text=${encodeURIComponent(msg)}">Abrir no meu WhatsApp</a>`:""}</div>
       <label class="check" style="margin-top:8px"><input type="checkbox" id="rn-fb" ${g.feedback_em||!c.nao_seguiu?"checked":""}> Feedback já enviado</label></fieldset>
     <label class="check full"><input type="checkbox" id="rn-banco" ${c.banco||!c.nao_seguiu?"checked":""}> Guardar no banco de talentos</label>
     <div class="field full"><label for="rn-cargos">Cargos de interesse</label><input class="input" id="rn-cargos" value="${esc(c.cargos_interesse||v.cargo||"")}"></div></form>`,
@@ -9564,6 +9564,15 @@ const rsPreSt=p=>p.status==="enviado"?["Enviado","c-ok"]:p.status==="cancelado"?
 async function rsPreCarregar(){if(!rsRH())return;const {data}=await SB.from("rs_precadastro").select("id,token,vaga_id,cand_id,cargo,nome_previsto,telefone_previsto,status,expira_em,enviado_em,criado_em,criado_nome,cpf,dados").order("criado_em",{ascending:false});RS.pre=data||[]}
 function rsPreMsg(nome,cargo,link){return `Olá${nome?", "+nome.split(" ")[0]:""}! Aqui é o RH da Brasileiríssima. Para participar do processo seletivo para ${cargo}, preencha seu pré-cadastro neste link (vale para um único cadastro, por 7 dias): ${link}`}
 function rsLocalFmt(nome){const n=String(nome||"");const m=n.match(/^Loja\s*(\d+)\s*·\s*/i);let r=(m?n.slice(m[0].length):n).split(/\s*·\s*/)[0].replace(/Brasileir[ií]ssima\s*/i,"").trim();return (r||n)+(m?" - LJ "+m[1]:"")}
+RS.waMsg={};
+async function rsWaEnviar(numero,texto,btn){const num=String(numero||"").replace(/\D/g,"");
+  if(num.length<10){toast("Informe o WhatsApp com DDD");return false}
+  const old=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Enviando…"}
+  try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"enviar",numero:num,texto}});let d=r.data;
+    if(r.error){try{d=await r.error.context.json()}catch(e){d={erro:r.error.message}}}
+    if(d&&d.ok){toast("Mensagem enviada pelo WhatsApp do RH ✓");if(btn){btn.textContent="Enviado ✓"}return true}
+    toast("Não foi enviado: "+((d&&(d.detalhe||d.erro))||"erro desconhecido"));if(btn){btn.disabled=false;btn.textContent=old}return false}
+  catch(e){toast("Não foi possível enviar: "+e.message);if(btn){btn.disabled=false;btn.textContent=old}return false}}
 function rsConviteTxt(v,link){const p=v.perfil||{};
   const linhas=["Olá! Aqui é o RH da Brasileiríssima.","","Estamos com vaga aberta e queremos conhecer você:","",
     "*Cargo:* "+v.cargo+(v.contrato&&v.contrato!=="Efetivo"?" ("+v.contrato.toLowerCase()+")":""),"*Local:* "+rsLocalFmt(store(v.loja_id).nome),
@@ -9578,9 +9587,9 @@ async function rsConvite(vid){const v=RS.vagas.find(x=>x.id===vid);if(!v)return;
   const link=rsPreLink(tk),txt=rsConviteTxt(v,link);
   modal("Convite para inscrição · WhatsApp",`<p class="small muted" style="margin:0 0 8px">Um <b>novo link único</b> foi gerado agora para esta vaga. Cada clique em "Convite WhatsApp" gera outro link, um por candidato. O cadastro entra direto na triagem desta vaga.</p>
     <div class="field"><label for="rcv-txt">Texto padrão (pode ajustar antes de enviar)</label><textarea class="input" id="rcv-txt" rows="14" style="font-size:.9rem;line-height:1.45">${esc(txt)}</textarea></div>
-    <div class="field" style="margin-top:8px"><label for="rcv-tel">WhatsApp do candidato (opcional, com DDD)</label><input class="input" id="rcv-tel" inputmode="numeric" placeholder="(71) 99999-9999"></div>
+    <div class="field" style="margin-top:8px"><label for="rcv-tel">WhatsApp do candidato (com DDD)</label><input class="input" id="rcv-tel" inputmode="numeric" placeholder="(71) 99999-9999"></div>
     <div class="input" style="margin-top:8px;word-break:break-all;font-size:.82rem;height:auto;background:#F3F6F4" aria-label="Link de inscrição">${esc(link)}</div>`,
-    `<button class="btn" data-close>Fechar</button><button class="btn" data-rs="convCopLink" data-v="${tk}">Copiar só o link</button><button class="btn" data-rs="convCopTxt">📋 Copiar texto</button><button class="btn btn-primary" data-rs="convWa">📲 Abrir no WhatsApp</button>`);
+    `<button class="btn" data-close>Fechar</button><button class="btn" data-rs="convCopLink" data-v="${tk}">Copiar só o link</button><button class="btn" data-rs="convCopTxt">📋 Copiar texto</button><button class="btn" data-rs="convWa">Abrir no meu WhatsApp</button><button class="btn btn-primary" data-rs="convEnviar">📲 Enviar pelo WhatsApp do RH</button>`);
   await rsPreCarregar();}
 function rsPreForm(vid,cid){
   const v=RS.vagas.find(x=>x.id===vid),c=cid?RS.cands.find(x=>x.id===cid):null;
@@ -9604,6 +9613,9 @@ document.addEventListener("click",async ev=>{
   if(a==="convite"){if(t.disabled)return;t.disabled=true;try{await rsConvite(t.dataset.id)}finally{t.disabled=false}return}
   if(a==="convCopTxt"){const x=$("#rcv-txt");try{await navigator.clipboard.writeText(x.value);toast("Texto copiado · cole no WhatsApp")}catch(e){x.select();try{document.execCommand("copy");toast("Texto copiado")}catch(_){toast("Selecione e copie o texto")}}return}
   if(a==="convCopLink"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
+  if(a==="convEnviar"){const tel=$("#rcv-tel").value;if(tel.replace(/\D/g,"").length<10){toast("Informe o WhatsApp do candidato com DDD");$("#rcv-tel").focus();return}await rsWaEnviar(tel,$("#rcv-txt").value,t);return}
+  if(a==="waEnviar"){await rsWaEnviar(t.dataset.num,RS.waMsg[t.dataset.k]||"",t);return}
+  if(a==="nsWa"){const ok=await rsWaEnviar(t.dataset.num,$("#rn-msg").value,t);if(ok){const fb=$("#rn-fb");if(fb)fb.checked=true;const c=document.querySelector('input[name="rn-canal"][value="WhatsApp"]');if(c)c.checked=true}return}
   if(a==="convWa"){const msg=$("#rcv-txt").value,tel=$("#rcv-tel").value.replace(/\D/g,""),num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");return}
   if(a==="preNovo"){rsPreForm(t.dataset.id,t.dataset.cand||null);return}
   if(a==="preCopiar"){try{await navigator.clipboard.writeText(rsPreLink(t.dataset.v));toast("Link copiado")}catch(e){toast("Não foi possível copiar")}return}
@@ -9613,8 +9625,8 @@ document.addEventListener("click",async ev=>{
     const b=new Uint8Array(24);crypto.getRandomValues(b);const tk=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
     const {error}=await SB.from("rs_precadastro").insert({token:tk,vaga_id:v.id,cand_id:t.dataset.cand||null,cargo:v.cargo,loja_id:v.loja_id,nome_previsto:nome||null,telefone_previsto:tel||null,criado_nome:rsQuem()});
     if(error){t.disabled=false;toast("Não foi possível gerar: "+error.message);return}
-    const link=rsPreLink(tk),msg=rsPreMsg(nome,v.cargo,link),num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";
-    $("#rp-res").innerHTML=`<div class="note" style="margin-top:12px"><b>Link gerado</b> (válido por 7 dias, para um único CPF)<div class="input" style="margin-top:6px;word-break:break-all;font-size:.85rem;height:auto">${esc(link)}</div><div class="tabs-inline" style="margin-top:8px">${num?`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}">Enviar pelo WhatsApp</a>`:`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Abrir no WhatsApp</a>`}<button class="btn" data-rs="preCopiar" data-v="${tk}">Copiar link</button></div></div>`;
+    const link=rsPreLink(tk),msg=rsPreMsg(nome,v.cargo,link);RS.waMsg[tk]=msg;const num=tel.length>=10?(tel.length<=11?"55"+tel:tel):"";
+    $("#rp-res").innerHTML=`<div class="note" style="margin-top:12px"><b>Link gerado</b> (válido por 7 dias, para um único CPF)<div class="input" style="margin-top:6px;word-break:break-all;font-size:.85rem;height:auto">${esc(link)}</div><div class="tabs-inline" style="margin-top:8px">${num?`<button class="btn btn-primary" data-rs="waEnviar" data-num="${num}" data-k="${tk}">📲 Enviar pelo WhatsApp do RH</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${encodeURIComponent(msg)}">Abrir no meu WhatsApp</a>`:`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Abrir no WhatsApp</a>`}<button class="btn" data-rs="preCopiar" data-v="${tk}">Copiar link</button></div></div>`;
     t.hidden=true;await rsPreCarregar();if(page==="recrutamento")render();return}
 });
 
