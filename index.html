@@ -8983,6 +8983,25 @@ function rsFiltroG(){const regs=rsRegioes(),L=RS.g.reg?(regs.find(x=>x.k===RS.g.
     <div class="field" style="flex:1 1 260px;margin:0"><label for="rs-gloja">Loja</label><select class="input" id="rs-gloja" data-rsg="loja"><option value="">${RS.g.reg?"Todas as lojas da região":"Todas as lojas"}</option>${lojas.map(st=>`<option value="${st.id}" ${st.id===RS.g.loja?"selected":""}>${esc(st.nome)}</option>`).join("")}</select></div>
     ${ativo?`<button class="btn btn-ghost" data-rs="gLimpar">Limpar filtro</button>`:""}
     ${!regs.length&&rsRH()?`<p class="small muted" style="flex:1 1 100%;margin:0">Nenhuma região cadastrada. Cadastre em Lojas › Supervisores (região e lojas de cada supervisor).</p>`:""}</div>`}
+/* situação da vaga em palavras: aberta, aguardando quem aprova, devolvida, fechada */
+function rsSituacao(v){
+  if(v.status==="pedido"){const e=rsEtapaAprov(v);return {t:"Aguardando "+(RS_APROV[e]||"aprovação"),c:"c-warn"}}
+  if(v.status==="devolvida")return {t:"Devolvida para correção",c:"c-bad"};
+  if(v.status==="aberta")return {t:v.divulgada_em?"Aberta · divulgada":"Aberta · aguardando divulgação",c:"c-ok"};
+  if(v.status==="fechada")return {t:"Fechada",c:"c-mute"};
+  if(v.status==="cancelada")return {t:"Cancelada",c:"c-mute"};
+  return {t:v.status||"—",c:"c-mute"}}
+function rsMinhasVagas(){
+  const eu=PERFIL&&PERFIL.user_id;if(!eu)return "";
+  const lim=new Date(Date.now()-45*864e5).toISOString();
+  const l=(RS.vagas||[]).filter(v=>v.criado_por===eu&&!v.simulacao&&(v.status!=="fechada"||String(v.criado_em)>lim)).sort((a,b)=>String(b.criado_em).localeCompare(String(a.criado_em)));
+  if(!l.length)return "";
+  const fil=rsLojasG();const fora=fil?l.filter(v=>!fil.has(v.loja_id)).length:0;
+  return `<div class="card" id="rs-minhas" style="margin-bottom:14px"><div class="card-head"><div><h2>Vagas que você cadastrou · ${l.length}</h2><p>Situação de cada vaga e de cada aprovação${fora?` · <b>${fora} fora do filtro de loja/região acima</b>`:""}</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Cadastrada em</th><th>Situação</th><th></th></tr></thead><tbody>${l.slice(0,12).map(v=>{const s=rsSituacao(v);
+      return `<tr><td><b>${esc(v.cargo)}</b>${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
+        <td><span class="chip ${s.c}">${esc(s.t)}</span>${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
+        <td><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button></td></tr>`}).join("")}</tbody></table></div></div>`}
 function rsTelaPainel(){
   const F=RS.f,todas=rsVagasF().map(v=>({v,i:rsVagaInfo(v)}));
   const abertas=todas.filter(x=>x.v.status==="aberta");
@@ -9042,7 +9061,7 @@ function rsTelaPainel(){
      return `<tr><td><b>${esc(v.cargo)}</b>${rsSimChip(v)}${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="small" style="max-width:240px;white-space:normal">${esc(rsMotivosTxt(v))}</td><td><span class="chip ${v.contrato==="Temporário"?"c-brand":"c-info"}">${esc(v.contrato)}</span></td><td class="r num"><button class="btn btn-sm btn-ghost" data-rs="candsVaga" data-id="${v.id}" title="Ver candidatos e currículos">${v.posicoes} · 👥 ${i.cs.length}</button>${i.adm.length?`<br><span class="small muted">${i.adm.length} admitido${i.adm.length===1?"":"s"}</span>`:""}</td><td>${pontos(i.et)}<span class="small">${esc(i.lbl)}${i.atras?` · <b style="color:#8E1F12">${i.atras} atrasado${i.atras===1?"":"s"}</b>`:""}</span></td><td><span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} dia${i.dias===1?"":"s"}</span></td><td style="white-space:nowrap"><button class="btn btn-sm" data-rs="candsVaga" data-id="${v.id}">📂 Abrir</button> <button class="btn btn-sm btn-ghost" data-rs="abrirVaga" data-id="${v.id}">Vaga</button></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">${abertas.length?"Nenhuma vaga com esses filtros.":"Nenhuma vaga aberta."}</td></tr>`}</tbody></table></div></div>`;
   const encerradas=todas.filter(x=>["fechada","cancelada"].includes(x.v.status));
   const enc=encerradas.length?`<details class="card"><summary style="cursor:pointer;font-weight:600">Vagas fechadas e canceladas · ${encerradas.length}</summary><div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Cargo · unidade</th><th>Situação</th><th>Aberta</th><th>Encerrada</th><th>Admitidos</th><th></th></tr></thead><tbody>${encerradas.map(({v,i})=>`<tr><td><b>${esc(v.cargo)}</b><br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td>${v.status==="fechada"?"Fechada":"Cancelada"}</td><td class="num">${fdate(v.aberta_em)}</td><td class="num">${fdate(v.fechada_em)}</td><td class="num">${i.adm.length}</td><td><button class="btn btn-sm btn-ghost" data-rs="abrirVaga" data-id="${v.id}">Ver</button></td></tr>`).join("")}</tbody></table></div></details>`:"";
-  return aprovHTML+kpis+`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0">${porFase}</div>`+pedHTML+pedRH+tabela+enc;
+  return aprovHTML+rsMinhasVagas()+kpis+`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0">${porFase}</div>`+pedHTML+pedRH+tabela+enc;
 }
 function rsLinhaAprov(v,hist){const a=v.aprov||{},et=rsEtapaAprov(v),aum=v.fluxo==="aumento",dev=v.status==="devolvida",aberta=["aberta","fechada"].includes(v.status);
   const ks=aum?["sup","com","rh"]:["rh"];let bloq=false;
@@ -9399,11 +9418,17 @@ document.addEventListener("click",async ev=>{
   if(a==="importarOk")return trava(async()=>{const linhas=RS_IMP.map(x=>({gupy:x.gupy,cargo:x.cargo,loja_id:x.loja_id,posicoes:x.posicoes,contrato:x.contrato,aberta_em:x.aberta_em,status:"aberta",perfil_alinhado_em:x.aberta_em,criado_nome:rsQuem(),eventos:[{em:rsHoje(),quem:rsQuem(),acao:"Vaga importada da planilha"}]}));
     const {error}=await SB.from("rs_vagas").insert(linhas);if(error){toast("Não foi possível importar: "+error.message);return}closeModal();await rsCarregar(true);toast(linhas.length+" vaga"+(linhas.length===1?"":"s")+" importada"+(linhas.length===1?"":"s"))});
   if(a==="salvarVaga")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;
+    // evita vaga repetida: mesma unidade e cargo já aberta/pedida (e mesmo nº Gupy, se houver)
+    const ig=(RS.vagas||[]).find(v=>!v.simulacao&&["aberta","pedido","devolvida"].includes(v.status)&&v.loja_id===d.loja_id&&v.cargo===d.cargo&&(!d.gupy||!v.gupy||v.gupy===d.gupy));
+    const bt=t;if(ig&&bt.dataset.dup!==ig.id){bt.dataset.dup=ig.id;const e=$("#rv-err");e.hidden=false;
+      e.textContent=`Já existe ${ig.status==="aberta"?"uma vaga aberta":"um pedido"} de ${ig.cargo} nesta unidade (lançada por ${ig.criado_nome||"—"} em ${String(ig.criado_em||"").slice(8,10)}/${String(ig.criado_em||"").slice(5,7)}). Se for outra posição, clique de novo para salvar mesmo assim.`;return}
     const aum=d.fluxo==="aumento";
     if(rsRH()&&!aum){Object.assign(d,{status:"aberta",aberta_em:TODAY,perfil_alinhado_em:TODAY,criado_nome:rsQuem(),eventos:[{em:rsHoje(),quem:rsQuem(),acao:"Vaga aberta pelo RH"}]})}
     else Object.assign(d,{status:"pedido",aprov:{},criado_nome:rsQuem(),eventos:[{em:rsHoje(),quem:rsQuem(),acao:aum?"Pedido de aumento de quadro enviado à Supervisão":"Pedido de vaga enviado ao RH"}]});
     const {error}=await SB.from("rs_vagas").insert(d);if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível salvar: "+error.message;return}
-    closeModal();await rsCarregar(true);toast(aum?"Pedido enviado para a Supervisão":rsRH()?"Vaga aberta":"Pedido enviado ao RH")});
+    const L=rsLojasG();if(L&&!L.has(d.loja_id)){RS.g={reg:"",loja:""};try{localStorage.setItem("rs_g",JSON.stringify(RS.g))}catch(e){}}
+    RS.tab="painel";RS.vaga=null;closeModal();await rsCarregar(true);toast(aum?"Pedido enviado para a Supervisão · veja a situação em Vagas que você cadastrou":rsRH()?"Vaga aberta · veja em Vagas que você cadastrou":"Pedido enviado ao RH · veja a situação em Vagas que você cadastrou");
+    setTimeout(()=>{const c=document.getElementById("rs-minhas");if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.style.outline="3px solid var(--accent)";setTimeout(()=>c.style.outline="",2500)}},300)});
   if(a==="corrigir"){const v=V();if(v)rsFormVaga(v,true);return}
   if(a==="corrigirOk")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;delete d.loja_id;
     const {error}=await SB.rpc("rs_vaga_reenviar",{p_vaga:id,p_campos:d});if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível reenviar: "+error.message;return}
