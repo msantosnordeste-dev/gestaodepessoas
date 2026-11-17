@@ -1761,7 +1761,7 @@ async function iniciarSessao(novoLogin){
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   if(bvPendente()){await telaBoasVindas();return}
-  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();
+  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal()}catch(e){}},1500);
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
@@ -9843,7 +9843,7 @@ document.addEventListener("click",ev=>{const d=document.getElementById("rs-pop")
 
 
 /* ============ WhatsApp RH · histórico, interações e respostas ============ */
-const WA={sec:{},secAuto:true,hist:{},fotos:{},fotoPend:false,fi:"",selI:null,ok:false,carregando:false,conv:[],msgs:{},sel:null,busca:"",dias:30,est:null,kpi:null,err:"",timer:null,filtro:"todas"};
+const WA={atr:{},rhs:[],sec:{},secAuto:true,hist:{},fotos:{},fotoPend:false,fi:"",selI:null,ok:false,carregando:false,conv:[],msgs:{},sel:null,busca:"",dias:30,est:null,kpi:null,err:"",timer:null,filtro:"todas"};
 const waFmtNum=n=>{const d=String(n||"").replace(/\D/g,"").replace(/^55/,"");return d.length===11?`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`:d.length===10?`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`:n};
 const waHora=iso=>{if(!iso)return "";const d=new Date(iso),h=new Date();const mesmo=d.toDateString()===h.toDateString();return mesmo?d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
 const WA_ORIG={convite:"Convite de vaga","pre-cadastro":"Link de pré-cadastro",feedback:"Feedback ao candidato",manual:"Mensagem do RH",resposta:"Resposta recebida",celular:"Enviada pelo celular",teste:"Teste"};
@@ -9862,8 +9862,8 @@ function waQuem(num){const k=waChave(num);if(!k)return null;const ix=waIndice();
   return null}
 async function waCarregar(silencioso){if(WA.carregando)return;WA.carregando=true;if(!silencioso)WA.err="";
   try{const desde=new Date(Date.now()-WA.dias*864e5).toISOString();
-    const [c,k,nm]=await Promise.all([SB.from("wa_conversas").select("*").order("ultima_em",{ascending:false}).limit(500),SB.from("wa_mensagens").select("direcao,status,origem,criado_em,numero,instancia,enviado_nome").gte("criado_em",desde).limit(10000),SB.from("wa_contatos").select("*")]);
-    WA.nomes={};((nm&&nm.data)||[]).forEach(x=>WA.nomes[x.numero]=x);WA.idx=null;
+    const [c,k,nm,at,rh]=await Promise.all([SB.from("wa_conversas").select("*").order("ultima_em",{ascending:false}).limit(500),SB.from("wa_mensagens").select("direcao,status,origem,criado_em,numero,instancia,enviado_nome").gte("criado_em",desde).limit(10000),SB.from("wa_contatos").select("*"),SB.from("wa_atribuicoes").select("*"),WA.rhs.length?null:SB.from("perfis").select("user_id,nome").eq("perfil","rh").eq("ativo",true)]);
+    WA.nomes={};((nm&&nm.data)||[]).forEach(x=>WA.nomes[x.numero]=x);WA.idx=null;WA.atr={};((at&&at.data)||[]).forEach(x=>WA.atr[waK(x.instancia,x.numero)]=x);if(rh&&rh.data)WA.rhs=rh.data;
     if(c.error)throw c.error;if(k.error)throw k.error;WA.conv=c.data||[];WA.m30=k.data||[];const m=WA.m30.filter(x=>!WA.fi||x.instancia===WA.fi);
     const s=m.filter(x=>x.direcao==="saida"),e=m.filter(x=>x.direcao==="entrada"),orig={};s.forEach(x=>orig[x.origem||"manual"]=(orig[x.origem||"manual"]||0)+1);
     WA.kpi={env:s.length,ent:s.filter(x=>["entregue","lida"].includes(x.status)).length,lid:s.filter(x=>x.status==="lida").length,err:s.filter(x=>x.status==="erro").length,rec:e.length,contatos:new Set(m.map(x=>x.numero)).size,orig};
@@ -9894,7 +9894,11 @@ function waTempoReal(){if(WA.rt||!SB||!SB.channel)return;
     if(p.eventType==="INSERT"){cv.ultima_em=m.criado_em;cv.ultimo_texto=m.texto;cv.ultima_direcao=m.direcao;if(m.nome)cv.nome=cv.nome||m.nome;
       if(m.direcao==="entrada"){if(m.numero===WA.sel&&m.instancia===WA.selI&&page==="whatsapp"&&!document.hidden){SB.from("wa_lidas").upsert({instancia:m.instancia,numero:m.numero,lida_em:new Date().toISOString()}).then(()=>{})}else cv.nao_lidas=(+cv.nao_lidas||0)+1}
       WA.conv.sort((a,b)=>String(b.ultima_em).localeCompare(String(a.ultima_em)))}
-    if(page==="whatsapp")waRender();else if(m.direcao==="entrada"&&p.eventType==="INSERT")toast("Nova mensagem no WhatsApp RH")}).subscribe()}catch(e){}}
+    if(page==="whatsapp")waRender();else if(m.direcao==="entrada"&&p.eventType==="INSERT")toast("Nova mensagem no WhatsApp RH")})
+    .on("postgres_changes",{event:"*",schema:"public",table:"wa_atribuicoes"},p=>{const n=p.new||{},o=p.old||{};
+      if(p.eventType==="DELETE"){Object.keys(WA.atr).forEach(k=>{if(o.instancia&&k===waK(o.instancia,o.numero))delete WA.atr[k]})}
+      else if(n.instancia){WA.atr[waK(n.instancia,n.numero)]=n;if(n.responsavel===(PERFIL&&PERFIL.user_id)&&n.por!==n.responsavel){toast("↪ "+(primeiro(n.por_nome||"")||"O gestor")+" transferiu uma conversa para você");waCarregar(true)}}
+      if(page==="whatsapp")waRender()}).subscribe()}catch(e){}}
 function waPagina(){waTempoReal();
   if(!WA.ok&&!WA.carregando){waCarregar();waStatus()}
   if(!WA.timer)WA.timer=setInterval(()=>{if(page==="whatsapp"&&!(TOUR&&TOUR.on))waCarregar(true)},60000);
@@ -9920,23 +9924,24 @@ function waTela(){
   const origem=ori.length?`<div class="card" style="padding:14px 18px;margin-bottom:12px"><b class="small">Envios por tipo · ${WA.dias} dias</b><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:8px 0">${ori.map(([o,n],i)=>`<span title="${esc(WA_ORIG[o]||o)}: ${n}" style="width:${n/tot*100}%;background:${cores[i%cores.length]}"></span>`).join("")}</div><div style="display:flex;flex-wrap:wrap;gap:12px" class="small">${ori.map(([o,n],i)=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${cores[i%cores.length]};margin-right:4px"></span>${esc(WA_ORIG[o]||o)} · <b>${n}</b></span>`).join("")}</div></div>`:"";
   const q=(WA.busca||"").toLowerCase();
   const donoNome=i=>((est&&est.equipe||[]).find(x=>x.instancia===i)||{}).nome||"";
-  const lista=convF.filter(c=>WA.filtro==="aguardando"?c.ultima_direcao==="entrada":WA.filtro==="naolidas"?+c.nao_lidas>0:true).filter(c=>{if(!q)return true;const w=waQuem(c.numero);return [c.numero,waFmtNum(c.numero),c.nome,w&&w.nome,c.ultimo_texto].filter(Boolean).join(" ").toLowerCase().includes(q)});
+  const meuId=PERFIL&&PERFIL.user_id;const lista=convF.filter(c=>WA.filtro==="transf"?!!WA.atr[waK(c.instancia,c.numero)]:WA.filtro==="aguardando"?c.ultima_direcao==="entrada":WA.filtro==="naolidas"?+c.nao_lidas>0:true).filter(c=>{if(!q)return true;const w=waQuem(c.numero);return [c.numero,waFmtNum(c.numero),c.nome,w&&w.nome,c.ultimo_texto].filter(Boolean).join(" ").toLowerCase().includes(q)});
   const item=c=>{const w=waQuem(c.numero),nome=(w&&w.nome)||c.nome||waFmtNum(c.numero),ativo=c.numero===WA.sel&&c.instancia===WA.selI;
     return `<div role="button" tabindex="0" class="wa-it ${ativo?"on":""}" data-wa="abrir" data-n="${esc(c.numero)}" data-i="${esc(c.instancia||"")}">
       ${waAvatar(c.numero,nome,w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B",46)}
       <span style="flex:1;min-width:0"><span style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="nm">${esc(nome)}</span><span class="hr" ${+c.nao_lidas?'style="color:#1FA855;font-weight:700"':""}>${waHora(c.ultima_em)}</span></span>
-      <span class="sb">${est&&est.gestor&&!WA.fi&&donoNome(c.instancia)?`<b style="color:#0F6B4B">${esc(primeiro(donoNome(c.instancia)))}</b> · `:""}${w?esc(w.tipo)+(w.det?" · "+esc(w.det):""):c.nome?esc(waFmtNum(c.numero))+" · nome do WhatsApp":"Sem cadastro no portal"}</span>
+      ${(at=>at?`<span class="sb" style="color:#2E5A88;font-weight:600">↪ ${at.responsavel===meuId?"Transferida para você":"Com "+esc(primeiro(at.responsavel_nome||""))}</span>`:"")(WA.atr[waK(c.instancia,c.numero)])}<span class="sb">${est&&est.gestor&&!WA.fi&&donoNome(c.instancia)?`<b style="color:#0F6B4B">${esc(primeiro(donoNome(c.instancia)))}</b> · `:""}${w?esc(w.tipo)+(w.det?" · "+esc(w.det):""):c.nome?esc(waFmtNum(c.numero))+" · nome do WhatsApp":"Sem cadastro no portal"}</span>
       <span style="display:flex;gap:8px;align-items:center;margin-top:3px"><span class="ul ${c.ultima_direcao==="entrada"?"ent":""}">${c.ultima_direcao==="saida"?"Você: ":""}${esc(c.ultimo_texto||"")}</span>${+c.nao_lidas?`<span style="background:#25D366;color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">${c.nao_lidas}</span>`:""}</span>${!w?`<button class="btn btn-sm btn-ghost" data-wa="nome" data-n="${esc(c.numero)}" style="margin-top:4px;padding:2px 8px;font-size:12px">✏️ Incluir nome</button>`:""}</span></div>`};
   const tick=m=>m.direcao!=="saida"?"":m.pend?`<span title="Enviando">🕓</span>`:m.status==="lida"?`<span title="Lida" style="color:#1D9BF0;font-weight:700">✓✓</span>`:m.status==="entregue"?`<span title="Entregue">✓✓</span>`:m.status==="erro"?`<span title="${esc(m.erro||"Falhou")}" style="color:#C0392B">⚠ falhou</span>`:`<span title="Enviada">✓</span>`;
   let conversa=`<div class="empty" style="padding:40px 20px;text-align:center"><b>Escolha uma conversa</b><p class="small muted">Aqui aparece todo o histórico com a pessoa e você pode responder pelo WhatsApp do RH.</p></div>`;
   if(WA.sel){const ms=WA.msgs[waK(WA.selI,WA.sel)]||[],w=waQuem(WA.sel),cv=WA.conv.find(c=>c.numero===WA.sel&&c.instancia===WA.selI)||{};const nome=(w&&w.nome)||cv.nome||waFmtNum(WA.sel);let dia="";
-    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button>${waAvatar(WA.sel,nome,w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B",42)}<div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}${est&&est.gestor&&WA.selI!==est.instancia&&donoNome(WA.selI)?` · <b style="color:#C2541A">conversa de ${esc(donoNome(WA.selI))}</b>`:""}</div></div>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" data-n="${esc(WA.sel)}" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Incluir nome"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
+    conversa=`<div class="wa-hd"><button class="btn btn-sm btn-ghost wa-voltar" data-wa="fechar" aria-label="Voltar para a lista">‹</button>${waAvatar(WA.sel,nome,w&&w.tipo==="Candidato"?"#EE691F":"#0B3D2B",42)}<div style="flex:1;min-width:0"><b style="font-size:16px">${esc(nome)}</b><div class="sb">${esc(waFmtNum(WA.sel))}${w?" · "+esc(w.tipo)+(w.det?" · "+esc(w.det):""):""}${est&&est.gestor&&WA.selI!==est.instancia&&donoNome(WA.selI)?` · <b style="color:#C2541A">conversa de ${esc(donoNome(WA.selI))}</b>`:""}</div></div><button class="btn btn-sm" data-wa="transf" title="Passar esta conversa para outra pessoa do RH">↪ Transferir</button>${w&&w.colab?`<span class="chip c-ok" title="Nome do cadastro de colaboradores (usa o nome social quando houver)">Cadastro</span>`:`<button class="btn btn-sm" data-wa="nome" data-n="${esc(WA.sel)}" title="Dar nome a este contato">✏️ ${w&&w.manual?"Editar nome":"Incluir nome"}</button>`}${w&&w.cand?`<button class="btn btn-sm" data-rs="candsVaga" data-id="${w.cand.vaga_id}" data-c="${w.cand.id}">Ficha</button>`:""}</div>
+    ${(at=>at?`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:#EAF2FB;border-bottom:1px solid #D4E3F3;font-size:13.5px;color:#1F3B57"><span style="flex:1;min-width:200px">↪ <b>${at.responsavel===(PERFIL&&PERFIL.user_id)?"Transferida para você":"Atendimento com "+esc(at.responsavel_nome||"")}</b>${at.por_nome?" · por "+esc(at.por_nome):""} · ${waHora(at.em)}${at.nota?` · “${esc(at.nota)}”`:""}</span><button class="btn btn-sm" data-wa="transfFim">Encerrar transferência</button></div>`:"")(WA.atr[waK(WA.selI,WA.sel)])}
     <div id="wa-thread" class="wa-th" aria-live="polite">${WA.hist[waK(WA.selI,WA.sel)]==="carregando"?`<div class="wa-dia">Buscando o histórico desta conversa no WhatsApp…</div>`:""}${ms.length?ms.map(m=>{const d=new Date(m.criado_em).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});const sep=d!==dia?(dia=d,`<div class="wa-dia">${d}</div>`):"";const sd=m.direcao==="saida";
       const ant=ms[ms.indexOf(m)-1];const novoBloco=!sd&&(!ant||ant.direcao!=="entrada"||sep);
       return sep+`<div class="wa-b ${sd?"s":"e"} ${m.pend?"pend":""}">${novoBloco?`<div style="font-size:12.5px;font-weight:700;color:#C2541A;margin-bottom:2px">${esc(nome)}</div>`:""}${sd&&m.origem&&!["manual","celular"].includes(m.origem)?`<div class="tg">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div class="tx">${esc(m.texto||"")}</div><div class="mt">${sd&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p style="align-self:center;color:#54656F">Sem mensagens.</p>`}</div>
     ${waSecBloco(ms)}
     <div class="wa-cp"><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
-  const filtros=[["todas","Todas"],["aguardando","Aguardando o RH"],["naolidas","Não lidas"]];
+  const filtros=[["todas","Todas"],["aguardando","Aguardando"],["naolidas","Não lidas"],["transf","Transferidas"]];
   const painel=`<style>
 .wa-box{background:#fff;color:#111B21;border:1px solid #D9DEDA}
 .wa-box *{box-sizing:border-box}
@@ -10042,6 +10047,17 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wa
   if(a==="nomeDel"){const alvoN=WA.nomeAlvo||WA.sel;const {error}=await SB.from("wa_contatos").delete().eq("numero",alvoN);if(error){toast(error.message);return}delete WA.nomes[alvoN];closeModal();waRender();return}
   if(a==="trazer"){t.disabled=true;t.textContent="Importando…";try{const r=await SB.functions.invoke("whatsapp",{body:{acao:"conversas",limite:100,instancia:WA.fi||undefined}});
       if(r.data&&r.data.ok){toast(r.data.conversas+" conversas trazidas do celular");await waCarregar(true)}else toast("Não foi possível importar")}catch(e){toast(e.message)}t.disabled=false;t.textContent="↓ Trazer conversas do celular";return}
+  if(a==="transf"){const at=WA.atr[waK(WA.selI,WA.sel)]||{};const ops=(WA.rhs||[]).filter(x=>x.user_id!==(PERFIL&&PERFIL.user_id)||true);
+    modal("Transferir conversa",`<p class="small muted" style="margin:0 0 10px">A pessoa escolhida passa a ver esta conversa e pode responder. A mensagem continua saindo pelo mesmo número, para o contato não perceber troca de conversa. Você continua acompanhando.</p>
+      <div class="form-grid"><div class="field full"><label for="wt-p">Para quem</label><select class="input" id="wt-p">${ops.map(x=>`<option value="${x.user_id}" ${x.user_id===at.responsavel?"selected":""}>${esc(x.nome||"")}${x.user_id===(PERFIL&&PERFIL.user_id)?" (eu)":""}</option>`).join("")}</select></div>
+      <div class="field full"><label for="wt-n">Recado para quem vai atender (opcional)</label><input class="input" id="wt-n" value="${esc(at.nota||"")}" placeholder="Ex.: verificar férias da loja 21 e responder até amanhã" maxlength="200"></div></div>`,
+      `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-wa="transfOk">Transferir</button>`);return}
+  if(a==="transfOk"){const uid=$("#wt-p").value,pessoa=(WA.rhs||[]).find(x=>x.user_id===uid)||{};
+    const reg={instancia:WA.selI,numero:WA.sel,responsavel:uid,responsavel_nome:pessoa.nome||null,por:PERFIL&&PERFIL.user_id,por_nome:(PERFIL&&PERFIL.nome)||null,nota:$("#wt-n").value.trim()||null,em:new Date().toISOString()};
+    const {error}=await SB.from("wa_atribuicoes").upsert(reg);if(error){toast("Não foi possível transferir: "+error.message);return}
+    WA.atr[waK(reg.instancia,reg.numero)]=reg;closeModal();waRender();toast("Conversa transferida para "+primeiro(pessoa.nome||""));return}
+  if(a==="transfFim"){if(!confirmaDupla(t,"Toque de novo para encerrar"))return;const {error}=await SB.from("wa_atribuicoes").delete().eq("instancia",WA.selI).eq("numero",WA.sel);if(error){toast(error.message);return}
+    delete WA.atr[waK(WA.selI,WA.sel)];waRender();toast("Transferência encerrada");return}
   if(a==="secGerar"){await waSecGerar();return}
   if(a==="secOp"){const k=waK(WA.selI,WA.sel);if(WA.sec[k]){WA.sec[k].i=+t.dataset.v;waRender()}return}
   if(a==="secUsar"){const k=waK(WA.selI,WA.sel),s0=WA.sec[k],s=s0&&s0.opcoes?{...s0,resposta:s0.opcoes[s0.i||0].resposta}:null;const x=$("#wa-txt");if(s&&x){x.value=s.resposta;x.dispatchEvent(new Event("input"));x.focus();WA.sec[k]={ultId:s.ultId};waRender();const y=$("#wa-txt");if(y){y.value=s.resposta;y.style.height="auto";y.style.height=Math.min(160,y.scrollHeight)+"px";y.focus()}}return}
