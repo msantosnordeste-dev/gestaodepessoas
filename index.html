@@ -1764,7 +1764,7 @@ async function iniciarSessao(novoLogin){
   }catch(e){console.error(e);if(e&&e.semVinculo){mostrarTela("login","Seu acesso ao portal está encerrado. Fale com o RH.");return}mostrarTela("erro");return}
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   if(bvPendente()){await telaBoasVindas();return}
-  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true)}catch(e){}},1500);
+  mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true);enTempoReal();enCarregar()}catch(e){}},1500);
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
@@ -9287,6 +9287,7 @@ function rsModalCand(c){
       const extra=n===3||n===4?`<div class="field"><label for="rce-res">Resultado</label><select class="input" id="rce-res"><option value="segue">Segue no processo</option><option value="nao">Não segue</option></select></div>`:n===9?`<div class="field"><label for="rce-resp">Resposta do candidato</label><select class="input" id="rce-resp"><option value="aceitou">Aceitou</option><option value="recusou">Recusou</option></select></div>`:"";
       const g7=n===7?(r["7"]||{}):null;
       form=`<div style="background:#FFF8F1;border:1px solid #F3D3B8;border-radius:10px;padding:12px 14px;margin-top:6px"><b>Registrar ${String(n).padStart(2,"0")} · ${RS_ET[n].t}</b>${n===4&&r["4"]&&r["4"].gerente_em?`<p class="small" style="margin:6px 0 0">Gerente registrou: <b>${r["4"].gerente_segue?"segue":"não segue"}</b>${r["4"].gerente_obs?" · "+esc(r["4"].gerente_obs):""}</p>`:""}${g7?`<p class="small" style="margin:6px 0 0">${g7.pedida?"O gerente pediu a entrevista presencial"+(g7.quando?" · "+esc(g7.quando):""):"O gerente ainda não pediu entrevista presencial. Se não for pedir, pule esta etapa."}${g7.resultado?" · resultado: "+esc(g7.resultado):""}</p>`:""}<div class="form-grid" style="margin-top:8px">${extra}${cps.map(f=>rsCampoHTML(f,(r[String(n)]||{})[f.k])).join("")}</div></div>`;
+      if(n===4&&typeof enBloco==="function")form=enBloco(c)+form;
       botoes+=`<button class="btn" data-rs="nsForm" data-id="${c.id}">Não seguiu</button>${n===7?`<button class="btn" data-rs="pular7" data-id="${c.id}">Pular (gerente não pediu)</button>`:""}<button class="btn btn-primary" data-rs="avancar" data-id="${c.id}">Concluir ${String(n).padStart(2,"0")} e avançar</button>`;
     }
   }
@@ -9989,7 +9990,7 @@ function waTela(){
       <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Pessoa</th><th>Número</th><th>Situação</th><th class="r">Enviadas (30d)</th><th class="r">Respostas (30d)</th><th class="r">Aguardando</th></tr></thead><tbody>${lin.map(x=>`<tr><td><b>${esc(x.nome||x.instancia)}</b></td><td class="small">${x.numero?esc(waFmtNum(x.numero)):"—"}</td><td><span class="chip ${x.estado==="open"?"c-ok":"c-bad"}" style="font-size:11px">${x.estado==="open"?"Conectado":"Desconectado"}</span></td><td class="r num">${x.env}</td><td class="r num">${x.rec}</td><td class="r num" ${x.ag?'style="color:#C2541A;font-weight:700"':""}>${x.ag}</td></tr>`).join("")}</tbody></table></div></div>`})():"";
   const segF=`<div class="dm-seg" role="tablist">${filtros.map(([k,t])=>`<button role="tab" aria-selected="${WA.filtro===k}" class="${WA.filtro===k?"on":""}" data-wa="filtro" data-v="${k}">${t}${k==="naolidas"&&naoLid?` <span style="background:#25D366;color:#fff;border-radius:999px;padding:0 6px;font-size:11px;margin-left:2px">${naoLid}</span>`:k==="aguardando"&&aguard?` <span style="color:#C2541A">${aguard}</span>`:""}</button>`).join("")}</div>`;
   const time=eq.length>1||(eq.length&&est.gestor)?`<div class="dm-pess" aria-label="Ver conversas por pessoa do RH">${eq.map(x=>`<button class="${WA.fi===x.instancia?"on":WA.fi?"off":""}" data-wa="fiPess" data-v="${esc(x.instancia)}" title="${esc((x.nome||x.instancia)+" · "+(x.estado==="open"?"conectado":"desconectado"))}" style="position:relative">${dmAv(x.nome||x.instancia,32)}<span style="position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:${x.estado==="open"?"#25D366":"#C0392B"}"></span></button>`).join("")}</div>`:"";
-  const barra=`<div class="dm-bar">${segF}<label class="dm-busca">${DM_IC.busca}<input id="wa-busca" type="search" placeholder="Buscar nome, número ou texto" aria-label="Buscar conversas" value="${esc(WA.busca||"")}"></label>${time}${est&&est.instancia?`<button class="btn btn-sm" data-wa="trazer" title="Importa as conversas recentes que já estão no celular">↓ Trazer conversas do celular</button>`:""}</div>`;
+  const barra=`<div class="dm-bar">${segF}<label class="dm-busca">${DM_IC.busca}<input id="wa-busca" type="search" placeholder="Buscar nome, número ou texto" aria-label="Buscar conversas" value="${esc(WA.busca||"")}"></label>${time}${est&&est.instancia?`<button class="btn btn-sm" data-wa="trazer" title="Importa as conversas recentes que já estão no celular">↓ Trazer conversas do celular</button>`:""}${typeof enLembBtn==="function"?enLembBtn():""}</div>`;
   return header("Visão geral","WhatsApp RH",acoes)+DM_CSS+banner+(con&&est.webhook===false?`<div class="note" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px"><b>Recebimento de respostas desligado.</b> Hoje o painel mostra só o que o portal envia. Ative para registrar aqui as respostas dos candidatos e colaboradores e a confirmação de entrega e leitura.</span><button class="btn btn-primary" data-wa="webhook">Ativar recebimento de respostas</button></div>`:"")+(est&&est.configurado&&!con?`<div class="alert" style="margin-bottom:12px"><b>O número do RH está desconectado.</b> Abra o Evolution Manager e leia o QR Code de novo para voltar a enviar.</div>`:"")+barra+painel+`<p class="small muted" style="margin-top:8px">Ao abrir uma conversa, o histórico dela é trazido do WhatsApp. Mensagens novas aparecem na hora. Somente o RH vê esta tela.</p>`}
 function confirmaDupla(t,txt){if(t.dataset.ok==="1")return true;t.dataset.ok="1";const o=t.textContent;t.textContent=txt;setTimeout(()=>{t.dataset.ok="";t.textContent=o},4000);return false}
 async function waConectar(btn){if(btn){btn.disabled=true}
@@ -10172,7 +10173,7 @@ function dmPagina(){dmTempoReal();if(!DM.ok&&!DM.carregando)dmCarregar();
     <label class="dm-busca">${DM_IC.busca}<input id="dm-busca" type="search" placeholder="Buscar" value="${esc(f.busca)}" aria-label="Buscar demandas"></label>
     <div class="dm-pess" aria-label="Filtrar por responsável">${pess.map(x=>`<button class="${f.resp===x.user_id?"on":f.resp?"off":""}" data-dm="pess" data-v="${x.user_id}" title="${esc(x.nome)}">${dmAv(x.nome,30)}</button>`).join("")}</div>
     <select class="dm-sel" data-dmf="prio" aria-label="Prioridade"><option value="">Prioridade</option>${Object.entries(DM_PR).map(([k,v])=>`<option value="${k}" ${f.prio===k?"selected":""}>${v[0]}</option>`).join("")}</select>
-    ${f.resp||f.prio||f.busca?`<button class="btn btn-sm btn-ghost" data-dm="limpar">Limpar filtros</button>`:""}</div>`;
+    ${f.resp||f.prio||f.busca?`<button class="btn btn-sm btn-ghost" data-dm="limpar">Limpar filtros</button>`:""}${typeof enLembBtn==="function"?enLembBtn():""}</div>`;
   let corpo="";
   if(DM.view==="quadro"){const lim=dmAdd(h,-14);
     corpo=`<div class="dm-board">${DM_ST.map(([k,t,c])=>{const it=ls.filter(d=>d.status===k&&(k!=="concluida"||String(d.concluida_em||d.atualizado_em).slice(0,10)>=lim)).sort((a,b)=>k==="concluida"?String(b.concluida_em).localeCompare(String(a.concluida_em)):(a.prazo||"9999").localeCompare(b.prazo||"9999")||a.ordem-b.ordem);
@@ -10305,6 +10306,89 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-wa
   if(a==="abrir"){const d=DM.lista.find(x=>x.id===t.dataset.id);if(d)dmForm(d);return}
   if(a==="concluir"){const d=DM.lista.find(x=>x.id===t.dataset.id);if(!d)return;const up={status:"concluida",concluida_em:new Date().toISOString(),atualizado_em:new Date().toISOString(),eventos:dmEv(d,"Concluída pelo WhatsApp RH")};Object.assign(d,up);waRender();await SB.from("rh_demandas").update(up).eq("id",d.id);toast("Demanda concluída");return}
 });
+
+/* ---------- Entrevistas com Google Meet (R&S) e lembretes de RH com aprovação ----------
+   Entrevista: o RH agenda na Google Agenda (link do Meet), envia o convite pelo WhatsApp e o candidato
+   responde 1 (confirma) ou 2 (remarcar); a resposta chega pelo webhook e atualiza rs_entrevistas.
+   Lembretes: gerados todo dia (experiência 45/90 dias e aniversários) e só saem com o clique do RH. */
+const EN={lista:[],lemb:[],ok:false};
+const EN_ST={aguardando:["Aguardando confirmação","#B86E00","#FFF2DC"],confirmada:["Confirmada pelo candidato","#0F6B4B","#DCF3E6"],remarcar:["Pediu para remarcar","#C0392B","#FDE6EA"]};
+const EN_TIPO={experiencia:["Experiência","#2E86AB"],aniversario:["Aniversário","#8E44AD"]};
+async function enCarregar(){if(typeof SB==="undefined"||!SB||ROLE!=="rh")return;
+  const [a,b]=await Promise.all([SB.from("rs_entrevistas").select("*").order("criado_em",{ascending:false}).limit(500),SB.from("rh_lembretes").select("*").eq("status","pendente").order("data_ref")]);
+  if(!a.error)EN.lista=a.data||[];if(!b.error)EN.lemb=b.data||[];EN.ok=true}
+function enDe(id){return EN.lista.find(e=>e.cand_id===id&&e.confirmacao!=="cancelada")}
+function enQuando(ini){const d=new Date(ini.slice(0,16));const ds=["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"][d.getDay()];return ds+", "+ini.slice(8,10)+"/"+ini.slice(5,7)+", às "+ini.slice(11,16)}
+function enChip(e){const s=EN_ST[e.confirmacao]||EN_ST.aguardando;return `<span style="display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;color:${s[1]};background:${s[2]}">${e.confirmacao==="aguardando"&&!e.convite_em?"Convite ainda não enviado":s[0]}</span>`}
+function enBloco(c){const e=enDe(c.id);
+  const box=(h)=>`<div style="background:#F0FAF4;border:1px solid #CFE8DA;border-radius:10px;padding:12px 14px;margin-top:6px">${h}</div>`;
+  if(!e)return box(`<b>Entrevista online com Google Meet</b><p class="small" style="margin:4px 0 8px">Marca na Google Agenda com link do Meet e prepara o convite do WhatsApp pedindo confirmação (1 confirma, 2 remarca).</p><button class="btn btn-sm btn-primary" data-en="agendar" data-id="${c.id}">Agendar entrevista</button>`);
+  return box(`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><b>Entrevista online</b>${enChip(e)}</div>
+    <p class="small" style="margin:6px 0">${esc(enQuando(e.inicio))}${e.meet?` · <a href="${esc(e.meet)}" target="_blank" rel="noopener">${esc(e.meet.replace("https://",""))}</a>`:""}${e.respondido_em?`<br>Resposta do candidato: “${esc(e.resposta||"")}” em ${fdate(e.respondido_em.slice(0,10))} ${e.respondido_em.slice(11,16)}`:""}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm ${e.convite_em?"":"btn-primary"}" data-en="convite" data-id="${e.id}">${e.convite_em?"Reenviar convite":"Enviar convite pelo WhatsApp"}</button><button class="btn btn-sm" data-en="agendar" data-id="${c.id}">Remarcar</button></div>`)}
+function enTexto(e,c){const v=RS.vagas.find(x=>x.id===c.vaga_id)||{};const pn=String(c.nome||"").trim().split(/\s+/)[0]||"";const nm=pn?pn[0].toUpperCase()+pn.slice(1).toLowerCase():"";
+  return ["Olá"+(nm?", "+nm:"")+"! Tudo bem? Aqui é do RH da Brasileiríssima.","","Sua entrevista online para a vaga de "+(v.cargo||"")+(v.loja_id?" - "+rsLocalFmt(store(v.loja_id).nome):"")+" está marcada para "+enQuando(e.inicio)+".","",
+    e.meet?"Link da sala (Google Meet): "+e.meet:"O link da sala segue no convite por e-mail.","","Por favor, responda 1 para confirmar ou 2 se precisar remarcar."].join("\n")}
+async function enAgendarForm(c){const st=await SB.functions.invoke("agenda",{body:{acao:"status"}});if(!(st.data&&st.data.configurado)){toast("Conecte a Google Agenda em Demandas e agenda");return}
+  const v=RS.vagas.find(x=>x.id===c.vaga_id)||{};let email="";
+  if(c.pre_id){const p=await SB.from("rs_precadastro").select("dados").eq("id",c.pre_id).maybeSingle();email=(p.data&&p.data.dados&&p.data.dados.email)||""}
+  const e=enDe(c.id),amanha=new Date(Date.now()+864e5),d0=e?e.inicio.slice(0,10):amanha.getFullYear()+"-"+String(amanha.getMonth()+1).padStart(2,"0")+"-"+String(amanha.getDate()).padStart(2,"0");
+  modal("Agendar entrevista online",`<div class="form-grid">
+    <div class="field full"><label for="rm-tit">Título</label><input class="input" id="rm-tit" value="${esc("Entrevista online · "+c.nome+" · "+(v.cargo||"")+(v.loja_id?" - "+rsLocalFmt(store(v.loja_id).nome):""))}"></div>
+    <div class="field"><label for="rm-dt">Data</label><input class="input" id="rm-dt" type="date" value="${d0}"></div>
+    <div class="field"><label for="rm-hr">Início</label><input class="input" id="rm-hr" type="time" value="${e?e.inicio.slice(11,16):"10:00"}"></div>
+    <div class="field"><label for="rm-du">Duração</label><select class="input" id="rm-du">${[20,30,45,60].map(m=>`<option value="${m}" ${m===30?"selected":""}>${m} min</option>`).join("")}</select></div>
+    <div class="field"><label for="en-num">WhatsApp do candidato</label><input class="input" id="en-num" value="${esc(c.contato||"")}"></div>
+    <div class="field full"><label for="en-mail">E-mail do candidato (recebe o convite da agenda)</label><input class="input" id="en-mail" type="email" value="${esc(email)}" placeholder="opcional"></div>
+    <div class="field full"><label for="rm-cv">Outros participantes (e-mails, como o gerente da loja)</label><input class="input" id="rm-cv" placeholder="gerente@soubrasileirissima.com.br"></div>
+    <div class="field full" hidden><textarea id="rm-ds"></textarea></div></div>
+    <p class="small muted" style="margin:8px 0 0">${e?"A entrevista anterior continua na agenda: apague-a por lá se não for mais acontecer. ":""}Depois de agendar, você revisa o convite e envia pelo WhatsApp.</p>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-en="agendarOk" data-id="${c.id}">Agendar com Meet</button>`)}
+function enLembBtn(){const n=EN.lemb.length;return `<button class="btn btn-sm" data-en="lemb" title="Lembretes de RH para aprovar o envio" style="margin-left:auto">🔔 Lembretes${n?` <span style="background:#EE691F;color:#fff;border-radius:99px;padding:1px 7px;font-size:11.5px;margin-left:4px">${n}</span>`:""}</button>`}
+function enLembModal(){const ls=EN.lemb;
+  const card=l=>{const t=EN_TIPO[l.tipo]||[l.tipo,"#5B6B62"];return `<div style="border:1px solid #E1E5DF;border-radius:12px;padding:12px 14px;margin-bottom:10px" data-lemb="${l.id}">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:11.5px;font-weight:700;color:${t[1]};text-transform:uppercase;letter-spacing:.04em">${t[0]}</span><b style="font-size:14px">${esc(l.nome||"")}</b><span class="small muted" style="margin-left:auto">${esc(l.motivo||"")}</span></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:8px;margin-top:8px"><div class="small">Para: <b>${esc(l.para||"—")}</b></div><input class="input" id="lb-n-${l.id}" value="${esc(l.numero?waFmtNum(l.numero):"")}" placeholder="WhatsApp com DDD" aria-label="WhatsApp"></div>
+    <textarea class="input" id="lb-t-${l.id}" rows="3" style="margin-top:8px;font-size:13.5px">${esc(l.texto)}</textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" data-en="lbDesc" data-id="${l.id}">Descartar</button><button class="btn btn-sm btn-primary" data-en="lbEnv" data-id="${l.id}">Enviar pelo WhatsApp</button></div></div>`};
+  modal("Lembretes para aprovar",`<p class="small" style="margin:0 0 12px">Gerados todo dia às 7h: avaliação de experiência de 45 e 90 dias (para o gerente da loja) e aniversariantes (para o colaborador). Nada é enviado sem o seu clique.</p>
+    ${ls.length?ls.map(card).join(""):`<div class="note">Nenhum lembrete pendente agora.</div>`}`,
+    `<button class="btn" data-en="lbGerar">Verificar agora</button><button class="btn btn-primary" data-close>Fechar</button>`)}
+function enTempoReal(){if(EN.rt||!SB||!SB.channel)return;
+  try{EN.rt=SB.channel("en-rh").on("postgres_changes",{event:"*",schema:"public",table:"rs_entrevistas"},p=>{const e=p.new||{};if(!e.id)return;const i=EN.lista.findIndex(x=>x.id===e.id);const ant=i>=0?EN.lista[i]:null;if(i>=0)EN.lista[i]=e;else EN.lista.unshift(e);
+      if(ant&&ant.confirmacao==="aguardando"&&e.confirmacao==="confirmada")toast("✓ "+(e.nome||"Candidato")+" confirmou a entrevista");
+      if(ant&&ant.confirmacao==="aguardando"&&e.confirmacao==="remarcar")toast((e.nome||"Candidato")+" pediu para remarcar a entrevista · criada uma demanda");
+      if(page==="recrutamento")render()})
+    .on("postgres_changes",{event:"*",schema:"public",table:"rh_lembretes"},()=>{enCarregar().then(()=>{if(page==="whatsapp"||page==="demandas")render()})}).subscribe()}catch(e){}}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en]");if(!t)return;const a=t.dataset.en,id=t.dataset.id;
+  if(a==="agendar"){const c=RS.cands.find(x=>x.id===id);if(c)enAgendarForm(c);return}
+  if(a==="agendarOk"){const c=RS.cands.find(x=>x.id===id);if(!c)return;const r=dmReuLer();if(!r){toast("Informe data e horário");return}
+    const mail=$("#en-mail").value.trim(),num=$("#en-num").value.replace(/\D/g,"");if(num.length<10){toast("Informe o WhatsApp do candidato com DDD");return}
+    const v=RS.vagas.find(x=>x.id===c.vaga_id)||{};
+    t.disabled=true;t.textContent="Agendando…";
+    const rr=await SB.functions.invoke("agenda",{body:{acao:"criar",cand_id:c.id,numero:num,titulo:r.titulo,inicio:r.inicio,fim:r.fim,convidados:[mail,...r.convidados].filter(x=>/@/.test(x)),
+      descricao:"Entrevista online · vaga de "+(v.cargo||"")+(v.loja_id?" - "+rsLocalFmt(store(v.loja_id).nome):"")+"\nCandidato: "+c.nome+"\nWhatsApp: "+num}});
+    let x=rr.data;if(rr.error){try{x=await rr.error.context.json()}catch(e){x={erro:rr.error.message}}}
+    if(!(x&&x.ok)){t.disabled=false;t.textContent="Agendar com Meet";toast((x&&x.erro)||"Não foi possível agendar");return}
+    if(num!==String(c.contato||"").replace(/\D/g,""))await SB.from("rs_candidatos").update({contato:num}).eq("id",c.id);
+    const reg={...(c.registros||{})};reg["4"]={...(reg["4"]||{}),data:r.inicio.slice(0,10)};await rsSalvarCand(c.id,{registros:reg},null);
+    await enCarregar();const e=enDe(c.id);toast("Entrevista na sua Google Agenda"+(x.meet?" com Meet":""));if(e)enConviteModal(e);return}
+  if(a==="convite"){const e=EN.lista.find(x=>x.id===id);if(e)enConviteModal(e);return}
+  if(a==="conviteOk"){const e=EN.lista.find(x=>x.id===id);if(!e)return;const txt=$("#en-txt").value.trim();if(!txt)return;
+    if(await rsWaEnviar(e.numero,txt,t,{origem:"entrevista",ref_tipo:"candidato",ref_id:e.cand_id})){const now=new Date().toISOString();await SB.from("rs_entrevistas").update({convite_em:now,confirmacao:"aguardando"}).eq("id",e.id);e.convite_em=now;e.confirmacao="aguardando";
+      const c=RS.cands.find(x=>x.id===e.cand_id);setTimeout(()=>{closeModal();if(c)rsModalCand(c)},600)}return}
+  if(a==="voltarCand"){const c=RS.cands.find(x=>x.id===id);closeModal();if(c)rsModalCand(c);return}
+  if(a==="lemb"){await enCarregar();enLembModal();return}
+  if(a==="lbGerar"){t.disabled=true;const {data,error}=await SB.rpc("rh_lembretes_gerar");t.disabled=false;if(error){toast(error.message);return}await enCarregar();enLembModal();toast(data?data+" lembrete(s) novo(s)":"Nada novo por hoje");return}
+  if(a==="lbDesc"||a==="lbEnv"){const l=EN.lemb.find(x=>x.id===id);if(!l)return;const txt=$("#lb-t-"+id).value.trim(),num=$("#lb-n-"+id).value.replace(/\D/g,"");
+    if(a==="lbEnv"){if(!txt)return;if(!(await rsWaEnviar(num,txt,t,{origem:"lembrete",ref_tipo:"lembrete",ref_id:id})))return}
+    const {error}=await SB.from("rh_lembretes").update({status:a==="lbEnv"?"enviado":"descartado",texto:txt,numero:num||null,decidido_por:PERFIL&&PERFIL.user_id,decidido_nome:PERFIL&&PERFIL.nome,decidido_em:new Date().toISOString()}).eq("id",id);
+    if(error){toast(error.message);return}EN.lemb=EN.lemb.filter(x=>x.id!==id);const el=document.querySelector(`[data-lemb="${id}"]`);if(el)el.remove();if(!EN.lemb.length)enLembModal();if(page==="whatsapp"||page==="demandas")setTimeout(()=>{const b=document.querySelector('.dm-bar [data-en="lemb"]');if(b)b.outerHTML=enLembBtn()},50);return}
+});
+function enConviteModal(e){const c=RS.cands.find(x=>x.id===e.cand_id)||{nome:e.nome};
+  modal("Convite da entrevista",`<p class="small" style="margin:0 0 8px">Revise e envie para <b>${esc(c.nome||"")}</b> · ${esc(waFmtNum(e.numero||""))}. A resposta 1 ou 2 atualiza a confirmação aqui sozinha.</p>
+    <textarea class="input" id="en-txt" rows="9" style="font-size:13.5px">${esc(enTexto(e,c))}</textarea>`,
+    `<button class="btn" data-en="voltarCand" data-id="${e.cand_id}">Agora não</button><button class="btn btn-primary" data-en="conviteOk" data-id="${e.id}">Enviar pelo WhatsApp</button>`)}
 
 boot();
 </script>
