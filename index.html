@@ -1218,7 +1218,7 @@ R.solicitacoes=()=>{
 /* ---- headcount por função ---- */
 R.usuarios=()=>{
   const tab=UI.usrTab||"usuarios";
-  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["usuarios","Usuários"],["colabs","Colaboradores"],["solic","Solicitações"+(SOLIC.length?" ("+SOLIC.length+")":"")],["log","Log de acesso"]].map(([k,t])=>`<button class="${tab===k?"on":""}" data-usrtab="${k}">${t}</button>`).join("")}</div></div>`;
+  const tabs=`<div class="toolbar"><div class="seg" role="tablist">${[["usuarios","Usuários"],["colabs","Colaboradores"],["solic","Solicitações"+(SOLIC.length?" ("+SOLIC.length+")":"")],["log","Log de acesso"]].concat((PERFIL&&PERFIL.gestor_rh)?[["geo","Localização"]]:[]).map(([k,t])=>`<button class="${tab===k?"on":""}" data-usrtab="${k}">${t}</button>`).join("")}</div></div>`;
   const quando=d=>d?new Date(d).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
   let corpo="";
   if(tab==="usuarios"){
@@ -1227,6 +1227,7 @@ R.usuarios=()=>{
       <td style="white-space:nowrap"><button class="btn btn-sm" data-editusr="${esc(u.login)}">Editar</button>${u.ativo&&u.user_id&&u.perfil!=="rh"?` <button class="btn btn-sm btn-ghost" data-vcusr="${esc(u.user_id)}" title="Ver o portal como este usuário vê (só para olhar, nada é gravado)">Ver como</button>`:""}${ROLE==="rh"&&u.user_id&&SESSION&&u.user_id!==SESSION.id&&u.user_id!==(PERFIL&&PERFIL.user_id)?(u.ativo?` <button class="btn btn-sm btn-ghost" style="color:var(--bad)" data-usracesso="${esc(u.user_id)}|0">Desabilitar acesso</button>`:` <button class="btn btn-sm btn-ghost" data-usracesso="${esc(u.user_id)}|1">Reabilitar acesso</button>`):""}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">Nenhum usuário cadastrado.</td></tr>`}</tbody></table></div>
     <div class="note" style="margin-top:14px">Quando um colaborador é desligado (ou um contrato PJ é encerrado), o acesso dele é bloqueado automaticamente a partir da data de saída: a senha deixa de funcionar e as sessões abertas são encerradas. Cada pessoa entra só com usuário e senha. O gerente vê apenas a loja definida aqui, sem salários, CPF ou ficha de registro; o próprio banco de dados aplica essa regra.</div></div>`;
   } else if(tab==="colabs"){corpo=colabAcessosHTML(tabs);
+  } else if(tab==="geo"&&PERFIL&&PERFIL.gestor_rh){corpo=geoAdminHTML(tabs);
   } else if(tab==="solic"){
     const ug=id=>USUARIOS.find(u=>u.user_id===id);
     corpo=`<div class="card">${tabs}<div class="table-wrap"><table><thead><tr><th>Enviado em</th><th>Gerente</th><th>Colaborador</th><th>Registro</th><th></th></tr></thead>
@@ -8733,7 +8734,9 @@ ICON.premiacoes='<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z
    Toda senha criada ou redefinida (primeiro acesso, RH ou o próprio usuário) marca perfis.atualizacao_pendente
    no banco (gatilho em auth.users). No próximo login a pessoa só entra depois de confirmar celular, WhatsApp
    e e-mail e aceitar os termos. Os contatos vão para a ficha do colaborador (ou do PJ) e o aceite fica em termos_aceite. */
-const TERMO_VER="1.0 · 09/11/2026";
+const TERMO_VER="2.0 · 17/11/2026";
+// Resumo da atualização, mostrado a quem já tinha aceitado uma versão anterior.
+const TERMO_MUDOU="Atualizamos os termos: ao entrar no portal passamos a registrar a data, a hora e a localização aproximada do seu acesso, para confirmar a autenticidade do login. A localização só é captada se você permitir no navegador, fica visível apenas ao administrador do sistema e é apagada após 10 dias. Por isso pedimos um novo aceite.";
 const TERMO_TXT=`TERMOS DE USO DA PLATAFORMA CONECTAGP E AVISO DE PRIVACIDADE (LGPD)
 Versão ${TERMO_VER}
 
@@ -8745,6 +8748,7 @@ O ConectaGP é o portal de Gestão de Pessoas da Brasileiríssima, de uso exclus
 2.2. Não compartilhe a sua senha com ninguém, nem com colegas ou gestores. Se suspeitar que outra pessoa conhece a sua senha, peça ao RH a redefinição imediatamente.
 2.3. Tudo o que for feito com o seu login é considerado feito por você. Os acessos e as principais ações ficam registrados (data, hora e tipo de ação) para segurança e auditoria.
 2.4. Ao ser desligado(a) ou ao terminar o contrato, o acesso é encerrado automaticamente.
+2.5. Segurança de acesso: ao entrar no portal, registramos a data, a hora e a localização aproximada do dispositivo no momento do login, para confirmar a autenticidade do seu acesso. A localização é obtida pelo seu navegador e só é captada se você permitir; se você não permitir, o acesso continua liberado e fica registrado apenas que a localização não foi confirmada. Esses registros ficam visíveis apenas ao administrador do sistema e são apagados após 10 dias.
 
 3. REGRAS DE USO
 3.1. Use a plataforma apenas para assuntos de trabalho.
@@ -8754,7 +8758,7 @@ O ConectaGP é o portal de Gestão de Pessoas da Brasileiríssima, de uso exclus
 
 4. TRATAMENTO DE DADOS PESSOAIS (LEI Nº 13.709/2018 · LGPD)
 4.1. Controlador: a empresa do grupo Brasileiríssima com a qual você tem vínculo de trabalho ou contrato de prestação de serviço.
-4.2. Dados tratados: dados de identificação e documentos, endereço e contatos (celular, WhatsApp e e-mail), dados do vínculo (cargo, unidade, admissão, jornada, escalas, férias, afastamentos, avaliações, treinamentos), dados de remuneração, benefícios, metas, vendas e premiações, dependentes, dados bancários e registros de acesso à plataforma. Dados de saúde (como atestados e ASO) são tratados somente quando exigidos por lei.
+4.2. Dados tratados: dados de identificação e documentos, endereço e contatos (celular, WhatsApp e e-mail), dados do vínculo (cargo, unidade, admissão, jornada, escalas, férias, afastamentos, avaliações, treinamentos), dados de remuneração, benefícios, metas, vendas e premiações, dependentes, dados bancários e registros de acesso à plataforma (incluindo data, hora e localização aproximada no login). Dados de saúde (como atestados e ASO) são tratados somente quando exigidos por lei.
 4.3. Finalidades: cumprir o contrato de trabalho ou de prestação de serviço; cumprir obrigações legais e regulatórias (trabalhistas, previdenciárias, fiscais, eSocial, saúde e segurança do trabalho); gerir folha, benefícios, escalas, treinamentos e premiações; comunicar-se com você; garantir a segurança da plataforma e prevenir fraudes.
 4.4. Bases legais: execução de contrato (art. 7º, V), cumprimento de obrigação legal ou regulatória (art. 7º, II), exercício regular de direitos (art. 7º, VI), legítimo interesse (art. 7º, IX) e, para dados sensíveis, as hipóteses do art. 11, II, da LGPD.
 4.5. Compartilhamento: somente com quem precisa dos dados para essas finalidades, como escritório de contabilidade e folha de pagamento, operadoras de benefícios e de cartões de premiação, serviços de saúde ocupacional, órgãos públicos (como eSocial, Receita Federal e INSS) e fornecedores de tecnologia que hospedam a plataforma, todos obrigados a manter sigilo e segurança.
@@ -8792,6 +8796,8 @@ async function telaBoasVindas(){
 function bvRender(){
   const g=$(".gate");if(!g||!BV)return;g.classList.add("bv");
   const nome=String((MEU&&MEU.nome)||(PERFIL&&PERFIL.nome)||"").split(" ")[0];
+  const reaceite=!!(PERFIL&&PERFIL.termo_aceito_em&&PERFIL.termo_versao!==TERMO_VER);
+  const avisoMudou=reaceite?`<div class="note" style="border-color:var(--warn,#b86e00);background:var(--warn-soft,#fff2dc);margin:0 0 12px"><b>Os termos foram atualizados.</b> ${esc(TERMO_MUDOU)}</div>`:"";
   const pass=`<div class="bv-pass" aria-hidden="true">${[1,2,3].map(n=>`<span class="${BV.passo>=n?"on":""}"></span>`).join("")}</div>`;
   const err=`<p class="small" id="g-err" style="color:var(--bad)" hidden></p>`;
   const sair=`<button class="btn btn-ghost" data-act="sair">Sair</button>`;
@@ -10922,6 +10928,82 @@ new MutationObserver(()=>{
     const pre=DR_PREF+drUsuario()+"|";const l=drLS.chaves().filter(k=>k.startsWith(pre)).map(k=>drLS.get(k)).filter(r=>r&&r.em&&Date.now()-r.em<DR_VIDA);
     if(l.length&&typeof toast==="function"){const t=[...new Set(l.map(r=>r.titulo))].slice(0,3).join(", ");toast(`Rascunho guardado: ${t}. Abra o formulário para continuar de onde parou.`)}}
   if(n>90)clearInterval(iv)},2000)})();
+
+/* ============ Localização do acesso (transparente · LGPD) ============
+   No login, pedimos a localização pelo navegador para confirmar a autenticidade do acesso.
+   - A pessoa SEMPRE vê o pedido do navegador e decide: só é captada se ela permitir.
+   - Se negar, o acesso continua normal; registramos apenas que a localização não foi confirmada.
+   - Os registros ficam visíveis só ao administrador do sistema (gestor_rh) e são apagados após 10 dias.
+   O texto do termo (aceito no primeiro acesso / na nova versão) descreve isto de forma clara. */
+
+/* --- captura no login --- */
+let GEO_FEITO=false;
+function geoGravar(lat,lng,prec,origem){
+  try{SB.rpc("registrar_geo",{p_lat:lat,p_lng:lng,p_prec:prec==null?null:Math.round(prec),p_origem:origem})}catch(e){}
+}
+function geoCaptar(){
+  if(GEO_FEITO)return;GEO_FEITO=true;
+  if(!("geolocation" in navigator)||!navigator.geolocation){geoGravar(null,null,null,"indisponivel");return}
+  let respondeu=false;
+  const fim=o=>{if(respondeu)return;respondeu=true;
+    if(o&&o.coords)geoGravar(o.coords.latitude,o.coords.longitude,o.coords.accuracy,"gps");
+    else geoGravar(null,null,null,o==="negado"?"negado":"erro")};
+  try{
+    navigator.geolocation.getCurrentPosition(
+      pos=>fim(pos),
+      err=>fim(err&&err.code===1?"negado":"erro"),
+      {enableHighAccuracy:false,timeout:12000,maximumAge:120000});
+  }catch(e){fim("erro")}
+}
+/* dispara uma vez quando o app já está liberado (fora da tela de login / termo) e o aceite está em dia.
+   Um gesto do usuário (pointerdown) é a melhor hora para o navegador mostrar o pedido. */
+(function geoArmar(){
+  let pronto=false,n=0;
+  const okAgora=()=>{const app=document.querySelector(".app");
+    return app&&!app.classList.contains("gated")&&typeof PERFIL!=="undefined"&&PERFIL&&!bvPendente()};
+  const iv=setInterval(()=>{n++;
+    if(okAgora()){pronto=true;clearInterval(iv);
+      // tenta já; se o navegador exigir gesto, o pointerdown abaixo resolve
+      geoCaptar()}
+    if(n>120)clearInterval(iv)},1500);
+  const umGesto=()=>{if(pronto&&okAgora())geoCaptar();document.removeEventListener("pointerdown",umGesto,true)};
+  document.addEventListener("pointerdown",umGesto,true);
+})();
+
+/* --- visão do administrador do sistema (só gestor_rh) --- */
+let GEOV=null;
+const GEO_ORIG={gps:["Confirmada","c-ok"],negado:["Não permitida","c-mute"],erro:["Falhou","c-warn"],indisponivel:["Indisponível","c-mute"]};
+function geoQuando(s){const d=new Date(s);return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+async function geoCarregar(){
+  const {data,error}=await SB.from("acesso_geo").select("*").order("em",{ascending:false}).limit(500);
+  GEOV=error?[]:(data||[]);const el=$("#geo-corpo");if(el)el.innerHTML=geoLista();
+}
+function geoLista(){
+  if(GEOV===null)return `<p class="muted">Carregando…</p>`;
+  if(!GEOV.length)return `<div class="empty"><p>Nenhum acesso registrado nos últimos 10 dias.</p></div>`;
+  const linha=r=>{const o=GEO_ORIG[r.origem]||["—","c-mute"];
+    const temGps=r.origem==="gps"&&r.lat!=null&&r.lng!=null;
+    const mapa=temGps?`<a class="btn btn-sm btn-ghost" href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" rel="noopener">Ver no mapa</a>`:"";
+    const prec=temGps&&r.precisao!=null?`± ${r.precisao} m`:"";
+    return `<tr><td>${geoQuando(r.em)}</td><td><b>${esc(r.nome||"—")}</b><br><span class="small muted">${esc(PERFIS[r.perfil]||r.perfil||"")}</span></td>
+      <td><span class="chip ${o[1]}">${o[0]}</span></td><td class="small muted">${prec}</td><td style="text-align:right">${mapa}</td></tr>`};
+  return `<div class="tbl-wrap"><table class="tbl geo-tbl"><thead><tr><th>Data e hora</th><th>Pessoa</th><th>Localização</th><th>Precisão</th><th></th></tr></thead>
+    <tbody>${GEOV.map(linha).join("")}</tbody></table></div>`;
+}
+function geoAdminHTML(tabs){
+  GEOV=null;setTimeout(geoCarregar,0);
+  return `${tabs}
+  <div class="card">
+    <div class="card-h" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h3 style="margin:0">Localização de acesso</h3>
+      <p class="small muted" style="margin:2px 0 0">Registro de data, hora e localização aproximada do login, para conferência de autenticidade. Visível apenas ao administrador do sistema. Os dados são apagados automaticamente após 10 dias.</p></div>
+      <button class="btn btn-sm" data-geo="atualizar" style="margin-left:auto">Atualizar</button>
+    </div>
+    <div class="card-b" id="geo-corpo">${geoLista()}</div>
+  </div>`;
+}
+document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest("[data-geo]");if(!t)return;
+  if(t.dataset.geo==="atualizar"){GEOV=null;const el=$("#geo-corpo");if(el)el.innerHTML=geoLista();geoCarregar()}});
 
 boot();
 </script>
