@@ -9003,8 +9003,8 @@ function rsMinhasVagas(){
     <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Cadastrada em</th><th>Situação</th><th></th></tr></thead><tbody>${l.slice(0,12).map(v=>{const s=rsSituacao(v);
       return `<tr><td><b>${esc(v.cargo)}</b>${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
         <td><span class="chip ${s.c}">${esc(s.t)}</span>${rsSalAviso(v)}${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
-        <td style="white-space:nowrap"><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button>${rsPodeExcluir(v)?` <button class="btn btn-sm btn-danger" data-rs="excluirVaga" data-id="${v.id}">Excluir</button>`:""}</td></tr>`}).join("")}</tbody></table></div>
-    ${rsRH()?"":`<p class="small muted" style="margin:8px 0 0">Você pode excluir o pedido enquanto ele não for aprovado. Depois da aprovação, só o RH exclui.</p>`}</div>`}
+        <td style="white-space:nowrap"><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button>${rsPodeExcluir(v)?` <button class="btn btn-sm" data-rs="alterarVaga" data-id="${v.id}">Alterar</button>`:""}${rsPodeExcluir(v)?` <button class="btn btn-sm btn-danger" data-rs="excluirVaga" data-id="${v.id}">Excluir</button>`:""}</td></tr>`}).join("")}</tbody></table></div>
+    ${rsRH()?"":`<p class="small muted" style="margin:8px 0 0">Você pode alterar ou excluir o pedido enquanto ele não for aprovado. Depois da aprovação, só o RH altera ou exclui.</p>`}</div>`}
 // quem cadastrou exclui antes da aprovação (pedido ou devolvida); o RH exclui sempre
 const rsPodeExcluir=v=>!v.simulacao&&(rsRH()||(PERFIL&&v.criado_por===PERFIL.user_id&&["pedido","devolvida"].includes(v.status)));
 function rsTelaPainel(){
@@ -9102,7 +9102,7 @@ function rsTelaVaga(v){
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(esc(i.lbl),false)}</div>
       ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto)?`<p class="small" style="margin:8px 0 0"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}</p>`:""}
     ${["pedido","devolvida"].includes(v.status)?rsLinhaAprov(v,false):rsCadeia(v)}</div>
-    <div class="tabs-inline">${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
+    <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${rh&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
   const funil=`<div class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><b>Funil:</b> ${f[0]} entraram › ${f[1]} triados › ${f[3]} com proposta › ${f[4]} admitido${f[4]===1?"":"s"}<span class="muted" style="margin-left:auto">Cor do cartão: verde no prazo · laranja vence hoje · vermelho atrasado</span></div>`;
   const card=c=>{const s=rsSla(c),cor=RS_COR[s.st];const r7=c.registros["7"]||{};
@@ -9214,13 +9214,13 @@ function rsMotRows(n,lista){n=Math.min(Math.max(1,n||1),30);const at=[...documen
 function rsEscalaOpts(atual){const l=(RS.escalas||[]).filter(e=>e.ativo!==false);const tem=l.some(e=>e.nome===atual);
   if(!l.length&&!atual)return `<option value="">Nenhuma escala cadastrada — o RH cadastra em Escalas</option>`;
   return `<option value="">Escolha a escala…</option>`+l.map(e=>`<option value="${esc(e.nome)}" ${e.nome===atual?"selected":""}>${esc(e.nome)}${e.descricao?" · "+esc(e.descricao):""}</option>`).join("")+(atual&&!tem?`<option selected value="${esc(atual)}">${esc(atual)} (fora do cadastro)</option>`:"")}
-function rsFormVaga(v,corrigir){
+function rsFormVaga(v,corrigir){const alt=corrigir==="alterar";if(alt)corrigir=false;
   const x=v||{cargo:"Vendedor",loja_id:(ROLE==="rh"?"":((PERFIL&&PERFIL.lojas||[])[0]||"")),posicoes:1,contrato:"Efetivo",motivo:"substituicao",perfil:{tags:[]}};
   x.perfil=x.perfil||{tags:[]};
   const lojas=ST.stores.filter(s=>!/n[uú]cleo/i.test(s.nome||"")||rsRH());
   const mots=(x.motivos||[]).length?x.motivos:[{motivo:x.motivo||"substituicao",substitui:x.substitui||""}];
-  const btn=corrigir?"Reenviar pedido":rsRH()?"Salvar vaga":"Enviar pedido";
-  modal(corrigir?"Corrigir pedido de vaga":rsRH()?"Abrir vaga":"Pedir vaga",`${corrigir&&x.obs?`<div class="note" style="margin-bottom:10px"><b>Motivo da devolução:</b> ${esc(x.obs)}</div>`:""}<form class="form-grid" id="rs-fv">
+  const btn=alt?(rsRH()||v.status!=="devolvida"?"Salvar alterações":"Salvar e reenviar"):corrigir?"Reenviar pedido":rsRH()?"Salvar vaga":"Enviar pedido";
+  modal(alt?"Alterar vaga":corrigir?"Corrigir pedido de vaga":rsRH()?"Abrir vaga":"Pedir vaga",`${alt&&!rsRH()&&x.status==="pedido"?`<div class="note" style="margin-bottom:10px">Ao salvar, o pedido volta para o início da aprovação.</div>`:""}${(corrigir||alt)&&x.obs?`<div class="note" style="margin-bottom:10px"><b>Motivo da devolução:</b> ${esc(x.obs)}</div>`:""}<form class="form-grid" id="rs-fv">
     <div class="field"><label for="rv-cargo">Cargo</label><select class="input" id="rv-cargo">${cargoOpts(x.cargo)}</select></div>
     <div class="field"><label for="rv-loja">Unidade</label><select class="input" id="rv-loja" ${corrigir?"disabled":""}>${lojas.map(s=>`<option value="${s.id}" ${s.id===x.loja_id?"selected":""}>${esc(s.nome)}</option>`).join("")}</select></div>
     <div class="field"><label for="rv-pos">Posições</label><input class="input num" id="rv-pos" type="number" min="1" max="30" value="${x.posicoes}"></div>
@@ -9235,7 +9235,7 @@ function rsFormVaga(v,corrigir){
     <div class="field full"><label for="rv-ind">Indicação da equipe (opcional)</label><input class="input" id="rv-ind" value="${esc(x.perfil.indicacao||"")}" placeholder="Nome e contato de quem foi indicado"></div>
     <p class="full small" id="rv-err" style="color:var(--bad)" hidden></p></form>
     <div class="note" id="rv-nota"></div>`,
-    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-rs="${corrigir?"corrigirOk":"salvarVaga"}" data-id="${v?v.id:""}">${btn}</button>`);
+    `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-rs="${alt?"alterarOk":corrigir?"corrigirOk":"salvarVaga"}" data-id="${v?v.id:""}">${btn}</button>`);
   rsNotaVaga();rsSubsAtualizar();rsSalSugerir();
 }
 /* ---------- salário da vaga ----------
@@ -9451,6 +9451,10 @@ document.addEventListener("click",async ev=>{
   if(a==="importar"){rsFormImportar();return}
   if(a==="importarOk")return trava(async()=>{const linhas=RS_IMP.map(x=>({gupy:x.gupy,cargo:x.cargo,loja_id:x.loja_id,posicoes:x.posicoes,contrato:x.contrato,aberta_em:x.aberta_em,status:"aberta",perfil_alinhado_em:x.aberta_em,criado_nome:rsQuem(),eventos:[{em:rsHoje(),quem:rsQuem(),acao:"Vaga importada da planilha"}]}));
     const {error}=await SB.from("rs_vagas").insert(linhas);if(error){toast("Não foi possível importar: "+error.message);return}closeModal();await rsCarregar(true);toast(linhas.length+" vaga"+(linhas.length===1?"":"s")+" importada"+(linhas.length===1?"":"s"))});
+  if(a==="alterarVaga"){const v=V();if(v)rsFormVaga(v,"alterar");return}
+  if(a==="alterarOk")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;const v=V();
+    const {error}=await SB.rpc("rs_vaga_alterar",{p_vaga:id,p_campos:d});if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível salvar: "+error.message;return}
+    closeModal();await rsCarregar(true);toast(rsRH()?"Vaga alterada":v&&v.status==="devolvida"?"Pedido corrigido e reenviado":"Pedido alterado · a aprovação recomeçou")});
   if(a==="excluirVaga"){const v=RS.vagas.find(x=>x.id===id);if(!v)return;
     if(t.dataset.confirm!=="1"){const nc=RS.cands.filter(c=>c.vaga_id===v.id).length;t.dataset.confirm="1";t.textContent=nc?`Excluir? ${nc} candidato${nc===1?"":"s"} vai${nc===1?"":"ão"} para o banco`:"Toque de novo para excluir";setTimeout(()=>{if(t.isConnected){t.dataset.confirm="";t.textContent="Excluir"}},5000);return}
     return trava(async()=>{const {error}=await SB.rpc("rs_vaga_excluir",{p_vaga:v.id});if(error){toast("Não foi possível excluir: "+error.message);return}
@@ -9469,7 +9473,7 @@ document.addEventListener("click",async ev=>{
     setTimeout(()=>{const c=document.getElementById("rs-minhas");if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.style.outline="3px solid var(--accent)";setTimeout(()=>c.style.outline="",2500)}},300)});
   if(a==="corrigir"){const v=V();if(v)rsFormVaga(v,true);return}
   if(a==="corrigirOk")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;delete d.loja_id;
-    const {error}=await SB.rpc("rs_vaga_reenviar",{p_vaga:id,p_campos:d});if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível reenviar: "+error.message;return}
+    const {error}=await SB.rpc("rs_vaga_alterar",{p_vaga:id,p_campos:d});if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível reenviar: "+error.message;return}
     closeModal();await rsCarregar(true);toast("Pedido reenviado")});
   if(a==="decidir"){const v=V();if(!v)return;const ok=t.dataset.v==="1";
     modal(ok?"Aprovar aumento de quadro":"Devolver pedido",`<p><b>${esc(v.cargo)}</b> · ${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"}</p><p class="small">${esc(rsMotivosTxt(v))}${v.escala?" · Escala: "+esc(v.escala):""}</p>${rsLinhaAprov(v,false)}
