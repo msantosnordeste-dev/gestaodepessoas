@@ -8933,6 +8933,9 @@ const RS_CAMPOS={
 };
 const rsQuem=()=>(SESSION&&SESSION.nome)||(PERFIL&&PERFIL.nome)||"RH";
 const rsRH=()=>ROLE==="rh";
+// vagas confidenciais: só o gestor de RH e a Gestão comercial marcam, veem e aprovam
+const rsPodeConf=()=>!!(PERFIL&&(PERFIL.gestor_rh||PERFIL.perfil==="comercial"));
+const rsConfChip=v=>v&&v.confidencial?` <span class="chip c-bad" style="font-size:11px" title="Vaga confidencial: visível só para o gestor de RH e a Gestão comercial">🔒 Confidencial</span>`:"";
 const rsPodePedir=()=>ROLE==="rh"||(PERFIL&&["gerente","supervisor"].includes(PERFIL.perfil));
 const rsDias=iso=>iso?Math.max(0,diffDays(String(iso).slice(0,10),TODAY)):0;
 const rsHoje=()=>new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
@@ -9010,7 +9013,7 @@ function rsMinhasVagas(){
   const fil=rsLojasG();const fora=fil?l.filter(v=>!fil.has(v.loja_id)).length:0;
   return `<div class="card" id="rs-minhas" style="margin-bottom:14px"><div class="card-head"><div><h2>Vagas que você cadastrou · ${l.length}</h2><p>Situação de cada vaga e de cada aprovação${fora?` · <b>${fora} fora do filtro de loja/região acima</b>`:""}</p></div></div>
     <div class="table-wrap"><table><thead><tr><th>Cargo · unidade</th><th>Posições</th><th>Cadastrada em</th><th>Situação</th><th></th></tr></thead><tbody>${l.slice(0,12).map(v=>{const s=rsSituacao(v);
-      return `<tr><td><b>${esc(v.cargo)}</b>${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
+      return `<tr><td><b>${esc(v.cargo)}</b>${rsConfChip(v)}${v.gupy?` <span class="small muted">· Gupy ${esc(v.gupy)}</span>`:""}<br><span class="small muted">${esc(store(v.loja_id).nome)}</span></td><td class="num">${v.posicoes||1}</td><td class="small">${fdate(String(v.criado_em).slice(0,10))}</td>
         <td><span class="chip ${s.c}">${esc(s.t)}</span>${rsCondChip(v)}${rsSalAviso(v)}${v.status==="pedido"?rsCadeia(v):""}${v.status==="devolvida"&&v.obs?`<br><span class="small" style="color:#8E1F12">${esc(v.obs)}</span>`:""}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm" data-rs="${v.status==="pedido"&&rsRH()?"aprovar":"abrirVaga"}" data-id="${v.id}">Ver</button>${rsPodeExcluir(v)?` <button class="btn btn-sm" data-rs="alterarVaga" data-id="${v.id}">Alterar</button>`:""}${rsPodeExcluir(v)?` <button class="btn btn-sm btn-danger" data-rs="excluirVaga" data-id="${v.id}">Excluir</button>`:""}</td></tr>`}).join("")}</tbody></table></div>
     ${rsRH()?"":`<p class="small muted" style="margin:8px 0 0">Você pode alterar ou excluir o pedido enquanto ele não for aprovado. Depois da aprovação, só o RH altera ou exclui.</p>`}</div>`}
@@ -9106,7 +9109,7 @@ function rsTelaVaga(v){
   const chip=(t,ok)=>`<span class="chip ${ok?"c-ok":"c-mute"}">${t}</span>`;
   const topo=`<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
     <div><button class="btn btn-sm btn-ghost" data-rs="voltar">‹ Todas as vagas</button>
-      <h2 style="margin:8px 0 4px;font-size:1.6rem">${esc(v.cargo)}${rsSimChip(v)}</h2>
+      <h2 style="margin:8px 0 4px;font-size:1.6rem">${esc(v.cargo)}${rsSimChip(v)}${rsConfChip(v)}</h2>
       <div class="small">${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)} · ${v.aberta_em?"aberta em "+fdate(v.aberta_em):"pedida em "+fdate(String(v.criado_em).slice(0,10))}${v.criado_nome?" · pedido de "+esc(v.criado_nome):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(esc(i.lbl),false)}</div>
       ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto)?`<p class="small" style="margin:8px 0 0"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}</p>`:""}
@@ -9241,6 +9244,7 @@ function rsFormVaga(v,corrigir){const alt=corrigir==="alterar";if(alt)corrigir=f
     ${rsRH()?rsCondCampo(x,"rv"):""}
     ${rsRH()?`<div class="field"><label for="rv-abe">Data de abertura</label><input class="input" id="rv-abe" type="date" max="${TODAY}" value="${esc(x.aberta_em||TODAY)}"><span class="small muted">Se a vaga já estava aberta antes, informe a data real (conta no prazo da vaga).</span></div>`:""}
     ${rsRH()?`<div class="field"><label for="rv-gupy">Nº da vaga no Gupy</label><input class="input" id="rv-gupy" value="${esc(x.gupy||"")}" placeholder="Ex.: 7845123"></div>`:""}
+    ${rsPodeConf()?`<label class="check full" style="border:1px solid var(--line,#e4ebe7);border-radius:8px;padding:9px 11px;background:var(--bg,#f7faf8)"><input type="checkbox" id="rv-conf" ${x.confidencial?"checked":""}> <span><b>🔒 Vaga confidencial</b> — visível e aprovada só pelo gestor de RH e pela Gestão comercial; não aparece para as demais pessoas.</span></label>`:""}
     <fieldset class="field full"><legend>Perfil desejado</legend><div style="display:flex;flex-wrap:wrap;gap:8px">${RS_TAGS.map(t=>`<label class="check"><input type="checkbox" name="rv-tag" value="${esc(t)}" ${(x.perfil.tags||[]).includes(t)?"checked":""}> ${esc(t)}</label>`).join("")}</div></fieldset>
     <div class="field full"><label for="rv-txt">O que é importante nesse perfil</label><textarea class="input" id="rv-txt" rows="2">${esc(x.perfil.texto||"")}</textarea></div>
     <div class="field full"><label for="rv-ind">Indicação da equipe (opcional)</label><input class="input" id="rv-ind" value="${esc(x.perfil.indicacao||"")}" placeholder="Nome e contato de quem foi indicado"></div>
@@ -9297,6 +9301,8 @@ function rsLerFormVaga(){const err=m=>{const e=$("#rv-err");e.hidden=false;e.tex
   if(document.querySelector('input[name="rv-cond"]')){const cd=rsCondLer("rv");if(cd.conducao==="agencia"&&!cd.agencia)return err("Informe o nome da agência.");Object.assign(d,cd)}
   if($("#rv-abe")){const ab=$("#rv-abe").value;if(ab&&ab>TODAY)return err("A data de abertura não pode ser no futuro.");if(ab)d.aberta_em=ab}
   {const vs=[...new Set(motivos.map(m=>m.salario).filter(Boolean))];if(vs.length)d.salario=vs.map(rsMoeda).join(" / ")}
+  if($("#rv-conf")&&rsPodeConf())d.confidencial=$("#rv-conf").checked;
+  if(d.confidencial)d.fluxo="rh"; // confidencial vai direto ao gestor de RH / Gestão comercial, sem a cadeia regional
   if(!d.loja_id)return err("Escolha a unidade.");
   const semSub=motivos.findIndex(m=>m.motivo==="substituicao"&&!m.substitui);if(semSub>=0)return err(motivos.length>1?`Posição ${semSub+1}: informe quem está sendo substituído.`:"Informe quem está sendo substituído.");
   if((RS.escalas||[]).length&&!d.escala)return err("Escolha a escala de trabalho.");
@@ -9518,8 +9524,11 @@ document.addEventListener("click",async ev=>{
     if(v.status==="pedido"&&rsEtapaAprov(v)!=="rh"){toast("Aguardando "+RS_APROV[rsEtapaAprov(v)]);return}
     const cd=rsCondLer("ra");if(!cd.conducao){toast("Responda: a vaga está sendo tratada pelo recrutamento interno ou por agência?");const f=document.querySelector('input[name="ra-cond"]');if(f)f.focus();return}
     if(cd.conducao==="agencia"&&!cd.agencia){toast("Informe o nome da agência");$("#ra-agencia").focus();return}
-    const aprov={...(v.aprov||{})};if(v.status==="pedido")aprov.rh={ok:true,em:rsHoje(),quem:rsQuem()};
-    if(await rsSalvarVaga(v.id,{...cd,status:"aberta",aberta_em:v.aberta_em||TODAY,perfil_alinhado_em:dt,gupy:$("#ra-gupy").value.trim()||null,aprov,salario:$("#ra-sal").value.trim()||null,eventos:rsEvt(v,(v.fluxo==="aumento"?"Aumento de quadro validado pelo Gerente de RH":"Pedido aprovado pelo RH")+(dt?" · perfil alinhado em "+fdate(dt):"")+" · condução: "+(cd.conducao==="agencia"?"agência "+cd.agencia:"interna"))},"Vaga aprovada e aberta")){closeModal();rsAviso(v.loja_id,"Vaga aprovada · "+v.cargo,"O RH aprovou o pedido de "+v.posicoes+" posição(ões) de "+v.cargo+". A divulgação é feita no Gupy; acompanhe os candidatos em Vagas.")}});
+    // confidencial aprovada pelo gestor de RH: registra que foi aprovada pelo RH em nome da Gestão comercial
+    const emNome=!!(v.confidencial&&PERFIL&&PERFIL.gestor_rh);
+    const aprov={...(v.aprov||{})};if(v.status==="pedido")aprov.rh={ok:true,em:rsHoje(),quem:rsQuem(),...(emNome?{em_nome:"Gestão comercial"}:{})};
+    const txtAprov=(v.confidencial?"Vaga confidencial aprovada pelo "+(PERFIL&&PERFIL.gestor_rh?"Gerente de RH":"Gestão comercial"):v.fluxo==="aumento"?"Aumento de quadro validado pelo Gerente de RH":"Pedido aprovado pelo RH")+(emNome?" em nome da Gestão comercial":"")+(dt?" · perfil alinhado em "+fdate(dt):"")+" · condução: "+(cd.conducao==="agencia"?"agência "+cd.agencia:"interna");
+    if(await rsSalvarVaga(v.id,{...cd,status:"aberta",aberta_em:v.aberta_em||TODAY,perfil_alinhado_em:dt,gupy:$("#ra-gupy").value.trim()||null,aprov,salario:$("#ra-sal").value.trim()||null,eventos:rsEvt(v,txtAprov)},"Vaga aprovada e aberta")){closeModal();rsAviso(v.loja_id,"Vaga aprovada · "+v.cargo,"O RH aprovou o pedido de "+v.posicoes+" posição(ões) de "+v.cargo+". A divulgação é feita no Gupy; acompanhe os candidatos em Vagas.")}});
   if(a==="devolver")return trava(async()=>{const v=V();const obs=$("#ra-obs").value.trim();if(!obs){toast("Escreva a observação para o gerente");return}
     if(await rsSalvarVaga(v.id,{status:"devolvida",obs,aprov:{...(v.aprov||{}),rh:{ok:false,em:rsHoje(),quem:rsQuem(),obs}},eventos:rsEvt(v,"Pedido devolvido ao gerente · "+obs)},"Pedido devolvido")){closeModal();rsAviso(v.loja_id,"Pedido de vaga devolvido · "+v.cargo,obs)}});
   if(a==="cancelarVaga")return trava(async()=>{const v=V();if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent="Toque de novo para cancelar";return}
