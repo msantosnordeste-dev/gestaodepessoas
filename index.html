@@ -8980,7 +8980,7 @@ function rsVagaInfo(v){
   return {cs,at,adm,et,lbl,dias,fase,atras,prazo:dias>RS_SLA_VAGA?"atrasado":dias>=RS_SLA_VAGA-3?"hoje":"ok"};
 }
 // compatibilidade com painéis antigos (Painel, Lojas, organograma)
-function rsCompat(){return RS.vagas.filter(v=>v.status==="aberta"&&!v.simulacao).map(v=>({id:v.id,cargo:v.cargo,lojaId:v.loja_id,qtd:Number(v.posicoes)||1,tipo:v.contrato,status:rsVagaInfo(v).lbl,candidatos:rsCandsDe(v.id).filter(c=>c.status==="ativo").length,abertura:v.aberta_em||String(v.criado_em).slice(0,10)}))}
+function rsCompat(){const E=rsEscopoLojas();return RS.vagas.filter(v=>v.status==="aberta"&&!v.simulacao&&(!E||E.has(v.loja_id))).map(v=>({id:v.id,cargo:v.cargo,lojaId:v.loja_id,qtd:Number(v.posicoes)||1,tipo:v.contrato,status:rsVagaInfo(v).lbl,candidatos:rsCandsDe(v.id).filter(c=>c.status==="ativo").length,abertura:v.aberta_em||String(v.criado_em).slice(0,10)}))}
 async function rsCarregar(forcar){
   if(typeof SB==="undefined"||!SB)return;
   if(RS.carregando&&!forcar)return RS.carregando;
@@ -9023,8 +9023,10 @@ function rsPagina(){
 function rsRegioes(){const m={};(((typeof ST!=="undefined"&&ST&&ST.supervisores)||[])).forEach(sv=>{const nome=((typeof refPessoa==="function"&&refPessoa(sv.ref))||{}).nome||sv.nome||"";const k=String(sv.regiao||"").trim()||("Supervisão "+(nome||sv.id));
   (m[k]=m[k]||{k,nomes:[],lojas:new Set()});if(nome&&!m[k].nomes.includes(nome))m[k].nomes.push(nome);(sv.lojas||[]).forEach(l=>m[k].lojas.add(l))});return Object.values(m).sort((a,b)=>a.k.localeCompare(b.k))}
 function rsLojasG(){const g=RS.g;if(g.loja)return new Set([g.loja]);if(g.reg){const r=rsRegioes().find(x=>x.k===g.reg);return r?r.lojas:new Set()}return null}
-const rsVagasF=()=>{const L=rsLojasG();return L?RS.vagas.filter(v=>L.has(v.loja_id)):RS.vagas};
-const rsCandsF=()=>{const L=rsLojasG();if(!L)return RS.cands;const ids=new Set(rsVagasF().map(v=>v.id));return RS.cands.filter(c=>ids.has(c.vaga_id))};
+// Escopo de unidades do usuário efetivo. Vale também no "Ver como" (onde os dados vêm carregados como RH, sem o RLS do usuário visto): RH e Gestão comercial veem tudo; gerente/supervisor só as lojas da própria carteira.
+function rsEscopoLojas(){try{if(typeof rsRH==="function"&&rsRH())return null;if(PERFIL&&PERFIL.perfil==="comercial")return null;if(typeof ST!=="undefined"&&ST&&Array.isArray(ST.stores))return new Set(ST.stores.map(s=>s.id));if(PERFIL&&Array.isArray(PERFIL.lojas))return new Set(PERFIL.lojas);}catch(e){}return null}
+const rsVagasF=()=>{const L=rsLojasG(),E=rsEscopoLojas();let b=E?RS.vagas.filter(v=>E.has(v.loja_id)):RS.vagas;return L?b.filter(v=>L.has(v.loja_id)):b};
+const rsCandsF=()=>{const L=rsLojasG(),E=rsEscopoLojas();if(!L&&!E)return RS.cands;const ids=new Set(rsVagasF().map(v=>v.id));return RS.cands.filter(c=>ids.has(c.vaga_id))};
 function rsFiltroG(){const regs=rsRegioes(),L=RS.g.reg?(regs.find(x=>x.k===RS.g.reg)||{lojas:new Set()}).lojas:null;
   const lojasV=[...new Set(RS.vagas.map(v=>v.loja_id))];const lojas=ST.stores.filter(st=>L?L.has(st.id):(lojasV.includes(st.id)||!/n[uú]cleo|diretoria/i.test(st.nome||""))).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
   const ativo=RS.g.reg||RS.g.loja;
