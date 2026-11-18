@@ -1769,9 +1769,11 @@ async function iniciarSessao(novoLogin){
   await carregarPlanos().catch(()=>{});await carregarChamados().catch(()=>{});
   if(bvPendente()){await telaBoasVindas();return}
   mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();if(ROLE!=="colaborador")rsCarregar();if(ROLE==="rh")setTimeout(()=>{try{waTempoReal();dmTempoReal();dmCarregar(true);enTempoReal();enCarregar()}catch(e){}try{acCarregarMeu()}catch(e){}try{if(!WA.ok&&!WA.carregando)Promise.all([waCarregar(true),waStatus()]).then(()=>renderNav())}catch(e){}},1500);
+  try{if(typeof geoCaptar==="function"&&!bvPendente())geoCaptar()}catch(e){}
 }
 async function sair(){
   if(SESSION)logEvento("Logout","Saiu do portal");
+  try{if(typeof geoReset==="function")geoReset()}catch(e){}
   await sleep(300);if(RT){SB.removeChannel(RT);RT=null}await SB.auth.signOut();
   SESSION=null;PERFIL=null;ROLE=null;ST=null;MEU=null;MEU_ORG=null;ORG_SNAP=null;EQUIPE=[];$(".app").classList.remove("colab","ib-tela");SOLIC=[];MOVS=[];LOGV=null;ORDEM.forEach(t=>delete LAST[t]);
   if(typeof PREM!=="undefined"){PREM=null;PREM_ERRO="";["__PREM_COMP","__PREM_COMPS","__PREM_MEUSUP","__PREM_RANK","__PREM_MEULANC","__PREM_RANKLOJAS","__PREM_RANKVEND","__PREM_RANKFAT","__PREM_CONQ","__PREM_EVOL","__PREM_PESSOAS","__PREM_PER","__PREM_DATA","__PREM_CFG","__PREM_LOTES"].forEach(k=>{try{delete window[k]}catch(e){window[k]=undefined}})}
@@ -8842,7 +8844,7 @@ async function bvAceitar(){
   BV.rec=data;PERFIL.atualizacao_pendente=false;PERFIL.termo_versao=TERMO_VER;PERFIL.termo_aceito_em=data.aceito_em;
   BV.passo=4;bvRender();
 }
-function bvEntrar(){BV=null;const g=$(".gate");if(g)g.classList.remove("bv");mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal()}
+function bvEntrar(){BV=null;const g=$(".gate");if(g)g.classList.remove("bv");mostrarApp();go();if(ROLE!=="colaborador")ligarTempoReal();try{if(typeof geoCaptar==="function")geoCaptar()}catch(e){}}
 async function termoPDF(userId){
   if(!window.jspdf){toast("O gerador de PDF não carregou. Recarregue a página e tente de novo.");return}
   let q=SB.from("termos_aceite").select("*").order("aceito_em",{ascending:false}).limit(1);
@@ -10943,34 +10945,42 @@ let GEO_FEITO=false;
 function geoGravar(lat,lng,prec,origem){
   try{SB.rpc("registrar_geo",{p_lat:lat,p_lng:lng,p_prec:prec==null?null:Math.round(prec),p_origem:origem})}catch(e){}
 }
-function geoCaptar(){
-  if(GEO_FEITO)return;GEO_FEITO=true;
+const GEO_DEV="cgp-geo-dev"; // marca, neste aparelho, que já pedimos a localização uma vez
+function geoJaPerguntou(){try{return localStorage.getItem(GEO_DEV)==="1"}catch(e){return false}}
+function geoMarcarDev(){try{localStorage.setItem(GEO_DEV,"1")}catch(e){}}
+// faz a leitura. perguntar=true mostra o aviso do navegador (só na 1ª vez do aparelho); false = só capta se já autorizado, sem aviso.
+function geoFazer(perguntar){
   if(!("geolocation" in navigator)||!navigator.geolocation){geoGravar(null,null,null,"indisponivel");return}
   let respondeu=false;
-  const fim=o=>{if(respondeu)return;respondeu=true;
+  const fim=o=>{if(respondeu)return;respondeu=true;clearTimeout(wd);geoMarcarDev();
     if(o&&o.coords)geoGravar(o.coords.latitude,o.coords.longitude,o.coords.accuracy,"gps");
     else geoGravar(null,null,null,o==="negado"?"negado":"erro")};
-  try{
-    navigator.geolocation.getCurrentPosition(
-      pos=>fim(pos),
-      err=>fim(err&&err.code===1?"negado":"erro"),
-      {enableHighAccuracy:false,timeout:12000,maximumAge:120000});
-  }catch(e){fim("erro")}
+  const wd=setTimeout(()=>fim("erro"),perguntar?16000:8000); // garante registro mesmo sem resposta
+  try{navigator.geolocation.getCurrentPosition(p=>fim(p),e=>fim(e&&e.code===1?"negado":"erro"),
+      {enableHighAccuracy:false,timeout:perguntar?12000:7000,maximumAge:300000})}catch(e){fim("erro")}
 }
-/* dispara uma vez quando o app já está liberado (fora da tela de login / termo) e o aceite está em dia.
-   Um gesto do usuário (pointerdown) é a melhor hora para o navegador mostrar o pedido. */
-(function geoArmar(){
-  let pronto=false,n=0;
-  const okAgora=()=>{const app=document.querySelector(".app");
-    return app&&!app.classList.contains("gated")&&typeof PERFIL!=="undefined"&&PERFIL&&!bvPendente()};
-  const iv=setInterval(()=>{n++;
-    if(okAgora()){pronto=true;clearInterval(iv);
-      // tenta já; se o navegador exigir gesto, o pointerdown abaixo resolve
-      geoCaptar()}
-    if(n>120)clearInterval(iv)},1500);
-  const umGesto=()=>{if(pronto&&okAgora())geoCaptar();document.removeEventListener("pointerdown",umGesto,true)};
-  document.addEventListener("pointerdown",umGesto,true);
-})();
+function geoCaptar(){
+  if(GEO_FEITO)return;GEO_FEITO=true;
+  // Pergunta no máximo UMA vez por aparelho (no acesso). Depois: se já autorizou, capta em silêncio;
+  // se não, registra "não confirmada" sem reabrir o aviso. Só um aparelho novo volta a perguntar.
+  const decidir=st=>{
+    if(st==="granted"){geoFazer(false);return}          // já autorizado -> sem aviso
+    if(st==="denied"){geoMarcarDev();geoGravar(null,null,null,"negado");return} // já negado -> sem aviso
+    if(geoJaPerguntou())geoGravar(null,null,null,"negado"); // "perguntar", mas já pedimos neste aparelho -> não insistir
+    else geoFazer(true);                                 // aparelho novo -> pergunta uma vez
+  };
+  if(navigator.permissions&&navigator.permissions.query){
+    navigator.permissions.query({name:"geolocation"}).then(r=>decidir(r.state)).catch(()=>decidir(geoJaPerguntou()?"prompt":"novo"));
+  }else{geoJaPerguntou()?geoGravar(null,null,null,"negado"):geoFazer(true)}
+}
+function geoReset(){GEO_FEITO=false}
+// o disparo principal vem do próprio login (iniciarSessao / bvEntrar), que chama geoCaptar quando o portal abre.
+// aqui fica só uma rede de segurança: se o portal já estiver aberto e ainda não captamos, um gesto dispara.
+window.geoCaptar=geoCaptar;window.geoReset=geoReset;
+document.addEventListener("pointerdown",function(){try{
+  const app=document.querySelector(".app");
+  if(app&&!app.classList.contains("gated")&&typeof PERFIL!=="undefined"&&PERFIL&&!bvPendente())geoCaptar();
+}catch(e){}},true);
 
 /* --- visão do administrador do sistema (só gestor_rh) --- */
 let GEOV=null;
