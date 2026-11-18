@@ -8938,6 +8938,15 @@ const rsPodeConf=()=>!!(PERFIL&&(PERFIL.gestor_rh||PERFIL.perfil==="comercial"))
 const rsConfChip=v=>v&&v.confidencial?` <span class="chip c-bad" style="font-size:11px" title="Vaga confidencial: visível só para o gestor de RH e a Gestão comercial">🔒 Confidencial</span>`:"";
 // quem aprova uma vaga confidencial: gestor de RH ou Gestão comercial
 const rsPodeAprovarConf=v=>!!(v&&v.confidencial&&rsPodeConf());
+// quem pode acrescentar interações no histórico: RH e gerente da unidade (confidencial: só gestor de RH e Gestão comercial)
+const rsPodeInteragir=v=>{if(!v||!PERFIL)return false;return v.confidencial?rsPodeConf():(rsRH()||(PERFIL.perfil==="gerente"&&(PERFIL.lojas||[]).includes(v.loja_id)));};
+function rsHistBox(v){
+  const ev=(v.eventos||[]).slice().reverse();const pode=rsPodeInteragir(v);
+  const li=e=>`<li style="margin-bottom:4px">${e.tipo==="interacao"?"💬 ":""}<span class="muted">${esc(e.em)} · ${esc(e.quem)}</span> · ${esc(e.acao)}</li>`;
+  return `<div class="card" style="margin-top:14px"><div class="card-head"><div><h2 style="font-size:1.05rem">Histórico e interações${ev.length?" · "+ev.length:""}</h2><p>Etapas do processo e anotações do RH e do gerente da unidade</p></div></div>
+    ${pode?`<form class="form-grid" onsubmit="return false" style="margin:0 0 10px"><div class="field full"><textarea class="input" id="rs-int" rows="2" maxlength="1000" placeholder="Acrescente uma interação (ex.: contato com candidato, alinhamento com a loja, decisão)…"></textarea></div><div class="full" style="text-align:right"><button class="btn btn-primary btn-sm" data-rs="interagir" data-id="${v.id}">Registrar interação</button></div></form>`:""}
+    <ul class="small" style="margin:0;padding-left:18px">${ev.length?ev.map(li).join(""):`<li class="muted">Nenhum registro ainda.</li>`}</ul></div>`;
+}
 const rsPodePedir=()=>ROLE==="rh"||(PERFIL&&["gerente","supervisor"].includes(PERFIL.perfil));
 const rsDias=iso=>iso?Math.max(0,diffDays(String(iso).slice(0,10),TODAY)):0;
 const rsHoje=()=>new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
@@ -9139,7 +9148,7 @@ function rsTelaVaga(v){
       ${fz===4&&i.adm.length?`<div style="font-size:12px;border-top:1px solid rgba(255,255,255,.35);padding-top:8px"><b>Admitidos:</b> ${i.adm.map(c=>esc(c.nome)).join(", ")}</div>`:""}</section>`}).join("");
   const ns=cs.filter(c=>c.status==="nao_seguiu"),semFb=ns.filter(c=>!(c.nao_seguiu&&c.nao_seguiu.feedback_em)).length;
   const faixa=ns.length?`<div style="background:#0F4A33;color:#fff;border-radius:12px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px"><div style="flex:1 1 380px"><b>Não seguiram no processo · ${ns.length}</b> · ${ns.length-semFb} com feedback${semFb?` · <span style="color:#F7A06A;font-weight:600">${semFb} sem retorno</span>`:""}<div class="small" style="opacity:.85;margin-top:4px">${ns.map(c=>`<button data-rs="cand" data-id="${c.id}" style="background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit;padding:0 6px 0 0">${esc(c.nome)}</button>`).join("")}</div></div></div>`:"";
-  const hist=(v.eventos||[]).length?`<details class="card" style="margin-top:14px"><summary style="cursor:pointer;font-weight:600">Histórico da vaga · ${(v.eventos||[]).length}</summary><ul class="small" style="margin:10px 0 0;padding-left:18px">${[...v.eventos].reverse().map(e=>`<li>${esc(e.em)} · ${esc(e.quem)} · ${esc(e.acao)}</li>`).join("")}</ul></details>`:"";
+  const hist=rsHistBox(v);
   const quadroC=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start">${colunas}</div>${faixa}`;
   const emAprov=["pedido","devolvida"].includes(v.status);
   return header("Recrutamento & Seleção","Vaga")+`<div class="card">${topo}${emAprov?"":funil}</div>${emAprov?"":rsCandsGupy(v,i,quadroC)}${rh?rsPreLista(v):""}${hist}`;
@@ -9507,6 +9516,9 @@ document.addEventListener("click",async ev=>{
     const L=rsLojasG();if(L&&!L.has(d.loja_id)){RS.g={reg:"",loja:""};try{localStorage.setItem("rs_g",JSON.stringify(RS.g))}catch(e){}}
     RS.tab="painel";RS.vaga=null;closeModal();await rsCarregar(true);toast(aum?"Pedido enviado para a Supervisão · veja a situação em Vagas que você cadastrou":rsRH()?"Vaga aberta · veja em Vagas que você cadastrou":"Pedido enviado ao RH · veja a situação em Vagas que você cadastrou");
     setTimeout(()=>{const c=document.getElementById("rs-minhas");if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.style.outline="3px solid var(--accent)";setTimeout(()=>c.style.outline="",2500)}},300)});
+  if(a==="interagir")return trava(async()=>{const el=$("#rs-int");const tx=((el&&el.value)||"").trim();if(!tx){toast("Escreva a interação");if(el)el.focus();return}
+    const {error}=await SB.rpc("rs_vaga_interagir",{p_vaga:id,p_texto:tx});if(error){toast("Não foi possível registrar: "+error.message);return}
+    if(el)el.value="";await rsCarregar(true);toast("Interação registrada")});
   if(a==="corrigir"){const v=V();if(v)rsFormVaga(v,true);return}
   if(a==="corrigirOk")return trava(async()=>{const d=rsLerFormVaga();if(!d)return;delete d.loja_id;
     const {error}=await SB.rpc("rs_vaga_alterar",{p_vaga:id,p_campos:d});if(error){const e=$("#rv-err");e.hidden=false;e.textContent="Não foi possível reenviar: "+error.message;return}
