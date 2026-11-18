@@ -10679,7 +10679,7 @@ async function anModal(){if(!AN.lista){modal("Aniversariantes",`<p class="empty"
       <div style="text-align:center;background:#F0FAF4;border-radius:10px;padding:6px 0"><div style="font:700 18px Sora,sans-serif;color:#075E36">${x.dia.slice(8,10)}</div><div class="small muted">${["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][+x.dia.slice(5,7)-1]}</div></div>
       <div style="min-width:0"><b>${esc(x.nome||"")}</b><div class="small muted">${esc([x.loja_id?store(x.loja_id).nome:"",x.numero?waFmtNum(x.numero):""].filter(Boolean).join(" · "))}</div>${e&&e.erro?`<div class="small" style="color:#C0392B">${esc(e.erro)}</div>`:""}</div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;color:${s[1]};background:${s[2]}">${s[0]}</span>
-        <button class="btn btn-sm" data-en="anVer" data-v="${esc(x.primeiro||"")}" data-id="${esc(x.colaborador_id)}" data-env="${x.dia===h&&x.numero&&!(e&&e.status==="enviado")?"1":""}">Ver cartão</button>${x.dia===h&&x.numero&&!(e&&e.status==="enviado")?`<button class="btn btn-sm btn-primary" data-en="anEnviar" data-id="${x.colaborador_id}">Enviar agora</button>`:""}</div></div>`};
+        <button class="btn btn-sm" data-en="anVer" data-v="${esc(x.primeiro||"")}" data-id="${esc(x.colaborador_id)}" data-env="${x.dia===h&&x.numero&&!(e&&e.status==="enviado")?"1":""}">Ver cartão</button>${x.dia===h&&x.numero&&!(e&&e.status==="enviado")?`<button class="btn btn-sm btn-primary" data-en="anEnviar" data-id="${x.colaborador_id}">Enviar agora</button>`:""}${x.dia===h&&!x.numero&&!(e&&e.status==="enviado")?`<button class="btn btn-sm" data-en="anManual" data-id="${esc(x.colaborador_id)}" data-nome="${esc(x.primeiro||"")}">Enviar manual</button>`:""}</div></div>`};
   modal("Aniversariantes",`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><div class="en-seg">${[["hoje","Hoje"],["prox","Próximos 30 dias"],["pass","Últimos 30 dias"]].map(([k,t])=>`<button class="${AN.tab===k?"on":""}" data-en="anTab" data-v="${k}">${t} (${grupos[k].length})</button>`).join("")}</div>
       <span class="small" style="margin-left:auto;display:flex;gap:8px;align-items:center">Envio automático às 8h: <b style="color:${AN.auto?"#0F6B4B":"#C0392B"}">${AN.auto?"ligado":"desligado"}</b>${gestor?`<button class="btn btn-sm" data-en="anAuto" data-v="${AN.auto?0:1}">${AN.auto?"Desligar":"Ligar"}</button>`:""}</span></div>
     ${AN.err?`<div class="note">${esc(AN.err)}</div>`:""}
@@ -10695,6 +10695,16 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en
   if(a==="anVoltar"){anModal();return}
   if(a==="anEnviar"){if(!confirmaDupla(t,"Toque de novo para enviar"))return;t.disabled=true;t.textContent="Enviando…";const r=await SB.functions.invoke("aniversario",{body:{acao:"enviar_um",colaborador_id:t.dataset.id}});const d=r.data||{};const st=(d.resultado||[])[0];
     toast(st&&st.status==="enviado"?"Cartão enviado pelo WhatsApp":"Não enviado: "+((st&&(st.erro||st.status))||d.erro||"erro"));await anCarregar();anModal();return}
+  if(a==="anManual"){const id=t.dataset.id,nome=t.dataset.nome||"";
+    modal("Enviar cartão manualmente",`<p class="small" style="margin:0 0 10px">${esc(nome)} está <b>sem WhatsApp no cadastro</b>. Informe um número para enviar o cartão agora (não altera o cadastro).</p>
+      <div class="field"><label for="an-man-num">WhatsApp com DDD</label><input class="input" id="an-man-num" inputmode="numeric" placeholder="Ex.: (71) 99999-9999"></div>`,
+      `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-en="anManualOk" data-id="${esc(id)}">Enviar pelo WhatsApp</button>`);
+    setTimeout(()=>{const el=$("#an-man-num");if(el)el.focus()},60);return}
+  if(a==="anManualOk"){const num=($("#an-man-num")||{}).value||"";const d6=num.replace(/\D/g,"");
+    if(!/^\d{10,13}$/.test(d6)){toast("Informe um WhatsApp válido com DDD");return}
+    t.disabled=true;t.textContent="Enviando…";const r=await SB.functions.invoke("aniversario",{body:{acao:"enviar_um",colaborador_id:t.dataset.id,numero:num}});const dd=r.data||{};const st=(dd.resultado||[])[0];
+    if(st&&st.status==="enviado"){toast("Cartão enviado pelo WhatsApp");closeModal();await anCarregar();anModal()}
+    else{t.disabled=false;t.textContent="Enviar pelo WhatsApp";toast("Não enviado: "+((st&&(st.erro||st.status))||dd.erro||"erro"))}return}
 });
 
 const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
