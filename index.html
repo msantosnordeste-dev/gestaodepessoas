@@ -805,7 +805,7 @@ async function atualizarPeriodico(){
   if(!SB||!SESSION||document.hidden)return;
   try{
     if(ROLE!=="colaborador"&&(typeof VC==="undefined"||!VC)){try{await SB.rpc("premiacoes_swile_tick")}catch(e){}}
-    if(PERFIL&&PERFIL.user_id&&(typeof VC==="undefined"||!VC)){try{const {data:pf}=await SB.from("perfis").select("perfil,lojas,supervisor_id,ativo,menus,gestor_rh").eq("user_id",PERFIL.user_id).maybeSingle();
+    if(PERFIL&&PERFIL.user_id&&(typeof VC==="undefined"||!VC)){try{const {data:pf}=await SB.from("perfis").select("perfil,lojas,supervisor_id,ativo,menus,gestor_rh,permissoes").eq("user_id",PERFIL.user_id).maybeSingle();
       if(pf&&(!pf.ativo||pf.perfil!==PERFIL.perfil||[...(pf.lojas||[])].sort().join()!==[...(PERFIL.lojas||[])].sort().join()||(pf.supervisor_id||"")!==(PERFIL.supervisor_id||"")||acMudou(pf))){if(!pf.ativo){await SB.auth.signOut();location.reload();return}toast("Seus acessos foram atualizados pelo RH. Recarregando…");setTimeout(()=>location.reload(),1500);return}}catch(e){}}
     if(typeof VC==="undefined"||!VC){const ag=Date.now();if(!window.__ACR||ag-window.__ACR>600000){window.__ACR=ag;try{const {data:n}=await SB.rpc("acesso_rotina_desligados");if(n&&ROLE==="rh"){await carregarUsuarios();renderSafe()}}catch(e){}}}
     if(ROLE==="rh"){await Promise.all([carregarSolicitacoes(),carregarMensagens(),carregarAnexosRH(),carregarCandidatos()])}
@@ -10672,7 +10672,26 @@ function acFiltrar(lista){
 function acInicio(){const l=pages().filter(p=>!p.g);return l.some(p=>p.id==="painel")?"painel":(l[0]?l[0].id:"painel")}
 const acMenusTxt=u=>{const m=Array.isArray(u.menus)?u.menus:[];if(!m.length||u.gestor_rh)return "";const tot=PAGES.filter(p=>!p.g).length;return `<br><span class="small muted">${m.length} de ${tot} menus</span>`};
 const acPerfilTxt=u=>u.perfil==="rh"?(u.gestor_rh?"RH · gestor (acesso total)":Array.isArray(u.menus)&&u.menus.length?"RH · acesso por menus"+acMenusTxt(u):"RH · acesso total"):(PERFIS[u.perfil]||u.perfil);
-const acMudou=pf=>[...((pf&&pf.menus)||[])].sort().join()!==[...((PERFIL&&PERFIL.menus)||[])].sort().join()||!!(pf&&pf.gestor_rh)!==!!(PERFIL&&PERFIL.gestor_rh);
+const acMudou=pf=>[...((pf&&pf.menus)||[])].sort().join()!==[...((PERFIL&&PERFIL.menus)||[])].sort().join()||!!(pf&&pf.gestor_rh)!==!!(PERFIL&&PERFIL.gestor_rh)||JSON.stringify((pf&&pf.permissoes)||{})!==JSON.stringify((PERFIL&&PERFIL.permissoes)||{});
+// Permissão do usuário logado para um módulo: {v:ver, e:editar, a:aprovar}. Gestor/total = tudo liberado.
+function acCap(id){
+  const p=PERFIL;if(!p||ROLE!=="rh"||p.gestor_rh)return {v:true,e:true,a:true};
+  const vis=acLista();const v=!vis||vis.includes(id);
+  const q=(p.permissoes&&p.permissoes[id])||null;
+  return {v,e:v&&(!q||q.e!==false),a:v&&(!q||q.a!==false)};
+}
+// Bloqueio na interface: esconde (CSS) e barra o clique de editar/aprovar nos módulos sem permissão.
+const AC_APROVA_SEL='[data-aprovar],[data-aprovarger],[data-recusar],[data-act="aprovarTodas"]';
+const AC_EDITA_SEL='[data-act^="nov"],[data-editusr]';
+document.addEventListener("click",ev=>{
+  const p=PERFIL;if(!p||ROLE!=="rh"||p.gestor_rh)return;
+  const c=acCap(page);
+  if(!c.a&&ev.target.closest&&ev.target.closest(AC_APROVA_SEL)){ev.preventDefault();ev.stopPropagation();if(typeof toast==="function")toast("Seu acesso a este módulo não permite aprovar.");return}
+  if(!c.e&&ev.target.closest&&ev.target.closest(AC_EDITA_SEL)){ev.preventDefault();ev.stopPropagation();if(typeof toast==="function")toast("Seu acesso a este módulo é somente leitura.")}
+},true);
+// marca no body as permissões do módulo atual, para o CSS esconder os botões
+const acGoBase=typeof go==="function"?go:null;
+if(acGoBase)go=function(){acGoBase.apply(this,arguments);try{const c=acCap(page);document.body.dataset.acE=c.e?"1":"0";document.body.dataset.acA=c.a?"1":"0"}catch(e){}};
 
 function acFieldset(u){
   const gestor=!!(PERFIL&&PERFIL.gestor_rh);
@@ -10680,27 +10699,57 @@ function acFieldset(u){
   const sel=u&&Array.isArray(u.menus)&&u.menus.length?u.menus:null;
   const total=!sel;
   const dis=!gestor||alvoGestor?"disabled":"";
+  const perms=(u&&u.permissoes&&typeof u.permissoes==="object")?u.permissoes:{};
+  const podeEd=id=>{const q=perms[id];return !q||q.e!==false};
+  const podeAp=id=>{const q=perms[id];return !q||q.a!==false};
   const grupos=[];PAGES.forEach(p=>{if(p.g)grupos.push({g:p.g,itens:[]});else if(grupos.length)grupos[grupos.length-1].itens.push(p)});
   const hidden=(u?u.perfil:"gerente")==="rh"?"":"hidden";
-  return `<fieldset class="field full fx-sec" id="u-menus-f" ${hidden}><legend>Menus que acessa</legend>
-    ${alvoGestor?`<p class="small muted">Gestor do RH: acesso total a todos os menus, sempre.</p>`:`
+  const ver=id=>!sel||sel.includes(id);
+  const linha=p=>`<div class="ac-mod">
+      <label class="check ac-ver"><input type="checkbox" name="u-menus" value="${esc(p.id)}" ${ver(p.id)?"checked":""} ${dis}> ${esc(p.t)}</label>
+      <span class="ac-caps">
+        <label class="mini"><input type="checkbox" name="u-edit" value="${esc(p.id)}" ${podeEd(p.id)?"checked":""} ${dis}> Editar dados</label>
+        <label class="mini"><input type="checkbox" name="u-aprov" value="${esc(p.id)}" ${podeAp(p.id)?"checked":""} ${dis}> Aprovar</label>
+      </span>
+    </div>`;
+  return `<fieldset class="field full fx-sec" id="u-menus-f" ${hidden}><legend>Acesso aos módulos</legend>
+    ${alvoGestor?`<p class="small muted">Gestor do RH: acesso total a todos os módulos, sempre.</p>`:`
     <div class="ac-modo">
       <label class="check"><input type="radio" name="u-ac-modo" value="total" ${total?"checked":""} ${dis}> Acesso total</label>
-      <label class="check"><input type="radio" name="u-ac-modo" value="menus" ${total?"":"checked"} ${dis}> Escolher os menus</label>
+      <label class="check"><input type="radio" name="u-ac-modo" value="menus" ${total?"":"checked"} ${dis}> Escolher por módulo</label>
     </div>
     <div id="u-ac-lista" ${total?"hidden":""}>
+      <p class="small muted" style="margin:0 0 8px">Marque <b>Ver</b> para o módulo aparecer no menu da pessoa. Dentro de cada módulo, escolha se ela pode <b>Editar dados</b> e <b>Aprovar</b>.</p>
       <div class="ac-acoes"><button type="button" class="btn btn-sm btn-ghost" data-acmarcar="1" ${dis}>Marcar todos</button><button type="button" class="btn btn-sm btn-ghost" data-acmarcar="0" ${dis}>Desmarcar todos</button></div>
-      <div class="ac-grupos">${grupos.map(g=>`<div class="ac-grupo"><b>${esc(g.g)}</b>${g.itens.map(p=>`<label class="check"><input type="checkbox" name="u-menus" value="${esc(p.id)}" ${!sel||sel.includes(p.id)?"checked":""} ${dis}> ${esc(p.t)}</label>`).join("")}</div>`).join("")}</div>
+      <div class="ac-grupos">${grupos.map(g=>`<div class="ac-grupo"><b>${esc(g.g)}</b>${g.itens.map(linha).join("")}</div>`).join("")}</div>
     </div>
-    <span class="small muted">${gestor?"A pessoa vê no menu lateral só o que estiver marcado; as outras telas ficam fora do alcance dela. Mudou aqui, a tela dela recarrega sozinha em até 1 minuto.":"Só o gestor do RH define os menus de cada pessoa do RH."}</span>`}
+    <span class="small muted">${gestor?"A pessoa vê no menu lateral só os módulos com Ver marcado. Sem Editar, o módulo fica só para consulta; sem Aprovar, ela não vê os botões de aprovar. Mudou aqui, a tela dela recarrega sozinha em até 1 minuto.":"Só o gestor do RH define o acesso de cada pessoa do RH."}</span>`}
   </fieldset>`;
+}
+// liga/desliga Editar e Aprovar conforme o Ver de cada módulo
+function acSync(){
+  document.querySelectorAll('#u-ac-lista .ac-mod').forEach(row=>{
+    const ver=row.querySelector('input[name="u-menus"]');if(!ver)return;
+    row.querySelectorAll('input[name="u-edit"],input[name="u-aprov"]').forEach(c=>{
+      if(ver.disabled){c.disabled=true;return}
+      c.disabled=!ver.checked;row.querySelector('.ac-caps').style.opacity=ver.checked?"1":".4";
+    });
+  });
 }
 document.head.insertAdjacentHTML("beforeend",`<style>
 #u-menus-f .ac-modo{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 10px}
 #u-menus-f .ac-acoes{display:flex;gap:6px;margin-bottom:8px}
-#u-menus-f .ac-grupos{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px}
-#u-menus-f .ac-grupo{display:flex;flex-direction:column;gap:6px;min-width:0}
+#u-menus-f .ac-grupos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px 20px}
+#u-menus-f .ac-grupo{display:flex;flex-direction:column;gap:8px;min-width:0}
 #u-menus-f .ac-grupo>b{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#u-menus-f .ac-mod{display:flex;flex-direction:column;gap:3px;padding:7px 9px;border:1px solid var(--line,#e4ebe7);border-radius:9px;background:var(--bg,#f7faf8)}
+#u-menus-f .ac-ver{font-weight:600}
+#u-menus-f .ac-caps{display:flex;gap:14px;flex-wrap:wrap;padding-left:26px}
+#u-menus-f .ac-caps .mini{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted,#5b6d64);cursor:pointer}
+#u-menus-f .ac-caps .mini input{width:15px;height:15px}
+/* esconder botões conforme a permissão do módulo atual (equipe de RH) */
+body[data-ac-a="0"] [data-aprovar],body[data-ac-a="0"] [data-aprovarger],body[data-ac-a="0"] [data-recusar],body[data-ac-a="0"] [data-act="aprovarTodas"]{display:none!important}
+body[data-ac-e="0"] .main [data-act^="nov"],body[data-ac-e="0"] .main [data-editusr]{display:none!important}
 </style>`);
 
 const acUsuarioFormBase=usuarioForm;
@@ -10708,7 +10757,7 @@ usuarioForm=function(login){
   acUsuarioFormBase(login);
   const u=login?USUARIOS.find(x=>x.login===login):null;
   const ref=document.getElementById("u-loja-f");
-  if(ref)ref.insertAdjacentHTML("afterend",acFieldset(u));
+  if(ref){ref.insertAdjacentHTML("afterend",acFieldset(u));acSync()}
   const p2=document.getElementById("u-pass2");
   if(u&&u.colaborador_id&&p2){const f=p2.closest(".field");if(f)f.insertAdjacentHTML("afterend",`<p class="full small muted" style="margin:-4px 0 0">Senha única: o login (CPF) e a senha definidos aqui valem para o RH, para o Meu espaço e para o Painel das Lojas. O Primeiro acesso não troca essa senha.</p>`)}
   const o=document.querySelector('#u-perfil option[value="rh"]');if(o)o.textContent="RH · equipe de RH (menus abaixo)";
@@ -10716,11 +10765,15 @@ usuarioForm=function(login){
 document.addEventListener("change",ev=>{
   const t=ev.target;
   if(t.id==="u-perfil"){const f=document.getElementById("u-menus-f");if(f)f.hidden=t.value!=="rh";return}
-  if(t.name==="u-ac-modo"){const l=document.getElementById("u-ac-lista");if(l)l.hidden=t.value!=="menus"}
+  if(t.name==="u-ac-modo"){const l=document.getElementById("u-ac-lista");if(l)l.hidden=t.value!=="menus";acSync();return}
+  if(t.name==="u-menus")acSync();
 });
 document.addEventListener("click",ev=>{
   const b=ev.target.closest&&ev.target.closest("[data-acmarcar]");if(!b)return;
-  document.querySelectorAll('input[name="u-menus"]').forEach(i=>{if(!i.disabled)i.checked=b.dataset.acmarcar==="1"});
+  const liga=b.dataset.acmarcar==="1";
+  document.querySelectorAll('#u-ac-lista input[name="u-menus"]').forEach(i=>{if(!i.disabled)i.checked=liga});
+  if(liga)document.querySelectorAll('#u-ac-lista input[name="u-edit"],#u-ac-lista input[name="u-aprov"]').forEach(i=>{if(!i.disabled)i.checked=true});
+  acSync();
 });
 const acChamarBase=chamarUsuarios;
 chamarUsuarios=async function(body){
@@ -10729,9 +10782,18 @@ chamarUsuarios=async function(body){
     const modo=(f.querySelector('input[name="u-ac-modo"]:checked')||{}).value;
     if(modo==="menus"){
       const m=[...f.querySelectorAll('input[name="u-menus"]:checked')].map(i=>i.value);
-      if(!m.length)return "Marque pelo menos um menu ou escolha Acesso total.";
+      if(!m.length)return "Marque pelo menos um módulo (Ver) ou escolha Acesso total.";
       body.menus=m.length===PAGES.filter(p=>!p.g).length?null:m;
-    }else body.menus=null;
+      // permissões por módulo: só guarda restrições (Editar/Aprovar desmarcado) dos módulos visíveis
+      const perms={};
+      m.forEach(id=>{
+        const e=f.querySelector('input[name="u-edit"][value="'+CSS.escape(id)+'"]');
+        const a=f.querySelector('input[name="u-aprov"][value="'+CSS.escape(id)+'"]');
+        const ev=e?e.checked:true,av=a?a.checked:true;
+        if(!ev||!av)perms[id]={e:ev,a:av};
+      });
+      body.permissoes=perms;
+    }else{body.menus=null;body.permissoes={}}
   }
   return acChamarBase(body);
 };
