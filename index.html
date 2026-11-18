@@ -8940,6 +8940,19 @@ const rsConfChip=v=>v&&v.confidencial?` <span class="chip c-bad" style="font-siz
 const rsPodeAprovarConf=v=>!!(v&&v.confidencial&&rsPodeConf());
 // código automático da vaga (UF-ano-sequência), gerado pelo banco
 const rsCodBadge=v=>v&&v.codigo?`<span style="display:inline-block;font:700 11.5px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;color:#0F6B4B;background:#E7FBE4;border:1px solid #CDEFD3;border-radius:6px;padding:2px 7px;margin-right:6px" title="Código da vaga">${esc(v.codigo)}</span>`:"";
+// perfil da vaga em quatro quadros: Descrição · Requisitos e qualificações · Responsabilidades e atribuições · Informações adicionais
+function rsPerfilQuadros(v){
+  const p=(v&&v.perfil)||{};
+  const desc=(p.descricao!=null&&p.descricao!=="")?p.descricao:(p.texto||"");
+  const quad=[["Descrição da vaga",desc],["Requisitos e qualificações",p.requisitos||""],["Responsabilidades e atribuições",p.responsabilidades||""],["Informações adicionais",p.adicionais||""]];
+  const tem=quad.some(q=>q[1]&&String(q[1]).trim())||((p.tags||[]).length)||(p.indicacao&&p.indicacao.trim());
+  if(!tem)return "";
+  const box=q=>`<div style="background:#fff;border:1px solid var(--line,#E4EBE7);border-radius:12px;padding:12px 14px;min-width:0"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#0F6B4B;margin-bottom:6px">${q[0]}</div><div class="small" style="white-space:pre-wrap;color:#263A31">${q[1]&&String(q[1]).trim()?esc(q[1]):'<span class="muted">—</span>'}</div></div>`;
+  return `<div class="card" style="margin-top:14px"><div class="card-head"><div><h2 style="font-size:1.05rem">Perfil da vaga</h2><p>O que é importante nesse perfil</p></div></div>
+    ${(p.tags||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px">${(p.tags||[]).map(t=>`<span class="chip c-mute">${esc(t)}</span>`).join("")}</div>`:""}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">${quad.map(box).join("")}</div>
+    ${p.indicacao&&p.indicacao.trim()?`<p class="small" style="margin:10px 0 0"><b>Indicação da equipe:</b> ${esc(p.indicacao)}</p>`:""}</div>`;
+}
 // quem pode acrescentar interações no histórico: RH e gerente da unidade (confidencial: só gestor de RH e Gestão comercial)
 const rsPodeInteragir=v=>{if(!v||!PERFIL)return false;return v.confidencial?rsPodeConf():(rsRH()||(PERFIL.perfil==="gerente"&&(PERFIL.lojas||[]).includes(v.loja_id)));};
 function rsHistBox(v){
@@ -9142,7 +9155,6 @@ function rsTelaVaga(v){
       <h2 style="margin:8px 0 4px;font-size:1.6rem">${esc(v.cargo)}${rsSimChip(v)}${rsConfChip(v)}</h2>
       <div class="small" style="margin-top:3px">${rsCodBadge(v)}${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)} · ${v.aberta_em?"aberta em "+fdate(v.aberta_em):"pedida em "+fdate(String(v.criado_em).slice(0,10))}${v.criado_nome?" · pedido de "+esc(v.criado_nome):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(esc(i.lbl),false)}</div>
-      ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto)?`<p class="small" style="margin:8px 0 0"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}</p>`:""}
     ${["pedido","devolvida"].includes(v.status)?rsLinhaAprov(v,false):rsCadeia(v)}</div>
     <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${(rh||rsPodeAprovarConf(v))&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsPodeAprovarConf(v)&&!rh?"Aprovar vaga confidencial":rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
@@ -9164,7 +9176,7 @@ function rsTelaVaga(v){
   const hist=rsHistBox(v);
   const quadroC=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start">${colunas}</div>${faixa}`;
   const emAprov=["pedido","devolvida"].includes(v.status);
-  return header("Recrutamento & Seleção","Vaga")+`<div class="card">${topo}${emAprov?"":funil}</div>${emAprov?"":rsCandsGupy(v,i,quadroC)}${rh?rsPreLista(v):""}${hist}`;
+  return header("Recrutamento & Seleção","Vaga")+`<div class="card">${topo}${emAprov?"":funil}</div>${rsPerfilQuadros(v)}${emAprov?"":rsCandsGupy(v,i,quadroC)}${rh?rsPreLista(v):""}${hist}`;
 }
 const RS_DESIST=["Não devolveu a ficha / desistiu","Recusou a proposta"];
 function rsCandGrupo(c){if(c.status==="nao_seguiu")return RS_DESIST.includes((c.nao_seguiu||{}).motivo)?"desist":"reprov";if(c.status==="admitido")return "contr";const f=RS_ET[c.etapa].f;return c.etapa===3?"triagem":f===2?"selecao":f===3?"proposta":"contr"}
@@ -9276,7 +9288,13 @@ function rsFormVaga(v,corrigir){const alt=corrigir==="alterar";if(alt)corrigir=f
     ${rsRH()?`<div class="field"><label for="rv-gupy">Nº da vaga no Gupy</label><input class="input" id="rv-gupy" value="${esc(x.gupy||"")}" placeholder="Ex.: 7845123"></div>`:""}
     ${rsPodeConf()?`<label class="check full" style="border:1px solid var(--line,#e4ebe7);border-radius:8px;padding:9px 11px;background:var(--bg,#f7faf8)"><input type="checkbox" id="rv-conf" ${x.confidencial?"checked":""}> <span><b>🔒 Vaga confidencial</b> — visível e aprovada só pelo gestor de RH e pela Gestão comercial; não aparece para as demais pessoas.</span></label>`:""}
     <fieldset class="field full"><legend>Perfil desejado</legend><div style="display:flex;flex-wrap:wrap;gap:8px">${RS_TAGS.map(t=>`<label class="check"><input type="checkbox" name="rv-tag" value="${esc(t)}" ${(x.perfil.tags||[]).includes(t)?"checked":""}> ${esc(t)}</label>`).join("")}</div></fieldset>
-    <div class="field full"><label for="rv-txt">O que é importante nesse perfil</label><textarea class="input" id="rv-txt" rows="2">${esc(x.perfil.texto||"")}</textarea></div>
+    <div class="field full"><label>O que é importante nesse perfil</label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:4px">
+        <div><label for="rv-desc" class="small" style="font-weight:600;display:block;margin-bottom:3px">Descrição da vaga</label><textarea class="input" id="rv-desc" rows="4" placeholder="Resumo do que é a vaga e o contexto da área">${esc((x.perfil.descricao!=null&&x.perfil.descricao!=="")?x.perfil.descricao:(x.perfil.texto||""))}</textarea></div>
+        <div><label for="rv-req" class="small" style="font-weight:600;display:block;margin-bottom:3px">Requisitos e qualificações</label><textarea class="input" id="rv-req" rows="4" placeholder="Formação, experiência, cursos, conhecimentos exigidos/desejáveis">${esc(x.perfil.requisitos||"")}</textarea></div>
+        <div><label for="rv-resp" class="small" style="font-weight:600;display:block;margin-bottom:3px">Responsabilidades e atribuições</label><textarea class="input" id="rv-resp" rows="4" placeholder="O que a pessoa vai fazer no dia a dia">${esc(x.perfil.responsabilidades||"")}</textarea></div>
+        <div><label for="rv-add" class="small" style="font-weight:600;display:block;margin-bottom:3px">Informações adicionais</label><textarea class="input" id="rv-add" rows="4" placeholder="Horário, escala, benefícios, observações">${esc(x.perfil.adicionais||"")}</textarea></div>
+      </div></div>
     <div class="field full"><label for="rv-ind">Indicação da equipe (opcional)</label><input class="input" id="rv-ind" value="${esc(x.perfil.indicacao||"")}" placeholder="Nome e contato de quem foi indicado"></div>
     <p class="full small" id="rv-err" style="color:var(--bad)" hidden></p></form>
     <div class="note" id="rv-nota"></div>`,
@@ -9326,7 +9344,7 @@ function rsLerFormVaga(){const err=m=>{const e=$("#rv-err");e.hidden=false;e.tex
   const d={cargo:$("#rv-cargo").value,loja_id:$("#rv-loja").value,posicoes:motivos.length,contrato:$("#rv-con").value,motivos,
     motivo:new Set(motivos.map(m=>m.motivo)).size>1?"misto":motivos[0].motivo,substitui:motivos.map(m=>m.substitui).filter(Boolean).join(", ")||null,
     escala:$("#rv-esc").value||null,inicio_desejado:$("#rv-ini").value||null,fluxo:motivos.some(m=>m.motivo==="aumento")?"aumento":"rh",
-    perfil:{tags:[...document.querySelectorAll('input[name="rv-tag"]:checked')].map(i=>i.value),texto:$("#rv-txt").value.trim(),indicacao:$("#rv-ind").value.trim()}};
+    perfil:{tags:[...document.querySelectorAll('input[name="rv-tag"]:checked')].map(i=>i.value),descricao:$("#rv-desc").value.trim(),requisitos:$("#rv-req").value.trim(),responsabilidades:$("#rv-resp").value.trim(),adicionais:$("#rv-add").value.trim(),indicacao:$("#rv-ind").value.trim()}};
   if($("#rv-gupy"))d.gupy=$("#rv-gupy").value.trim()||null;
   if(document.querySelector('input[name="rv-cond"]')){const cd=rsCondLer("rv");if(cd.conducao==="agencia"&&!cd.agencia)return err("Informe o nome da agência.");Object.assign(d,cd)}
   if($("#rv-abe")){const ab=$("#rv-abe").value;if(ab&&ab>TODAY)return err("A data de abertura não pode ser no futuro.");if(ab)d.aberta_em=ab}
@@ -9355,7 +9373,7 @@ function rsFormAprovar(v){
   modal("Analisar pedido de vaga",`<p><b>${esc(v.cargo)}</b> · ${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)}</p><p class="small"><b>Motivo${v.posicoes>1?"s":""}:</b> ${esc(rsMotivosTxt(v))}</p>
     ${rsLinhaAprov(v)}${v.fluxo==="aumento"?`<div class="small">${!podeRH?`<p class="small" style="color:var(--warn,#8A3A0C);margin:6px 0 0">Aguardando ${RS_APROV[etA]}. A validação do RH libera depois da Supervisão e da Gestão comercial.</p>`:""}</div>`:""}
     <p class="small">Pedido de ${esc(v.criado_nome||"gerente")} em ${fdate(String(v.criado_em).slice(0,10))}${v.escala?" · Escala: "+esc(v.escala):""}${v.inicio_desejado?" · Início desejado: "+fdate(v.inicio_desejado):""}</p>
-    ${v.perfil&&((v.perfil.tags||[]).length||v.perfil.texto||v.perfil.indicacao)?`<p class="small"><b>Perfil:</b> ${(v.perfil.tags||[]).map(esc).join(", ")}${v.perfil.texto?" · "+esc(v.perfil.texto):""}${v.perfil.indicacao?"<br><b>Indicação:</b> "+esc(v.perfil.indicacao):""}</p>`:""}
+    ${(()=>{const p=v.perfil||{};const d=(p.descricao!=null&&p.descricao!=="")?p.descricao:(p.texto||"");return ((p.tags||[]).length||d||p.indicacao)?`<p class="small"><b>Perfil:</b> ${(p.tags||[]).map(esc).join(", ")}${d?" · "+esc(d):""}${p.indicacao?"<br><b>Indicação:</b> "+esc(p.indicacao):""}</p>`:""})()}
     <form class="form-grid">
       <label class="check full"><input type="checkbox" id="ra-ok" checked> Perfil alinhado com o gerente</label>
       <div class="field"><label for="ra-dt">Data do alinhamento</label><input class="input" id="ra-dt" type="date" value="${TODAY}"></div>
