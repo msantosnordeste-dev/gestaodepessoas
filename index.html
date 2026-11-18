@@ -8,7 +8,7 @@
 <title>ConectaGP</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Sora:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
 <style>
 /* Layout: sidebar fixa + área de trabalho em cartões arredondados; vira barra superior rolável no celular.
    Paleta verde Brasileiríssima — verde-bandeira, superfícies brancas, cantos generosos, botões em pílula. */
@@ -440,6 +440,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* ============ utilidades ============ */
 const $=s=>document.querySelector(s);
@@ -9156,7 +9157,7 @@ function rsTelaVaga(v){
       <div class="small" style="margin-top:3px">${rsCodBadge(v)}${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)} · ${v.aberta_em?"aberta em "+fdate(v.aberta_em):"pedida em "+fdate(String(v.criado_em).slice(0,10))}${v.criado_nome?" · pedido de "+esc(v.criado_nome):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(esc(i.lbl),false)}</div>
     ${["pedido","devolvida"].includes(v.status)?rsLinhaAprov(v,false):rsCadeia(v)}</div>
-    <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${(rh||rsPodeAprovarConf(v))&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsPodeAprovarConf(v)&&!rh?"Aprovar vaga confidencial":rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}</div></div>`;
+    <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${(rh||rsPodeAprovarConf(v))&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsPodeAprovarConf(v)&&!rh?"Aprovar vaga confidencial":rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}${aberta?`<button class="btn" data-rs="divBaixar" data-id="${v.id}" title="Baixar arte de divulgação (Feed e Stories)">🎨 Baixar divulgação</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
   const funil=`<div class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><b>Funil:</b> ${f[0]} entraram › ${f[1]} triados › ${f[3]} com proposta › ${f[4]} admitido${f[4]===1?"":"s"}<span class="muted" style="margin-left:auto">Cor do cartão: verde no prazo · laranja vence hoje · vermelho atrasado</span></div>`;
   const card=c=>{const s=rsSla(c),cor=RS_COR[s.st];const r7=c.registros["7"]||{};
@@ -9590,6 +9591,8 @@ document.addEventListener("click",async ev=>{
     await rsSalvarVaga(v.id,{status:"fechada",fechada_em:TODAY,eventos:rsEvt(v,"Vaga fechada")},"Vaga fechada")});
   if(a==="reabrirVaga")return trava(async()=>{const v=V();await rsSalvarVaga(v.id,{status:"aberta",fechada_em:null,aberta_em:v.aberta_em||TODAY,eventos:rsEvt(v,"Vaga reaberta")},"Vaga reaberta")});
   if(a==="divulgar"){const v=V();if(v)rsFormDivulgar(v);return}
+  if(a==="divBaixar"){const v=V();if(v)rsDivModal(v);return}
+  if(a==="divGerar"){const v=V();if(v)rsDivGerar(v,t.dataset.fmt,t);return}
   if(a==="divulgarOk")return trava(async()=>{const v=V();const cs=[...document.querySelectorAll('input[name="rd-c"]:checked')].map(i=>i.value);if(!cs.length){toast("Marque pelo menos um canal");return}
     if(await rsSalvarVaga(v.id,{canais:cs,divulgada_em:$("#rd-dt").value||TODAY,eventos:rsEvt(v,"Divulgação: "+cs.join(", "))},"Divulgação registrada"))closeModal()});
   if(a==="novoCand"){rsFormCand(id);return}
@@ -10011,6 +10014,106 @@ function rsAtencaoPop(forcar){try{if(!forcar&&sessionStorage.getItem("rs_pop"))r
     if(a==="go"){const x=it[+b.dataset.k];d.remove();ir();setTimeout(()=>{const f=document.createElement("button");f.dataset.rs=x.rs;f.dataset.id=x.id;if(x.v)f.dataset.v=x.v;if(x.cc)f.dataset.c=x.cc;f.hidden=true;document.body.appendChild(f);f.click();f.remove()},250)}});
 }
 document.addEventListener("click",ev=>{const d=document.getElementById("rs-pop");if(d&&!d.contains(ev.target)&&!ev.target.closest('[data-rs="atencao"]')){try{speechSynthesis.cancel()}catch(e){}d.remove()}},true);
+
+/* ============ Material de divulgação da vaga (Feed 1:1 + Stories 9:16) ============
+   Gera a arte "temos vagas" (paleta Areia) a partir dos dados reais da vaga aprovada
+   e baixa como PNG. Usa html2canvas sobre o mesmo layout aprovado por Marcos. */
+const DIV_LOGO="assets/marca-brasileirissima-verde.png";
+let _divCssOk=false;
+function rsDivCSS(){
+  if(_divCssOk)return;_divCssOk=true;
+  const st=document.createElement("style");
+  st.textContent=`
+  .dz-stage{position:fixed;left:-99999px;top:0;z-index:-1;pointer-events:none}
+  .dz-card{position:relative;overflow:hidden;border-radius:0;font-family:"DM Sans",system-ui,sans-serif;color:#45413A;background:#EEE6D4;box-sizing:border-box}
+  .dz-card *{box-sizing:border-box}
+  .dz-card.feed{width:360px;height:360px;font-size:17px}
+  .dz-card.story{width:360px;height:640px;font-size:20px}
+  .dz-card .faixa{position:absolute;top:0;left:0;right:0;height:7px;background:linear-gradient(90deg,#C06A33,#F2C230);z-index:3}
+  .dz-card .body{position:absolute;inset:0;display:flex;flex-direction:column;padding:7.5%;z-index:2}
+  .dz-card .logo{align-self:flex-start;height:2.5em;margin-bottom:.45em}
+  .dz-card .headline{font-family:"Bricolage Grotesque",Georgia,serif;font-weight:800;line-height:.88;letter-spacing:-.03em;text-transform:lowercase;color:#2B2A26}
+  .dz-card .cargo-box{display:inline-block;align-self:flex-start;border:1.5px solid #C06A33;border-radius:8px;padding:.26em .64em;font-family:"Sora",system-ui,sans-serif;font-weight:700;color:#B45A28;margin:.4em 0 .12em}
+  .dz-card .local{font-family:"Sora",system-ui,sans-serif;font-weight:600;color:#8A5A33;font-size:.76em}
+  .dz-card .sec{margin-top:.62em}
+  .dz-card .sec h4{font-family:"Sora",system-ui,sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.72em;color:#B45A28;margin:0 0 .3em;display:flex;align-items:center;gap:.45em}
+  .dz-card .sec h4::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,#C06A33,transparent);border-radius:2px}
+  .dz-card .qitem{font-size:.76em;line-height:1.28;color:#4a463d;display:flex;gap:.5em;margin-bottom:.16em}
+  .dz-card .qbul{color:#C06A33;font-weight:800;flex:none}
+  .dz-card .rod{margin-top:auto;padding-top:.6em;border-top:1px solid rgba(0,0,0,.14);font-family:"Sora",system-ui,sans-serif;font-weight:600;color:#6f6555;font-size:.74em}
+  .dz-card.feed .logo{height:2em;margin-bottom:.25em}
+  .dz-card.feed .headline{font-size:1.65em}
+  .dz-card.feed .cargo-box{font-size:.8em;margin:.3em 0 .08em}
+  .dz-card.feed .local{font-size:.68em}
+  .dz-card.feed .sec{margin-top:.46em}
+  .dz-card.feed .sec h4{font-size:.66em;margin-bottom:.22em}
+  .dz-card.feed .qitem{font-size:.68em;margin-bottom:.1em;line-height:1.22}
+  .dz-card.feed .rod{padding-top:.45em;font-size:.66em}
+  .dz-card.story .logo{height:2.7em}
+  .dz-card.story .headline{font-size:2.5em}
+  .dz-card.story .cargo-box{font-size:.9em}`;
+  document.head.appendChild(st);
+}
+const rsDivUF=v=>{const m=String(v&&v.codigo||"").match(/^([A-Z]{2})-/);return m?m[1]:"";};
+const rsDivLinhas=(txt,max)=>String(txt||"").split(/\r?\n|;/).map(s=>s.replace(/^[-••\s]+/,"").trim()).filter(Boolean).slice(0,max||4);
+function rsDivDados(v){
+  const p=(v&&v.perfil)||{},loja=store(v.loja_id)||{},uf=rsDivUF(v);
+  const local=[loja.cidade,uf,loja.nome].filter(Boolean).join(" · ")||loja.nome||"";
+  return {cargo:v.cargo||"Vaga",local,req:rsDivLinhas(p.requisitos,4),ben:rsDivLinhas(p.adicionais,4),rod:[v.contrato,v.escala].filter(Boolean).join(" · ")};
+}
+function rsDivNode(v,fmt){
+  const d=rsDivDados(v),story=fmt==="story";
+  const li=a=>a.map(x=>`<div class="qitem"><span class="qbul">•</span><span>${esc(x)}</span></div>`).join("")||`<div class="qitem"><span class="qbul">•</span><span>—</span></div>`;
+  const head=story?"temos<br>vagas":"temos vagas";
+  const el=document.createElement("div");
+  el.className="dz-card "+(story?"story":"feed");
+  el.innerHTML=`<div class="faixa"></div><div class="body">
+    <img class="logo" src="${DIV_LOGO}" alt="Brasileiríssima" crossorigin="anonymous">
+    <div class="headline">${head}</div>
+    <span class="cargo-box">${esc(d.cargo)}</span>
+    <div class="local">${esc(d.local)}</div>
+    ${d.req.length?`<div class="sec"><h4>Requisitos</h4>${li(d.req)}</div>`:""}
+    ${d.ben.length?`<div class="sec"><h4>Benefícios</h4>${li(d.ben)}</div>`:""}
+    ${d.rod?`<div class="rod">${esc(d.rod)}</div>`:""}
+  </div>`;
+  return el;
+}
+async function rsDivGerar(v,fmt,btn){
+  if(typeof html2canvas==="undefined"){toast("Gerador ainda carregando, tente de novo em instantes");return;}
+  const lbl=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Gerando…";}
+  rsDivCSS();
+  const stage=document.createElement("div");stage.className="dz-stage";
+  const node=rsDivNode(v,fmt);stage.appendChild(node);document.body.appendChild(stage);
+  try{
+    try{await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]);}catch(e){}
+    // garante que a logo (mesma origem) esteja carregada antes de rasterizar
+    const img=node.querySelector("img");
+    if(img&&!img.complete)await new Promise(r=>{img.onload=img.onerror=r;});
+    await new Promise(r=>setTimeout(r,120));
+    const canvas=await html2canvas(node,{scale:3,backgroundColor:"#EEE6D4",useCORS:true,logging:false,width:node.offsetWidth,height:node.offsetHeight});
+    const nome=`Brasileirissima_${(v.codigo||v.cargo||"vaga").replace(/[^\w\-]+/g,"_")}_${fmt==="story"?"stories_9x16":"feed_1x1"}.png`;
+    await new Promise(res=>canvas.toBlob(b=>{
+      if(!b){toast("Não foi possível gerar a imagem");return res();}
+      const url=URL.createObjectURL(b),a=document.createElement("a");
+      a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);res();
+    },"image/png"));
+    toast("Divulgação baixada ("+(fmt==="story"?"Stories 9:16":"Feed 1:1")+")");
+  }catch(e){toast("Erro ao gerar a divulgação");}
+  finally{stage.remove();if(btn){btn.disabled=false;btn.textContent=lbl;}}
+}
+function rsDivModal(v){
+  const d=rsDivDados(v);
+  modal("Baixar divulgação · "+esc(v.cargo),
+   `<p class="small muted" style="margin:0 0 10px">${esc(d.local)}${v.codigo?" · "+esc(v.codigo):""}</p>
+    <p class="small" style="margin:0 0 14px">Baixe a arte da vaga para postar. As duas opções têm as mesmas informações, só muda o formato.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <button class="btn btn-primary" data-rs="divGerar" data-id="${v.id}" data-fmt="feed">⬇ Feed 1:1 · WhatsApp e LinkedIn</button>
+      <button class="btn btn-primary" data-rs="divGerar" data-id="${v.id}" data-fmt="story">⬇ Stories 9:16 · Instagram</button>
+    </div>
+    <p class="small muted" style="margin:14px 0 0">A imagem é gerada com os dados atuais da vaga (cargo, local, requisitos e benefícios).</p>`,
+   `<button class="btn" data-close>Fechar</button>`);
+}
 
 
 /* ============ WhatsApp RH · histórico, interações e respostas ============ */
