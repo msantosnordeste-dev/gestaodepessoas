@@ -9370,9 +9370,9 @@ function rsCondLer(pref){const r=document.querySelector(`input[name="${pref}-con
 document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.name&&/-cond$/.test(t.name)){const pref=t.name.replace(/-cond$/,"");const a=$("#"+pref+"-agencia");if(a){a.hidden=t.value!=="agencia";if(t.value==="agencia")a.focus()}}});
 const rsCondChip=v=>v&&v.conducao?` <span class="chip ${v.conducao==="agencia"?"c-warn":"c-info"}" style="font-size:11px">${v.conducao==="agencia"?"Agência"+(v.agencia?" · "+esc(v.agencia):""):"Interna"}</span>`:"";
 function rsFormAprovar(v){
-  const etA=rsEtapaAprov(v),podeRH=v.status!=="pedido"||etA==="rh";
+  const etA=rsEtapaAprov(v),rhAvanca=!!(PERFIL&&PERFIL.gestor_rh),podeRH=v.status!=="pedido"||etA==="rh"||rhAvanca;
   modal("Analisar pedido de vaga",`<p><b>${esc(v.cargo)}</b> · ${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)}</p><p class="small"><b>Motivo${v.posicoes>1?"s":""}:</b> ${esc(rsMotivosTxt(v))}</p>
-    ${rsLinhaAprov(v)}${v.fluxo==="aumento"?`<div class="small">${!podeRH?`<p class="small" style="color:var(--warn,#8A3A0C);margin:6px 0 0">Aguardando ${RS_APROV[etA]}. A validação do RH libera depois da Supervisão e da Gestão comercial.</p>`:""}</div>`:""}
+    ${rsLinhaAprov(v)}${v.fluxo==="aumento"?`<div class="small">${!podeRH?`<p class="small" style="color:var(--warn,#8A3A0C);margin:6px 0 0">Aguardando ${RS_APROV[etA]}. A validação do RH libera depois da Supervisão e da Gestão comercial.</p>`:""}</div>`:""}${rhAvanca&&v.status==="pedido"&&etA!=="rh"?`<p class="small" style="color:#0F6B4B;margin:6px 0 0">Como Gerente de RH, você pode aprovar e avançar as etapas anteriores em nome dos responsáveis — fica registrado no histórico.</p>`:""}
     <p class="small">Pedido de ${esc(v.criado_nome||"gerente")} em ${fdate(String(v.criado_em).slice(0,10))}${v.escala?" · Escala: "+esc(v.escala):""}${v.inicio_desejado?" · Início desejado: "+fdate(v.inicio_desejado):""}</p>
     ${(()=>{const p=v.perfil||{};const d=(p.descricao!=null&&p.descricao!=="")?p.descricao:(p.texto||"");return ((p.tags||[]).length||d||p.indicacao)?`<p class="small"><b>Perfil:</b> ${(p.tags||[]).map(esc).join(", ")}${d?" · "+esc(d):""}${p.indicacao?"<br><b>Indicação:</b> "+esc(p.indicacao):""}</p>`:""})()}
     <form class="form-grid">
@@ -9573,14 +9573,20 @@ document.addEventListener("click",async ev=>{
   if(a==="escAtivo")return trava(async()=>{const {error}=await SB.from("escalas_trabalho").update({ativo:t.dataset.v==="1"}).eq("id",id);if(error){toast(error.message);return}await rsCarregar(true);rsFormEscalas()});
   if(a==="aprovar"){const v=V();if(v)rsFormAprovar(v);return}
   if(a==="aprovarOk")return trava(async()=>{const v=V();const dt=$("#ra-ok").checked?($("#ra-dt").value||TODAY):null;
-    if(v.status==="pedido"&&rsEtapaAprov(v)!=="rh"){toast("Aguardando "+RS_APROV[rsEtapaAprov(v)]);return}
+    if(v.status==="pedido"&&rsEtapaAprov(v)!=="rh"&&!(PERFIL&&PERFIL.gestor_rh)){toast("Aguardando "+RS_APROV[rsEtapaAprov(v)]);return}
     const cd=rsCondLer("ra");if(!cd.conducao){toast("Responda: a vaga está sendo tratada pelo recrutamento interno ou por agência?");const f=document.querySelector('input[name="ra-cond"]');if(f)f.focus();return}
     if(cd.conducao==="agencia"&&!cd.agencia){toast("Informe o nome da agência");$("#ra-agencia").focus();return}
     // confidencial aprovada pelo gestor de RH: registra que foi aprovada pelo RH em nome da Gestão comercial
     const emNome=!!(v.confidencial&&PERFIL&&PERFIL.gestor_rh);
-    const aprov={...(v.aprov||{})};if(v.status==="pedido")aprov.rh={ok:true,em:rsHoje(),quem:rsQuem(),...(emNome?{em_nome:"Gestão comercial"}:{})};
+    const aprov={...(v.aprov||{})};
+    // Gerente de RH pode aprovar/avançar as etapas anteriores em nome dos responsáveis
+    const _rhAvanca=v.status==="pedido"&&PERFIL&&PERFIL.gestor_rh;
+    const _chain=v.fluxo==="aumento"?["sup","com"]:v.fluxo==="gerente"?["ger"]:[];
+    const _emNomes=[];
+    if(_rhAvanca)_chain.forEach(k=>{if(!(aprov[k]&&aprov[k].ok)){aprov[k]={ok:true,em:rsHoje(),quem:rsQuem(),em_nome:RS_APROV[k]};_emNomes.push(RS_APROV[k]);}});
+    if(v.status==="pedido")aprov.rh={ok:true,em:rsHoje(),quem:rsQuem(),...(emNome?{em_nome:"Gestão comercial"}:{})};
     const quemAprova=PERFIL&&PERFIL.gestor_rh?"pelo Gerente de RH":PERFIL&&PERFIL.perfil==="comercial"?"pela Gestão comercial":"pelo RH";
-    const txtAprov=(v.confidencial?"Vaga confidencial aprovada "+quemAprova:v.fluxo==="aumento"?"Aumento de quadro validado pelo Gerente de RH":"Pedido aprovado pelo RH")+(emNome?" em nome da Gestão comercial":"")+(dt?" · perfil alinhado em "+fdate(dt):"")+" · condução: "+(cd.conducao==="agencia"?"agência "+cd.agencia:"interna");
+    const txtAprov=(v.confidencial?"Vaga confidencial aprovada "+quemAprova:v.fluxo==="aumento"?"Aumento de quadro validado pelo Gerente de RH":"Pedido aprovado pelo RH")+(emNome?" em nome da Gestão comercial":"")+(_emNomes.length?" · etapas anteriores aprovadas pelo RH em nome de "+_emNomes.join(", "):"")+(dt?" · perfil alinhado em "+fdate(dt):"")+" · condução: "+(cd.conducao==="agencia"?"agência "+cd.agencia:"interna");
     const salEl=$("#ra-sal");const salVal=(salEl?salEl.value.trim():(v.salario||""))||null;
     if(await rsSalvarVaga(v.id,{...cd,status:"aberta",aberta_em:v.aberta_em||TODAY,perfil_alinhado_em:dt,gupy:$("#ra-gupy").value.trim()||null,aprov,salario:salVal,eventos:rsEvt(v,txtAprov)},"Vaga aprovada e aberta")){closeModal();rsAviso(v.loja_id,"Vaga aprovada · "+v.cargo,"A vaga de "+v.posicoes+" posição(ões) de "+v.cargo+" foi aprovada. A divulgação é feita no Gupy; acompanhe os candidatos em Vagas.")}});
   if(a==="devolver")return trava(async()=>{const v=V();const obs=$("#ra-obs").value.trim();if(!obs){toast("Escreva a observação para o gerente");return}
