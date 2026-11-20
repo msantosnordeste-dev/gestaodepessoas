@@ -2048,24 +2048,37 @@ function lnPdf(){const C=lnCalc(),L=C.L,nome=(S.lojas&&S.lojas[L.loja]?nomeLoja(
   const totV=sm(top,r=>r.v),totQ=sm(top,r=>r.q),dPer=LN.per==='hoje'?1:LN.per==='7d'?Math.min(7,C.diasOp):C.diasOp,md=q=>q>0?num(q/dPer,1):'—';
   const perT=LN.per==='hoje'?'Hoje ('+fmtD(C.hj)+')':LN.per==='7d'?'Últimos 7 dias ('+fmtD(C.ini)+' a '+fmtD(C.hj)+')':'Desde a inauguração ('+fmtD(C.ina)+' a '+fmtD(C.hj)+')';
   const cab='<tr><th>#</th><th>Produto</th><th class="r">Vendido</th><th class="r">Média/dia</th><th class="r">Valor</th><th class="r">Estoque</th><th class="r">Cobertura</th><th class="r">Repor</th><th>Situação</th></tr>';
-  const corpo=tcK.map(k=>{const l=tc[k],q=sm(l,r=>r.q),v=sm(l,r=>r.v);return`<h2>${esc(k)} <span>${l.length} produto(s) · ${lnInt(q)} peças · ${brl(v)} · ${pct(totV?v/totV:0,1)} das vendas</span></h2><table>${cab}
-    ${l.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.k)}</b>${r.ref?'<br><small>Ref '+esc(r.ref)+'</small>':''}</td><td class="r">${lnInt(r.q)}</td><td class="r">${md(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${lnInt(r.est)}</td><td class="r">${r.cobD==null?'—':num(r.cobD,1)+' d'}</td><td class="r"><b>${r.rep||'—'}</b></td><td>${esc(r.sit[0])}</td></tr>`).join('')}
+  const corpo=tcK.map(k=>{const l=tc[k],q=sm(l,r=>r.q),v=sm(l,r=>r.v);return`<h2>${esc(k)} <span>${l.length} produto(s) · ${lnInt(q)} peças · ${brl(v)} · <em>${pct(totV?v/totV:0,1)}</em> das vendas</span></h2><table>${cab}
+    ${l.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.k)}</b>${r.ref?'<br><small>Ref '+esc(r.ref)+'</small>':''}</td><td class="r">${lnInt(r.q)}</td><td class="r">${md(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${lnInt(r.est)}</td><td class="r">${r.cobD==null?'—':num(r.cobD,1)+' d'}</td><td class="r"><b>${r.rep||'—'}</b></td><td><span class="tg ${r.sit[1]}">${esc(r.sit[0])}</span></td></tr>`).join('')}
     <tr class="sub"><td></td><td>Subtotal ${esc(k)}</td><td class="r">${lnInt(q)}</td><td class="r">${md(q)}</td><td class="r">${brl(v)}</td><td class="r">${lnInt(sm(l,r=>r.est))}</td><td></td><td class="r">${sm(l,r=>r.rep||0)||'—'}</td><td></td></tr></table>`}).join('');
-  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Mais vendidos - ${esc(nome)} - ${esc(C.hj)}</title><style>
-  @page{size:A4;margin:12mm}*{box-sizing:border-box}body{font:11px/1.35 Inter,Arial,sans-serif;color:#16182B;margin:0}
-  header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #7A2BD8;padding-bottom:8px;margin-bottom:10px}
-  h1{font-size:18px;margin:0}header p{margin:2px 0 0;color:#62657E}.tot{display:flex;gap:18px;margin:8px 0 4px}.tot div{background:#F4F1FB;border-radius:8px;padding:6px 10px}.tot small{display:block;color:#62657E}.tot b{font-size:14px}
-  h2{font-size:12.5px;margin:14px 0 4px;padding:6px 8px;background:#F1F2F7;border-radius:6px;display:flex;justify-content:space-between;break-after:avoid}h2 span{font-weight:400;color:#62657E;font-size:10.5px}
-  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th{text-align:left;font-size:9px;text-transform:uppercase;color:#62657E;border-bottom:1px solid #DADCE6;padding:4px}th:nth-child(1){width:22px}th:nth-child(2){width:30%}
-  td{padding:4px;border-bottom:1px solid #EEF0F5;vertical-align:top}td small{color:#62657E}.r{text-align:right}tr{break-inside:avoid}tr.sub td{background:#F6F7FA;font-weight:700}
-  footer{margin-top:12px;color:#62657E;font-size:9.5px}</style></head><body>
-  <header><div><h1>Produtos mais vendidos · ${esc(nome)}</h1><p>${esc(perT)} · filiais ${esc((L.filiais||[]).join('/'))}</p></div><p>UpHub · gerado em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</p></header>
-  <div class="tot"><div><small>Peças vendidas</small><b>${lnInt(totQ)}</b></div><div><small>Média por dia</small><b>${md(totQ)} peças</b></div><div><small>Valor vendido</small><b>${brl(totV)}</b></div><div><small>Produtos</small><b>${top.length}</b></div></div>
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Mais vendidos - ${esc(nome)} - ${esc(C.hj)}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"><style>
+  @page{size:A4;margin:10mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font:10.5px/1.4 Inter,system-ui,Arial,sans-serif;color:#1E2433;margin:0}
+  .top{background:#17418F;color:#fff;border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .mk{display:flex;align-items:center;gap:10px}.mk i{width:28px;height:28px;border-radius:7px;background:#F2306D;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:14px}
+  .mk b{font-size:12px;letter-spacing:.06em}.mk span{display:block;font-size:9.5px;opacity:.8;letter-spacing:0}
+  .top .gr{text-align:right;font-size:9.5px;opacity:.85}
+  h1{font-size:17px;margin:12px 0 2px}.per{color:#667085;margin:0 0 10px}
+  .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px}.kp div{background:#E8EFFD;border-radius:8px;padding:8px 10px}.kp div:first-child{background:#1A56DB;color:#fff}.kp div:first-child small{color:#DCE6FB}
+  .kp small{display:block;color:#667085;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.kp b{font-size:15px}
+  h2{font-size:12px;margin:14px 0 4px;padding:7px 10px;background:#F0F2F6;border-left:4px solid #1A56DB;border-radius:4px;display:flex;justify-content:space-between;align-items:baseline;break-after:avoid}h2 span{font-weight:500;color:#667085;font-size:9.5px}h2 em{font-style:normal;color:#1A56DB;font-weight:700}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5px}th{text-align:left;font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#667085;border-bottom:1px solid #E2E6EE;padding:4px}th:nth-child(1){width:20px}th:nth-child(2){width:30%}th:nth-child(9){width:84px}
+  td{padding:4px;border-bottom:1px solid #F0F2F6;vertical-align:top}td small{color:#667085}.r{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}
+  tr.sub td{background:#E8EFFD;font-weight:700;color:#1444B0;border-bottom:0}
+  .tg{display:inline-block;border-radius:99px;padding:1px 7px;font-size:9px;font-weight:600;white-space:nowrap}.tg.ok{background:#E2F4EC;color:#12875A}.tg.al{background:#FFF4DE;color:#B7791F}.tg.er{background:#FDECEE;color:#D92D3A}.tg.cz{background:#F0F2F6;color:#667085}
+  .tt{margin-top:12px;background:#17418F;color:#fff;border-radius:8px;padding:9px 12px;display:flex;justify-content:space-between;font-weight:600}
+  footer{margin-top:10px;color:#667085;font-size:8.5px;border-top:1px solid #E2E6EE;padding-top:6px}</style></head><body>
+  <div class="top"><div class="mk"><i>B</i><b>BRASILEIRÍSSIMA<span>UpHub · Loja nova</span></b></div><div class="gr">Gerado em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}<br>Cobertura de ${C.cob} dias</div></div>
+  <h1>Produtos mais vendidos · ${esc(nome)}</h1><p class="per">${esc(perT)} · filiais ${esc((L.filiais||[]).join('/'))}</p>
+  <div class="kp"><div><small>Valor vendido</small><b>${brl(totV)}</b></div><div><small>Peças vendidas</small><b>${lnInt(totQ)}</b></div><div><small>Média por dia</small><b>${md(totQ)} peças</b></div><div><small>Produtos</small><b>${top.length}</b></div></div>
   ${corpo}
+  <div class="tt"><span>Total geral</span><span>${lnInt(totQ)} peças · ${md(totQ)} peças/dia · ${brl(totV)}</span></div>
   <footer>Média/dia = peças vendidas no período ÷ dias do período. Repor = venda média por dia desde a inauguração × ${C.cob} dias de cobertura − estoque atual da loja. Lenços e bandanas (promocionais) não entram no relatório.</footer></body></html>`;
   let f=document.getElementById('lnPdfF');if(f)f.remove();f=document.createElement('iframe');f.id='lnPdfF';f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);
   const d=f.contentDocument;d.open();d.write(html);d.close();
-  setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();w.print()}else toast('Não foi possível abrir a impressão.')}},350);
+  const pronto=Promise.race([d.fonts?d.fonts.ready:Promise.resolve(),new Promise(r=>setTimeout(r,1500))]);
+  pronto.then(()=>setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();w.print()}else toast('Não foi possível abrir a impressão.')}},150));
   toast('Na janela de impressão, escolha "Salvar como PDF".')}
 function lnExportar(){const C=lnCalc(),lin=[['Referência','Produto','Cor','Tamanho','Categoria','Vendido desde inauguração','Estoque','Sugestão de reposição']];
   C.refs.filter(r=>r.rep>0||LN.pedido.has(r.k)).sort((a,b)=>b.rep-a.rep).forEach(r=>{const tot=Math.max(1,r.qt);Object.values(r.skus).forEach(s=>{const p=C.P[s.c]||{};
