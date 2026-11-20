@@ -1524,7 +1524,7 @@ const ACT={
   opvAtalho(el){const v=el.dataset.v,h=hoje(),d=new Date();if(v==='m'){OPV.de=h.slice(0,8)+'01';OPV.ate=h}else if(v==='ma'){const a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);OPV.de=iso(a);OPV.ate=iso(b)}else{const a=new Date();a.setDate(a.getDate()-(+v||0));OPV.de=iso(a);OPV.ate=h}OPV.dia=OPV.ate;opvCarregar();render()},
   lnAtualizar(){lnCarregar(true);omCarregar(true);cpCarregar(true);esCarregar(true);render()},lnPer(el){LN.per=el.dataset.v;render()},lnMix(el){LN.mix=el.dataset.v;render()},
   lnCat(el){LN.cat=el.dataset.v;LN.ref=null;render()},lnRef(el){LN.ref=el.dataset.v;const r=LN.d&&lnCalc().R[LN.ref];if(r)LN.cat=r.cat;render();if(el.tagName==='TR'){const c=document.getElementById('lnProdutos');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})}},
-  lnPedido(el){const k=el.dataset.v;if(LN.pedido.has(k))LN.pedido.delete(k);else LN.pedido.add(k);render()},lnExportar(){lnExportar()},
+  lnPedido(el){const k=el.dataset.v;if(LN.pedido.has(k))LN.pedido.delete(k);else LN.pedido.add(k);render()},lnExportar(){lnExportar()},lnPdf(){lnPdf()},
   menu(){if(window.innerWidth<=900)$('#shell').classList.toggle('open');else{ui.mini=!ui.mini;render()}},
   filtros(){ui.drawer=!ui.drawer;$('#drawerHost').innerHTML=ui.drawer?drawerHtml():''},
   grp(el,e){e.preventDefault();const g=el.dataset.v;ui.menu[g]=!ui.menu[g];if(ui.menu[g]&&ui.mini)ui.mini=false;$('#nav').innerHTML=navHtml()},
@@ -1980,7 +1980,7 @@ function vLojaNova(){if(!ehDiretoria())return vazio('Acesso restrito à Diretori
   const linTop=(r,i)=>`<tr class="ln-cl" data-act="lnRef" data-v="${esc(r.k)}"><td>${i+1}</td><td><b>${esc(r.k)}</b><div class="muted sm">${Object.keys(r.skus).length} cor/tam</div></td><td class="r">${lnInt(r.q)}${LN.per!=='inaug'?`<div class="muted sm">${lnInt(r.qt)} total</div>`:''}</td><td class="r">${md(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${lnInt(r.est)}</td><td class="r">${r.cobD==null?'—':num(r.cobD,1)+' d'}</td><td class="r"><b>${r.rep||'—'}</b></td><td>${lnSit(r.sit)}</td></tr>`;
   const g2=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:240px"><h3>Produtos mais vendidos e sugestão de reposição</h3>
     <div class="muted sm">Repor = venda média por dia desde a inauguração × ${C.cob} dias de cobertura (fixo) − estoque atual da loja.</div></div>
-    <div class="row" style="gap:8px"><button class="btn pri sm" data-act="lnExportar">Exportar pedido de reposição${LN.pedido.size?' ('+LN.pedido.size+' marcados)':''}</button></div></div>
+    <div class="row" style="gap:8px"><button class="btn sm" data-act="lnPdf">Gerar PDF</button><button class="btn pri sm" data-act="lnExportar">Exportar pedido de reposição${LN.pedido.size?' ('+LN.pedido.size+' marcados)':''}</button></div></div>
     ${top.length?tcK.map(k=>{const l=tc[k],q=l.reduce((s,r)=>s+r.q,0),v=l.reduce((s,r)=>s+r.v,0),e=l.reduce((s,r)=>s+r.est,0),rp=l.reduce((s,r)=>s+(r.rep||0),0),qtt=l.reduce((s,r)=>s+r.qt,0);return`<div class="ln-tcat"><div class="ln-tcath"><b>${esc(k)}</b><span class="muted sm">${l.length} produto(s) · ${lnInt(q)} peças · ${brl(v)}${totTop?' · <b>'+pct(v/totTop,1)+'</b> das vendas':''}</span></div>
     <div class="ln-tw"><table class="ln-t rsp"><tr><th>#</th><th>Produto</th><th class="r">Vendido</th><th class="r">Média/dia</th><th class="r">Valor</th><th class="r">Estoque</th><th class="r">Cobertura</th><th class="r">Repor</th><th>Situação</th></tr>
     ${l.map(linTop).join('')}<tr class="ln-sub"><td></td><td><b>Subtotal ${esc(k)}</b></td><td class="r"><b>${lnInt(q)}</b>${LN.per!=='inaug'?`<div class="muted sm">${lnInt(qtt)} total</div>`:''}</td><td class="r"><b>${md(q)}</b></td><td class="r"><b>${brl(v)}</b></td><td class="r"><b>${lnInt(e)}</b></td><td class="r"></td><td class="r"><b>${rp||'—'}</b></td><td></td></tr></table></div></div>`}).join('')+`<div class="ln-tcath ln-tot"><b>Total geral</b><span class="sm"><b>${lnInt(top.reduce((s,r)=>s+r.q,0))} peças · ${md(top.reduce((s,r)=>s+r.q,0))} peças/dia · ${brl(totTop)}</b></span></div>`:'<div class="muted">Ainda sem vendas desde a inauguração.</div>'}
@@ -2039,6 +2039,33 @@ function lnDet(C){const r=C.R[LN.ref];if(!r)return'<div class="muted">Selecione 
    <div><div class="muted sm" style="font-weight:600">Vendido / estoque por cor e tamanho</div><div class="ln-tw"><table class="ln-t ln-grade"><tr><th></th>${tams.map(t=>`<th>${esc(t)}</th>`).join('')}</tr>${cores.map(c=>`<tr><td>${esc(c)}</td>${tams.map(t=>cel(c,t)).join('')}</tr>`).join('')}</table></div><span class="muted sm">Em vermelho: zerado na loja.</span></div>
    <div>${lnSit(r.sit)}</div>
    <button class="btn ${no?'':'pri'} sm" style="justify-self:start" data-act="lnPedido" data-v="${esc(r.k)}">${no?'✓ No pedido de reposição (tirar)':'+ Incluir no pedido de reposição'}</button>`}
+function lnPdf(){const C=lnCalc(),L=C.L,nome=(S.lojas&&S.lojas[L.loja]?nomeLoja(L.loja):'')||L.nome||L.loja;
+  const promo=r=>/len[cç]o|bandana/i.test([r.k,r.cat,r.cls].join(' '));
+  const top=C.refs.filter(r=>r.qt>0&&!promo(r)).sort((a,b)=>b.q-a.q||b.qt-a.qt);if(!top.length){toast('Sem vendas para o relatório.');return}
+  const tc={};top.forEach(r=>{(tc[r.cat]=tc[r.cat]||[]).push(r)});const sm=(l,f)=>l.reduce((s,r)=>s+f(r),0);
+  const tcK=Object.keys(tc).sort((a,b)=>sm(tc[b],r=>r.q)-sm(tc[a],r=>r.q)||sm(tc[b],r=>r.qt)-sm(tc[a],r=>r.qt));
+  const totV=sm(top,r=>r.v),totQ=sm(top,r=>r.q),dPer=LN.per==='hoje'?1:LN.per==='7d'?Math.min(7,C.diasOp):C.diasOp,md=q=>q>0?num(q/dPer,1):'—';
+  const perT=LN.per==='hoje'?'Hoje ('+fmtD(C.hj)+')':LN.per==='7d'?'Últimos 7 dias ('+fmtD(C.ini)+' a '+fmtD(C.hj)+')':'Desde a inauguração ('+fmtD(C.ina)+' a '+fmtD(C.hj)+')';
+  const cab='<tr><th>#</th><th>Produto</th><th class="r">Vendido</th><th class="r">Média/dia</th><th class="r">Valor</th><th class="r">Estoque</th><th class="r">Cobertura</th><th class="r">Repor</th><th>Situação</th></tr>';
+  const corpo=tcK.map(k=>{const l=tc[k],q=sm(l,r=>r.q),v=sm(l,r=>r.v);return`<h2>${esc(k)} <span>${l.length} produto(s) · ${lnInt(q)} peças · ${brl(v)} · ${pct(totV?v/totV:0,1)} das vendas</span></h2><table>${cab}
+    ${l.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.k)}</b>${r.ref?'<br><small>Ref '+esc(r.ref)+'</small>':''}</td><td class="r">${lnInt(r.q)}</td><td class="r">${md(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${lnInt(r.est)}</td><td class="r">${r.cobD==null?'—':num(r.cobD,1)+' d'}</td><td class="r"><b>${r.rep||'—'}</b></td><td>${esc(r.sit[0])}</td></tr>`).join('')}
+    <tr class="sub"><td></td><td>Subtotal ${esc(k)}</td><td class="r">${lnInt(q)}</td><td class="r">${md(q)}</td><td class="r">${brl(v)}</td><td class="r">${lnInt(sm(l,r=>r.est))}</td><td></td><td class="r">${sm(l,r=>r.rep||0)||'—'}</td><td></td></tr></table>`}).join('');
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Mais vendidos - ${esc(nome)} - ${esc(C.hj)}</title><style>
+  @page{size:A4;margin:12mm}*{box-sizing:border-box}body{font:11px/1.35 Inter,Arial,sans-serif;color:#16182B;margin:0}
+  header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #7A2BD8;padding-bottom:8px;margin-bottom:10px}
+  h1{font-size:18px;margin:0}header p{margin:2px 0 0;color:#62657E}.tot{display:flex;gap:18px;margin:8px 0 4px}.tot div{background:#F4F1FB;border-radius:8px;padding:6px 10px}.tot small{display:block;color:#62657E}.tot b{font-size:14px}
+  h2{font-size:12.5px;margin:14px 0 4px;padding:6px 8px;background:#F1F2F7;border-radius:6px;display:flex;justify-content:space-between;break-after:avoid}h2 span{font-weight:400;color:#62657E;font-size:10.5px}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th{text-align:left;font-size:9px;text-transform:uppercase;color:#62657E;border-bottom:1px solid #DADCE6;padding:4px}th:nth-child(1){width:22px}th:nth-child(2){width:30%}
+  td{padding:4px;border-bottom:1px solid #EEF0F5;vertical-align:top}td small{color:#62657E}.r{text-align:right}tr{break-inside:avoid}tr.sub td{background:#F6F7FA;font-weight:700}
+  footer{margin-top:12px;color:#62657E;font-size:9.5px}</style></head><body>
+  <header><div><h1>Produtos mais vendidos · ${esc(nome)}</h1><p>${esc(perT)} · filiais ${esc((L.filiais||[]).join('/'))}</p></div><p>UpHub · gerado em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</p></header>
+  <div class="tot"><div><small>Peças vendidas</small><b>${lnInt(totQ)}</b></div><div><small>Média por dia</small><b>${md(totQ)} peças</b></div><div><small>Valor vendido</small><b>${brl(totV)}</b></div><div><small>Produtos</small><b>${top.length}</b></div></div>
+  ${corpo}
+  <footer>Média/dia = peças vendidas no período ÷ dias do período. Repor = venda média por dia desde a inauguração × 7 dias de cobertura − estoque atual da loja. Lenços e bandanas (promocionais) não entram no relatório.</footer></body></html>`;
+  let f=document.getElementById('lnPdfF');if(f)f.remove();f=document.createElement('iframe');f.id='lnPdfF';f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);
+  const d=f.contentDocument;d.open();d.write(html);d.close();
+  setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();w.print()}else toast('Não foi possível abrir a impressão.')}},350);
+  toast('Na janela de impressão, escolha "Salvar como PDF".')}
 function lnExportar(){const C=lnCalc(),lin=[['Referência','Produto','Cor','Tamanho','Categoria','Vendido desde inauguração','Estoque','Sugestão de reposição']];
   C.refs.filter(r=>r.rep>0||LN.pedido.has(r.k)).sort((a,b)=>b.rep-a.rep).forEach(r=>{const tot=Math.max(1,r.qt);Object.values(r.skus).forEach(s=>{const p=C.P[s.c]||{};
     const sug=r.rep?Math.max(0,Math.round(r.rep*(r.qt>0?Math.max(0,s.qt)/tot:1/Object.keys(r.skus).length))):0;lin.push([r.ref||'',p.n||r.k,s.cor,s.tam,r.cat,s.qt,s.est,sug])})});
