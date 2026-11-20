@@ -700,7 +700,7 @@ const GRP={rel:{t:'Relatórios',ic:'rel'},fb:{t:'Feedback',ic:'fb'},cad:{t:'Cada
 const ehDiretoria=()=>demo||!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.diretoria);
 const soDiretoria=()=>!demo&&!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='diretoria');
 function go(r,extra){if(soDiretoria()&&!['lojanova','operacoes','ajuda'].includes(r))r='lojanova';if((r==='lojanova'||r==='operacoes')&&!ehDiretoria())r='visao';if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
-  if(r==='lojanova'&&ui.route!=='lojanova'&&typeof LN!=='undefined')LN.cob=20;
+  if(r==='lojanova'&&ui.route!=='lojanova'&&typeof LN!=='undefined')LN.cob=14;
   ui.route=r;ui.wiz=null;ui.metaView=null;ui.fbView=null;ui.rkView=null;ui.drawer=false;Object.assign(ui,extra||{});
   const h=r==='loja'&&ui.loja?'loja-'+ui.loja:r;try{if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)}catch(e){}
   $('#shell').classList.remove('open');render();window.scrollTo(0,0)}
@@ -1674,7 +1674,7 @@ const CH={
   cpForn(t){if(t.checked)CP.fs.add(t.value);else CP.fs.delete(t.value);cpRefaz()},cpCat(t){CP.cat=t.value;cpRefaz()},
   omCat(t){OM.cat=t.value;OM.n=20;render()},
   opvF(t){const k=t.dataset.k;if(k!=='loja'&&!t.value)return;OPV[k]=t.value;if(OPV.de>OPV.ate){if(k==='de')OPV.ate=OPV.de;else OPV.de=OPV.ate}if(k==='de'||k==='ate'){OPV.dia=OPV.ate;opvCarregar()}render()},
-  lnCob(t){LN.cob=+t.value||20;render()},lnLoja(t){LN.loja=t.value;LN.cob=20;LN.d=null;LN.cat=null;LN.ref=null;lnCarregar(true);render()},
+  lnCob(t){LN.cob=+t.value||14;render()},lnLoja(t){LN.loja=t.value;LN.cob=14;LN.d=null;LN.cat=null;LN.ref=null;lnCarregar(true);render()},
   opsModo(t){const m=ui.modal;if(!m)return;m.modo=t.value;renderModal()},
   opsCk(t){const m=ui.modal;if(!m)return;const k=String(t.dataset.v);if(t.checked)m.sel.add(k);else m.sel.delete(k)},
   f(t){const k=t.dataset.k;if(['ini','fim','aIni','aFim','pIni','pFim'].includes(k)&&!t.value)return;ui.f[k]=t.value;
@@ -1901,7 +1901,7 @@ function vFotos(){const ls=lojasSel(),pode=podeFoto(),d=pode?'':'disabled';
     (grupos.length?grupos.map(([lid,ids])=>`<div class="card"><div class="hd"><h3>${esc(nomeLoja(lid))}</h3><span class="muted sm">${ids.length} pessoa(s)</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px">${ids.map(cartao).join('')}</div></div>`).join(''):vazio('Nenhuma pessoa cadastrada nas lojas selecionadas.'))}
 /* ================= Loja nova · acompanhamento (TOTVS por produto) ================= */
-const LN={aba:'acomp',d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:20,mix:'cls',pedido:new Set(),t:null,em:0};
+const LN={aba:'acomp',d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:14,mix:'cls',pedido:new Set(),t:null,em:0};
 function lnCarregar(forca){if(LN.carr||(!forca&&LN.d&&Date.now()-LN.em<120000))return;if(!window.PAINEL||!PAINEL.sb){LN.erro='Disponível só com login (não funciona na demonstração).';return}
   LN.carr=true;PAINEL.sb.rpc('painel_loja_detalhe',{loja:LN.loja}).then(({data,error})=>{if(error)throw error;LN.d=data;LN.erro=null;LN.em=Date.now();
     if(data&&data.loja){LN.loja=data.loja.loja}}).catch(e=>{LN.erro=errMsg(e)}).finally(()=>{LN.carr=false;if(ui.route==='lojanova')render()})}
@@ -1925,7 +1925,7 @@ function lnCalc(){const D=LN.d,L=D.loja,hj=hoje(),ina=L.inauguracao||hj;
   const notas=(D.notas||[]).filter(n=>dentro(n.d));
   notas.forEach(n=>(n.i||[]).forEach(i=>{const r=P[i.p]?R[refDe(P[i.p])]:null;if(r){const t=n.d+' '+(n.h||'');if(!r.ult||t>r.ult)r.ult=t}}));
   const nv=notas.length,vN=notas.reduce((s,n)=>s+(n.i||[]).reduce((a,i)=>a+(+i.v||0),0),0),qN=notas.reduce((s,n)=>s+(n.i||[]).reduce((a,i)=>a+(+i.q||0),0),0);
-  const diasOp=Math.max(1,lnDias(ina,hj)+1),cob=LN.cob||20;
+  const diasOp=Math.max(1,lnDias(ina,hj)+1),cob=LN.cob||14;
   const refs=Object.values(R).map(r=>{const med=r.qt/diasOp,cobD=med>0?r.est/med:null,rep=med>0?Math.max(0,Math.ceil(med*cob-r.est)):0;
     let sit;if(r.qt<=0)sit=['Sem venda','cz'];else if(r.est<=0)sit=['Zerado','er'];else if(cobD<=3)sit=['Ruptura em '+Math.max(1,Math.round(cobD))+' dia(s)','er'];else if(cobD<=7)sit=['Repor já','er'];else if(cobD<cob)sit=['Repor em breve','al'];else sit=['Estoque ok','ok'];
     return{...r,med,cobD,rep,sit}});
