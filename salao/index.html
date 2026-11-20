@@ -1900,10 +1900,10 @@ function vFotos(){const ls=lojasSel(),pode=podeFoto(),d=pode?'':'disabled';
     (grupos.length?grupos.map(([lid,ids])=>`<div class="card"><div class="hd"><h3>${esc(nomeLoja(lid))}</h3><span class="muted sm">${ids.length} pessoa(s)</span></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px">${ids.map(cartao).join('')}</div></div>`).join(''):vazio('Nenhuma pessoa cadastrada nas lojas selecionadas.'))}
 /* ================= Loja nova · acompanhamento (TOTVS por produto) ================= */
-const LN={aba:'acomp',d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:null,mix:'cls',pedido:new Set(),t:null,em:0};
+const LN={aba:'acomp',d:null,carr:false,erro:null,loja:null,per:'inaug',cat:null,ref:null,cob:7,mix:'cls',pedido:new Set(),t:null,em:0};
 function lnCarregar(forca){if(LN.carr||(!forca&&LN.d&&Date.now()-LN.em<120000))return;if(!window.PAINEL||!PAINEL.sb){LN.erro='Disponível só com login (não funciona na demonstração).';return}
   LN.carr=true;PAINEL.sb.rpc('painel_loja_detalhe',{loja:LN.loja}).then(({data,error})=>{if(error)throw error;LN.d=data;LN.erro=null;LN.em=Date.now();
-    if(data&&data.loja){LN.loja=data.loja.loja;if(LN.cob==null)LN.cob=data.cobertura||14}}).catch(e=>{LN.erro=errMsg(e)}).finally(()=>{LN.carr=false;if(ui.route==='lojanova')render()})}
+    if(data&&data.loja){LN.loja=data.loja.loja;LN.cob=7}}).catch(e=>{LN.erro=errMsg(e)}).finally(()=>{LN.carr=false;if(ui.route==='lojanova')render()})}
 setInterval(()=>{if(ui.route==='lojanova'&&!document.hidden)lnCarregar(true)},120000);
 const lnDias=(a,b)=>Math.round((Date.parse(b+'T12:00:00')-Date.parse(a+'T12:00:00'))/864e5);
 const lnMais=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return iso(x)};
@@ -1924,7 +1924,7 @@ function lnCalc(){const D=LN.d,L=D.loja,hj=hoje(),ina=L.inauguracao||hj;
   const notas=(D.notas||[]).filter(n=>dentro(n.d));
   notas.forEach(n=>(n.i||[]).forEach(i=>{const r=P[i.p]?R[refDe(P[i.p])]:null;if(r){const t=n.d+' '+(n.h||'');if(!r.ult||t>r.ult)r.ult=t}}));
   const nv=notas.length,vN=notas.reduce((s,n)=>s+(n.i||[]).reduce((a,i)=>a+(+i.v||0),0),0),qN=notas.reduce((s,n)=>s+(n.i||[]).reduce((a,i)=>a+(+i.q||0),0),0);
-  const diasOp=Math.max(1,lnDias(ina,hj)+1),cob=LN.cob||14;
+  const diasOp=Math.max(1,lnDias(ina,hj)+1),cob=7;
   const refs=Object.values(R).map(r=>{const med=r.qt/diasOp,cobD=med>0?r.est/med:null,rep=med>0?Math.max(0,Math.ceil(med*cob-r.est)):0;
     let sit;if(r.qt<=0)sit=['Sem venda','cz'];else if(r.est<=0)sit=['Zerado','er'];else if(cobD<=3)sit=['Ruptura em '+Math.max(1,Math.round(cobD))+' dia(s)','er'];else if(cobD<=7)sit=['Repor já','er'];else if(cobD<cob)sit=['Repor na semana','al'];else sit=['Estoque ok','ok'];
     return{...r,med,cobD,rep,sit}});
@@ -1979,8 +1979,8 @@ function vLojaNova(){if(!ehDiretoria())return vazio('Acesso restrito à Diretori
   const tcK=Object.keys(tc).sort((a,b)=>tc[b].reduce((s,r)=>s+r.q,0)-tc[a].reduce((s,r)=>s+r.q,0)||tc[b].reduce((s,r)=>s+r.qt,0)-tc[a].reduce((s,r)=>s+r.qt,0));
   const linTop=(r,i)=>`<tr class="ln-cl" data-act="lnRef" data-v="${esc(r.k)}"><td>${i+1}</td><td><b>${esc(r.k)}</b><div class="muted sm">${Object.keys(r.skus).length} cor/tam</div></td><td class="r">${lnInt(r.q)}${LN.per!=='inaug'?`<div class="muted sm">${lnInt(r.qt)} total</div>`:''}</td><td class="r">${md(r.q)}</td><td class="r">${brl(r.v)}</td><td class="r">${lnInt(r.est)}</td><td class="r">${r.cobD==null?'—':num(r.cobD,1)+' d'}</td><td class="r"><b>${r.rep||'—'}</b></td><td>${lnSit(r.sit)}</td></tr>`;
   const g2=`<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:240px"><h3>Produtos mais vendidos e sugestão de reposição</h3>
-    <div class="muted sm">Repor = venda média por dia desde a inauguração × ${C.cob} dias de cobertura − estoque atual da loja.</div></div>
-    <div class="row" style="gap:8px"><select class="inp" data-ch="lnCob">${[7,14,21,30].map(n=>`<option value="${n}" ${n===C.cob?'selected':''}>Cobertura: ${n} dias</option>`).join('')}</select><button class="btn pri sm" data-act="lnExportar">Exportar pedido de reposição${LN.pedido.size?' ('+LN.pedido.size+' marcados)':''}</button></div></div>
+    <div class="muted sm">Repor = venda média por dia desde a inauguração × ${C.cob} dias de cobertura (fixo) − estoque atual da loja.</div></div>
+    <div class="row" style="gap:8px"><button class="btn pri sm" data-act="lnExportar">Exportar pedido de reposição${LN.pedido.size?' ('+LN.pedido.size+' marcados)':''}</button></div></div>
     ${top.length?tcK.map(k=>{const l=tc[k],q=l.reduce((s,r)=>s+r.q,0),v=l.reduce((s,r)=>s+r.v,0),e=l.reduce((s,r)=>s+r.est,0),rp=l.reduce((s,r)=>s+(r.rep||0),0),qtt=l.reduce((s,r)=>s+r.qt,0);return`<div class="ln-tcat"><div class="ln-tcath"><b>${esc(k)}</b><span class="muted sm">${l.length} produto(s) · ${lnInt(q)} peças · ${brl(v)}${totTop?' · <b>'+pct(v/totTop,1)+'</b> das vendas':''}</span></div>
     <div class="ln-tw"><table class="ln-t rsp"><tr><th>#</th><th>Produto</th><th class="r">Vendido</th><th class="r">Média/dia</th><th class="r">Valor</th><th class="r">Estoque</th><th class="r">Cobertura</th><th class="r">Repor</th><th>Situação</th></tr>
     ${l.map(linTop).join('')}<tr class="ln-sub"><td></td><td><b>Subtotal ${esc(k)}</b></td><td class="r"><b>${lnInt(q)}</b>${LN.per!=='inaug'?`<div class="muted sm">${lnInt(qtt)} total</div>`:''}</td><td class="r"><b>${md(q)}</b></td><td class="r"><b>${brl(v)}</b></td><td class="r"><b>${lnInt(e)}</b></td><td class="r"></td><td class="r"><b>${rp||'—'}</b></td><td></td></tr></table></div></div>`}).join('')+`<div class="ln-tcath ln-tot"><b>Total geral</b><span class="sm"><b>${lnInt(top.reduce((s,r)=>s+r.q,0))} peças · ${md(top.reduce((s,r)=>s+r.q,0))} peças/dia · ${brl(totTop)}</b></span></div>`:'<div class="muted">Ainda sem vendas desde a inauguração.</div>'}
