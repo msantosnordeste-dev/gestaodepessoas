@@ -700,6 +700,7 @@ const GRP={rel:{t:'Relatórios',ic:'rel'},fb:{t:'Feedback',ic:'fb'},cad:{t:'Cada
 const ehDiretoria=()=>demo||!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.diretoria);
 const soDiretoria=()=>!demo&&!!(window.PAINEL&&PAINEL.eu&&PAINEL.eu.papel==='diretoria');
 function go(r,extra){if(soDiretoria()&&!['lojanova','operacoes','ajuda'].includes(r))r='lojanova';if((r==='lojanova'||r==='operacoes')&&!ehDiretoria())r='visao';if(r.startsWith('loja-')){ui.loja=r.slice(5);r='loja'}if(!R[r])r='visao';if(soLista()&&r!=='lista'&&r!=='ajuda')r='lista';
+  if(r==='lojanova'&&ui.route!=='lojanova'&&typeof LN!=='undefined')LN.cob=20;
   ui.route=r;ui.wiz=null;ui.metaView=null;ui.fbView=null;ui.rkView=null;ui.drawer=false;Object.assign(ui,extra||{});
   const h=r==='loja'&&ui.loja?'loja-'+ui.loja:r;try{if(location.hash.slice(1)!==h)history.replaceState(null,'','#'+h)}catch(e){}
   $('#shell').classList.remove('open');render();window.scrollTo(0,0)}
@@ -1673,7 +1674,7 @@ const CH={
   cpForn(t){if(t.checked)CP.fs.add(t.value);else CP.fs.delete(t.value);cpRefaz()},cpCat(t){CP.cat=t.value;cpRefaz()},
   omCat(t){OM.cat=t.value;OM.n=20;render()},
   opvF(t){const k=t.dataset.k;if(k!=='loja'&&!t.value)return;OPV[k]=t.value;if(OPV.de>OPV.ate){if(k==='de')OPV.ate=OPV.de;else OPV.de=OPV.ate}if(k==='de'||k==='ate'){OPV.dia=OPV.ate;opvCarregar()}render()},
-  lnCob(t){LN.cob=+t.value||20;render()},lnLoja(t){LN.loja=t.value;LN.d=null;LN.cat=null;LN.ref=null;lnCarregar(true);render()},
+  lnCob(t){LN.cob=+t.value||20;render()},lnLoja(t){LN.loja=t.value;LN.cob=20;LN.d=null;LN.cat=null;LN.ref=null;lnCarregar(true);render()},
   opsModo(t){const m=ui.modal;if(!m)return;m.modo=t.value;renderModal()},
   opsCk(t){const m=ui.modal;if(!m)return;const k=String(t.dataset.v);if(t.checked)m.sel.add(k);else m.sel.delete(k)},
   f(t){const k=t.dataset.k;if(['ini','fim','aIni','aFim','pIni','pFim'].includes(k)&&!t.value)return;ui.f[k]=t.value;
