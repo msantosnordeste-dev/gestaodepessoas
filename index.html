@@ -9159,7 +9159,7 @@ function rsTelaVaga(v){
       <div class="small" style="margin-top:3px">${rsCodBadge(v)}${esc(store(v.loja_id).nome)} · ${v.posicoes} posiç${v.posicoes==1?"ão":"ões"} · ${esc(v.contrato)} · ${v.aberta_em?"aberta em "+fdate(v.aberta_em):"pedida em "+fdate(String(v.criado_em).slice(0,10))}${v.criado_nome?" · pedido de "+esc(v.criado_nome):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${chip(v.perfil_alinhado_em?"Perfil alinhado com o gerente · "+fdate(v.perfil_alinhado_em):"Perfil ainda não alinhado",!!v.perfil_alinhado_em)}${v.motivo?chip("Motivo: "+esc(rsMotivosTxt(v)),true):""}${chip(v.gupy?"Divulgada no Gupy · nº "+esc(v.gupy):"Divulgação em paralelo no Gupy",!!v.gupy)}${v.escala?chip("Escala: "+esc(v.escala),true):""}${v.status==="aberta"?`<span class="chip" style="background:${RS_COR[i.prazo].bg};color:${RS_COR[i.prazo].fg}">${i.dias} de ${RS_SLA_VAGA} dias</span>`:chip(esc(i.lbl),false)}</div>
     ${["pedido","devolvida"].includes(v.status)?rsLinhaAprov(v,false):rsCadeia(v)}</div>
-    <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${(rh||rsPodeAprovarConf(v))&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsPodeAprovarConf(v)&&!rh?"Aprovar vaga confidencial":rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}${aberta?`<button class="btn" data-rs="divBaixar" data-id="${v.id}" title="Baixar arte de divulgação (Feed e Stories)">🎨 Baixar divulgação</button>`:""}${rsPodeExcluir(v)?`<button class="btn btn-danger" data-rs="excluirVaga" data-id="${v.id}" title="${rsRH()?"O RH pode excluir a vaga em qualquer fase":"Excluir o pedido"}">🗑️ Excluir vaga</button>`:""}</div></div>`;
+    <div class="tabs-inline">${rsPodeExcluir(v)?`<button class="btn" data-rs="alterarVaga" data-id="${v.id}">✏️ Alterar vaga</button>`:""}${(rh||rsPodeAprovarConf(v))&&v.status==="pedido"?`<button class="btn btn-primary" data-rs="aprovar" data-id="${v.id}">${rsPodeAprovarConf(v)&&!rh?"Aprovar vaga confidencial":rsEtapaAprov(v)==="rh"?"Validar pedido":"Ver pedido"}</button>`:""}${rh&&aberta?`<button class="btn btn-primary" data-rs="convite" data-id="${v.id}">📲 Convite WhatsApp</button><button class="btn" data-rs="preNovo" data-id="${v.id}">Link para candidato específico</button><button class="btn" data-rs="doBanco" data-id="${v.id}">Do banco de talentos</button><button class="btn" data-rs="cmAbrir" data-id="${v.id}" title="Importar lista e convidar em massa pelo WhatsApp">👥 Convite em massa</button><button class="btn btn-ghost" data-rs="fecharVaga" data-id="${v.id}">Fechar vaga</button>`:""}${rh&&["fechada","cancelada"].includes(v.status)?`<button class="btn" data-rs="reabrirVaga" data-id="${v.id}">Reabrir vaga</button>`:""}${aberta?`<button class="btn" data-rs="divBaixar" data-id="${v.id}" title="Baixar arte de divulgação (Feed e Stories)">🎨 Baixar divulgação</button>`:""}${rsPodeExcluir(v)?`<button class="btn btn-danger" data-rs="excluirVaga" data-id="${v.id}" title="${rsRH()?"O RH pode excluir a vaga em qualquer fase":"Excluir o pedido"}">🗑️ Excluir vaga</button>`:""}</div></div>`;
   const cs=i.cs,f=[cs.length,cs.filter(c=>c.etapa>3||c.status==="admitido").length,cs.filter(c=>c.etapa>=4&&(c.etapa>4||(c.registros["4"]&&c.registros["4"].em))||c.status==="admitido").length,cs.filter(c=>c.etapa>=9||c.status==="admitido").length,i.adm.length];
   const funil=`<div class="small" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"><b>Funil:</b> ${f[0]} entraram › ${f[1]} triados › ${f[3]} com proposta › ${f[4]} admitido${f[4]===1?"":"s"}<span class="muted" style="margin-left:auto">Cor do cartão: verde no prazo · laranja vence hoje · vermelho atrasado</span></div>`;
   const card=c=>{const s=rsSla(c),cor=RS_COR[s.st];const r7=c.registros["7"]||{};
@@ -10122,6 +10122,160 @@ function rsDivModal(v){
     <p class="small muted" style="margin:14px 0 0">A imagem é gerada com os dados atuais da vaga (cargo, local, requisitos e benefícios).</p>`,
    `<button class="btn" data-close>Fechar</button>`);
 }
+
+/* ============ Convite em massa para processo seletivo ============
+   Importa uma lista (nome + telefone), gera um link de pré-cadastro único por pessoa
+   (vinculado à vaga) e dispara pelo WhatsApp do RH em sequência, com intervalo,
+   progresso e resumo. Reaproveita rs_precadastro, a função "whatsapp" e rsPreLink. */
+RS.cm={rows:[],res:[],enviando:false,parar:false,_v:null};
+
+function rsCmPhone(s){let d=String(s||"").replace(/\D/g,"");
+  if(!d)return "";
+  if(d.length>13)d=d.slice(-13);
+  if((d.length===12||d.length===13)&&d.startsWith("55"))return d;
+  if(d.length===10||d.length===11)return "55"+d;
+  return "";
+}
+function rsCmParseTexto(txt){
+  const vistos=new Set(),rows=[];
+  String(txt||"").split(/\r?\n/).forEach(ln=>{
+    ln=ln.trim();if(!ln)return;
+    const parts=ln.split(/[\t;,]/).map(x=>x.trim()).filter(x=>x!=="");
+    let telRaw="",nome="";
+    if(parts.length>=2){
+      let ti=-1;parts.forEach((p,i)=>{if(p.replace(/\D/g,"").length>=10)ti=i;});
+      if(ti<0)ti=parts.length-1;
+      telRaw=parts[ti];nome=parts.filter((_,i)=>i!==ti).join(" ");
+    }else{
+      const m=ln.match(/^(.*?)[\s:–-]*([\d().\s-]{10,})$/);
+      if(m){nome=m[1].trim();telRaw=m[2];}else{telRaw=ln;}
+    }
+    const tel=rsCmPhone(telRaw),valido=!!tel,chave=tel;
+    const dup=valido&&vistos.has(chave);if(valido)vistos.add(chave);
+    rows.push({nome:nome.replace(/\s+/g," ").trim(),tel,telRaw:telRaw.trim(),valido,dup});
+  });
+  return rows;
+}
+async function rsCmArquivo(file){
+  if(typeof XLSX==="undefined"){toast("Leitor de planilha indisponível; cole a lista no campo de texto.");return;}
+  try{
+    const buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:"array"}),ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});
+    if(!aoa.length){toast("Planilha vazia");return;}
+    const head=(aoa[0]||[]).map(x=>String(x||"").toLowerCase());
+    const iNome=head.findIndex(h=>/nome|candidat/.test(h));
+    const iTel=head.findIndex(h=>/tel|whats|cel|fone|contato/.test(h));
+    let linhas;
+    if(iNome>=0||iTel>=0)linhas=aoa.slice(1).map(r=>[(iNome>=0?r[iNome]:r[0])||"",(iTel>=0?r[iTel]:r[1])||""]);
+    else linhas=aoa.map(r=>[r[0]||"",r[1]||""]);
+    const ta=$("#cm-txt");if(ta){ta.value=linhas.map(([n,t])=>`${String(n).trim()}\t${String(t).trim()}`).join("\n");}
+    rsCmProcessar();toast("Lista importada da planilha");
+  }catch(e){toast("Não foi possível ler o arquivo: "+(e&&e.message||e));}
+}
+function rsCmProcessar(){RS.cm.rows=rsCmParseTexto($("#cm-txt")?$("#cm-txt").value:"");rsCmPreview();}
+function rsCmPreview(){
+  const box=$("#cm-prev");if(!box)return;const rows=RS.cm.rows;
+  const val=rows.filter(r=>r.valido&&!r.dup).length,dup=rows.filter(r=>r.dup).length,inv=rows.filter(r=>!r.valido).length;
+  if(!rows.length){box.innerHTML=`<p class="small muted">Cole a lista ou importe um arquivo e clique em <b>Processar lista</b>.</p>`;}
+  else box.innerHTML=`<div class="note" style="margin:10px 0"><b>${val}</b> válido(s)${dup?` · <b>${dup}</b> repetido(s) ignorado(s)`:""}${inv?` · <b>${inv}</b> sem telefone válido`:""}</div>
+   <div class="table-wrap" style="max-height:230px;overflow:auto"><table><thead><tr><th>Nome</th><th>Telefone</th><th>Situação</th></tr></thead><tbody>${rows.slice(0,200).map(r=>`<tr><td>${esc(r.nome||"—")}</td><td class="small">${esc(r.telRaw||"—")}${r.valido?`<br><span class="small muted">envia p/ ${esc(r.tel)}</span>`:""}</td><td>${r.valido?(r.dup?`<span class="chip c-warn">repetido</span>`:`<span class="chip c-ok">ok</span>`):`<span class="chip c-bad">telefone inválido</span>`}</td></tr>`).join("")}</tbody></table></div>${rows.length>200?`<p class="small muted">Mostrando 200 de ${rows.length}.</p>`:""}`;
+  const btn=$("#cm-disparar");if(btn){btn.disabled=!val||RS.cm.enviando;btn.dataset.confirm="";btn.textContent=`📲 Disparar ${val||""} convite${val===1?"":"s"}`.replace("  "," ");}
+  if(val>150){const b=$("#cm-prev");b.insertAdjacentHTML("beforeend",`<p class="small" style="color:#8A3A0C;margin-top:6px">Lista grande (${val}). Envios muito volumosos podem bloquear o número do WhatsApp — considere dividir em lotes ou usar intervalo maior.</p>`);}
+}
+function rsCmTextoPadrao(v){
+  return ["Olá, {nome}! Aqui é o RH da Brasileiríssima.","",
+   "Estamos com um processo seletivo aberto e queremos conhecer você:","",
+   "*Cargo:* "+v.cargo+(v.contrato&&v.contrato!=="Efetivo"?" ("+String(v.contrato).toLowerCase()+")":""),
+   "*Local:* "+rsLocalFmt(store(v.loja_id).nome),"",
+   "Para participar, preencha seu pré-cadastro neste link (é pessoal e vale por 7 dias):","{link}","",
+   "Qualquer dúvida, é só responder esta mensagem."].join("\n");
+}
+function rsCmMontarMsg(tpl,nome,link){
+  const primeiro=(nome||"").trim().split(/\s+/)[0]||"";
+  return String(tpl).replace(/\{nome\}/g,primeiro).replace(/\{link\}/g,link).replace(/,\s*!/g,"!").replace(/Olá\s+!/g,"Olá!").replace(/\n{3,}/g,"\n\n");
+}
+function rsCmModal(v){
+  RS.cm={rows:[],res:[],enviando:false,parar:false,_v:v};
+  modal("Convite em massa · "+esc(v.cargo),
+  `<p class="small muted" style="margin:0 0 10px">${esc(store(v.loja_id).nome)} · cada pessoa recebe um <b>link único de pré-cadastro</b> desta vaga e entra na triagem. Envie só para quem espera seu contato (candidatos do processo).</p>
+   <div class="field"><label for="cm-txt">Lista — um por linha: <b>Nome, Telefone</b> (com DDD)</label>
+     <textarea class="input" id="cm-txt" rows="6" placeholder="Maria Silva, (71) 99999-0000&#10;João Souza; 71 98888-1111" style="font-size:.9rem"></textarea></div>
+   <div class="tabs-inline" style="margin:8px 0"><label class="btn btn-sm" style="cursor:pointer;margin:0">📄 Importar Excel/CSV<input type="file" id="cm-file" accept=".xlsx,.xls,.csv" hidden></label><button class="btn btn-sm" data-rs="cmProcessar">Processar lista</button></div>
+   <div id="cm-prev"></div>
+   <div class="field" style="margin-top:12px"><label for="cm-msg">Mensagem · use <code>{nome}</code> e <code>{link}</code></label><textarea class="input" id="cm-msg" rows="9" style="font-size:.88rem;line-height:1.4">${esc(rsCmTextoPadrao(v))}</textarea></div>
+   <div class="field" style="max-width:260px"><label for="cm-int">Intervalo entre envios</label><select class="input" id="cm-int"><option value="3">3 segundos</option><option value="4" selected>4 segundos</option><option value="6">6 segundos</option><option value="8">8 segundos (mais seguro)</option></select></div>
+   <p class="small muted" style="margin-top:6px">O intervalo ajuda a não bloquear o número. Mantenha esta janela aberta: o envio segue até o fim.</p>
+   <div id="cm-prog"></div>`,
+  `<button class="btn" data-close>Fechar</button><button class="btn btn-primary" id="cm-disparar" data-rs="cmDisparar" disabled>📲 Disparar</button>`);
+  rsCmPreview();
+}
+function rsCmProg(done,total,ok,fail,msg){
+  const box=$("#cm-prog");if(!box)return;const pct=total?Math.round(done/total*100):0;
+  box.innerHTML=`<div style="margin-top:12px"><div style="display:flex;justify-content:space-between" class="small"><b>${done}/${total}</b><span>${ok} enviados${fail?` · ${fail} falhas`:""}</span></div>
+   <div style="height:10px;background:#E1E5DF;border-radius:6px;overflow:hidden;margin:6px 0"><div style="height:100%;width:${pct}%;background:#0E8A52;transition:width .25s"></div></div>
+   ${msg?`<p class="small muted" style="margin:0">${esc(msg)}</p>`:""}${RS.cm.enviando?`<button class="btn btn-sm btn-danger" data-rs="cmParar" style="margin-top:6px">Parar</button>`:""}</div>`;
+}
+function rsCmResumo(ok,fail,total){
+  const box=$("#cm-prog");if(!box)return;const fails=RS.cm.res.filter(r=>r.status==="erro");
+  box.innerHTML=`<div class="note" style="margin-top:12px"><b>Envio concluído.</b> ${ok} enviado(s)${fail?` · ${fail} falharam`:""}${RS.cm.parar?" · interrompido por você":""}.</div>
+   ${fails.length?`<div class="table-wrap" style="max-height:180px;overflow:auto;margin-top:8px"><table><thead><tr><th>Nome</th><th>Telefone</th><th>Motivo</th></tr></thead><tbody>${fails.map(r=>`<tr><td>${esc(r.nome||"—")}</td><td class="small">${esc(r.tel)}</td><td class="small">${esc(r.erro||"—")}</td></tr>`).join("")}</tbody></table></div>`:""}
+   <div class="tabs-inline" style="margin-top:10px"><button class="btn btn-sm" data-rs="cmBaixar">⬇ Baixar resultado (CSV)</button>${fails.length?`<button class="btn btn-sm btn-primary" data-rs="cmReenviar">Reenviar as ${fails.length} falhas</button>`:""}</div>`;
+}
+async function rsCmDisparar(v){
+  const rows=RS.cm.rows.filter(r=>r.valido&&!r.dup);
+  if(!rows.length){toast("Nenhum número válido na lista");return;}
+  if(RS.cm.enviando)return;
+  RS.cm.enviando=true;RS.cm.parar=false;RS.cm.res=[];
+  const tpl=$("#cm-msg")?$("#cm-msg").value:rsCmTextoPadrao(v);
+  const intervalo=Math.max(2,parseInt(($("#cm-int")||{}).value,10)||4)*1000;
+  const total=rows.length;let ok=0,fail=0;
+  rsCmProg(0,total,0,0,"Iniciando…");
+  for(let i=0;i<total;i++){
+    if(RS.cm.parar)break;const r=rows[i];
+    rsCmProg(i,total,ok,fail,"Enviando para "+(r.nome||r.tel)+"…");
+    try{
+      if(!r.token){
+        const b=new Uint8Array(24);crypto.getRandomValues(b);const token=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+        const {error}=await SB.from("rs_precadastro").insert({token,vaga_id:v.id,cargo:v.cargo,loja_id:v.loja_id,nome_previsto:r.nome||null,telefone_previsto:r.telRaw||r.tel,criado_nome:rsQuem()});
+        if(error){r.status="erro";r.erro="link: "+error.message;fail++;RS.cm.res.push(r);rsCmProg(i+1,total,ok,fail,"");continue;}
+        r.token=token;
+      }
+      const link=rsPreLink(r.token),msg=rsCmMontarMsg(tpl,r.nome,link);
+      const rr=await SB.functions.invoke("whatsapp",{body:{acao:"enviar",numero:r.tel,texto:msg,origem:"convite-massa",ref_tipo:"pre",ref_id:r.token}});
+      let d=rr.data;if(rr.error){try{d=await rr.error.context.json()}catch(e){d={erro:rr.error.message}}}
+      if(d&&d.ok){r.status="enviado";r.erro="";ok++;}else{r.status="erro";r.erro=(d&&(d.detalhe||d.erro))||"não enviado";fail++;}
+    }catch(e){r.status="erro";r.erro=(e&&e.message)||"erro";fail++;}
+    RS.cm.res.push(r);rsCmProg(i+1,total,ok,fail,"");
+    if(i<total-1&&!RS.cm.parar)await new Promise(res=>setTimeout(res,intervalo));
+  }
+  RS.cm.enviando=false;rsCmResumo(ok,fail,total);
+  try{await rsPreCarregar();if(typeof render==="function"&&page==="recrutamento")render();}catch(e){}
+}
+function rsCmBaixar(){
+  const rows=RS.cm.res.length?RS.cm.res:RS.cm.rows;if(!rows.length){toast("Nada para baixar");return;}
+  const linhas=[["Nome","Telefone","Status","Motivo","Link"].join(";")].concat(rows.map(r=>[r.nome,r.tel,r.status||"",(r.erro||"").replace(/[\n;]/g," "),r.token?rsPreLink(r.token):""].map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(";")));
+  const blob=new Blob(["﻿"+linhas.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="convite-massa.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+document.addEventListener("change",ev=>{const f=ev.target;if(f&&f.id==="cm-file"&&f.files&&f.files[0]){rsCmArquivo(f.files[0]);f.value="";}});
+document.addEventListener("click",async ev=>{
+  const t=ev.target.closest("[data-rs]");if(!t)return;const a=t.dataset.rs;
+  if(a==="cmAbrir"){const v=RS.vagas.find(x=>x.id===t.dataset.id);if(v)rsCmModal(v);return;}
+  if(a==="cmProcessar"){rsCmProcessar();return;}
+  if(a==="cmParar"){RS.cm.parar=true;toast("Vou parar após a mensagem atual…");return;}
+  if(a==="cmBaixar"){rsCmBaixar();return;}
+  if(a==="cmReenviar"){RS.cm.rows=RS.cm.res.filter(r=>r.status==="erro").map(r=>({...r,status:"",erro:""}));RS.cm.res=[];rsCmPreview();if(RS.cm._v)rsCmDisparar(RS.cm._v);return;}
+  if(a==="cmDisparar"){
+    const val=RS.cm.rows.filter(r=>r.valido&&!r.dup).length;
+    if(!val){toast("Nenhum número válido na lista");return;}
+    if(RS.cm.enviando)return;
+    if(t.dataset.confirm!=="1"){t.dataset.confirm="1";t.textContent=`Confirmar envio de ${val}?`;setTimeout(()=>{if(t.isConnected&&!RS.cm.enviando){t.dataset.confirm="";t.textContent=`📲 Disparar ${val} convite${val===1?"":"s"}`;}},6000);return;}
+    t.dataset.confirm="";t.disabled=true;
+    if(RS.cm._v)await rsCmDisparar(RS.cm._v);
+    const b=$("#cm-disparar");if(b){b.disabled=false;rsCmPreview();}
+    return;
+  }
+});
 
 
 /* ============ WhatsApp RH · histórico, interações e respostas ============ */
