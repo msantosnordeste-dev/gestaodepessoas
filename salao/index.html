@@ -2129,17 +2129,17 @@ function lnExcel(){if(!LN.d)return;const C=lnCalc();if(!C.refs.some(r=>r.qt>0)){
   const perT=LN.per==='hoje'?'Hoje ('+fmtD(C.hj)+')':LN.per==='7d'?'Últimos 7 dias ('+fmtD(C.ini)+' a '+fmtD(C.hj)+')':'Desde a inauguração ('+fmtD(C.ina)+' a '+fmtD(C.hj)+')';
   const cab=[['UpHub · Produtos mais vendidos · '+nome],['Período: '+perT+' · filiais '+(L.filiais||[]).join('/')+' · cobertura de '+C.cob+' dias'+(T.q?' · filtro: '+T.q:'')],['Gerado em '+new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})],[]];
   // aba 1: por produto (igual à tela)
-  const a1=[...cab,['Categoria','#','Códigos','Referência','Produto','Cor/tam','Vendido (período)','Vendido desde inauguração','Média/dia','Valor (R$)','Estoque','Cobertura (dias)','Repor','Situação']];
-  tcK.forEach(k=>{const l=tc[k];l.forEach((r,i)=>a1.push([k,i+1,lnCods(r).join(', '),r.ref||'',r.k,Object.keys(r.skus).length,r.q,r.qt,r1(r.q/dPer),Math.round(r.v*100)/100,r.est,r.cobD==null?'':r1(r.cobD),r.rep||0,r.sit[0]]));
+  const a1=[...cab,['Item','Referência','Códigos','Categoria','Produto','Cor/tam','Vendido (período)','Vendido desde inauguração','Média/dia','Valor (R$)','Estoque','Cobertura (dias)','Repor','Situação']];
+  tcK.forEach(k=>{const l=tc[k];l.forEach((r,i)=>a1.push([i+1,r.ref||'',lnCods(r).join(', '),k,r.k,Object.keys(r.skus).length,r.q,r.qt,r1(r.q/dPer),Math.round(r.v*100)/100,r.est,r.cobD==null?'':r1(r.cobD),r.rep||0,r.sit[0]]));
     a1.push(['Subtotal '+k,'','','','','',sm(l,r=>r.q),sm(l,r=>r.qt),r1(sm(l,r=>r.q)/dPer),Math.round(sm(l,r=>r.v)*100)/100,sm(l,r=>r.est),'',sm(l,r=>r.rep||0),''])});
   a1.push([T.q?'Total do filtro':'Total geral','','','','','',T.totQ,'',r1(T.totQ/dPer),Math.round(T.totV*100)/100,'','','','']);
   // aba 2: uma linha por código (cor/tamanho)
   const qc=(T.q||'').trim().match(/^(\d+)(\s+\S|$)/);
-  const a2=[...cab,['Categoria','Código','Referência','Produto','Cor','Tamanho','Vendido (período)','Vendido desde inauguração','Média/dia','Valor (R$)','Estoque','Cobertura (dias)','Repor']];
+  const a2=[...cab,['Item','Referência','Código','Categoria','Produto','Cor','Tamanho','Vendido (período)','Vendido desde inauguração','Média/dia','Valor (R$)','Estoque','Cobertura (dias)','Repor']];
   tcK.forEach(k=>tc[k].forEach(r=>lnCods(r).forEach(c=>{if(qc&&(qc[2]?c!==qc[1]:!c.includes(qc[1]))&&!String(r.ref||'').replace(/\s/g,'').includes(qc[1]))return;const s=r.skus[c],p=C.P[c]||{},med=s.qt/C.diasOp,cobD=med>0?s.est/med:null;
-    a2.push([k,/^\d+$/.test(c)?+c:c,r.ref||'',p.n||r.k,s.cor,s.tam,s.q,s.qt,r1(s.q/dPer),Math.round((s.v||0)*100)/100,s.est,cobD==null?'':r1(cobD),med>0?Math.max(0,Math.ceil(med*C.cob-s.est)):0])})));
+    a2.push([a2.length-4,r.ref||'',/^\d+$/.test(c)?+c:c,k,p.n||r.k,s.cor,s.tam,s.q,s.qt,r1(s.q/dPer),Math.round((s.v||0)*100)/100,s.est,cobD==null?'':r1(cobD),med>0?Math.max(0,Math.ceil(med*C.cob-s.est)):0])})));
   // texto da situação nas linhas de subtotal fica vazio; tudo que é número sai como número
-  const blob=lnXlsxGerar([{nome:'Por produto',linhas:a1,cab:4,moeda:9,dec:[8,11],larg:[26,5,28,12,36,8,12,14,10,14,9,12,8,18]},{nome:'Por código',linhas:a2,cab:4,moeda:9,dec:[8,11],larg:[26,10,12,40,16,9,12,14,10,14,9,12,8]}]);
+  const blob=lnXlsxGerar([{nome:'Por produto',linhas:a1,cab:4,moeda:9,dec:[8,11],larg:[7,12,28,26,36,8,12,14,10,14,9,12,8,18]},{nome:'Por código',linhas:a2,cab:4,moeda:10,dec:[9,12],larg:[7,12,10,26,40,16,9,12,14,10,14,9,12,8]}]);
   const ln=document.createElement('a');ln.href=URL.createObjectURL(blob);ln.download='mais-vendidos-'+(L.loja||'loja')+'-'+C.hj+(T.q?'-filtro':'')+'.xlsx';document.body.appendChild(ln);ln.click();setTimeout(()=>{URL.revokeObjectURL(ln.href);ln.remove()},800)}
 function lnExportar(){const C=lnCalc(),lin=[['Código','Referência','Produto','Cor','Tamanho','Categoria','Vendido desde inauguração','Estoque','Sugestão de reposição']];
   C.refs.filter(r=>r.rep>0||LN.pedido.has(r.k)).sort((a,b)=>b.rep-a.rep).forEach(r=>{const tot=Math.max(1,r.qt);Object.values(r.skus).forEach(s=>{const p=C.P[s.c]||{};
