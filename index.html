@@ -1079,6 +1079,8 @@ const ehTransf=e=>!!e.desligado&&INICIATIVA[e.desligado.tipo]==="transferencia";
 
 /* ============ navegação ============ */
 const ICON={
+  assinaturas:'<path d="M4 4h16v16H4z"/><path d="M8 13c1.5-2.5 3 2.5 4.5 0M8 17h8"/>',
+  assinar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
   notas:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8M9 9h3"/>',
   demandas:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14l2 2 4-4"/>',
   whatsapp:'<path d="M20.5 3.5A11 11 0 0 0 3.4 17.1L2 22l5-1.3A11 11 0 0 0 20.5 3.5z"/><path d="M8.5 8.5c.3 2.6 2.4 5 5 6l1.5-1.3 2 1-.6 1.8c-3.6.4-8.6-4.6-8.2-8.2l1.8-.6 1 2z"/>',
@@ -1147,6 +1149,7 @@ const PAGES=[
   {id:"desligamentos",t:"Desligamentos"},
   {id:"medidas",t:"Medidas disciplinares"},
   {g:"Sistema"},
+  {id:"assinaturas",t:"Assinaturas"},
   {id:"usuarios",t:"Usuários e acessos"},
   {id:"config",t:"Configurações"}
 ];
@@ -3600,6 +3603,8 @@ function correioLinha(x,v){
     :x.m&&x.m.tipo==="avaliacao"?`<button class="btn btn-sm btn-ghost" data-veravmov="${esc(x.k)}">Ver avaliação</button>`:x.eid&&emp(x.eid)?`<button class="btn btn-sm btn-ghost" data-ficha="${esc(x.eid)}">Ficha</button>`:"";
   return `<div class="alert" style="${nova?"border-color:var(--brand);background:var(--brand-tint)":""}"><div class="dot ${t.c}">${t.ic}</div><div style="min-width:0"><b style="white-space:normal">${nova?`<span class="chip c-brand" style="margin-right:6px">Nova</span>`:""}${esc(x.titulo)}</b><span style="white-space:normal">${esc(x.texto)}</span><span class="small muted">${quando}${x.lojaId&&(!G()||ST.stores.length>1)?" · "+esc(store(x.lojaId).nome):""}${x.por?" · por "+esc(x.por):""}</span></div><div class="tabs-inline" style="flex-wrap:nowrap">${acoes}</div></div>`;
 }
+R.assinaturas=()=>asnPagina();
+R.assinar=()=>asnColabPagina();
 R.correio=()=>{
   const v=correioVisto();let l=correioItens();const nl=l.filter(x=>correioConta(x.tipo)&&String(x.em)>v).length;
   const f=UI.cFiltro||"todas";
@@ -5522,7 +5527,7 @@ const IB_HTML="<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"u
    O colaborador cria o login com CPF + data de nascimento (função "colaborador") e entra com CPF e senha.
    Ele não lê tabelas de pessoas: os próprios dados vêm de meus_dados(), e o menu dele é só o "Meu espaço". */
 let MEU=null,MEU_ORG=null,TDP=[];
-const PAGES_C=[{g:"Meu espaço"},{id:"meustd",t:"Treinamentos"},{id:"integracao",t:"Integração"},{id:"minhaequipe",t:"Minha equipe"},{id:"recrutamento",t:"Recrutamento",lid:true},{id:"premiacoes",t:"Meu prêmio"},{id:"meusdados",t:"Meus dados"}];
+const PAGES_C=[{g:"Meu espaço"},{id:"assinar",t:"Documentos para assinar"},{id:"meustd",t:"Treinamentos"},{id:"integracao",t:"Integração"},{id:"minhaequipe",t:"Minha equipe"},{id:"recrutamento",t:"Recrutamento",lid:true},{id:"premiacoes",t:"Meu prêmio"},{id:"meusdados",t:"Meus dados"}];
 ICON.meustd='<path d="M2 8l10-4 10 4-10 4z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>';
 ICON.minhaequipe='<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>';
 ICON.integracao='<path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/>';
@@ -11469,6 +11474,114 @@ function geoAdminHTML(tabs){
 }
 document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest("[data-geo]");if(!t)return;
   if(t.dataset.geo==="atualizar"){GEOV=null;const el=$("#geo-corpo");if(el)el.innerHTML=geoLista();geoCarregar()}});
+
+/* ============ Assinaturas (Autentique por link) ============
+   O RH gera o documento e o link de assinatura na Autentique e cadastra aqui.
+   O portal guarda o link, ajuda no envio ao signatário e registra o status.
+   Sem API: a assinatura em si acontece na Autentique. */
+const ASN={itens:null,carregando:false,f:"pendente"};
+async function asnCarregar(){
+  if(ASN.carregando)return;ASN.carregando=true;
+  try{const {data,error}=await SB.from("assinaturas").select("*").order("criado_em",{ascending:false}).limit(500);if(!error)ASN.itens=data||[];}catch(e){}
+  ASN.carregando=false;if(page==="assinaturas"||page==="assinar")render();
+}
+function asnGarante(){if(ASN.itens===null&&!ASN.carregando)asnCarregar();}
+const ASN_TIPO={admissao:{t:"Admissão",c:"c-info"},termo:{t:"Termo / política",c:"c-brand"},avulso:{t:"Documento",c:"c-mute"}};
+const ASN_ST={pendente:{t:"Pendente",c:"c-warn"},assinado:{t:"Assinado",c:"c-ok"},cancelado:{t:"Cancelado",c:"c-bad"}};
+const asnUrlOk=u=>/^https?:\/\/\S+$/i.test(String(u||"").trim());
+function asnColabOpts(){try{return (ativos()||[]).slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome))).map(e=>`<option value="${esc(e.nome)}">`).join("");}catch(e){return "";}}
+function asnAchaColab(nome){try{const n=String(nome||"").trim().toLowerCase();if(!n)return null;return (ativos()||[]).find(e=>String(e.nome).trim().toLowerCase()===n)||null;}catch(e){return null;}}
+function asnMsg(x){return `Olá${x.signatario_nome?", "+String(x.signatario_nome).split(" ")[0]:""}! Segue o documento "${x.titulo}" para a sua assinatura:\n${x.link}`;}
+
+function asnNovo(){
+  modal("Novo documento para assinatura",
+   `<p class="small muted" style="margin:0 0 10px">Gere o documento e o link de assinatura na <b>Autentique</b> e cole o link aqui. O portal guarda o link, facilita o envio e registra o status.</p>
+    <div class="form-grid">
+      <div class="field"><label for="asn-tit">Título do documento</label><input class="input" id="asn-tit" placeholder="Ex.: Contrato de experiência"></div>
+      <div class="field"><label for="asn-tipo">Tipo</label><select class="input" id="asn-tipo"><option value="admissao">Admissão</option><option value="termo">Termo / política</option><option value="avulso" selected>Documento avulso</option></select></div>
+      <div class="field"><label for="asn-colab">Vincular a colaborador (opcional)</label><input class="input" id="asn-colab" list="asn-colab-l" placeholder="Digite o nome"><datalist id="asn-colab-l">${asnColabOpts()}</datalist></div>
+      <div class="field"><label for="asn-nome">Signatário</label><input class="input" id="asn-nome" placeholder="Quem vai assinar"></div>
+      <div class="field"><label for="asn-contato">WhatsApp do signatário (opcional)</label><input class="input" id="asn-contato" placeholder="(DDD) 9...."></div>
+      <div class="field full"><label for="asn-link">Link de assinatura (Autentique)</label><input class="input" id="asn-link" placeholder="https://..."></div>
+      <div class="field full"><label for="asn-obs">Observação (opcional)</label><input class="input" id="asn-obs"></div>
+    </div>`,
+   `<button class="btn" data-close>Cancelar</button><button class="btn btn-primary" data-asn="salvar">Salvar</button>`);
+  const c=$("#asn-colab");if(c)c.addEventListener("change",()=>{const e=asnAchaColab(c.value);const n=$("#asn-nome");if(e&&n&&!n.value.trim())n.value=e.nome;});
+}
+async function asnSalvar(btn){
+  const g=id=>($("#"+id)||{}).value||"";
+  const tit=g("asn-tit").trim(),tipo=g("asn-tipo"),link=g("asn-link").trim();
+  if(!tit){toast("Informe o título");return;}
+  if(!asnUrlOk(link)){toast("Cole um link de assinatura válido (começa com https://)");const el=$("#asn-link");if(el)el.focus();return;}
+  const e=asnAchaColab(g("asn-colab").trim()),nome=g("asn-nome").trim(),contato=g("asn-contato").trim(),obs=g("asn-obs").trim();
+  const reg={titulo:tit.slice(0,200),tipo,link:link.slice(0,1000),signatario_nome:(nome||(e&&e.nome)||null),signatario_contato:contato||null,
+    colaborador_id:e?e.id:null,loja_id:e?e.lojaId:null,obs:obs||null,status:"pendente",criado_por:(PERFIL&&PERFIL.user_id)||null,criado_nome:(typeof rsQuem==="function"?rsQuem():(PERFIL&&PERFIL.nome)||null)};
+  if(btn){btn.disabled=true;btn.textContent="Salvando…";}
+  const {error}=await SB.from("assinaturas").insert(reg);
+  if(error){if(btn){btn.disabled=false;btn.textContent="Salvar";}toast("Não foi possível salvar: "+error.message);return;}
+  closeModal();ASN.itens=null;await asnCarregar();toast("Documento adicionado");
+}
+async function asnStatus(id,status){
+  const ext={status,atualizado_em:new Date().toISOString()};if(status==="assinado")ext.assinado_em=new Date().toISOString();
+  const {error}=await SB.from("assinaturas").update(ext).eq("id",id);
+  if(error){toast("Não foi possível atualizar");return;}
+  ASN.itens=null;await asnCarregar();toast(status==="assinado"?"Marcado como assinado":"Atualizado");
+}
+async function asnExcluir(id,btn){
+  if(btn&&btn.dataset.c!=="1"){btn.dataset.c="1";btn.textContent="Confirmar?";setTimeout(()=>{if(btn.isConnected){btn.dataset.c="";btn.textContent="Excluir";}},4000);return;}
+  const {error}=await SB.from("assinaturas").delete().eq("id",id);
+  if(error){toast("Não foi possível excluir");return;}
+  ASN.itens=null;await asnCarregar();toast("Removido");
+}
+function asnLinha(x){
+  const tp=ASN_TIPO[x.tipo]||ASN_TIPO.avulso,st=ASN_ST[x.status]||ASN_ST.pendente;
+  const quando=x.criado_em?new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"";
+  const num=String(x.signatario_contato||"").replace(/\D/g,"");
+  const ac=[`<a class="btn btn-sm btn-primary" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`,
+    `<button class="btn btn-sm" data-asn="copiar" data-v="${esc(x.link)}">Copiar link</button>`];
+  if(num.length>=10&&typeof rsWaEnviar==="function")ac.push(`<button class="btn btn-sm" data-asn="zap" data-id="${x.id}">📲 WhatsApp</button>`);
+  if(x.status==="pendente")ac.push(`<button class="btn btn-sm" data-asn="assinado" data-id="${x.id}">Marcar assinado</button>`);
+  if(x.link_assinado)ac.push(`<a class="btn btn-sm btn-ghost" href="${esc(x.link_assinado)}" target="_blank" rel="noopener">Doc. assinado</a>`);
+  ac.push(`<button class="btn btn-sm btn-ghost" data-asn="excluir" data-id="${x.id}">Excluir</button>`);
+  return `<div class="alert"><div class="dot ${st.c}">${x.status==="assinado"?"OK":x.status==="cancelado"?"X":"··"}</div><div style="min-width:0">
+    <b style="white-space:normal">${esc(x.titulo)} <span class="chip ${tp.c}" style="margin-left:4px">${tp.t}</span> <span class="chip ${st.c}">${st.t}</span></b>
+    <span style="white-space:normal">${x.signatario_nome?"Assina: "+esc(x.signatario_nome):"Sem signatário definido"}${x.loja_id?" · "+esc(store(x.loja_id).nome):""}${x.obs?" · "+esc(x.obs):""}</span>
+    <span class="small muted">${quando}${x.criado_nome?" · por "+esc(x.criado_nome):""}</span></div>
+    <div class="tabs-inline" style="flex-wrap:wrap">${ac.join("")}</div></div>`;
+}
+function asnPagina(){
+  asnGarante();
+  const topo=header("Visão geral","Assinaturas",`<button class="btn btn-primary" data-asn="novo">+ Novo documento</button>`);
+  if(ASN.itens===null)return topo+`<div class="card"><div class="empty">Carregando…</div></div>`;
+  const f=ASN.f||"pendente";let l=ASN.itens;if(f!=="todas")l=l.filter(x=>x.status===f);
+  const cont=t=>ASN.itens.filter(x=>x.status===t).length;
+  return topo+`
+  <div class="note"><span class="chip c-ok">Autentique</span> Gere o documento e o link na Autentique e cadastre aqui. O portal guarda o link, facilita o envio ao signatário e registra o status. A assinatura em si acontece na Autentique.</div>
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["pendente","Pendentes ("+cont("pendente")+")"],["assinado","Assinados ("+cont("assinado")+")"],["todas","Todos"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-asnf="${k}">${t}</button>`).join("")}</div></div>
+    <div class="av-list">${l.length?l.map(asnLinha).join(""):`<div class="empty">Nenhum documento${f==="pendente"?" pendente":f==="assinado"?" assinado":""}.</div>`}</div></div>`;
+}
+function asnColabPagina(){
+  asnGarante();
+  const topo=header("Meu espaço","Documentos para assinar","");
+  if(ASN.itens===null)return topo+`<div class="card"><div class="empty">Carregando…</div></div>`;
+  const pend=ASN.itens.filter(x=>x.status==="pendente"),ass=ASN.itens.filter(x=>x.status==="assinado");
+  const linha=x=>`<div class="alert"><div class="dot ${x.status==="assinado"?"c-ok":"c-warn"}">${x.status==="assinado"?"OK":"··"}</div><div style="min-width:0"><b style="white-space:normal">${esc(x.titulo)}</b><span class="small muted">${x.criado_em?new Date(x.criado_em).toLocaleDateString("pt-BR"):""}</span></div><div class="tabs-inline">${x.status==="pendente"?`<a class="btn btn-sm btn-primary" href="${esc(x.link)}" target="_blank" rel="noopener">Assinar</a>`:(x.link_assinado?`<a class="btn btn-sm btn-ghost" href="${esc(x.link_assinado)}" target="_blank" rel="noopener">Ver assinado</a>`:`<span class="chip c-ok">Assinado</span>`)}</div></div>`;
+  return topo+`
+  <div class="note">Documentos enviados pelo RH para a sua assinatura. Ao tocar em <b>Assinar</b>, você vai para a Autentique concluir com segurança.</div>
+  <div class="card"><h2 style="margin:0 0 8px">Pendentes <span class="chip ${pend.length?"c-warn":"c-ok"}">${pend.length}</span></h2><div class="av-list">${pend.length?pend.map(linha).join(""):`<div class="empty">Nada pendente. 🎉</div>`}</div></div>
+  ${ass.length?`<div class="card" style="margin-top:12px"><h2 style="margin:0 0 8px">Já assinados</h2><div class="av-list">${ass.map(linha).join("")}</div></div>`:""}`;
+}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-asn],[data-asnf]");if(!t)return;
+  if(t.dataset.asnf){ASN.f=t.dataset.asnf;render();return;}
+  const a=t.dataset.asn,id=t.dataset.id;
+  if(a==="novo"){asnNovo();return;}
+  if(a==="salvar"){asnSalvar(t);return;}
+  if(a==="copiar"){const v=t.dataset.v;try{navigator.clipboard.writeText(v).then(()=>toast("Link copiado"),()=>toast("Copie manualmente"));}catch(e){toast("Copie manualmente");}return;}
+  if(a==="assinado"){asnStatus(id,"assinado");return;}
+  if(a==="excluir"){asnExcluir(id,t);return;}
+  if(a==="zap"){const x=(ASN.itens||[]).find(y=>y.id===id);if(x&&typeof rsWaEnviar==="function")rsWaEnviar(x.signatario_contato,asnMsg(x),t,{origem:"assinatura"});return;}
+});
 
 boot();
 </script>
