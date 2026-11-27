@@ -11487,7 +11487,7 @@ async function asnCarregar(){
 }
 function asnGarante(){if(ASN.itens===null&&!ASN.carregando)asnCarregar();}
 const ASN_TIPO={admissao:{t:"Admissão",c:"c-info"},termo:{t:"Termo / política",c:"c-brand"},avulso:{t:"Documento",c:"c-mute"}};
-const ASN_ST={pendente:{t:"Pendente",c:"c-warn"},assinado:{t:"Assinado",c:"c-ok"},cancelado:{t:"Cancelado",c:"c-bad"}};
+const ASN_ST={pendente:{t:"Pendente",c:"c-warn"},validacao:{t:"Em validação do RH",c:"c-info"},assinado:{t:"Assinado",c:"c-ok"},cancelado:{t:"Cancelado",c:"c-bad"}};
 const asnUrlOk=u=>/^https?:\/\/\S+$/i.test(String(u||"").trim());
 function asnPessoas(){const out=[];
   try{(ativos()||[]).forEach(e=>out.push({label:e.nome,nome:e.nome,id:e.id,lojaId:e.lojaId||null}));}catch(e){}
@@ -11544,10 +11544,11 @@ function asnLinha(x){
   const ac=[`<button class="btn btn-sm btn-primary" data-asn="abrir" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Abrir</button>`,
     `<button class="btn btn-sm" data-asn="copiar" data-v="${esc(x.link)}">Copiar link</button>`];
   if(num.length>=10&&typeof rsWaEnviar==="function")ac.push(`<button class="btn btn-sm" data-asn="zap" data-id="${x.id}">📲 WhatsApp</button>`);
-  if(x.status==="pendente")ac.push(`<button class="btn btn-sm" data-asn="assinado" data-id="${x.id}">Marcar assinado</button>`);
+  if(x.status==="validacao"){ac.push(`<button class="btn btn-sm btn-primary" data-asn="assinado" data-id="${x.id}">✓ Validar assinatura</button>`);ac.push(`<button class="btn btn-sm btn-ghost" data-asn="voltarpend" data-id="${x.id}">↩ Voltar p/ pendente</button>`);}
+  else if(x.status==="pendente")ac.push(`<button class="btn btn-sm" data-asn="assinado" data-id="${x.id}">Marcar assinado</button>`);
   if(x.link_assinado)ac.push(`<a class="btn btn-sm btn-ghost" href="${esc(x.link_assinado)}" target="_blank" rel="noopener">Doc. assinado</a>`);
   ac.push(`<button class="btn btn-sm btn-ghost" data-asn="excluir" data-id="${x.id}">Excluir</button>`);
-  return `<div class="alert"><div class="dot ${st.c}">${x.status==="assinado"?"OK":x.status==="cancelado"?"X":"··"}</div><div style="min-width:0">
+  return `<div class="alert"><div class="dot ${st.c}">${x.status==="assinado"?"OK":x.status==="validacao"?"⏳":x.status==="cancelado"?"X":"··"}</div><div style="min-width:0">
     <b style="white-space:normal">${esc(x.titulo)} <span class="chip ${tp.c}" style="margin-left:4px">${tp.t}</span> <span class="chip ${st.c}">${st.t}</span></b>
     <span style="white-space:normal">${x.signatario_nome?"Assina: "+esc(x.signatario_nome):"Sem signatário definido"}${x.loja_id?" · "+esc(store(x.loja_id).nome):""}${x.obs?" · "+esc(x.obs):""}</span>
     <span class="small muted">${quando}${x.criado_nome?" · por "+esc(x.criado_nome):""}</span></div>
@@ -11561,19 +11562,33 @@ function asnPagina(){
   const cont=t=>ASN.itens.filter(x=>x.status===t).length;
   return topo+`
   <div class="note"><span class="chip c-ok">Autentique</span> Gere o documento e o link na Autentique e cadastre aqui. O portal guarda o link, facilita o envio ao signatário e registra o status. A assinatura em si acontece na Autentique.</div>
-  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["pendente","Pendentes ("+cont("pendente")+")"],["assinado","Assinados ("+cont("assinado")+")"],["todas","Todos"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-asnf="${k}">${t}</button>`).join("")}</div></div>
-    <div class="av-list">${l.length?l.map(asnLinha).join(""):`<div class="empty">Nenhum documento${f==="pendente"?" pendente":f==="assinado"?" assinado":""}.</div>`}</div></div>`;
+  <div class="card"><div class="toolbar"><div class="seg" role="tablist">${[["pendente","Pendentes ("+cont("pendente")+")"],["validacao","Em validação ("+cont("validacao")+")"],["assinado","Assinados ("+cont("assinado")+")"],["todas","Todos"]].map(([k,t])=>`<button class="${f===k?"on":""}" data-asnf="${k}">${t}</button>`).join("")}</div></div>
+    <div class="av-list">${l.length?l.map(asnLinha).join(""):`<div class="empty">Nenhum documento${f==="pendente"?" pendente":f==="validacao"?" em validação":f==="assinado"?" assinado":""}.</div>`}</div></div>`;
 }
 function asnColabPagina(){
   asnGarante();
   const topo=header("Meu espaço","Documentos para assinar","");
   if(ASN.itens===null)return topo+`<div class="card"><div class="empty">Carregando…</div></div>`;
-  const pend=ASN.itens.filter(x=>x.status==="pendente"),ass=ASN.itens.filter(x=>x.status==="assinado");
-  const linha=x=>`<div class="alert"><div class="dot ${x.status==="assinado"?"c-ok":"c-warn"}">${x.status==="assinado"?"OK":"··"}</div><div style="min-width:0"><b style="white-space:normal">${esc(x.titulo)}</b><span class="small muted">${x.criado_em?new Date(x.criado_em).toLocaleDateString("pt-BR"):""}</span></div><div class="tabs-inline">${x.status==="pendente"?`<button class="btn btn-sm btn-primary" data-asn="abrir" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Assinar</button>`:(x.link_assinado?`<button class="btn btn-sm btn-ghost" data-asn="abrir" data-v="${esc(x.link_assinado)}" data-t="${esc(x.titulo)}">Ver assinado</button>`:`<span class="chip c-ok">Assinado</span>`)}</div></div>`;
+  const pend=ASN.itens.filter(x=>x.status==="pendente"),val=ASN.itens.filter(x=>x.status==="validacao"),ass=ASN.itens.filter(x=>x.status==="assinado");
+  const dot=x=>x.status==="assinado"?"c-ok":x.status==="validacao"?"c-info":"c-warn";
+  const linha=x=>`<div class="alert"><div class="dot ${dot(x)}">${x.status==="assinado"?"OK":x.status==="validacao"?"⏳":"··"}</div><div style="min-width:0"><b style="white-space:normal">${esc(x.titulo)}</b><span class="small muted">${x.criado_em?new Date(x.criado_em).toLocaleDateString("pt-BR"):""}</span></div><div class="tabs-inline">${
+     x.status==="pendente"?`<button class="btn btn-sm btn-primary" data-asn="assinarconf" data-id="${x.id}" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Assinar</button>`
+    :x.status==="validacao"?`<span class="chip c-info">Em validação do RH</span> <button class="btn btn-sm btn-ghost" data-asn="abrir" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Abrir de novo</button>`
+    :(x.link_assinado?`<button class="btn btn-sm btn-ghost" data-asn="abrir" data-v="${esc(x.link_assinado)}" data-t="${esc(x.titulo)}">Ver assinado</button>`:`<span class="chip c-ok">Assinado</span>`)
+  }</div></div>`;
   return topo+`
-  <div class="note">Documentos enviados pelo RH para a sua assinatura. Ao tocar em <b>Assinar</b>, você vai para a Autentique concluir com segurança.</div>
+  <div class="note">Documentos enviados pelo RH para a sua assinatura. Ao tocar em <b>Assinar</b>, o documento abre aqui para você assinar e segue para <b>validação do RH</b>.</div>
   <div class="card"><h2 style="margin:0 0 8px">Pendentes <span class="chip ${pend.length?"c-warn":"c-ok"}">${pend.length}</span></h2><div class="av-list">${pend.length?pend.map(linha).join(""):`<div class="empty">Nada pendente. 🎉</div>`}</div></div>
+  ${val.length?`<div class="card" style="margin-top:12px"><h2 style="margin:0 0 8px">Em validação do RH <span class="chip c-info">${val.length}</span></h2><div class="av-list">${val.map(linha).join("")}</div></div>`:""}
   ${ass.length?`<div class="card" style="margin-top:12px"><h2 style="margin:0 0 8px">Já assinados</h2><div class="av-list">${ass.map(linha).join("")}</div></div>`:""}`;
+}
+async function asnAssinar(id,link,titulo){
+  asnAbrirDoc(link,titulo);
+  try{const {error}=await SB.rpc("assinatura_confirmar",{p_id:id});
+    if(error){toast("Assinatura aberta, mas não consegui registrar a validação: "+error.message);return;}
+    const it=(ASN.itens||[]).find(y=>y.id===id);if(it)it.status="validacao";
+    ASN.itens=null;asnCarregar();
+  }catch(e){}
 }
 function asnAbrirDoc(link,titulo){
   if(!asnUrlOk(link)){toast("Link inválido");return;}
@@ -11598,7 +11613,9 @@ document.addEventListener("click",ev=>{
   const a=t.dataset.asn,id=t.dataset.id;
   if(a==="novo"){asnNovo();return;}
   if(a==="abrir"){asnAbrirDoc(t.dataset.v,t.dataset.t);return;}
+  if(a==="assinarconf"){asnAssinar(id,t.dataset.v,t.dataset.t);return;}
   if(a==="fecharsign"){asnFecharSign();return;}
+  if(a==="voltarpend"){asnStatus(id,"pendente");return;}
   if(a==="salvar"){asnSalvar(t);return;}
   if(a==="copiar"){const v=t.dataset.v;try{navigator.clipboard.writeText(v).then(()=>toast("Link copiado"),()=>toast("Copie manualmente"));}catch(e){toast("Copie manualmente");}return;}
   if(a==="assinado"){asnStatus(id,"assinado");return;}
