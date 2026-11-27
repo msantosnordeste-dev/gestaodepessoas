@@ -11537,7 +11537,7 @@ function asnLinha(x){
   const tp=ASN_TIPO[x.tipo]||ASN_TIPO.avulso,st=ASN_ST[x.status]||ASN_ST.pendente;
   const quando=x.criado_em?new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"";
   const num=String(x.signatario_contato||"").replace(/\D/g,"");
-  const ac=[`<a class="btn btn-sm btn-primary" href="${esc(x.link)}" target="_blank" rel="noopener">Abrir</a>`,
+  const ac=[`<button class="btn btn-sm btn-primary" data-asn="abrir" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Abrir</button>`,
     `<button class="btn btn-sm" data-asn="copiar" data-v="${esc(x.link)}">Copiar link</button>`];
   if(num.length>=10&&typeof rsWaEnviar==="function")ac.push(`<button class="btn btn-sm" data-asn="zap" data-id="${x.id}">📲 WhatsApp</button>`);
   if(x.status==="pendente")ac.push(`<button class="btn btn-sm" data-asn="assinado" data-id="${x.id}">Marcar assinado</button>`);
@@ -11565,17 +11565,36 @@ function asnColabPagina(){
   const topo=header("Meu espaço","Documentos para assinar","");
   if(ASN.itens===null)return topo+`<div class="card"><div class="empty">Carregando…</div></div>`;
   const pend=ASN.itens.filter(x=>x.status==="pendente"),ass=ASN.itens.filter(x=>x.status==="assinado");
-  const linha=x=>`<div class="alert"><div class="dot ${x.status==="assinado"?"c-ok":"c-warn"}">${x.status==="assinado"?"OK":"··"}</div><div style="min-width:0"><b style="white-space:normal">${esc(x.titulo)}</b><span class="small muted">${x.criado_em?new Date(x.criado_em).toLocaleDateString("pt-BR"):""}</span></div><div class="tabs-inline">${x.status==="pendente"?`<a class="btn btn-sm btn-primary" href="${esc(x.link)}" target="_blank" rel="noopener">Assinar</a>`:(x.link_assinado?`<a class="btn btn-sm btn-ghost" href="${esc(x.link_assinado)}" target="_blank" rel="noopener">Ver assinado</a>`:`<span class="chip c-ok">Assinado</span>`)}</div></div>`;
+  const linha=x=>`<div class="alert"><div class="dot ${x.status==="assinado"?"c-ok":"c-warn"}">${x.status==="assinado"?"OK":"··"}</div><div style="min-width:0"><b style="white-space:normal">${esc(x.titulo)}</b><span class="small muted">${x.criado_em?new Date(x.criado_em).toLocaleDateString("pt-BR"):""}</span></div><div class="tabs-inline">${x.status==="pendente"?`<button class="btn btn-sm btn-primary" data-asn="abrir" data-v="${esc(x.link)}" data-t="${esc(x.titulo)}">Assinar</button>`:(x.link_assinado?`<button class="btn btn-sm btn-ghost" data-asn="abrir" data-v="${esc(x.link_assinado)}" data-t="${esc(x.titulo)}">Ver assinado</button>`:`<span class="chip c-ok">Assinado</span>`)}</div></div>`;
   return topo+`
   <div class="note">Documentos enviados pelo RH para a sua assinatura. Ao tocar em <b>Assinar</b>, você vai para a Autentique concluir com segurança.</div>
   <div class="card"><h2 style="margin:0 0 8px">Pendentes <span class="chip ${pend.length?"c-warn":"c-ok"}">${pend.length}</span></h2><div class="av-list">${pend.length?pend.map(linha).join(""):`<div class="empty">Nada pendente. 🎉</div>`}</div></div>
   ${ass.length?`<div class="card" style="margin-top:12px"><h2 style="margin:0 0 8px">Já assinados</h2><div class="av-list">${ass.map(linha).join("")}</div></div>`:""}`;
 }
+function asnAbrirDoc(link,titulo){
+  if(!asnUrlOk(link)){toast("Link inválido");return;}
+  let ov=document.getElementById("asn-sign");
+  if(!ov){ov=document.createElement("div");ov.id="asn-sign";document.body.appendChild(ov);}
+  ov.innerHTML=`<div class="asn-sign-box"><div class="asn-sign-hd"><b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(titulo||"Assinatura")}</b><div class="tabs-inline" style="flex:none"><a class="btn btn-sm" href="${esc(link)}" target="_blank" rel="noopener">Abrir em nova aba</a><button class="btn btn-sm btn-ghost" data-asn="fecharsign">Fechar</button></div></div>
+    <iframe src="${esc(link)}" title="Assinatura de documento" style="flex:1;width:100%;border:0;background:#fff" allow="camera; microphone; clipboard-write"></iframe>
+    <div class="asn-sign-ft">Se a assinatura não carregar aqui dentro (alguns sites bloqueiam a exibição embutida), use <b>Abrir em nova aba</b>.</div></div>`;
+  ov.classList.add("on");document.body.style.overflow="hidden";
+}
+function asnFecharSign(){const o=document.getElementById("asn-sign");if(o)o.classList.remove("on");document.body.style.overflow="";}
+if(!document.getElementById("asn-sign-css"))document.head.insertAdjacentHTML("beforeend",`<style id="asn-sign-css">
+#asn-sign{position:fixed;inset:0;z-index:9997;display:none;align-items:center;justify-content:center;background:rgba(7,40,28,.55);padding:16px}
+#asn-sign.on{display:flex}
+#asn-sign .asn-sign-box{display:flex;flex-direction:column;width:min(1000px,96vw);height:92vh;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+#asn-sign .asn-sign-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#0B3D2B;color:#fff}
+#asn-sign .asn-sign-ft{padding:8px 14px;font-size:12.5px;color:#54656F;background:#F6F9F7;border-top:1px solid #E1E5DF}
+</style>`);
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-asn],[data-asnf]");if(!t)return;
   if(t.dataset.asnf){ASN.f=t.dataset.asnf;render();return;}
   const a=t.dataset.asn,id=t.dataset.id;
   if(a==="novo"){asnNovo();return;}
+  if(a==="abrir"){asnAbrirDoc(t.dataset.v,t.dataset.t);return;}
+  if(a==="fecharsign"){asnFecharSign();return;}
   if(a==="salvar"){asnSalvar(t);return;}
   if(a==="copiar"){const v=t.dataset.v;try{navigator.clipboard.writeText(v).then(()=>toast("Link copiado"),()=>toast("Copie manualmente"));}catch(e){toast("Copie manualmente");}return;}
   if(a==="assinado"){asnStatus(id,"assinado");return;}
