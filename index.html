@@ -3566,11 +3566,28 @@ function correioItens(){
   });
   if(typeof correioExtras==="function")it.push(...correioExtras());
   mensagensVisiveis().forEach(x=>it.push({id:"m"+x.id,em:x.em,tipo:x.tipo==="comunicado"?"comunicado":"mov",titulo:x.titulo,texto:x.texto,lojaId:x.lojaId,eid:x.eid,por:x.por}));
-  return it.sort((a,b)=>String(b.em).localeCompare(String(a.em)));
+  return correioRetencao(it).sort((a,b)=>String(b.em).localeCompare(String(a.em)));
 }
 const CORREIO_KEY=()=>"gp-correio-"+(SESSION?SESSION.login:"");
 function correioVisto(){try{return localStorage.getItem(CORREIO_KEY())||""}catch(e){return ""}}
 function correioMarcarLido(){try{localStorage.setItem(CORREIO_KEY(),new Date().toISOString())}catch(e){}}
+/* Retenção: a mensagem sai do Correio 24h depois de ser marcada como lida (por usuário). Não apaga a solicitação/movimentação em si. */
+const CORREIO_TTL=24*3600e3;
+const CORREIO_RD_KEY=()=>"gp-correio-rd-"+(SESSION?SESSION.login:"");
+function correioRd(){try{return JSON.parse(localStorage.getItem(CORREIO_RD_KEY())||"{}")||{}}catch(e){return {}}}
+function correioRdSave(m){try{localStorage.setItem(CORREIO_RD_KEY(),JSON.stringify(m))}catch(e){}}
+function correioRetencao(itens){
+  const v=correioVisto(),agora=Date.now(),mapa=correioRd();const ids=new Set(itens.map(x=>x.id));let mudou=false;
+  for(const k of Object.keys(mapa))if(!ids.has(k)){delete mapa[k];mudou=true;}
+  const out=itens.filter(x=>{
+    const lido=v&&String(x.em)<=v;
+    if(!lido){if(mapa[x.id]){delete mapa[x.id];mudou=true;}return true;}
+    if(!mapa[x.id]){mapa[x.id]=agora;mudou=true;}
+    return (agora-mapa[x.id])<CORREIO_TTL;
+  });
+  if(mudou)correioRdSave(mapa);
+  return out;
+}
 const correioConta=t=>G()?["aprov","recusa","mov","comunicado"].includes(t):["pend","doc","cand"].includes(t);
 function correioNaoLidas(){const v=correioVisto();return correioItens().filter(x=>correioConta(x.tipo)&&String(x.em)>v)}
 let CORREIO_N=null;
