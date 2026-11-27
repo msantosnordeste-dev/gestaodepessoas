@@ -11030,7 +11030,8 @@ document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-en
 
 const NOTAS_URL="https://script.google.com/macros/s/AKfycbzwDEUNc8ir1JYVKMkEyZHakeqgWZuCHWBW9enQr54Nl1ubiV4kFyfYwwQjmBJs6RhlAg/exec";
 function notasPagina(){return `<h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Central de Notas</h1>
-  <div style="margin:-8px 0 0;border-radius:16px;overflow:hidden;border:1px solid #DFE8E3;background:#fff;box-shadow:0 1px 2px rgba(7,94,54,.05)"><iframe src="${NOTAS_URL}" title="Central de Notas" credentialless style="display:block;width:100%;height:calc(100vh - 40px);min-height:620px;border:0" allow="clipboard-write"></iframe></div>`}
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 10px"><p class="small muted" style="margin:0;flex:1;min-width:220px">A Central de Notas é um aplicativo do Google. Se ela não carregar aqui dentro (o Google às vezes bloqueia a exibição embutida), abra em uma aba separada:</p><a class="btn btn-primary btn-sm" href="${NOTAS_URL}" target="_blank" rel="noopener">↗ Abrir em nova aba</a></div>
+  <div style="border-radius:16px;overflow:hidden;border:1px solid #DFE8E3;background:#fff;box-shadow:0 1px 2px rgba(7,94,54,.05)"><iframe src="${NOTAS_URL}" title="Central de Notas" referrerpolicy="origin" style="display:block;width:100%;height:calc(100vh - 80px);min-height:560px;border:0" allow="clipboard-write"></iframe></div>`}
 /* ============ Acesso por menus do time de RH ============
    perfis.menus: telas liberadas para um usuário de RH (vazio = acesso total).
    Só o gestor do RH (perfis.gestor_rh) define; o gestor do RH tem sempre acesso total.
