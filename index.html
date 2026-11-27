@@ -11489,8 +11489,12 @@ function asnGarante(){if(ASN.itens===null&&!ASN.carregando)asnCarregar();}
 const ASN_TIPO={admissao:{t:"Admissão",c:"c-info"},termo:{t:"Termo / política",c:"c-brand"},avulso:{t:"Documento",c:"c-mute"}};
 const ASN_ST={pendente:{t:"Pendente",c:"c-warn"},assinado:{t:"Assinado",c:"c-ok"},cancelado:{t:"Cancelado",c:"c-bad"}};
 const asnUrlOk=u=>/^https?:\/\/\S+$/i.test(String(u||"").trim());
-function asnColabOpts(){try{return (ativos()||[]).slice().sort((a,b)=>String(a.nome).localeCompare(String(b.nome))).map(e=>`<option value="${esc(e.nome)}">`).join("");}catch(e){return "";}}
-function asnAchaColab(nome){try{const n=String(nome||"").trim().toLowerCase();if(!n)return null;return (ativos()||[]).find(e=>String(e.nome).trim().toLowerCase()===n)||null;}catch(e){return null;}}
+function asnPessoas(){const out=[];
+  try{(ativos()||[]).forEach(e=>out.push({label:e.nome,nome:e.nome,id:e.id,lojaId:e.lojaId||null}));}catch(e){}
+  try{if(typeof ST!=="undefined"&&Array.isArray(ST.pjs))ST.pjs.filter(p=>!p.encerrado).forEach(p=>{const nm=p.respNome||p.razaoSocial||p.nomeFantasia||"Prestador";out.push({label:nm+" (PJ)",nome:nm,id:"p:"+p.id,lojaId:p.lojaId||null});});}catch(e){}
+  return out;}
+function asnColabOpts(){try{return asnPessoas().sort((a,b)=>String(a.label).localeCompare(String(b.label))).map(e=>`<option value="${esc(e.label)}">`).join("");}catch(e){return "";}}
+function asnAchaColab(txt){try{const n=String(txt||"").trim().toLowerCase();if(!n)return null;return asnPessoas().find(e=>String(e.label).trim().toLowerCase()===n)||null;}catch(e){return null;}}
 function asnMsg(x){return `Olá${x.signatario_nome?", "+String(x.signatario_nome).split(" ")[0]:""}! Segue o documento "${x.titulo}" para a sua assinatura:\n${x.link}`;}
 
 function asnNovo(){
@@ -11499,7 +11503,7 @@ function asnNovo(){
     <div class="form-grid">
       <div class="field"><label for="asn-tit">Título do documento</label><input class="input" id="asn-tit" placeholder="Ex.: Contrato de experiência"></div>
       <div class="field"><label for="asn-tipo">Tipo</label><select class="input" id="asn-tipo"><option value="admissao">Admissão</option><option value="termo">Termo / política</option><option value="avulso" selected>Documento avulso</option></select></div>
-      <div class="field"><label for="asn-colab">Vincular a colaborador (opcional)</label><input class="input" id="asn-colab" list="asn-colab-l" placeholder="Digite o nome"><datalist id="asn-colab-l">${asnColabOpts()}</datalist></div>
+      <div class="field"><label for="asn-colab">Vincular a colaborador ou prestador (opcional)</label><input class="input" id="asn-colab" list="asn-colab-l" placeholder="Digite o nome (prestadores aparecem com (PJ))"><datalist id="asn-colab-l">${asnColabOpts()}</datalist></div>
       <div class="field"><label for="asn-nome">Signatário</label><input class="input" id="asn-nome" placeholder="Quem vai assinar"></div>
       <div class="field"><label for="asn-contato">WhatsApp do signatário (opcional)</label><input class="input" id="asn-contato" placeholder="(DDD) 9...."></div>
       <div class="field full"><label for="asn-link">Link de assinatura (Autentique)</label><input class="input" id="asn-link" placeholder="https://..."></div>
