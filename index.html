@@ -1154,7 +1154,7 @@ const PAGES=[
   {id:"config",t:"Configurações"}
 ];
 const pagesBase=()=>ROLE==="colaborador"?PAGES_C.filter(p=>(p.id!=="integracao"||ibLiberada())&&(!p.lid||souLider())):ROLE==="gerente"?(visaoGestora()?PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].includes(p.id)||(PERFIL.perfil==="supervisor"&&["experiencia","medidas"].includes(p.id))||p.g==="Minha loja"):soConsulta()?PAGES_G.filter(p=>p.id!=="solicitacoes"&&p.g!=="RH"):PAGES_G.filter(p=>["headcount","td","premiacoes","painel","colaboradores","matriz","recrutamento"].concat(["correio","experiencia","medidas","solicitacoes"]).includes(p.id)||p.g==="Minha loja"||p.g==="RH")):acFiltrar(PAGES);
-const pages=()=>{const b=pagesBase();if(ROLE==="rh")return acMeuEspaco(b);if(ROLE!=="gerente"||!window.__IB_LIB)return b;return [...b,{g:"Meu espaço"},{id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"}]};
+const pages=()=>{const b=pagesBase();if(ROLE==="rh")return acMeuEspaco(b);if(ROLE!=="gerente")return b;const esp=[{id:"assinar",t:"Documentos para assinar"}];if(window.__IB_LIB)esp.push({id:"meustd",t:"Meus treinamentos"},{id:"integracao",t:"Integração"});return [...b,{g:"Meu espaço"},...esp]};
 const visaoGestora=()=>!!PERFIL&&(PERFIL.perfil==="supervisor"||PERFIL.perfil==="comercial");
 const G=()=>ROLE==="gerente";
 const primeiro=n=>(n||"").trim().split(/\s+/)[0]||"";
