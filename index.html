@@ -10377,7 +10377,7 @@ function waTela(){
       const ant=ms[ms.indexOf(m)-1];const novoBloco=!sd&&(!ant||ant.direcao!=="entrada"||sep);
       return sep+`<div class="wa-b ${sd?"s":"e"} ${m.pend?"pend":""}">${novoBloco?`<div style="font-size:12.5px;font-weight:700;color:#C2541A;margin-bottom:2px">${esc(nome)}</div>`:""}${sd&&m.origem&&!["manual","celular"].includes(m.origem)?`<div class="tg">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div class="tx">${esc(m.texto||"")}</div>${waAnexo(m)}<div class="mt">${sd&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p style="align-self:center;color:#54656F">Sem mensagens.</p>`}</div>
     ${typeof waDmBloco==="function"?waDmBloco(ms):""}
-    <div class="wa-cp"><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
+    <div class="wa-cp"><label class="wa-clip" title="Anexar arquivo" aria-label="Anexar arquivo">📎<input type="file" id="wa-file" hidden></label><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
   const filtros=[["todas","Todas"],["naolidas","Não lidas"],["transf","Transferidas"]];
   const painel=`<style>
 .wa-box{background:#fff;color:#111B21;border:1px solid #D9DEDA}
@@ -10601,6 +10601,43 @@ document.head.insertAdjacentHTML("beforeend",`<style>.wa-it .wa-ag{display:inlin
 .wa-prev-pdf{display:block;width:min(420px,100%);height:300px;border:1px solid #E1E5DF;border-radius:8px;background:#fff}
 .wa-prev-doc{background:#fff;border:1px solid #E1E5DF;border-radius:8px;padding:10px 12px;font-weight:600;font-size:14px}
 .wa-prev-ld{font-size:12.5px;color:#54656F;padding:6px 0}.wa-arq-ac{display:flex;flex-wrap:wrap;align-items:center}.wa-arq-ate{font-size:11.5px;color:#54656F;margin-top:4px}</style>`);
+/* ---- anexos: botão 📎 e arrastar-e-soltar sobre a conversa ---- */
+const WA_MAXARQ=12*1024*1024;
+function waLerB64(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(",")[1]||"");fr.onerror=()=>rej(new Error("leitura"));fr.readAsDataURL(file);});}
+async function waEnviarArquivo(file){
+  if(!file||!WA.sel)return;
+  if(file.size>WA_MAXARQ){toast("“"+file.name+"” é grande demais (máx. 12 MB)");return;}
+  const num=WA.sel,inst=WA.selI,kk=waK(inst,num);
+  let b64;try{b64=await waLerB64(file);}catch(e){toast("Não consegui ler o arquivo");return;}
+  const mime=file.type||"application/octet-stream";
+  const tmp={id:"tmp"+Date.now()+Math.random(),numero:num,instancia:inst,direcao:"saida",texto:"📎 "+file.name,origem:"manual",status:"enviada",pend:true,enviado_nome:(PERFIL&&PERFIL.nome)||"",criado_em:new Date().toISOString()};
+  (WA.msgs[kk]=WA.msgs[kk]||[]).push(tmp);WA.fixo=true;waRender();
+  try{
+    const r=await SB.functions.invoke("whatsapp",{body:{acao:"enviar_midia",instancia:inst,numero:num,base64:b64,filename:file.name,mimetype:mime,origem:"manual"}});
+    let d=r.data;if(r.error){try{d=await r.error.context.json();}catch(e){d={erro:r.error.message};}}
+    WA.msgs[kk]=(WA.msgs[kk]||[]).filter(m=>m!==tmp);
+    if(!(d&&d.ok)){waRender();toast((d&&(d.detalhe||d.erro))||"Não foi possível enviar o arquivo");return;}
+    await waAbrir(num,true,inst);waRender();
+  }catch(e){WA.msgs[kk]=(WA.msgs[kk]||[]).filter(m=>m!==tmp);waRender();toast("Erro ao enviar o arquivo");}
+}
+async function waEnviarArquivos(files){for(const f of files){await waEnviarArquivo(f);}}
+if(!window.__waAnexoInit){window.__waAnexoInit=true;
+  document.addEventListener("change",ev=>{const f=ev.target;if(f&&f.id==="wa-file"&&f.files&&f.files.length){const fs=[...f.files];f.value="";waEnviarArquivos(fs);}});
+  const ov=document.createElement("div");ov.id="wa-drop";ov.innerHTML='<div class="wa-drop-in">📎 Solte para enviar na conversa</div>';document.body.appendChild(ov);
+  let cnt=0;const temArq=e=>!!(e.dataTransfer&&[...(e.dataTransfer.types||[])].includes("Files"));
+  const ativo=()=>page==="whatsapp"&&!!WA.sel;
+  window.addEventListener("dragenter",e=>{if(!ativo()||!temArq(e))return;e.preventDefault();cnt++;ov.classList.add("on");});
+  window.addEventListener("dragover",e=>{if(!ativo()||!temArq(e))return;e.preventDefault();try{e.dataTransfer.dropEffect="copy";}catch(_){}} );
+  window.addEventListener("dragleave",e=>{if(!ov.classList.contains("on"))return;cnt--;if(cnt<=0){cnt=0;ov.classList.remove("on");}});
+  window.addEventListener("drop",e=>{cnt=0;ov.classList.remove("on");if(!ativo()||!temArq(e))return;e.preventDefault();const fs=e.dataTransfer&&e.dataTransfer.files;if(fs&&fs.length)waEnviarArquivos([...fs]);});
+}
+document.head.insertAdjacentHTML("beforeend",`<style>
+.wa-clip{display:flex;align-items:center;justify-content:center;width:44px;height:46px;font-size:20px;cursor:pointer;flex:none;border-radius:10px;color:#0F6B4B;user-select:none}
+.wa-clip:hover{background:rgba(15,107,75,.08)}
+#wa-drop{position:fixed;inset:0;z-index:9998;display:none;align-items:center;justify-content:center;background:rgba(11,61,43,.28)}
+#wa-drop.on{display:flex}
+#wa-drop .wa-drop-in{background:#fff;border:2px dashed #0F6B4B;color:#0F6B4B;font-weight:700;font-size:17px;border-radius:16px;padding:22px 30px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+</style>`);
 
 
 /* ============ Demandas e agenda do RH (estilo quadro de tarefas) ============ */
