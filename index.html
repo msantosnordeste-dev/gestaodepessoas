@@ -10351,7 +10351,7 @@ function waRenderNow(){const r=document.getElementById("wa-root");if(!r)return;c
 function waTela(){
   const est=WA.est,con=est&&est.conectado;
   const meuNum=est&&est.numero?waFmtNum(est.numero):"";
-  const acoes=`<span class="chip ${est==null?"c-mute":con?"c-ok":"c-bad"}">${est==null?"Verificando…":con?"● Meu WhatsApp conectado"+(meuNum?" · "+esc(meuNum):""):est.instancia?"● Meu WhatsApp desconectado":"● Sem WhatsApp conectado"}</span>${est&&est.instancia?`<button class="btn" data-wa="conectar">${con?"Reconectar":"Conectar"}</button>`:""}${est&&est.gestor?`<button class="btn" data-wa="perfil" title="Saudação, fechamento e modelos do secretário">🤖 Secretário</button>`:""}<button class="btn btn-primary" data-wa="nova">+ Nova mensagem</button>`;
+  const acoes=`<span class="chip ${est==null?"c-mute":con?"c-ok":"c-bad"}">${est==null?"Verificando…":con?"● Meu WhatsApp conectado"+(meuNum?" · "+esc(meuNum):""):est.instancia?"● Meu WhatsApp desconectado":"● Sem WhatsApp conectado"}</span>${est&&est.instancia?`<button class="btn" data-wa="conectar">${con?"Reconectar":"Conectar"}</button>`:""}<button class="btn btn-primary" data-wa="nova">+ Nova mensagem</button>`;
   if(!WA.ok)return header("Visão geral","WhatsApp RH",acoes)+`<div class="card"><p class="empty">${WA.err?"Não foi possível carregar: "+esc(WA.err):"Carregando histórico…"}</p></div>`;
   const k=WA.kpi||{env:0,ent:0,lid:0,err:0,rec:0,contatos:0,orig:{}};const pc=(a,b)=>b?Math.round(a/b*100)+"%":"—";
   const convF=WA.conv.filter(c=>!WA.fi||c.instancia===WA.fi);
@@ -10377,7 +10377,7 @@ function waTela(){
     <div id="wa-thread" class="wa-th" aria-live="polite">${WA.hist[waK(WA.selI,WA.sel)]==="carregando"?`<div class="wa-dia">Buscando o histórico desta conversa no WhatsApp…</div>`:""}${ms.length?ms.map(m=>{const d=new Date(m.criado_em).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});const sep=d!==dia?(dia=d,`<div class="wa-dia">${d}</div>`):"";const sd=m.direcao==="saida";
       const ant=ms[ms.indexOf(m)-1];const novoBloco=!sd&&(!ant||ant.direcao!=="entrada"||sep);
       return sep+`<div class="wa-b ${sd?"s":"e"} ${m.pend?"pend":""}">${novoBloco?`<div style="font-size:12.5px;font-weight:700;color:#C2541A;margin-bottom:2px">${esc(nome)}</div>`:""}${sd&&m.origem&&!["manual","celular"].includes(m.origem)?`<div class="tg">${esc((WA_ORIG[m.origem]||m.origem).toUpperCase())}</div>`:""}<div class="tx">${esc(m.texto||"")}</div>${waAnexo(m)}<div class="mt">${sd&&m.enviado_nome?esc(m.enviado_nome)+" · ":""}${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} ${tick(m)}</div></div>`}).join(""):`<p style="align-self:center;color:#54656F">Sem mensagens.</p>`}</div>
-    ${typeof waDmBloco==="function"?waDmBloco(ms):""}${waSecBloco(ms)}
+    ${typeof waDmBloco==="function"?waDmBloco(ms):""}
     <div class="wa-cp"><textarea id="wa-txt" aria-label="Mensagem" rows="1" placeholder="Digite uma mensagem"></textarea><button class="wa-send" data-wa="enviar" aria-label="Enviar">➤</button></div>`}
   const filtros=[["todas","Todas"],["aguardando","Aguardando"],["naolidas","Não lidas"],["transf","Transferidas"]];
   const painel=`<style>
